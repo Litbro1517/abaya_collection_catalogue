@@ -1,0 +1,187 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+
+@custom-variant dark (&:is(.dark *));
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+  --color-sidebar-ring: var(--sidebar-ring);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar: var(--sidebar);
+  --color-chart-5: var(--chart-5);
+  --color-chart-4: var(--chart-4);
+  --color-chart-3: var(--chart-3);
+  --color-chart-2: var(--chart-2);
+  --color-chart-1: var(--chart-1);
+  --color-ring: var(--ring);
+  --color-input: var(--input);
+  --color-border: var(--border);
+  --color-destructive: var(--destructive);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-accent: var(--accent);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-muted: var(--muted);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-secondary: var(--secondary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-primary: var(--primary);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-popover: var(--popover);
+  --color-card-foreground: var(--card-foreground);
+  --color-card: var(--card);
+  --color-gold: var(--gold);
+  --color-gold-foreground: var(--gold-foreground);
+  --color-cream: var(--cream);
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+}
+
+:root {
+  --radius: 0.75rem;
+  --background: #FAF8F5;
+  --foreground: #1A1A1A;
+  --card: #FFFFFF;
+  --card-foreground: #1A1A1A;
+  --popover: #FFFFFF;
+  --popover-foreground: #1A1A1A;
+  --primary: #1A1A1A;
+  --primary-foreground: #FAF8F5;
+  --secondary: #F5F0E8;
+  --secondary-foreground: #1A1A1A;
+  --muted: #F5F0E8;
+  --muted-foreground: #8C8C8C;
+  --accent: #F5F0E8;
+  --accent-foreground: #1A1A1A;
+  --destructive: #D32F2F;
+  --border: #E8E2D9;
+  --input: #E8E2D9;
+  --ring: #C9A84C;
+  --gold: #C9A84C;
+  --gold-foreground: #FFFFFF;
+  --cream: #FAF8F5;
+  --chart-1: #C9A84C;
+  --chart-2: #1A1A1A;
+  --chart-3: #8B4513;
+  --chart-4: #F48FB1;
+  --chart-5: #483C32;
+  --sidebar: #1A1A1A;
+  --sidebar-foreground: #FAF8F5;
+  --sidebar-primary: #C9A84C;
+  --sidebar-primary-foreground: #1A1A1A;
+  --sidebar-accent: #2D2D2D;
+  --sidebar-accent-foreground: #FAF8F5;
+  --sidebar-border: #333333;
+  --sidebar-ring: #C9A84C;
+}
+
+.dark {
+  --background: #0F0F0F;
+  --foreground: #FAF8F5;
+  --card: #1A1A1A;
+  --card-foreground: #FAF8F5;
+  --popover: #1A1A1A;
+  --popover-foreground: #FAF8F5;
+  --primary: #FAF8F5;
+  --primary-foreground: #1A1A1A;
+  --secondary: #2D2D2D;
+  --secondary-foreground: #FAF8F5;
+  --muted: #2D2D2D;
+  --muted-foreground: #8C8C8C;
+  --accent: #2D2D2D;
+  --accent-foreground: #FAF8F5;
+  --destructive: #EF5350;
+  --border: #333333;
+  --input: #333333;
+  --ring: #C9A84C;
+  --gold: #D4B85C;
+  --gold-foreground: #1A1A1A;
+  --cream: #1A1A1A;
+  --chart-1: #D4B85C;
+  --chart-2: #FAF8F5;
+  --chart-3: #A0522D;
+  --chart-4: #F48FB1;
+  --chart-5: #6B5B50;
+  --sidebar: #0A0A0A;
+  --sidebar-foreground: #FAF8F5;
+  --sidebar-primary: #C9A84C;
+  --sidebar-primary-foreground: #1A1A1A;
+  --sidebar-accent: #1A1A1A;
+  --sidebar-accent-foreground: #FAF8F5;
+  --sidebar-border: #2D2D2D;
+  --sidebar-ring: #C9A84C;
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  body {
+    @apply bg-background text-foreground;
+  }
+}
+
+/* Custom scrollbar */
+.custom-scrollbar::-webkit-scrollbar {
+  width: 6px;
+}
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background: #C9A84C40;
+  border-radius: 3px;
+}
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: #C9A84C80;
+}
+
+/* Smooth transitions */
+.transition-luxury {
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Gold shimmer effect */
+@keyframes shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+
+.gold-shimmer {
+  background: linear-gradient(90deg, #C9A84C 0%, #E8D48B 50%, #C9A84C 100%);
+  background-size: 200% 100%;
+  animation: shimmer 3s infinite;
+}
+
+/* Product card hover */
+.product-card-hover {
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+.product-card-hover:hover {
+  transform: scale(1.02);
+  box-shadow: 0 8px 30px rgba(201, 168, 76, 0.15);
+}
+
+/* Category pill active */
+.category-active {
+  background: #1A1A1A;
+  color: #FAF8F5;
+}
+
+/* Image placeholder skeleton */
+@keyframes pulse-soft {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.6; }
+}
+.skeleton-pulse {
+  animation: pulse-soft 2s ease-in-out infinite;
+}
