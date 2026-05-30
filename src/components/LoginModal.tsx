@@ -2,10 +2,9 @@
 
 import { useState } from 'react';
 import { useAppStore } from '@/lib/store';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import { Lock, Loader2 } from 'lucide-react';
+import { Lock, Loader2, BookOpen } from 'lucide-react';
 
 function GoogleIcon({ className }: { className?: string }) {
   return (
@@ -79,89 +78,99 @@ export function LoginModal() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-background">
-      <Dialog open={true}>
-        <DialogContent className="sm:max-w-md" onPointerDownOutside={(e) => e.preventDefault()}>
-          <DialogHeader>
-            <div className="flex items-center gap-3 mb-2">
-              <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
-                <Lock className="w-5 h-5 text-gold" />
-              </div>
-              <div>
-                <DialogTitle className="text-lg">Accès Administrateur</DialogTitle>
-                <DialogDescription className="text-sm text-muted-foreground">
-                  Entrez votre mot de passe ou connectez-vous avec Google
-                </DialogDescription>
-              </div>
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-cream via-background to-secondary/30 p-4">
+      {/* Background decoration */}
+      <div className="fixed inset-0 overflow-hidden pointer-events-none">
+        <div className="absolute -top-40 -right-40 w-80 h-80 bg-gold/5 rounded-full blur-3xl" />
+        <div className="absolute -bottom-40 -left-40 w-80 h-80 bg-gold/5 rounded-full blur-3xl" />
+      </div>
+
+      {/* Login card - rendered directly, no portal */}
+      <div className="relative w-full max-w-md">
+        <div className="bg-card border border-border rounded-2xl shadow-xl p-8 space-y-6">
+          {/* Header */}
+          <div className="flex flex-col items-center gap-3 text-center">
+            <div className="w-14 h-14 rounded-full bg-gold/10 flex items-center justify-center">
+              <BookOpen className="w-7 h-7 text-gold" />
             </div>
-          </DialogHeader>
+            <div>
+              <h2 className="text-xl font-semibold text-foreground">Abaya Collection</h2>
+              <p className="text-sm text-muted-foreground mt-1">Accès Administrateur</p>
+            </div>
+          </div>
 
-          <div className="space-y-4 mt-4">
-            {/* Google Sign In */}
-            <Button
-              variant="outline"
-              className="w-full h-11 gap-2"
-              onClick={handleGoogleLogin}
-              disabled={googleLoading || googleUnavailable}
-            >
-              {googleLoading ? (
-                <>
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                  Connexion Google...
-                </>
-              ) : (
-                <>
-                  <GoogleIcon className="w-4 h-4" />
-                  Se connecter avec Google
-                </>
-              )}
-            </Button>
+          {/* Google Sign In */}
+          <Button
+            variant="outline"
+            className="w-full h-11 gap-2 border-border"
+            onClick={handleGoogleLogin}
+            disabled={googleLoading || googleUnavailable}
+          >
+            {googleLoading ? (
+              <>
+                <Loader2 className="w-4 h-4 animate-spin" />
+                Connexion Google...
+              </>
+            ) : (
+              <>
+                <GoogleIcon className="w-4 h-4" />
+                Se connecter avec Google
+              </>
+            )}
+          </Button>
 
-            {googleUnavailable && (
-              <p className="text-xs text-muted-foreground text-center">Google non configuré</p>
+          {googleUnavailable && (
+            <p className="text-xs text-muted-foreground text-center">Google non configuré</p>
+          )}
+
+          {/* Divider */}
+          <div className="relative">
+            <div className="absolute inset-0 flex items-center">
+              <span className="w-full border-t border-border" />
+            </div>
+            <div className="relative flex justify-center text-xs uppercase">
+              <span className="bg-card px-2 text-muted-foreground">ou</span>
+            </div>
+          </div>
+
+          {/* Password Login */}
+          <form onSubmit={handleLogin} className="space-y-4">
+            <div className="relative">
+              <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+              <Input
+                type="password"
+                placeholder="Mot de passe"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                autoFocus
+                className="h-11 pl-10 border-border"
+              />
+            </div>
+
+            {error && (
+              <div className="bg-destructive/10 text-destructive text-sm rounded-lg px-3 py-2">
+                {error}
+              </div>
             )}
 
-            {/* Divider */}
-            <div className="relative">
-              <div className="absolute inset-0 flex items-center">
-                <span className="w-full border-t" />
-              </div>
-              <div className="relative flex justify-center text-xs uppercase">
-                <span className="bg-background px-2 text-muted-foreground">ou</span>
-              </div>
-            </div>
-
-            {/* Password Login */}
-            <form onSubmit={handleLogin} className="space-y-4">
-              <div>
-                <Input
-                  type="password"
-                  placeholder="Mot de passe"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  autoFocus
-                  className="h-11"
-                />
-              </div>
-
-              {error && (
-                <p className="text-sm text-destructive">{error}</p>
+            <Button type="submit" className="w-full h-11 bg-gold hover:bg-gold/90 text-gold-foreground" disabled={loading || !password}>
+              {loading ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  Connexion...
+                </>
+              ) : (
+                'Se connecter'
               )}
+            </Button>
+          </form>
 
-              <Button type="submit" className="w-full h-11" disabled={loading || !password}>
-                {loading ? (
-                  <>
-                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                    Connexion...
-                  </>
-                ) : (
-                  'Se connecter'
-                )}
-              </Button>
-            </form>
-          </div>
-        </DialogContent>
-      </Dialog>
+          {/* Footer */}
+          <p className="text-xs text-muted-foreground text-center">
+            Entrez votre mot de passe admin pour accéder au constructeur
+          </p>
+        </div>
+      </div>
     </div>
   );
 }

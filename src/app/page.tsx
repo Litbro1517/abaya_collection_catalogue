@@ -1,23 +1,25 @@
 'use client';
 
-import { useEffect, useCallback } from 'react';
+import { useEffect, useCallback, useState } from 'react';
 import { useAppStore } from '@/lib/store';
 import { BuilderShell } from '@/components/BuilderShell';
 import { CatalogPreview } from '@/components/preview/CatalogPreview';
 import { LoginModal } from '@/components/LoginModal';
+import { Loader2 } from 'lucide-react';
 
 export default function Home() {
   const {
     view,
     isAdmin,
     setIsAdmin,
-    pillar,
     setDataSources,
     setCatalog,
     setSettings,
     setLoading,
     setGoogleSession,
   } = useAppStore();
+
+  const [initializing, setInitializing] = useState(true);
 
   // Check auth on mount
   useEffect(() => {
@@ -130,12 +132,25 @@ export default function Home() {
       console.error('Failed to load data:', e);
     } finally {
       setLoading(false);
+      setInitializing(false);
     }
   }, [setDataSources, setCatalog, setSettings, setLoading]);
 
   useEffect(() => {
     loadData();
   }, [loadData]);
+
+  // Show loading screen while initializing
+  if (initializing) {
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center bg-background gap-3">
+        <div className="w-10 h-10 rounded-full bg-gold/10 flex items-center justify-center">
+          <Loader2 className="w-5 h-5 text-gold animate-spin" />
+        </div>
+        <p className="text-sm text-muted-foreground">Chargement...</p>
+      </div>
+    );
+  }
 
   // Show login if not admin
   if (!isAdmin) {
