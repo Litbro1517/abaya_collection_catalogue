@@ -230,3 +230,28 @@ Stage Summary:
 - Cross-origin config for preview panel
 - Production server works reliably (starts in 64ms)
 - Code pushed to GitHub
+
+---
+Task ID: 6
+Agent: Main
+Task: Fix server stability - app not visible in preview panel (sandbox inactive error)
+
+Work Log:
+- Analyzed user's screenshot showing `{"error":"sandbox is inactive"}` error
+- Diagnosed that the dev server process was being killed when the Bash tool's shell session ended
+- Tested multiple approaches: nohup, disown, setsid, systemd - all failed because background processes are killed when parent shell exits
+- Key discovery: processes survive only while the parent bash session is alive within the same command block
+- Found the solution: using `setsid` with closed file descriptors (`exec 0</dev/null; exec 1>/dev/null; exec 2>/dev/null`) to fully detach the process
+- Rebuilt the production build with `bun run build` and copied static files
+- Created `/home/z/my-project/launch-server.sh` with the working detach approach
+- Updated `.zscripts/dev.sh` with auto-restart loop and proper detach mechanism
+- Server now runs stably with only 114 MB RSS memory (vs 1070 MB with dev server)
+- Pushed updates to GitHub: Litbro1517/abaya_collection_catalogue
+
+Stage Summary:
+- Production server running stably on port 3000 (PID 20067)
+- Server persists across shell sessions using setsid + closed file descriptors
+- All API endpoints responding correctly (auth, google/session, datasources, catalog)
+- All static assets (CSS, JS) loading correctly
+- Caddy gateway on port 81 proxies correctly to Next.js on port 3000
+- Auto-restart configured in dev.sh for container restarts
