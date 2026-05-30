@@ -7,40 +7,138 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-model Category {
-  id        String    @id @default(cuid())
-  nom       String    @unique
-  slug      String    @unique
-  ordre     Int       @default(0)
-  active    Boolean   @default(true)
-  products  Product[]
+// ═══════════════════════════════════════════════════════════════
+// PILLAR 1: DATA - Dynamic data sources (Google Sheets-like)
+// ═══════════════════════════════════════════════════════════════
+
+model DataSource {
+  id          String    @id @default(cuid())
+  name        String
+  slug        String    @unique
+  description String?
+  icon        String    @default("Table")
+  color       String    @default("#C9A84C")
+  sourceType  String    @default("manual") // manual, csv, googlesheet
+  sourceUrl   String?   // URL for Google Sheet
+  columns     Column[]
+  rows        Row[]
+  relations   Relation[] @relation("SourceRelation")
+  targetRelations Relation[] @relation("TargetRelation")
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
 }
 
-model Product {
-  id              String    @id @default(cuid())
-  nOrdre          Int       @default(0)
-  nomProduit      String    @unique
-  prixVente       Float
-  prixAchat       Float?
-  categorieId     String?
-  categorie       Category? @relation(fields: [categorieId], references: [id], onDelete: SetNull)
-  description     String?
-  couleurs        String    @default("[]")
-  tailles         String    @default("[]")
-  imagePrincipale String?
-  imagesCarousel  String    @default("[]")
-  canalCommande   String    @default("whatsapp")
-  lienCommande    String?
-  stock           Int       @default(0)
-  disponible      Boolean   @default(true)
-  featured        Boolean   @default(false)
-  createdAt       DateTime  @default(now())
-  updatedAt       DateTime  @updatedAt
+model Column {
+  id           String     @id @default(cuid())
+  name         String
+  slug         String
+  type         String     @default("TEXT") // TEXT, NUMBER, CURRENCY, IMAGE, IMAGE_ARRAY, SELECT, MULTI_SELECT, RELATION, ARRAY, BOOLEAN, URL
+  dataSourceId String
+  dataSource   DataSource @relation(fields: [dataSourceId], references: [id], onDelete: Cascade)
+  order        Int        @default(0)
+  visible      Boolean    @default(true)
+  required     Boolean    @default(false)
+  config       String     @default("{}") // JSON: options for SELECT, sourceColumns for ARRAY, targetTable for RELATION, etc.
+  width        Int        @default(150)
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+
+  @@unique([dataSourceId, slug])
 }
 
-model Settings {
-  key   String @id
-  value String @default("")
+model Row {
+  id           String     @id @default(cuid())
+  dataSourceId String
+  dataSource   DataSource @relation(fields: [dataSourceId], references: [id], onDelete: Cascade)
+  data         String     @default("{}") // JSON: { columnSlug: value, ... }
+  order        Int        @default(0)
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+}
+
+model Relation {
+  id             String     @id @default(cuid())
+  name           String
+  sourceTableId  String
+  sourceTable    DataSource @relation("SourceRelation", fields: [sourceTableId], references: [id], onDelete: Cascade)
+  sourceColumnId String     // Column in source table that holds the reference
+  targetTableId  String
+  targetTable    DataSource @relation("TargetRelation", fields: [targetTableId], references: [id], onDelete: Cascade)
+  type           String     @default("manyToOne") // manyToOne, oneToMany, manyToMany
+  createdAt      DateTime   @default(now())
+}
+
+// ═══════════════════════════════════════════════════════════════
+// PILLAR 2: LAYOUT - Visual catalog configuration
+// ═══════════════════════════════════════════════════════════════
+
+model Catalog {
+  id           String   @id @default(cuid())
+  name         String   @default("Mon Catalogue")
+  slug         String   @default("mon-catalogue") @unique
+  published    Boolean  @default(false)
+  sections     Section[]
+  settings     CatalogSettings?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+}
+
+model Section {
+  id           String   @id @default(cuid())
+  catalogId    String
+  catalog      Catalog  @relation(fields: [catalogId], references: [id], onDelete: Cascade)
+  type         String   @default("collection") // collection, hero, featured, text
+  title        String?
+  subtitle     String?
+  config       String   @default("{}") // JSON: layout-specific config
+  order        Int      @default(0)
+  visible      Boolean  @default(true)
+  components   Component[]
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+}
+
+model Component {
+  id          String   @id @default(cuid())
+  sectionId   String
+  section     Section  @relation(fields: [sectionId], references: [id], onDelete: Cascade)
+  type        String   @default("card") // card, carousel, grid, detail, button, text, image
+  config      String   @default("{}") // JSON: column mappings, styles, etc.
+  order       Int      @default(0)
+  visible     Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+// ═══════════════════════════════════════════════════════════════
+// PILLAR 3: SETTINGS
+// ═══════════════════════════════════════════════════════════════
+
+model CatalogSettings {
+  id                String   @id @default(cuid())
+  catalogId         String   @unique
+  catalog           Catalog  @relation(fields: [catalogId], references: [id], onDelete: Cascade)
+  language          String   @default("fr") // fr, en, ar
+  currency          String   @default("MAD") // MAD, EUR, USD
+  whatsappNumber    String   @default("")
+  messengerLink     String   @default("")
+  emailContact      String   @default("")
+  instagramHandle   String   @default("")
+  primaryColor      String   @default("#C9A84C")
+  secondaryColor    String   @default("#1A1A1A")
+  accentColor       String   @default("#F5F0E8")
+  backgroundColor   String   @default("#FAF8F5")
+  fontFamily        String   @default("inter") // inter, playfair, roboto
+  enableZoom        Boolean  @default(true)
+  enableSearch      Boolean  @default(true)
+  enableSharing     Boolean  @default(true)
+  conversionChannel String   @default("whatsapp") // whatsapp, messenger, landing, email
+  conversionMessage String   @default("")
+  customCSS         String   @default("")
+  favicon           String?
+  logo              String?
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
 }
 
 model AdminSession {
@@ -48,4 +146,9 @@ model AdminSession {
   token     String   @unique
   createdAt DateTime @default(now())
   expiresAt DateTime
+}
+
+model Settings {
+  key   String @id
+  value String @default("")
 }

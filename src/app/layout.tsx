@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Playfair_Display, Inter } from "next/font/google";
 import "./globals.css";
 import { Toaster } from "@/components/ui/sonner";
+import { TooltipProvider } from "@/components/ui/tooltip";
 
 const playfair = Playfair_Display({
   variable: "--font-playfair",
@@ -16,9 +17,8 @@ const inter = Inter({
 });
 
 export const metadata: Metadata = {
-  title: "Abaya Chic Collection — Mode Islamique Féminine",
-  description: "Découvrez notre collection exclusive d'abayas, ensembles et robes élégantes. Boutique en ligne basée à Marrakech, Maroc.",
-  keywords: ["abaya", "mode islamique", "robe", "ensemble", "Marrakech", "Maroc"],
+  title: "Catalogue Constructeur — Créez votre catalogue produit",
+  description: "Constructeur de catalogue dynamique. Importez vos données, configurez l'affichage, partagez avec vos clients via WhatsApp, Messenger et plus.",
   icons: {
     icon: "/logo.svg",
   },
@@ -34,7 +34,9 @@ export default function RootLayout({
       <body
         className={`${playfair.variable} ${inter.variable} antialiased bg-background text-foreground`}
       >
-        {children}
+        <TooltipProvider>
+          {children}
+        </TooltipProvider>
         <Toaster position="bottom-right" richColors />
       </body>
     </html>

@@ -1,72 +1,216 @@
-// ─── Primitives ───────────────────────────────────────────────────────────────
+// ─── Column Types ─────────────────────────────────────────────────────────
 
-export type Canal = 'whatsapp' | 'instagram' | 'landing' | 'email';
+export type ColumnType =
+  | 'TEXT'
+  | 'NUMBER'
+  | 'CURRENCY'
+  | 'IMAGE'
+  | 'IMAGE_ARRAY'
+  | 'SELECT'
+  | 'MULTI_SELECT'
+  | 'RELATION'
+  | 'ARRAY'
+  | 'BOOLEAN'
+  | 'URL';
 
-export interface Couleur {
-  nom: string;
-  hex: string;
-}
+export const COLUMN_TYPE_OPTIONS: { value: ColumnType; label: string; icon: string }[] = [
+  { value: 'TEXT', label: 'Texte', icon: 'Type' },
+  { value: 'NUMBER', label: 'Nombre', icon: 'Hash' },
+  { value: 'CURRENCY', label: 'Prix', icon: 'Banknote' },
+  { value: 'IMAGE', label: 'Image', icon: 'Image' },
+  { value: 'IMAGE_ARRAY', label: "Galerie d'images", icon: 'Images' },
+  { value: 'SELECT', label: 'Sélection', icon: 'ChevronDown' },
+  { value: 'MULTI_SELECT', label: 'Multi-sélection', icon: 'ListChecks' },
+  { value: 'RELATION', label: 'Relation', icon: 'Link' },
+  { value: 'ARRAY', label: 'Groupe (Array)', icon: 'Layers' },
+  { value: 'BOOLEAN', label: 'Oui/Non', icon: 'ToggleRight' },
+  { value: 'URL', label: 'Lien', icon: 'ExternalLink' },
+];
 
-// ─── Entités base de données ──────────────────────────────────────────────────
+// ─── Data Source ──────────────────────────────────────────────────────────
 
-export interface Category {
+export interface DataSource {
   id: string;
-  nom: string;
+  name: string;
   slug: string;
-  ordre: number;
-  active: boolean;
-}
-
-export interface Product {
-  id: string;
-  nOrdre: number;
-  nomProduit: string;
-  prixVente: number;
-  prixAchat: number | null;
-  categorieId: string | null;
   description: string | null;
-  couleurs: Couleur[];
-  tailles: string[];
-  imagePrincipale: string | null;
-  imagesCarousel: string[];
-  canalCommande: Canal;
-  lienCommande: string | null;
-  stock: number;
-  disponible: boolean;
-  featured: boolean;
+  icon: string;
+  color: string;
+  sourceType: string;
+  sourceUrl: string | null;
+  columns: Column[];
+  rows: Row[];
+  relations: Relation[];
   createdAt: string;
   updatedAt: string;
-  categorie?: Category | null;
 }
 
-export interface Settings {
-  maintenanceMode: boolean;
-  maintenanceMessage: string;
+export interface Column {
+  id: string;
+  name: string;
+  slug: string;
+  type: ColumnType;
+  dataSourceId: string;
+  order: number;
+  visible: boolean;
+  required: boolean;
+  config: ColumnConfig;
+  width: number;
+  createdAt: string;
+  updatedAt: string;
 }
 
-// ─── Formulaires ──────────────────────────────────────────────────────────────
-
-export interface ProductFormValues {
-  nomProduit: string;
-  categorieId: string;
-  description: string;
-  prixVente: number;
-  prixAchat: number | null;
-  couleurs: Couleur[];
-  tailles: string[];
-  imagePrincipale: string;
-  imagesCarousel: string[];
-  canalCommande: Canal;
-  lienCommande: string;
-  stock: number;
-  nOrdre: number;
-  disponible: boolean;
-  featured: boolean;
+export interface ColumnConfig {
+  options?: string[];           // For SELECT, MULTI_SELECT
+  sourceColumns?: string[];     // For ARRAY - slugs of columns to group
+  targetTableId?: string;       // For RELATION
+  targetColumnId?: string;      // For RELATION
+  currencySymbol?: string;      // For CURRENCY
+  imagePrefix?: string;         // For IMAGE - URL prefix
+  trueLabel?: string;           // For BOOLEAN
+  falseLabel?: string;          // For BOOLEAN
+  [key: string]: unknown;
 }
 
-// ─── API ──────────────────────────────────────────────────────────────────────
+export interface Row {
+  id: string;
+  dataSourceId: string;
+  data: Record<string, unknown>;
+  order: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface Relation {
+  id: string;
+  name: string;
+  sourceTableId: string;
+  sourceColumnId: string;
+  targetTableId: string;
+  type: 'manyToOne' | 'oneToMany' | 'manyToMany';
+  createdAt: string;
+}
+
+// ─── Layout ───────────────────────────────────────────────────────────────
+
+export interface Catalog {
+  id: string;
+  name: string;
+  slug: string;
+  published: boolean;
+  sections: Section[];
+  settings: CatalogSettings | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface Section {
+  id: string;
+  catalogId: string;
+  type: SectionType;
+  title: string | null;
+  subtitle: string | null;
+  config: SectionConfig;
+  order: number;
+  visible: boolean;
+  components: Component[];
+  createdAt: string;
+  updatedAt: string;
+}
+
+export type SectionType = 'collection' | 'hero' | 'featured' | 'text';
+
+export interface SectionConfig {
+  dataSourceId?: string;
+  columnsPerRow?: number;
+  cardStyle?: 'elevated' | 'flat' | 'bordered';
+  showTitle?: boolean;
+  showDescription?: boolean;
+  showPrice?: boolean;
+  filterColumn?: string;
+  filterValue?: string;
+  // Level 1: Collection mapping
+  titleColumn?: string;       // Column slug for card title
+  descriptionColumn?: string; // Column slug for card description
+  coverColumn?: string;       // Column slug for cover image (Level 2)
+  priceColumn?: string;       // Column slug for price
+  // Level 3: Detail/Carousel
+  carouselColumn?: string;    // ARRAY/IMAGE_ARRAY column slug for carousel
+  detailColumns?: string[];   // Column slugs to show in detail view
+  variantColumn?: string;     // Column slug for color/variant display
+  [key: string]: unknown;
+}
+
+export interface Component {
+  id: string;
+  sectionId: string;
+  type: ComponentType;
+  config: ComponentConfig;
+  order: number;
+  visible: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export type ComponentType = 'card' | 'carousel' | 'grid' | 'detail' | 'button' | 'text' | 'image';
+
+export interface ComponentConfig {
+  columnMapping?: Record<string, string>;
+  style?: Record<string, string>;
+  [key: string]: unknown;
+}
+
+// ─── Settings ─────────────────────────────────────────────────────────────
+
+export interface CatalogSettings {
+  id: string;
+  catalogId: string;
+  language: string;
+  currency: string;
+  whatsappNumber: string;
+  messengerLink: string;
+  emailContact: string;
+  instagramHandle: string;
+  primaryColor: string;
+  secondaryColor: string;
+  accentColor: string;
+  backgroundColor: string;
+  fontFamily: string;
+  enableZoom: boolean;
+  enableSearch: boolean;
+  enableSharing: boolean;
+  conversionChannel: string;
+  conversionMessage: string;
+  customCSS: string;
+  favicon: string | null;
+  logo: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+// ─── App State ────────────────────────────────────────────────────────────
+
+export type AppView = 'preview' | 'builder';
+export type Pillar = 'data' | 'layout' | 'settings';
+
+export interface ImportResult {
+  success: boolean;
+  dataSourceId?: string;
+  rowsCreated?: number;
+  columnsCreated?: number;
+  error?: string;
+}
+
+// ─── API ──────────────────────────────────────────────────────────────────
 
 export interface ApiResponse<T> {
   data: T | null;
   error: string | null;
+}
+
+export interface PaginatedResponse<T> {
+  data: T[];
+  total: number;
+  page: number;
+  totalPages: number;
 }

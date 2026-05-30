@@ -1,64 +1,80 @@
-import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
-import { ADMIN_PASSWORD } from '@/lib/constants';
+import { NextRequest, NextResponse } from 'next/server';
+import { cookies } from 'next/headers';
+import { v4 as uuidv4 } from 'uuid';
+
+export async function GET() {
+  try {
+    const cookieStore = await cookies();
+    const token = cookieStore.get('admin_token')?.value;
+
+    if (!token) {
+      return NextResponse.json({ authenticated: false });
+    }
+
+    const session = await db.adminSession.findUnique({
+      where: { token },
+    });
+
+    if (!session || new Date(session.expiresAt) < new Date()) {
+      return NextResponse.json({ authenticated: false });
+    }
+
+    return NextResponse.json({ authenticated: true });
+  } catch (e) {
+    return NextResponse.json({ authenticated: false });
+  }
+}
 
 export async function POST(req: NextRequest) {
   try {
     const { password } = await req.json();
 
-    if (password !== ADMIN_PASSWORD) {
-      return NextResponse.json({ error: 'Mot de passe incorrect' }, { status: 401 });
+    // Get admin password from settings
+    const setting = await db.settings.findUnique({ where: { key: 'adminPassword' } });
+    const adminPassword = setting?.value || 'abayachic2024';
+
+    if (password !== adminPassword) {
+      return NextResponse.json({ data: null, error: 'Mot de passe incorrect' }, { status: 401 });
     }
 
-    const token = crypto.randomUUID();
-    const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000); // 7 days
+    // Create session
+    const token = uuidv4();
+    const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24h
 
     await db.adminSession.create({
       data: { token, expiresAt },
     });
 
-    const response = NextResponse.json({ success: true, token });
+    const response = NextResponse.json({ data: { authenticated: true }, error: null });
     response.cookies.set('admin_token', token, {
       httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
+      secure: false,
       sameSite: 'lax',
       expires: expiresAt,
       path: '/',
     });
 
     return response;
-  } catch {
-    return NextResponse.json({ error: 'Erreur serveur' }, { status: 500 });
+  } catch (e) {
+    return NextResponse.json({ data: null, error: 'Login failed' }, { status: 500 });
   }
 }
 
-export async function DELETE(req: NextRequest) {
-  const token = req.cookies.get('admin_token')?.value;
+export async function DELETE() {
+  try {
+    const cookieStore = await cookies();
+    const token = cookieStore.get('admin_token')?.value;
 
-  if (token) {
-    await db.adminSession.deleteMany({ where: { token } }).catch(() => {});
-  }
-
-  const response = NextResponse.json({ success: true });
-  response.cookies.set('admin_token', '', { maxAge: 0, path: '/' });
-  return response;
-}
-
-export async function GET(req: NextRequest) {
-  const token = req.cookies.get('admin_token')?.value;
-
-  if (!token) {
-    return NextResponse.json({ authenticated: false });
-  }
-
-  const session = await db.adminSession.findUnique({ where: { token } });
-
-  if (!session || session.expiresAt < new Date()) {
-    if (session) {
-      await db.adminSession.delete({ where: { token } }).catch(() => {});
+    if (token) {
+      await db.adminSession.deleteMany({ where: { token } });
     }
-    return NextResponse.json({ authenticated: false });
-  }
 
-  return NextResponse.json({ authenticated: true });
+    const response = NextResponse.json({ data: { authenticated: false }, error: null });
+    response.cookies.set('admin_token', '', { expires: new Date(0), path: '/' });
+
+    return response;
+  } catch (e) {
+    return NextResponse.json({ data: null, error: 'Logout failed' }, { status: 500 });
+  }
 }
