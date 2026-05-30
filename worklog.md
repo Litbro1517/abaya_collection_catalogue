@@ -202,3 +202,31 @@ Stage Summary:
   - Google session indicator in BuilderShell top bar
   - Sync status indicator in DataPillar toolbar
   - Manual Google Sheet URL import option
+
+---
+Task ID: 5
+Agent: Main
+Task: Fix app visibility on preview panel, deploy to GitHub
+
+Work Log:
+- Identified cross-origin warning from preview panel (space-z.ai domain)
+- Added allowedDevOrigins to next.config.ts for .space-z.ai domain
+- Added Google Drive image remotePatterns to next.config.ts
+- Fixed LoginModal: replaced Dialog portal with direct SSR-rendered card
+  - Old: Dialog with Portal (invisible in SSR, requires JS hydration)
+  - New: Direct card with gradient background, gold branding, inline form
+  - Renders visible content immediately on server side
+- Updated page.tsx: added loading state with gold spinner during initialization
+- Changed dev script from Turbopack to webpack (--webpack flag) for stability
+- Removed `| tee dev.log` pipe from dev script that was causing process death
+- Created .zscripts/dev.sh for custom server startup (production build mode)
+- Pushed all fixes to GitHub: Litbro1517/abaya_collection_catalogue
+- Admin password: abayachic2024
+
+Stage Summary:
+- LoginModal now renders in SSR without Dialog portal
+- Loading state shows gold spinner during initialization
+- Webpack dev server for stability
+- Cross-origin config for preview panel
+- Production server works reliably (starts in 64ms)
+- Code pushed to GitHub
