@@ -1,0 +1,130 @@
+'use client';
+
+import { useAppStore } from '@/lib/store';
+import { Card } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { Sheet, Unplug, RefreshCw, Loader2 } from 'lucide-react';
+import { toast } from 'sonner';
+
+export function GoogleConnectPanel() {
+  const { googleSession, setGoogleSession, setSyncStatus, setSyncMessage, syncStatus } = useAppStore();
+
+  const handleConnect = async () => {
+    try {
+      const res = await fetch('/api/google/auth');
+      if (res.ok) {
+        const json = await res.json();
+        if (json.url) {
+          window.location.href = json.url;
+        }
+      } else {
+        toast.error('Google non configuré');
+      }
+    } catch {
+      toast.error('Erreur de connexion Google');
+    }
+  };
+
+  const handleDisconnect = async () => {
+    try {
+      const res = await fetch('/api/google/session', { method: 'DELETE' });
+      if (res.ok) {
+        setGoogleSession(null);
+        toast.success('Google déconnecté');
+      }
+    } catch {
+      toast.error('Erreur de déconnexion');
+    }
+  };
+
+  const handleSync = async () => {
+    setSyncStatus('syncing');
+    setSyncMessage('Synchronisation en cours...');
+    try {
+      const res = await fetch('/api/google/sync', { method: 'POST' });
+      if (res.ok) {
+        setSyncStatus('success');
+        setSyncMessage('Synchronisé avec succès');
+        setTimeout(() => setSyncStatus('idle'), 3000);
+      } else {
+        const json = await res.json();
+        setSyncStatus('error');
+        setSyncMessage(json.error || 'Erreur de synchronisation');
+        setTimeout(() => setSyncStatus('idle'), 5000);
+      }
+    } catch {
+      setSyncStatus('error');
+      setSyncMessage('Erreur de connexion');
+      setTimeout(() => setSyncStatus('idle'), 5000);
+    }
+  };
+
+  const isSyncing = syncStatus === 'syncing';
+
+  if (!googleSession) {
+    return (
+      <Card className="p-3">
+        <div className="flex items-center gap-2">
+          <div className="w-8 h-8 rounded-full bg-muted flex items-center justify-center">
+            <Sheet className="w-4 h-4 text-muted-foreground" />
+          </div>
+          <div className="flex-1 min-w-0">
+            <p className="text-xs font-medium">Google Sheets</p>
+            <p className="text-[10px] text-muted-foreground">Non connecté</p>
+          </div>
+          <Button size="sm" variant="outline" className="h-7 text-xs gap-1.5 shrink-0" onClick={handleConnect}>
+            <Sheet className="w-3 h-3" />
+            Connecter
+          </Button>
+        </div>
+      </Card>
+    );
+  }
+
+  const initials = (googleSession.name || googleSession.email || 'G').charAt(0).toUpperCase();
+  const lastSync = googleSession.updatedAt
+    ? new Date(googleSession.updatedAt).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })
+    : '';
+
+  return (
+    <Card className="p-3">
+      <div className="flex items-center gap-2">
+        <Avatar className="w-8 h-8">
+          {googleSession.picture && <AvatarImage src={googleSession.picture} alt={googleSession.name || ''} />}
+          <AvatarFallback className="text-xs bg-green-100 text-green-700">{initials}</AvatarFallback>
+        </Avatar>
+        <div className="flex-1 min-w-0">
+          <p className="text-xs font-medium truncate">{googleSession.name || 'Google'}</p>
+          <p className="text-[10px] text-muted-foreground truncate">{googleSession.email}</p>
+        </div>
+        <div className="flex items-center gap-1 shrink-0">
+          <Button
+            size="sm"
+            variant="ghost"
+            className="h-7 w-7 p-0"
+            onClick={handleSync}
+            disabled={isSyncing}
+            title="Synchroniser"
+          >
+            {isSyncing ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <RefreshCw className="w-3.5 h-3.5" />}
+          </Button>
+          <Button
+            size="sm"
+            variant="ghost"
+            className="h-7 w-7 p-0 text-muted-foreground hover:text-destructive"
+            onClick={handleDisconnect}
+            title="Déconnecter"
+          >
+            <Unplug className="w-3.5 h-3.5" />
+          </Button>
+        </div>
+      </div>
+      {lastSync && (
+        <p className="text-[10px] text-muted-foreground mt-1.5 pl-10">
+          Dernière sync : {lastSync}
+        </p>
+      )}
+    </Card>
+  );
+}

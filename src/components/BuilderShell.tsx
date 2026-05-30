@@ -14,20 +14,38 @@ import {
   ChevronLeft,
   LogOut,
   BookOpen,
+  Sheet,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { Separator } from '@/components/ui/separator';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { useToast } from '@/hooks/use-toast';
 
 export function BuilderShell() {
-  const { pillar, setPillar, view, setView, catalog, sidebarCollapsed, setSidebarCollapsed, setIsAdmin } = useAppStore();
+  const { pillar, setPillar, view, setView, catalog, sidebarCollapsed, setSidebarCollapsed, setIsAdmin, googleSession, setShowGoogleSheetsBrowser } = useAppStore();
   const { toast } = useToast();
 
   const handleLogout = async () => {
     await fetch('/api/auth', { method: 'DELETE' });
     setIsAdmin(false);
     toast({ title: 'Déconnecté', description: 'Vous avez été déconnecté' });
+  };
+
+  const handleConnectGoogle = async () => {
+    try {
+      const res = await fetch('/api/google/auth');
+      if (res.ok) {
+        const json = await res.json();
+        if (json.url) {
+          window.location.href = json.url;
+        }
+      } else {
+        toast({ title: 'Google non configuré', description: 'Veuillez configurer les identifiants Google' });
+      }
+    } catch {
+      toast({ title: 'Erreur', description: 'Impossible de se connecter à Google' });
+    }
   };
 
   const pillars = [
@@ -51,6 +69,44 @@ export function BuilderShell() {
         </div>
 
         <div className="flex-1" />
+
+        {/* Google session indicator */}
+        {googleSession ? (
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <button
+                className="flex items-center gap-1.5 px-2 py-1 rounded-md hover:bg-muted transition-colors"
+                onClick={() => setShowGoogleSheetsBrowser(true)}
+              >
+                <Avatar className="w-6 h-6">
+                  {googleSession.picture && <AvatarImage src={googleSession.picture} alt={googleSession.name || ''} />}
+                  <AvatarFallback className="text-[10px] bg-green-100 text-green-700">
+                    {(googleSession.name || googleSession.email || 'G').charAt(0).toUpperCase()}
+                  </AvatarFallback>
+                </Avatar>
+                <span className="text-xs text-muted-foreground hidden sm:inline max-w-[120px] truncate">
+                  {googleSession.name || googleSession.email}
+                </span>
+              </button>
+            </TooltipTrigger>
+            <TooltipContent>Connecté à Google : {googleSession.email}</TooltipContent>
+          </Tooltip>
+        ) : (
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <button
+                className="flex items-center gap-1.5 px-2 py-1 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+                onClick={handleConnectGoogle}
+              >
+                <Sheet className="w-4 h-4" />
+                <span className="text-xs hidden sm:inline">Connecter Google</span>
+              </button>
+            </TooltipTrigger>
+            <TooltipContent>Connecter votre compte Google Sheets</TooltipContent>
+          </Tooltip>
+        )}
+
+        <Separator orientation="vertical" className="h-6" />
 
         {/* View toggle */}
         <div className="flex items-center bg-muted rounded-lg p-0.5">

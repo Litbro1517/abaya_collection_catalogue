@@ -12,20 +12,25 @@ datasource db {
 // ═══════════════════════════════════════════════════════════════
 
 model DataSource {
-  id          String    @id @default(cuid())
-  name        String
-  slug        String    @unique
-  description String?
-  icon        String    @default("Table")
-  color       String    @default("#C9A84C")
-  sourceType  String    @default("manual") // manual, csv, googlesheet
-  sourceUrl   String?   // URL for Google Sheet
-  columns     Column[]
-  rows        Row[]
-  relations   Relation[] @relation("SourceRelation")
+  id            String    @id @default(cuid())
+  name          String
+  slug          String    @unique
+  description   String?
+  icon          String    @default("Table")
+  color         String    @default("#C9A84C")
+  sourceType    String    @default("manual") // manual, csv, googlesheet
+  sourceUrl     String?   // URL for Google Sheet
+  sheetId       String?   // Google Sheet ID
+  sheetName     String?   // Specific sheet/tab name
+  syncInterval  Int       @default(0) // minutes (0 = manual only)
+  lastSyncedAt  DateTime?
+  googleSessionId String? // Reference to the Google session used
+  columns       Column[]
+  rows          Row[]
+  relations     Relation[] @relation("SourceRelation")
   targetRelations Relation[] @relation("TargetRelation")
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
 }
 
 model Column {
@@ -141,11 +146,28 @@ model CatalogSettings {
   updatedAt         DateTime @updatedAt
 }
 
+// ═══════════════════════════════════════════════════════════════
+// GOOGLE INTEGRATION
+// ═══════════════════════════════════════════════════════════════
+
 model AdminSession {
   id        String   @id @default(cuid())
   token     String   @unique
   createdAt DateTime @default(now())
   expiresAt DateTime
+}
+
+model GoogleSession {
+  id            String   @id @default(cuid())
+  accessToken   String
+  refreshToken  String?
+  tokenExpiry   DateTime
+  scope         String   @default("")
+  email         String?
+  name          String?
+  picture       String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
 }
 
 model Settings {

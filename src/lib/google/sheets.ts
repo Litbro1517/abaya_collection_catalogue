@@ -1,0 +1,271 @@
+/**
+ * Google Sheets API Helper
+ * 
+ * Handles fetching and parsing Google Sheets data.
+ * Supports two modes:
+ * 1. Public sheets (published as CSV) - no auth required
+ * 2. Private sheets (via Google API) - requires OAuth token
+ */
+
+import { detectImageColumns, extractSheetId } from './drive-images';
+
+/**
+ * Fetch a public Google Sheet as CSV
+ * The sheet must be published to the web (File > Share > Publish to web)
+ */
+export async function fetchPublicSheetAsCsv(sheetUrl: string, sheetName?: string): Promise<{
+  headers: string[];
+  rows: string[][];
+  imageColumns: string[];
+  columnTypes: import('@/types').ColumnType[];
+} | null> {
+  const sheetId = extractSheetId(sheetUrl);
+  if (!sheetId) return null;
+  
+  // Try the CSV export URL (works for public sheets)
+  const csvUrl = sheetName
+    ? `https://docs.google.com/spreadsheets/d/${sheetId}/gviz/tq?tqx=out:csv&sheet=${encodeURIComponent(sheetName)}`
+    : `https://docs.google.com/spreadsheets/d/${sheetId}/gviz/tq?tqx=out:csv`;
+  
+  try {
+    const response = await fetch(csvUrl, {
+      headers: { 'Accept': 'text/csv' },
+    });
+    
+    if (!response.ok) {
+      // Try the export URL
+      const exportUrl = `https://docs.google.com/spreadsheets/d/${sheetId}/export?format=csv`;
+      const exportRes = await fetch(exportUrl);
+      if (!exportRes.ok) return null;
+      const csvText = await exportRes.text();
+      return parseCsvAndDetect(csvText);
+    }
+    
+    const csvText = await response.text();
+    return parseCsvAndDetect(csvText);
+  } catch (e) {
+    console.error('Failed to fetch public sheet:', e);
+    return null;
+  }
+}
+
+/**
+ * Fetch a private Google Sheet via the Sheets API (requires OAuth)
+ */
+export async function fetchPrivateSheetData(
+  accessToken: string,
+  sheetId: string,
+  sheetName?: string
+): Promise<{
+  headers: string[];
+  rows: string[][];
+  imageColumns: string[];
+  columnTypes: import('@/types').ColumnType[];
+} | null> {
+  try {
+    // First, get spreadsheet metadata to find sheet names
+    const metaUrl = `https://sheets.googleapis.com/v4/spreadsheets/${sheetId}`;
+    const metaRes = await fetch(metaUrl, {
+      headers: { 'Authorization': `Bearer ${accessToken}` },
+    });
+    
+    if (!metaRes.ok) return null;
+    const metaData = await metaRes.json();
+    
+    // Find the target sheet or use the first one
+    const sheets = metaData.sheets || [];
+    let targetSheet = sheets[0];
+    
+    if (sheetName) {
+      const found = sheets.find((s: { properties: { title: string } }) => s.properties.title === sheetName);
+      if (found) targetSheet = found;
+    }
+    
+    const range = sheetName
+      ? `'${sheetName}'`
+      : `'${targetSheet?.properties?.title || 'Sheet1'}'`;
+    
+    // Fetch the data
+    const dataUrl = `https://sheets.googleapis.com/v4/spreadsheets/${sheetId}/values/${encodeURIComponent(range)}`;
+    const dataRes = await fetch(dataUrl, {
+      headers: { 'Authorization': `Bearer ${accessToken}` },
+    });
+    
+    if (!dataRes.ok) return null;
+    const data = await dataRes.json();
+    
+    const values = data.values || [];
+    if (values.length === 0) return null;
+    
+    // First row is headers
+    const headers = values[0].map((h: string) => h.trim());
+    const rows = values.slice(1).map((row: string[]) => {
+      // Pad short rows with empty strings
+      while (row.length < headers.length) row.push('');
+      return row.slice(0, headers.length);
+    });
+    
+    // Detect image columns and types
+    const { imageColumns, columnTypes } = detectImageColumns(headers, rows);
+    
+    return { headers, rows, imageColumns, columnTypes };
+  } catch (e) {
+    console.error('Failed to fetch private sheet:', e);
+    return null;
+  }
+}
+
+/**
+ * List Google Sheets from the user's Drive
+ */
+export async function listDriveSheets(accessToken: string): Promise<import('@/types').GoogleSheetInfo[]> {
+  try {
+    const url = 'https://www.googleapis.com/drive/v3/files?q=mimeType%3D%22application%2Fvnd.google-apps.spreadsheet%22&fields=files(id,name,mimeType,modifiedTime,webViewLink,thumbnailLink,iconLink,owners(displayName,emailAddress))&orderBy=modifiedTime desc&pageSize=50';
+    
+    const res = await fetch(url, {
+      headers: { 'Authorization': `Bearer ${accessToken}` },
+    });
+    
+    if (!res.ok) return [];
+    const data = await res.json();
+    
+    return (data.files || []).map((file: {
+      id: string;
+      name: string;
+      mimeType: string;
+      modifiedTime: string;
+      webViewLink: string;
+      thumbnailLink?: string;
+      iconLink?: string;
+      owners?: { displayName: string; emailAddress: string }[];
+    }) => ({
+      id: file.id,
+      name: file.name,
+      mimeType: file.mimeType,
+      modifiedTime: file.modifiedTime,
+      webViewLink: file.webViewLink,
+      thumbnailLink: file.thumbnailLink,
+      iconLink: file.iconLink,
+      owners: file.owners,
+    }));
+  } catch (e) {
+    console.error('Failed to list Drive sheets:', e);
+    return [];
+  }
+}
+
+/**
+ * List sheets (tabs) within a Google Spreadsheet
+ */
+export async function listSpreadsheetTabs(
+  accessToken: string,
+  sheetId: string
+): Promise<string[]> {
+  try {
+    const url = `https://sheets.googleapis.com/v4/spreadsheets/${sheetId}?fields=sheets.properties.title`;
+    const res = await fetch(url, {
+      headers: { 'Authorization': `Bearer ${accessToken}` },
+    });
+    
+    if (!res.ok) return [];
+    const data = await res.json();
+    
+    return (data.sheets || []).map((s: { properties: { title: string } }) => s.properties.title);
+  } catch (e) {
+    console.error('Failed to list spreadsheet tabs:', e);
+    return [];
+  }
+}
+
+/**
+ * Parse CSV text and detect image columns
+ */
+function parseCsvAndDetect(csvText: string): {
+  headers: string[];
+  rows: string[][];
+  imageColumns: string[];
+  columnTypes: import('@/types').ColumnType[];
+} | null {
+  const rows = parseCSV(csvText);
+  if (rows.length === 0) return null;
+  
+  const headers = rows[0];
+  const dataRows = rows.slice(1);
+  
+  const { imageColumns, columnTypes } = detectImageColumns(headers, dataRows);
+  
+  return { headers, rows: dataRows, imageColumns, columnTypes };
+}
+
+/**
+ * Robust CSV parser that handles quoted fields, commas in values, etc.
+ */
+export function parseCSV(text: string): string[][] {
+  const rows: string[][] = [];
+  let currentRow: string[] = [];
+  let currentField = '';
+  let inQuotes = false;
+  
+  for (let i = 0; i < text.length; i++) {
+    const char = text[i];
+    const nextChar = text[i + 1];
+    
+    if (inQuotes) {
+      if (char === '"') {
+        if (nextChar === '"') {
+          // Escaped quote
+          currentField += '"';
+          i++; // Skip next quote
+        } else {
+          // End of quoted field
+          inQuotes = false;
+        }
+      } else {
+        currentField += char;
+      }
+    } else {
+      if (char === '"') {
+        inQuotes = true;
+      } else if (char === ',') {
+        currentRow.push(currentField.trim());
+        currentField = '';
+      } else if (char === '\n' || (char === '\r' && nextChar === '\n')) {
+        currentRow.push(currentField.trim());
+        if (currentRow.some(f => f.length > 0)) {
+          rows.push(currentRow);
+        }
+        currentRow = [];
+        currentField = '';
+        if (char === '\r') i++; // Skip \n after \r
+      } else if (char === '\r') {
+        currentRow.push(currentField.trim());
+        if (currentRow.some(f => f.length > 0)) {
+          rows.push(currentRow);
+        }
+        currentRow = [];
+        currentField = '';
+      } else {
+        currentField += char;
+      }
+    }
+  }
+  
+  // Don't forget the last field/row
+  currentRow.push(currentField.trim());
+  if (currentRow.some(f => f.length > 0)) {
+    rows.push(currentRow);
+  }
+  
+  return rows;
+}
+
+/**
+ * Generate a slug from a name
+ */
+export function generateSlug(name: string): string {
+  return name
+    .toLowerCase()
+    .replace(/[^a-z0-9\s]/g, '')
+    .replace(/\s+/g, '-')
+    .substring(0, 60);
+}

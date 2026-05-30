@@ -8,11 +8,101 @@ import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import {
   ArrowLeft, Search, MessageCircle, Share2, X, ChevronLeft, ChevronRight,
-  ZoomIn, ExternalLink, Mail, Instagram
+  ZoomIn, ExternalLink, Mail, Instagram, ImageIcon
 } from 'lucide-react';
 import { Dialog, DialogContent } from '@/components/ui/dialog';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
+
+// ── Image URL Resolution ──────────────────────────────────────────────────
+
+function resolveImageUrl(url: string, size = 800): string {
+  if (!url) return '';
+
+  // Detect Google Drive URLs and convert to proxy
+  const drivePatterns = [
+    /drive\.google\.com\/file\/d\/([a-zA-Z0-9_-]+)/,
+    /drive\.google\.com\/open\?id=([a-zA-Z0-9_-]+)/,
+    /drive\.google\.com\/uc\?[^#]*id=([a-zA-Z0-9_-]+)/,
+    /lh3\.googleusercontent\.com\/d\/([a-zA-Z0-9_-]+)/,
+  ];
+
+  for (const pattern of drivePatterns) {
+    const match = url.match(pattern);
+    if (match) {
+      return `/api/google/image-proxy?id=${match[1]}&sz=${size}`;
+    }
+  }
+
+  return url; // Regular URL, use as-is
+}
+
+function parseImageUrls(val: string): string[] {
+  if (!val) return [];
+
+  // Try JSON array
+  if (val.startsWith('[')) {
+    try {
+      const parsed = JSON.parse(val) as string[];
+      return parsed.map(u => resolveImageUrl(u)).filter(Boolean);
+    } catch {
+      // not valid JSON, continue
+    }
+  }
+
+  // Single URL
+  if (val.startsWith('http')) {
+    return [resolveImageUrl(val)];
+  }
+
+  // Comma-separated URLs
+  if (val.includes('http')) {
+    return val
+      .split(/[,;]/)
+      .map(s => s.trim())
+      .filter(s => s.startsWith('http'))
+      .map(u => resolveImageUrl(u));
+  }
+
+  return [];
+}
+
+// ── Image with Error Handling ────────────────────────────────────────────
+
+function ResolvedImage({
+  src,
+  alt,
+  className,
+  fallbackClassName,
+}: {
+  src: string;
+  alt: string;
+  className?: string;
+  fallbackClassName?: string;
+}) {
+  const [error, setError] = useState(false);
+  const resolvedSrc = resolveImageUrl(src);
+
+  if (error || !resolvedSrc) {
+    return (
+      <div className={cn('flex items-center justify-center bg-gray-100', fallbackClassName || className)}>
+        <ImageIcon className="w-8 h-8 text-gray-300" />
+      </div>
+    );
+  }
+
+  return (
+    <img
+      src={resolvedSrc}
+      alt={alt}
+      className={className}
+      loading="lazy"
+      onError={() => setError(true)}
+    />
+  );
+}
+
+// ── Main Component ────────────────────────────────────────────────────────
 
 export function CatalogPreview() {
   const { catalog, settings, setView } = useAppStore();
@@ -76,11 +166,7 @@ export function CatalogPreview() {
   const getCarouselImages = (row: Row, config: SectionConfig): string[] => {
     if (!config.carouselColumn) return [];
     const val = getCellValue(row, config.carouselColumn);
-    if (val.startsWith('[')) {
-      try { return JSON.parse(val); } catch {}
-    }
-    if (val.startsWith('http')) return [val];
-    return [];
+    return parseImageUrls(val);
   };
 
   const buildConversionLink = (row: Row, config: SectionConfig): string => {
@@ -182,11 +268,11 @@ export function CatalogPreview() {
                       {/* Cover Image */}
                       {coverUrl && (
                         <div className="relative aspect-[3/4] overflow-hidden rounded-t-xl bg-gray-100">
-                          <img
+                          <ResolvedImage
                             src={coverUrl}
                             alt={title}
                             className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
-                            loading="lazy"
+                            fallbackClassName="w-full h-full"
                           />
                         </div>
                       )}
@@ -257,20 +343,29 @@ export function CatalogPreview() {
             const coverUrl = config.coverColumn ? getCellValue(row, config.coverColumn) : '';
             const conversionLink = buildConversionLink(row, config);
 
+            const currentImage = carouselImages[carouselIdx] || resolveImageUrl(coverUrl);
+
             return (
               <div className="space-y-4">
                 {/* Carousel */}
                 {(carouselImages.length > 0 || coverUrl) && (
                   <div className="relative aspect-[4/3] bg-gray-100 rounded-lg overflow-hidden">
-                    <img
-                      src={carouselImages[carouselIdx] || coverUrl}
-                      alt={title}
-                      className="w-full h-full object-contain"
-                    />
-                    {s?.enableZoom && (
+                    {currentImage ? (
+                      <ResolvedImage
+                        src={currentImage}
+                        alt={title}
+                        className="w-full h-full object-contain"
+                        fallbackClassName="w-full h-full"
+                      />
+                    ) : (
+                      <div className="flex items-center justify-center w-full h-full">
+                        <ImageIcon className="w-12 h-12 text-gray-300" />
+                      </div>
+                    )}
+                    {s?.enableZoom && currentImage && (
                       <button
                         className="absolute top-3 right-3 bg-white/80 rounded-full p-2 hover:bg-white transition"
-                        onClick={() => setZoomImage(carouselImages[carouselIdx] || coverUrl)}
+                        onClick={() => setZoomImage(resolveImageUrl(currentImage, 1600))}
                       >
                         <ZoomIn className="w-4 h-4" />
                       </button>
@@ -312,7 +407,12 @@ export function CatalogPreview() {
                         className={cn('w-16 h-16 rounded-lg overflow-hidden shrink-0 border-2 transition-all', i === carouselIdx ? 'border-gold' : 'border-transparent')}
                         onClick={() => setCarouselIdx(i)}
                       >
-                        <img src={img} alt="" className="w-full h-full object-cover" />
+                        <ResolvedImage
+                          src={img}
+                          alt=""
+                          className="w-full h-full object-cover"
+                          fallbackClassName="w-full h-full"
+                        />
                       </button>
                     ))}
                   </div>
@@ -394,7 +494,12 @@ export function CatalogPreview() {
         <DialogContent className="sm:max-w-4xl p-0 overflow-hidden bg-black">
           {zoomImage && (
             <div className="relative">
-              <img src={zoomImage} alt="Zoom" className="w-full h-auto max-h-[80vh] object-contain" />
+              <ResolvedImage
+                src={zoomImage}
+                alt="Zoom"
+                className="w-full h-auto max-h-[80vh] object-contain"
+                fallbackClassName="w-full h-[80vh]"
+              />
               <button
                 className="absolute top-3 right-3 bg-white/20 rounded-full p-2 hover:bg-white/40"
                 onClick={() => setZoomImage(null)}

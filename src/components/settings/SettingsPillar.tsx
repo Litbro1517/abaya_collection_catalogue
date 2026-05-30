@@ -13,7 +13,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Textarea } from '@/components/ui/textarea';
 import {
   Globe, Palette, Share2, Monitor, Shield, Save, Loader2,
-  MessageCircle, ExternalLink, Mail, Instagram, Copy, Check
+  MessageCircle, ExternalLink, Mail, Instagram, Copy, Check, Sheet, Key
 } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -22,10 +22,30 @@ export function SettingsPillar() {
   const [local, setLocal] = useState<CatalogSettings | null>(null);
   const [saving, setSaving] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [googleClientId, setGoogleClientId] = useState('');
+  const [googleClientSecret, setGoogleClientSecret] = useState('');
+  const [googleCredsLoaded, setGoogleCredsLoaded] = useState(false);
+  const [googleCredsSaving, setGoogleCredsSaving] = useState(false);
 
   useEffect(() => {
     if (settings) setLocal(settings);
   }, [settings]);
+
+  // Load Google credentials
+  useEffect(() => {
+    if (!googleCredsLoaded) {
+      fetch('/api/google/credentials')
+        .then(res => res.ok ? res.json() : null)
+        .then(json => {
+          if (json?.data) {
+            setGoogleClientId(json.data.clientId || '');
+            setGoogleClientSecret(json.data.clientSecret ? '••••••••' : '');
+          }
+          setGoogleCredsLoaded(true);
+        })
+        .catch(() => setGoogleCredsLoaded(true));
+    }
+  }, [googleCredsLoaded]);
 
   const loadSettings = useCallback(async () => {
     try {
@@ -301,24 +321,85 @@ export function SettingsPillar() {
 
           {/* Admin */}
           <TabsContent value="admin">
-            <Card>
-              <CardHeader><CardTitle className="text-sm">Accès Administrateur</CardTitle></CardHeader>
-              <CardContent className="space-y-4">
-                <div>
-                  <Label className="text-xs">Mot de passe actuel</Label>
-                  <Input type="password" className="h-9" placeholder="••••••••" />
-                </div>
-                <div>
-                  <Label className="text-xs">Nouveau mot de passe</Label>
-                  <Input type="password" className="h-9" placeholder="••••••••" />
-                </div>
-                <div>
-                  <Label className="text-xs">Confirmer le mot de passe</Label>
-                  <Input type="password" className="h-9" placeholder="••••••••" />
-                </div>
-                <Button size="sm" onClick={() => toast.info('Fonctionnalité à venir')}>Changer le mot de passe</Button>
-              </CardContent>
-            </Card>
+            <div className="space-y-4">
+              <Card>
+                <CardHeader><CardTitle className="text-sm flex items-center gap-2"><Key className="w-4 h-4" /> Google OAuth</CardTitle></CardHeader>
+                <CardContent className="space-y-4">
+                  <p className="text-xs text-muted-foreground">
+                    Pour connecter Google Sheets et Google Drive, vous devez configurer un projet Google Cloud
+                    et obtenir des identifiants OAuth. <a href="https://console.cloud.google.com/apis/credentials" target="_blank" rel="noopener noreferrer" className="text-gold underline">Créer des identifiants</a>
+                  </p>
+                  <div>
+                    <Label className="text-xs">Client ID</Label>
+                    <Input
+                      value={googleClientId}
+                      onChange={e => setGoogleClientId(e.target.value)}
+                      placeholder="xxxxxxxxxxxx.apps.googleusercontent.com"
+                      className="h-9 text-xs"
+                    />
+                  </div>
+                  <div>
+                    <Label className="text-xs">Client Secret</Label>
+                    <Input
+                      type="password"
+                      value={googleClientSecret}
+                      onChange={e => setGoogleClientSecret(e.target.value)}
+                      placeholder="GOCSPX-xxxxxxxxxxxxxxxx"
+                      className="h-9 text-xs"
+                    />
+                  </div>
+                  <Button
+                    size="sm"
+                    className="gap-1.5"
+                    disabled={googleCredsSaving}
+                    onClick={async () => {
+                      setGoogleCredsSaving(true);
+                      try {
+                        const res = await fetch('/api/google/credentials', {
+                          method: 'PUT',
+                          headers: { 'Content-Type': 'application/json' },
+                          body: JSON.stringify({
+                            clientId: googleClientId,
+                            clientSecret: googleClientSecret === '••••••••' ? undefined : googleClientSecret,
+                          }),
+                        });
+                        if (res.ok) {
+                          toast.success('Identifiants Google sauvegardés');
+                        } else {
+                          toast.error('Erreur lors de la sauvegarde');
+                        }
+                      } catch {
+                        toast.error('Erreur de connexion');
+                      } finally {
+                        setGoogleCredsSaving(false);
+                      }
+                    }}
+                  >
+                    {googleCredsSaving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Save className="w-3.5 h-3.5" />}
+                    Sauvegarder les identifiants
+                  </Button>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader><CardTitle className="text-sm">Mot de passe Administrateur</CardTitle></CardHeader>
+                <CardContent className="space-y-4">
+                  <div>
+                    <Label className="text-xs">Mot de passe actuel</Label>
+                    <Input type="password" className="h-9" placeholder="••••••••" />
+                  </div>
+                  <div>
+                    <Label className="text-xs">Nouveau mot de passe</Label>
+                    <Input type="password" className="h-9" placeholder="••••••••" />
+                  </div>
+                  <div>
+                    <Label className="text-xs">Confirmer le mot de passe</Label>
+                    <Input type="password" className="h-9" placeholder="••••••••" />
+                  </div>
+                  <Button size="sm" onClick={() => toast.info('Fonctionnalité à venir')}>Changer le mot de passe</Button>
+                </CardContent>
+              </Card>
+            </div>
           </TabsContent>
         </Tabs>
       </div>

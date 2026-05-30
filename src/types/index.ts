@@ -38,6 +38,11 @@ export interface DataSource {
   color: string;
   sourceType: string;
   sourceUrl: string | null;
+  sheetId: string | null;
+  sheetName: string | null;
+  syncInterval: number;
+  lastSyncedAt: string | null;
+  googleSessionId: string | null;
   columns: Column[];
   rows: Row[];
   relations: Relation[];
@@ -187,6 +192,41 @@ export interface CatalogSettings {
   createdAt: string;
   updatedAt: string;
 }
+
+// ─── Google Integration ──────────────────────────────────────────────────
+
+export interface GoogleSession {
+  id: string;
+  email: string | null;
+  name: string | null;
+  picture: string | null;
+  scope: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface GoogleSheetInfo {
+  id: string;
+  name: string;
+  mimeType: string;
+  modifiedTime: string;
+  webViewLink: string;
+  thumbnailLink?: string;
+  iconLink?: string;
+  owners?: { displayName: string; emailAddress: string }[];
+}
+
+export interface GoogleSheetData {
+  sheetId: string;
+  sheetName: string;
+  headers: string[];
+  rows: string[][];
+  detectedColumnTypes: ColumnType[];
+  imageColumns: string[];
+  totalRows: number;
+}
+
+export type SyncStatus = 'idle' | 'syncing' | 'success' | 'error';
 
 // ─── App State ────────────────────────────────────────────────────────────
 

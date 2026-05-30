@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import type { DataSource, Column, Row, Catalog, Section, CatalogSettings, Pillar, AppView, Relation } from '@/types';
+import type { DataSource, Column, Row, Catalog, Section, CatalogSettings, Pillar, AppView, Relation, GoogleSession, GoogleSheetInfo, SyncStatus } from '@/types';
 
 interface AppState {
   // ── Navigation ──
@@ -13,6 +13,18 @@ interface AppState {
   setIsAdmin: (v: boolean) => void;
   showLoginModal: boolean;
   setShowLoginModal: (v: boolean) => void;
+
+  // ── Google Integration ──
+  googleSession: GoogleSession | null;
+  setGoogleSession: (s: GoogleSession | null) => void;
+  googleSheets: GoogleSheetInfo[];
+  setGoogleSheets: (s: GoogleSheetInfo[]) => void;
+  showGoogleSheetsBrowser: boolean;
+  setShowGoogleSheetsBrowser: (v: boolean) => void;
+  syncStatus: SyncStatus;
+  setSyncStatus: (s: SyncStatus) => void;
+  syncMessage: string;
+  setSyncMessage: (m: string) => void;
 
   // ── Data Pillar ──
   dataSources: DataSource[];
@@ -70,6 +82,18 @@ export const useAppStore = create<AppState>((set, get) => ({
   setIsAdmin: (isAdmin) => set({ isAdmin }),
   showLoginModal: false,
   setShowLoginModal: (showLoginModal) => set({ showLoginModal }),
+
+  // ── Google Integration ──
+  googleSession: null,
+  setGoogleSession: (googleSession) => set({ googleSession }),
+  googleSheets: [],
+  setGoogleSheets: (googleSheets) => set({ googleSheets }),
+  showGoogleSheetsBrowser: false,
+  setShowGoogleSheetsBrowser: (showGoogleSheetsBrowser) => set({ showGoogleSheetsBrowser }),
+  syncStatus: 'idle',
+  setSyncStatus: (syncStatus) => set({ syncStatus }),
+  syncMessage: '',
+  setSyncMessage: (syncMessage) => set({ syncMessage }),
 
   // ── Data Pillar ──
   dataSources: [],
