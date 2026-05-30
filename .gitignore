@@ -52,3 +52,15 @@ prompt
 server.log
 # Skills directory
 /skills/
+# Database
+db/
+# Uploads (user-generated content)
+public/uploads/
+# Download temp
+download/
+# Upload temp
+upload/
+# Agent context
+agent-ctx/
+# Examples
+examples/
