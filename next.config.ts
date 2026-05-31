@@ -22,6 +22,7 @@ const nextConfig: NextConfig = {
       },
     ],
   },
+  serverExternalPackages: ["@prisma/client"],
   allowedDevOrigins: [
     ".space-z.ai",
     "localhost",

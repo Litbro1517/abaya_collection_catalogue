@@ -106,8 +106,9 @@ export function DataPillar() {
         const rowsJson = await rowsRes.json();
         setRows(rowsJson.data || []);
       }
-    } catch {
-      // silent
+    } catch (err) {
+      console.error('Failed to load data source:', err);
+      toast.error('Erreur de chargement des données');
     } finally {
       setLoading(false);
     }

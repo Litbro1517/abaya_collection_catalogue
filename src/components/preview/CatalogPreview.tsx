@@ -349,6 +349,7 @@ export function CatalogPreview({ onAdminLogin }: CatalogPreviewProps) {
 
   // Load section data
   const [sectionsLoaded, setSectionsLoaded] = useState(false);
+  const [loadError, setLoadError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!catalog?.sections || sectionsLoaded) return;
@@ -367,16 +368,28 @@ export function CatalogPreview({ onAdminLogin }: CatalogPreviewProps) {
         }
 
         try {
-          const res = await fetch(`/api/datasources/${dsId}`);
-          if (res.ok) {
-            const json = await res.json();
-            loaded.push({
-              section,
-              columns: json.data?.columns || [],
-              rows: json.data?.rows || [],
-            });
+          // Use meta endpoint for columns + paginated rows endpoint to avoid OOM
+          const [metaRes, rowsRes] = await Promise.all([
+            fetch(`/api/datasources/${dsId}?mode=meta`),
+            fetch(`/api/datasources/${dsId}/rows?limit=100`),
+          ]);
+          
+          let columns: Column[] = [];
+          let rows: Row[] = [];
+          
+          if (metaRes.ok) {
+            const metaJson = await metaRes.json();
+            columns = metaJson.data?.columns || [];
           }
-        } catch {
+          
+          if (rowsRes.ok) {
+            const rowsJson = await rowsRes.json();
+            rows = rowsJson.data || [];
+          }
+          
+          loaded.push({ section, columns, rows });
+        } catch (err) {
+          console.error('Failed to load section data:', err);
           loaded.push({ section, columns: [], rows: [] });
         }
       }
@@ -384,10 +397,17 @@ export function CatalogPreview({ onAdminLogin }: CatalogPreviewProps) {
       if (!cancelled) {
         setSections(loaded);
         setSectionsLoaded(true);
+        setLoadError(null);
       }
     };
 
-    loadSections();
+    loadSections().catch(err => {
+      console.error('Section loading failed:', err);
+      if (!cancelled) {
+        setLoadError('Erreur de chargement des données');
+        setSectionsLoaded(true);
+      }
+    });
     return () => { cancelled = true; };
   }, [catalog, sectionsLoaded]);
 
@@ -528,6 +548,16 @@ export function CatalogPreview({ onAdminLogin }: CatalogPreviewProps) {
           )}
         </div>
       </header>
+
+      {/* Error display */}
+      {loadError && (
+        <div className="mx-auto max-w-[1400px] px-4 py-3">
+          <div className="bg-red-50 border border-red-200 rounded-lg p-4 text-center">
+            <p className="text-sm text-red-700">{loadError}</p>
+            <button onClick={() => { setSectionsLoaded(false); setLoadError(null); }} className="text-xs text-red-600 underline mt-1">Réessayer</button>
+          </div>
+        </div>
+      )}
 
       {/* Product Grid — Glide-inspired responsive layout */}
       <main className="flex-1 mx-auto w-full max-w-[1400px] px-2 sm:px-4 lg:px-6 py-4 sm:py-6">

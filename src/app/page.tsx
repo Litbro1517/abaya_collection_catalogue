@@ -1,13 +1,54 @@
 'use client';
 
-import { useEffect, useCallback, useState } from 'react';
+import { useEffect, useCallback, useState, ComponentType } from 'react';
 import { useAppStore } from '@/lib/store';
 import { BuilderShell } from '@/components/BuilderShell';
 import { CatalogPreview } from '@/components/preview/CatalogPreview';
 import { LoginModal } from '@/components/LoginModal';
-import { Loader2 } from 'lucide-react';
+import { Loader2, AlertTriangle, RefreshCw } from 'lucide-react';
+import { Button } from '@/components/ui/button';
 
-export default function Home() {
+// ── Error Boundary Wrapper ────────────────────────────────────────────────
+function withErrorBoundary<P extends object>(Component: ComponentType<P>, fallbackTitle: string) {
+  return function ErrorBoundaried(props: P) {
+    const [error, setError] = useState<Error | null>(null);
+
+    if (error) {
+      return (
+        <div className="min-h-screen flex flex-col items-center justify-center bg-background gap-4 p-6">
+          <div className="w-14 h-14 rounded-full bg-red-50 flex items-center justify-center">
+            <AlertTriangle className="w-7 h-7 text-red-500" />
+          </div>
+          <h2 className="text-lg font-semibold">{fallbackTitle}</h2>
+          <p className="text-sm text-muted-foreground text-center max-w-md">
+            {error.message || 'Une erreur inattendue s\'est produite.'}
+          </p>
+          <Button
+            variant="outline"
+            className="gap-2"
+            onClick={() => {
+              setError(null);
+              window.location.reload();
+            }}
+          >
+            <RefreshCw className="w-4 h-4" /> Recharger la page
+          </Button>
+        </div>
+      );
+    }
+
+    try {
+      return <Component {...props} />;
+    } catch (err) {
+      setError(err instanceof Error ? err : new Error(String(err)));
+      return null;
+    }
+  };
+}
+
+// ── Main Page ─────────────────────────────────────────────────────────────
+
+function HomeContent() {
   const {
     view,
     isAdmin,
@@ -173,4 +214,8 @@ export default function Home() {
 
   // Default: Catalog preview (public + admin)
   return <CatalogPreview onAdminLogin={() => setShowLogin(true)} />;
+}
+
+export default function Home() {
+  return <HomeContent />;
 }
