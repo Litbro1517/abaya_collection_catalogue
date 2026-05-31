@@ -6,7 +6,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
     const { id } = await params;
     const url = new URL(req.url);
     const page = Math.max(1, parseInt(url.searchParams.get('page') || '1'));
-    const limit = Math.min(100, Math.max(1, parseInt(url.searchParams.get('limit') || '50')));
+    const limit = Math.min(50, Math.max(1, parseInt(url.searchParams.get('limit') || '50')));
     const search = url.searchParams.get('search') || '';
 
     const where = search
@@ -23,7 +23,14 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
       db.row.count({ where }),
     ]);
 
-    const parsed = rows.map(r => ({ ...r, data: JSON.parse(r.data as string) }));
+    // Parse each row's JSON data with error handling
+    const parsed = rows.map(r => {
+      try {
+        return { ...r, data: JSON.parse(r.data as string) };
+      } catch {
+        return { ...r, data: {} };
+      }
+    });
 
     return NextResponse.json({
       data: parsed,
@@ -33,6 +40,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
       error: null,
     });
   } catch (e) {
+    console.error('Rows GET error:', e);
     return NextResponse.json({ data: null, error: 'Failed to fetch rows' }, { status: 500 });
   }
 }
@@ -58,6 +66,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
 
     return NextResponse.json({ data: { ...row, data: JSON.parse(row.data as string) }, error: null }, { status: 201 });
   } catch (e) {
+    console.error('Row POST error:', e);
     return NextResponse.json({ data: null, error: 'Failed to create row' }, { status: 500 });
   }
 }

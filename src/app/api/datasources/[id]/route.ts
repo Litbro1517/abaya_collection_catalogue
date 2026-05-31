@@ -1,22 +1,64 @@
 import { db } from '@/lib/db';
 import { NextRequest, NextResponse } from 'next/server';
 
-export async function GET(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     const { id } = await params;
-    const ds = await db.dataSource.findUnique({
-      where: { id },
-      include: {
-        columns: { orderBy: { order: 'asc' } },
-        rows: { orderBy: { order: 'asc' } },
-        relations: {
-          include: {
-            sourceTable: { select: { id: true, name: true } },
-            targetTable: { select: { id: true, name: true } },
+    const url = new URL(req.url);
+    const mode = url.searchParams.get('mode') || 'full'; // 'full' or 'meta'
+
+    if (mode === 'meta') {
+      // Lightweight: return only datasource metadata + column definitions (no rows)
+      const ds = await db.dataSource.findUnique({
+        where: { id },
+        include: {
+          columns: { orderBy: { order: 'asc' } },
+          relations: {
+            include: {
+              sourceTable: { select: { id: true, name: true } },
+              targetTable: { select: { id: true, name: true } },
+            },
           },
         },
-      },
-    });
+      });
+
+      if (!ds) {
+        return NextResponse.json({ data: null, error: 'Not found' }, { status: 404 });
+      }
+
+      const result = {
+        ...ds,
+        rows: [], // No rows in meta mode
+        columns: ds.columns.map(c => ({ ...c, config: JSON.parse(c.config as string) })),
+      };
+
+      return NextResponse.json({ data: result, error: null });
+    }
+
+    // Full mode: return columns + paginated rows
+    const page = Math.max(1, parseInt(url.searchParams.get('page') || '1'));
+    const limit = Math.min(100, Math.max(1, parseInt(url.searchParams.get('limit') || '50')));
+
+    const [ds, rowCount] = await Promise.all([
+      db.dataSource.findUnique({
+        where: { id },
+        include: {
+          columns: { orderBy: { order: 'asc' } },
+          rows: {
+            orderBy: { order: 'asc' },
+            skip: (page - 1) * limit,
+            take: limit,
+          },
+          relations: {
+            include: {
+              sourceTable: { select: { id: true, name: true } },
+              targetTable: { select: { id: true, name: true } },
+            },
+          },
+        },
+      }),
+      db.row.count({ where: { dataSourceId: id } }),
+    ]);
 
     if (!ds) {
       return NextResponse.json({ data: null, error: 'Not found' }, { status: 404 });
@@ -26,6 +68,9 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
       ...ds,
       rows: ds.rows.map(r => ({ ...r, data: JSON.parse(r.data as string) })),
       columns: ds.columns.map(c => ({ ...c, config: JSON.parse(c.config as string) })),
+      totalRows: rowCount,
+      page,
+      totalPages: Math.ceil(rowCount / limit),
     };
 
     return NextResponse.json({ data: result, error: null });

@@ -92,13 +92,19 @@ export function DataPillar() {
     if (!activeDataSourceId) return;
     setLoading(true);
     try {
-      const res = await fetch(`/api/datasources/${activeDataSourceId}`);
-      if (res.ok) {
-        const json = await res.json();
-        if (json.data) {
-          setColumns(json.data.columns || []);
-          setRows(json.data.rows || []);
+      // First load columns via meta mode (lightweight, no rows)
+      const metaRes = await fetch(`/api/datasources/${activeDataSourceId}?mode=meta`);
+      if (metaRes.ok) {
+        const metaJson = await metaRes.json();
+        if (metaJson.data) {
+          setColumns(metaJson.data.columns || []);
         }
+      }
+      // Then load rows via the rows endpoint (paginated, max 50 to prevent OOM)
+      const rowsRes = await fetch(`/api/datasources/${activeDataSourceId}/rows?limit=50`);
+      if (rowsRes.ok) {
+        const rowsJson = await rowsRes.json();
+        setRows(rowsJson.data || []);
       }
     } catch {
       // silent
