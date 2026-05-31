@@ -2,8 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { useAppStore } from '@/lib/store';
-import type { DataSource, Column, Row } from '@/types';
-import { DataSourceList } from './DataSourceList';
+import type { DataSource } from '@/types';
 import { DataTable } from './DataTable';
 import { ImportCSVDialog } from './ImportCSVDialog';
 import { ColumnEditorDialog } from './ColumnEditorDialog';
@@ -12,8 +11,23 @@ import { GoogleConnectPanel } from './GoogleConnectPanel';
 import { SyncStatusIndicator } from './SyncStatusIndicator';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
-import { Plus, Upload, Download, Columns3, Link2, Sheet, RefreshCw, HardDrive } from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
+import {
+  Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
+} from '@/components/ui/dialog';
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+  AlertDialogTrigger,
+} from '@/components/ui/alert-dialog';
+import {
+  DropdownMenu, DropdownMenuContent, DropdownMenuItem,
+  DropdownMenuSeparator, DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import {
+  Plus, Upload, Download, Columns3, Link2, Sheet, RefreshCw, HardDrive,
+  Trash2, Pencil, MoreVertical,
+} from 'lucide-react';
 import { toast } from 'sonner';
 
 export function DataPillar() {
@@ -45,7 +59,16 @@ export function DataPillar() {
   const [showUrlDialog, setShowUrlDialog] = useState(false);
   const [manualUrl, setManualUrl] = useState('');
 
+  // Table management states
+  const [showRenameDialog, setShowRenameDialog] = useState(false);
+  const [renameValue, setRenameValue] = useState('');
+  const [showDeleteTableDialog, setShowDeleteTableDialog] = useState(false);
+
   const colors = ['#C9A84C', '#1A1A1A', '#D32F2F', '#2E7D32', '#1565C0', '#8B4513', '#F48FB1', '#483C32'];
+
+  // Active data source
+  const activeDs = dataSources.find(d => d.id === activeDataSourceId);
+  const hasGoogleSheet = !!activeDs?.sheetId;
 
   // Load data sources
   const loadDataSources = useCallback(async () => {
@@ -108,6 +131,39 @@ export function DataPillar() {
     }
   };
 
+  const handleRenameTable = async () => {
+    if (!activeDataSourceId || !renameValue.trim()) return;
+    try {
+      const res = await fetch(`/api/datasources/${activeDataSourceId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: renameValue.trim() }),
+      });
+      if (res.ok) {
+        toast.success('Table renommée');
+        loadDataSources();
+        setShowRenameDialog(false);
+      }
+    } catch {
+      toast.error('Erreur de renommage');
+    }
+  };
+
+  const handleDeleteTable = async () => {
+    if (!activeDataSourceId) return;
+    try {
+      const res = await fetch(`/api/datasources/${activeDataSourceId}`, { method: 'DELETE' });
+      if (res.ok) {
+        toast.success('Table supprimée');
+        setActiveDataSourceId(null);
+        loadDataSources();
+        setShowDeleteTableDialog(false);
+      }
+    } catch {
+      toast.error('Erreur de suppression');
+    }
+  };
+
   const handleExport = async () => {
     if (!activeDataSourceId) return;
     try {
@@ -117,7 +173,7 @@ export function DataPillar() {
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.href = url;
-        a.download = 'catalogue.csv';
+        a.download = `${activeDs?.name || 'catalogue'}.csv`;
         a.click();
         URL.revokeObjectURL(url);
         toast.success('Export réussi');
@@ -200,10 +256,6 @@ export function DataPillar() {
     }
   };
 
-  // Check if active data source has a Google Sheet linked
-  const activeDs = dataSources.find(d => d.id === activeDataSourceId);
-  const hasGoogleSheet = !!activeDs?.sheetId;
-
   return (
     <div className="flex h-full">
       {/* Left: Data source list */}
@@ -219,7 +271,7 @@ export function DataPillar() {
             </Button>
           </div>
 
-          {/* Data source list with Google badge */}
+          {/* Data source list with delete option */}
           <div className="space-y-1">
             {dataSources.length === 0 && (
               <div className="text-center py-6 text-muted-foreground">
@@ -253,6 +305,41 @@ export function DataPillar() {
                     {(ds as DataSource & { columnCount?: number; rowCount?: number }).rowCount ?? 0} lignes
                   </p>
                 </div>
+                {/* Delete table button */}
+                <AlertDialog>
+                  <AlertDialogTrigger asChild>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity shrink-0"
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      <Trash2 className="w-3 h-3 text-destructive" />
+                    </Button>
+                  </AlertDialogTrigger>
+                  <AlertDialogContent>
+                    <AlertDialogHeader>
+                      <AlertDialogTitle>Supprimer « {ds.name} » ?</AlertDialogTitle>
+                      <AlertDialogDescription>
+                        Cette action supprimera la table et toutes ses données (colonnes et lignes). Cette action est irréversible.
+                      </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                      <AlertDialogCancel>Annuler</AlertDialogCancel>
+                      <AlertDialogAction
+                        className="bg-destructive text-white hover:bg-destructive/90"
+                        onClick={async () => {
+                          await fetch(`/api/datasources/${ds.id}`, { method: 'DELETE' });
+                          if (activeDataSourceId === ds.id) setActiveDataSourceId(null);
+                          loadDataSources();
+                          toast.success('Table supprimée');
+                        }}
+                      >
+                        Supprimer
+                      </AlertDialogAction>
+                    </AlertDialogFooter>
+                  </AlertDialogContent>
+                </AlertDialog>
               </div>
             ))}
           </div>
@@ -261,38 +348,73 @@ export function DataPillar() {
 
       {/* Right: Data table + toolbar */}
       <div className="flex-1 flex flex-col overflow-hidden">
-        {/* Toolbar */}
-        {activeDataSourceId && (
-          <div className="h-11 border-b border-border bg-card flex items-center px-3 gap-2 shrink-0">
-            <Button size="sm" variant="outline" className="h-7 text-xs gap-1.5" onClick={() => setShowImportModal(true)}>
-              <Upload className="w-3.5 h-3.5" />
-              Importer CSV
-            </Button>
-            <Button size="sm" variant="outline" className="h-7 text-xs gap-1.5" onClick={() => setShowGoogleSheetsBrowser(true)}>
-              <Sheet className="w-3.5 h-3.5" />
-              Google Sheets
-            </Button>
-            <Button size="sm" variant="outline" className="h-7 text-xs gap-1.5" onClick={() => setShowUrlDialog(true)}>
-              <Link2 className="w-3.5 h-3.5" />
-              URL Google Sheet
-            </Button>
-            <Button size="sm" variant="outline" className="h-7 text-xs gap-1.5" onClick={handleExport}>
-              <Download className="w-3.5 h-3.5" />
-              Exporter
-            </Button>
-            <Button size="sm" variant="outline" className="h-7 text-xs gap-1.5" onClick={() => setShowColumnModal(true)}>
-              <Columns3 className="w-3.5 h-3.5" />
-              Ajouter colonne
-            </Button>
-            {hasGoogleSheet && (
-              <Button size="sm" variant="outline" className="h-7 text-xs gap-1.5" onClick={handleSyncGoogleSheet}>
-                <RefreshCw className="w-3.5 h-3.5" />
-                Synchroniser
+        {/* Table header with name + management */}
+        {activeDataSourceId && activeDs && (
+          <div className="border-b border-border bg-card shrink-0">
+            {/* Table name row */}
+            <div className="h-9 px-3 flex items-center gap-2">
+              <div
+                className="w-2.5 h-2.5 rounded-full shrink-0"
+                style={{ backgroundColor: activeDs.color }}
+              />
+              <span className="text-sm font-semibold truncate">{activeDs.name}</span>
+              {activeDs.sheetId && (
+                <Badge variant="outline" className="text-[9px] gap-1 py-0">
+                  <Sheet className="w-2.5 h-2.5" /> Google
+                </Badge>
+              )}
+              <div className="flex-1" />
+              {/* Table management dropdown */}
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="ghost" size="icon" className="h-7 w-7">
+                    <MoreVertical className="w-3.5 h-3.5" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-52">
+                  <DropdownMenuItem onClick={() => { setRenameValue(activeDs.name); setShowRenameDialog(true); }}>
+                    <Pencil className="w-3.5 h-3.5 mr-2" /> Renommer la table
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem className="text-destructive focus:text-destructive" onClick={() => setShowDeleteTableDialog(true)}>
+                    <Trash2 className="w-3.5 h-3.5 mr-2" /> Supprimer la table
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </div>
+
+            {/* Toolbar row */}
+            <div className="h-10 border-t border-border/50 flex items-center px-3 gap-1.5">
+              <Button size="sm" variant="outline" className="h-7 text-xs gap-1" onClick={() => setShowImportModal(true)}>
+                <Upload className="w-3.5 h-3.5" />
+                <span className="hidden sm:inline">Importer</span>
               </Button>
-            )}
-            <div className="flex-1" />
-            <SyncStatusIndicator />
-            <span className="text-xs text-muted-foreground">{rows.length} lignes · {columns.filter(c => c.visible).length} colonnes</span>
+              <Button size="sm" variant="outline" className="h-7 text-xs gap-1" onClick={() => setShowGoogleSheetsBrowser(true)}>
+                <Sheet className="w-3.5 h-3.5" />
+                <span className="hidden sm:inline">Google</span>
+              </Button>
+              <Button size="sm" variant="outline" className="h-7 text-xs gap-1" onClick={() => setShowUrlDialog(true)}>
+                <Link2 className="w-3.5 h-3.5" />
+                <span className="hidden sm:inline">URL</span>
+              </Button>
+              <Button size="sm" variant="outline" className="h-7 text-xs gap-1" onClick={handleExport}>
+                <Download className="w-3.5 h-3.5" />
+                <span className="hidden sm:inline">Exporter</span>
+              </Button>
+              <Button size="sm" variant="outline" className="h-7 text-xs gap-1" onClick={() => setShowColumnModal(true)}>
+                <Columns3 className="w-3.5 h-3.5" />
+                <span className="hidden sm:inline">Colonne</span>
+              </Button>
+              {hasGoogleSheet && (
+                <Button size="sm" variant="outline" className="h-7 text-xs gap-1" onClick={handleSyncGoogleSheet}>
+                  <RefreshCw className="w-3.5 h-3.5" />
+                  <span className="hidden sm:inline">Sync</span>
+                </Button>
+              )}
+              <div className="flex-1" />
+              <SyncStatusIndicator />
+              <span className="text-[10px] text-muted-foreground">{rows.length} lignes · {columns.filter(c => c.visible).length}/{columns.length} colonnes</span>
+            </div>
           </div>
         )}
 
@@ -351,6 +473,45 @@ export function DataPillar() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Rename Table Dialog */}
+      <Dialog open={showRenameDialog} onOpenChange={setShowRenameDialog}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Renommer la table</DialogTitle>
+          </DialogHeader>
+          <div className="mt-2">
+            <Input
+              value={renameValue}
+              onChange={e => setRenameValue(e.target.value)}
+              placeholder="Nom de la table"
+              onKeyDown={e => { if (e.key === 'Enter') handleRenameTable(); }}
+            />
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowRenameDialog(false)}>Annuler</Button>
+            <Button onClick={handleRenameTable} disabled={!renameValue.trim()}>Renommer</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete Table Confirmation */}
+      <AlertDialog open={showDeleteTableDialog} onOpenChange={setShowDeleteTableDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Supprimer « {activeDs?.name} » ?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Cette action supprimera définitivement la table et toutes ses données ({rows.length} lignes, {columns.length} colonnes). Cette action est irréversible.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Annuler</AlertDialogCancel>
+            <AlertDialogAction className="bg-destructive text-white hover:bg-destructive/90" onClick={handleDeleteTable}>
+              Supprimer la table
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       {/* Manual Google Sheet URL Dialog */}
       <Dialog open={showUrlDialog} onOpenChange={setShowUrlDialog}>
@@ -421,3 +582,5 @@ function Database2Icon({ className }: { className?: string }) {
     </svg>
   );
 }
+
+
