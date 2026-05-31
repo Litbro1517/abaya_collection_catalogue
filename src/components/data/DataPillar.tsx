@@ -556,6 +556,7 @@ export function DataPillar() {
           onOpenChange={setShowColumnModal}
           dataSourceId={activeDataSourceId}
           columns={columns}
+          rows={rows}
           onSaved={() => loadDataSourceData()}
         />
       )}

@@ -74,6 +74,11 @@ export interface ColumnConfig {
   imagePrefix?: string;         // For IMAGE - URL prefix
   trueLabel?: string;           // For BOOLEAN
   falseLabel?: string;          // For BOOLEAN
+  // Gallery / IMAGE_ARRAY configuration
+  gallerySource?: 'manual' | 'googlesheet' | 'url' | 'column'; // Source type for gallery images
+  gallerySourceColumn?: string; // Slug of source column when gallerySource = 'column'
+  gallerySeparator?: string;    // Separator for multi-image values (default: ',')
+  galleryUrlPrefix?: string;    // URL prefix for gallery images
   [key: string]: unknown;
 }
 
