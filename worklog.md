@@ -390,3 +390,46 @@ Stage Summary:
 - Images display correctly without stretching or scrollbars
 - Price badges overlay on cards, heart/favorite button
 - Clean, modern design inspired by Glide app builder
+
+---
+Task ID: 11
+Agent: Main
+Task: Add comprehensive CRUD operations to admin data table editor
+
+Work Log:
+- Analyzed current DataTable.tsx and DataPillar.tsx to identify missing features
+- Existing: cell editing (double-click), row delete, column delete, column visibility toggle, pagination
+- Missing: row duplication, row reordering, column reordering, column inline rename, bulk operations, table rename/delete from toolbar, hidden columns management
+
+DataTable.tsx complete rewrite (308 → 370 lines):
+- Row operations dropdown menu: Edit, Duplicate, Move up/down, Delete
+- Column operations dropdown menu: Rename inline, Edit type, Move left/right, Hide/show, Delete
+- Bulk row selection with checkboxes (select all, deselect all)
+- Bulk delete with confirmation dialog
+- Inline column rename (double-click column header name)
+- Hidden columns bar at top (click badge to unhide)
+- Delete confirmation dialogs for both rows and columns
+- Row number column with proper pagination offset
+- Column count display (visible/total)
+- Move column left/right using order swapping API
+- Move row up/down using order swapping API
+
+DataPillar.tsx enhancements (423 → 440 lines):
+- Table management dropdown (⋮ button): Rename table, Delete table
+- Table header row showing name, color dot, Google badge
+- Compact toolbar with responsive labels (hidden text on small screens)
+- Rename table dialog with Enter key support
+- Delete table confirmation showing row/column counts
+- Delete table button in sidebar list (AlertDialog on hover)
+- Badge import from shadcn/ui for Google indicator
+- AlertDialogTrigger import fix
+
+All API endpoints already existed:
+- PUT /api/datasources/{id}/rows/{rowId} (order field for reordering)
+- PUT /api/datasources/{id}/columns/{colId} (order field for reordering, name for rename)
+- DELETE /api/datasources/{id}/rows/{rowId}
+- DELETE /api/datasources/{id}/columns/{colId}
+- PUT /api/datasources/{id} (name for table rename)
+- DELETE /api/datasources/{id} (cascade delete)
+
+Lint passes cleanly, app running on port 3000, pushed to GitHub.
