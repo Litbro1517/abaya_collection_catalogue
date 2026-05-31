@@ -13,7 +13,7 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
     if (body.required !== undefined) updateData.required = body.required;
     if (body.order !== undefined) updateData.order = body.order;
     if (body.width !== undefined) updateData.width = body.width;
-    if (body.config !== undefined) updateData.config = JSON.stringify(body.config);
+    if (body.config !== undefined) updateData.config = body.config;
 
     if (body.name) {
       updateData.slug = body.name
@@ -28,7 +28,7 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
       data: updateData,
     });
 
-    return NextResponse.json({ data: { ...col, config: JSON.parse(col.config as string) }, error: null });
+    return NextResponse.json({ data: col, error: null });
   } catch (e) {
     return NextResponse.json({ data: null, error: 'Failed to update column' }, { status: 500 });
   }

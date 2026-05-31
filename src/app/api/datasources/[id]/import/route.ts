@@ -144,7 +144,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
         order: headers.length,
         visible: true,
         required: false,
-        config: JSON.stringify({ sourceColumns: imageGroupIndices.map(i => columnSlugs[i]) }),
+        config: { sourceColumns: imageGroupIndices.map(i => columnSlugs[i]) },
       });
       // Mark individual image group columns as hidden
       imageGroupIndices.forEach(i => columnsToSkip.add(i));
@@ -160,7 +160,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
           order: c,
           visible: false,
           required: false,
-          config: JSON.stringify({}),
+          config: {},
         });
       } else {
         const config: Record<string, unknown> = {};
@@ -169,7 +169,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
           const uniqueVals = new Set<string>();
           dataRows.forEach(r => {
             const val = r[c] || '';
-            if (val) val.split(/[,;]/).forEach(v => uniqueVals.add(v.trim())).filter(Boolean);
+            if (val) val.split(/[,;]/).forEach(v => uniqueVals.add(v.trim()));
           });
           config.options = Array.from(uniqueVals);
         }
@@ -180,7 +180,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
           order: c,
           visible: true,
           required: false,
-          config: JSON.stringify(config),
+          config,
         });
       }
     }
@@ -195,33 +195,33 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
       });
     }
 
-    // Create rows
+    // Create rows — pass native objects for Json fields (PostgreSQL)
     const batchSize = 50;
     for (let i = 0; i < dataRows.length; i += batchSize) {
       const batch = dataRows.slice(i, i + batchSize);
       const createPromises = batch.map((row, idx) => {
-        const rowData: Record<string, string> = {};
+        const rowData: Record<string, unknown> = {};
         for (let c = 0; c < headers.length; c++) {
           if (c < row.length && row[c]) {
             rowData[columnSlugs[c]] = row[c];
           }
         }
 
-        // Build the grouped image array
+        // Build the grouped image array — store as native array (not stringified)
         if (imageArraySlug && imageGroupIndices.length > 0) {
           const images: string[] = [];
           imageGroupIndices.forEach(c => {
             if (row[c] && row[c].length > 0) images.push(row[c]);
           });
           if (images.length > 0) {
-            rowData[imageArraySlug] = JSON.stringify(images);
+            rowData[imageArraySlug] = images;
           }
         }
 
         return db.row.create({
           data: {
             dataSourceId: id,
-            data: JSON.stringify(rowData),
+            data: rowData,
             order: i + idx,
           },
         });

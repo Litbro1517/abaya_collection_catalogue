@@ -3,7 +3,7 @@ generator client {
 }
 
 datasource db {
-  provider = "sqlite"
+  provider = "postgresql"
   url      = env("DATABASE_URL")
 }
 
@@ -29,8 +29,10 @@ model DataSource {
   rows          Row[]
   relations     Relation[] @relation("SourceRelation")
   targetRelations Relation[] @relation("TargetRelation")
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
+  createdAt     DateTime  @default(now()) @map("created_at")
+  updatedAt     DateTime  @updatedAt @map("updated_at")
+
+  @@map("data_sources")
 }
 
 model Column {
@@ -38,39 +40,44 @@ model Column {
   name         String
   slug         String
   type         String     @default("TEXT") // TEXT, NUMBER, CURRENCY, IMAGE, IMAGE_ARRAY, SELECT, MULTI_SELECT, RELATION, ARRAY, BOOLEAN, URL
-  dataSourceId String
+  dataSourceId String     @map("data_source_id")
   dataSource   DataSource @relation(fields: [dataSourceId], references: [id], onDelete: Cascade)
   order        Int        @default(0)
   visible      Boolean    @default(true)
   required     Boolean    @default(false)
-  config       String     @default("{}") // JSON: options for SELECT, sourceColumns for ARRAY, targetTable for RELATION, etc.
+  config       Json       @default("{}") // JSON: options for SELECT, sourceColumns for ARRAY, targetTable for RELATION, etc.
   width        Int        @default(150)
-  createdAt    DateTime   @default(now())
-  updatedAt    DateTime   @updatedAt
+  createdAt    DateTime   @default(now()) @map("created_at")
+  updatedAt    DateTime   @updatedAt @map("updated_at")
 
   @@unique([dataSourceId, slug])
+  @@map("columns")
 }
 
 model Row {
   id           String     @id @default(cuid())
-  dataSourceId String
+  dataSourceId String     @map("data_source_id")
   dataSource   DataSource @relation(fields: [dataSourceId], references: [id], onDelete: Cascade)
-  data         String     @default("{}") // JSON: { columnSlug: value, ... }
+  data         Json       @default("{}") // JSON: { columnSlug: value, ... }
   order        Int        @default(0)
-  createdAt    DateTime   @default(now())
-  updatedAt    DateTime   @updatedAt
+  createdAt    DateTime   @default(now()) @map("created_at")
+  updatedAt    DateTime   @updatedAt @map("updated_at")
+
+  @@map("rows")
 }
 
 model Relation {
   id             String     @id @default(cuid())
   name           String
-  sourceTableId  String
+  sourceTableId  String     @map("source_table_id")
   sourceTable    DataSource @relation("SourceRelation", fields: [sourceTableId], references: [id], onDelete: Cascade)
-  sourceColumnId String     // Column in source table that holds the reference
-  targetTableId  String
+  sourceColumnId String     @map("source_column_id") // Column in source table that holds the reference
+  targetTableId  String     @map("target_table_id")
   targetTable    DataSource @relation("TargetRelation", fields: [targetTableId], references: [id], onDelete: Cascade)
   type           String     @default("manyToOne") // manyToOne, oneToMany, manyToMany
-  createdAt      DateTime   @default(now())
+  createdAt      DateTime   @default(now()) @map("created_at")
+
+  @@map("relations")
 }
 
 // ═══════════════════════════════════════════════════════════════
@@ -84,35 +91,41 @@ model Catalog {
   published    Boolean  @default(false)
   sections     Section[]
   settings     CatalogSettings?
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  @@map("catalogs")
 }
 
 model Section {
   id           String   @id @default(cuid())
-  catalogId    String
+  catalogId    String   @map("catalog_id")
   catalog      Catalog  @relation(fields: [catalogId], references: [id], onDelete: Cascade)
   type         String   @default("collection") // collection, hero, featured, text
   title        String?
   subtitle     String?
-  config       String   @default("{}") // JSON: layout-specific config
+  config       Json     @default("{}") // JSON: layout-specific config
   order        Int      @default(0)
   visible      Boolean  @default(true)
   components   Component[]
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  @@map("sections")
 }
 
 model Component {
   id          String   @id @default(cuid())
-  sectionId   String
+  sectionId   String   @map("section_id")
   section     Section  @relation(fields: [sectionId], references: [id], onDelete: Cascade)
   type        String   @default("card") // card, carousel, grid, detail, button, text, image
-  config      String   @default("{}") // JSON: column mappings, styles, etc.
+  config      Json     @default("{}") // JSON: column mappings, styles, etc.
   order       Int      @default(0)
   visible     Boolean  @default(true)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  @@map("components")
 }
 
 // ═══════════════════════════════════════════════════════════════
@@ -121,29 +134,31 @@ model Component {
 
 model CatalogSettings {
   id                String   @id @default(cuid())
-  catalogId         String   @unique
+  catalogId         String   @unique @map("catalog_id")
   catalog           Catalog  @relation(fields: [catalogId], references: [id], onDelete: Cascade)
   language          String   @default("fr") // fr, en, ar
   currency          String   @default("MAD") // MAD, EUR, USD
-  whatsappNumber    String   @default("")
-  messengerLink     String   @default("")
-  emailContact      String   @default("")
-  instagramHandle   String   @default("")
-  primaryColor      String   @default("#C9A84C")
-  secondaryColor    String   @default("#1A1A1A")
-  accentColor       String   @default("#F5F0E8")
-  backgroundColor   String   @default("#FAF8F5")
-  fontFamily        String   @default("inter") // inter, playfair, roboto
-  enableZoom        Boolean  @default(true)
-  enableSearch      Boolean  @default(true)
-  enableSharing     Boolean  @default(true)
-  conversionChannel String   @default("whatsapp") // whatsapp, messenger, landing, email
-  conversionMessage String   @default("")
-  customCSS         String   @default("")
+  whatsappNumber    String   @default("") @map("whatsapp_number")
+  messengerLink     String   @default("") @map("messenger_link")
+  emailContact      String   @default("") @map("email_contact")
+  instagramHandle   String   @default("") @map("instagram_handle")
+  primaryColor      String   @default("#C9A84C") @map("primary_color")
+  secondaryColor    String   @default("#1A1A1A") @map("secondary_color")
+  accentColor       String   @default("#F5F0E8") @map("accent_color")
+  backgroundColor   String   @default("#FAF8F5") @map("background_color")
+  fontFamily        String   @default("inter") @map("font_family") // inter, playfair, roboto
+  enableZoom        Boolean  @default(true) @map("enable_zoom")
+  enableSearch      Boolean  @default(true) @map("enable_search")
+  enableSharing     Boolean  @default(true) @map("enable_sharing")
+  conversionChannel String   @default("whatsapp") @map("conversion_channel") // whatsapp, messenger, landing, email
+  conversionMessage String   @default("") @map("conversion_message")
+  customCSS         String   @default("") @map("custom_css")
   favicon           String?
   logo              String?
-  createdAt         DateTime @default(now())
-  updatedAt         DateTime @updatedAt
+  createdAt         DateTime @default(now()) @map("created_at")
+  updatedAt         DateTime @updatedAt @map("updated_at")
+
+  @@map("catalog_settings")
 }
 
 // ═══════════════════════════════════════════════════════════════
@@ -153,24 +168,30 @@ model CatalogSettings {
 model AdminSession {
   id        String   @id @default(cuid())
   token     String   @unique
-  createdAt DateTime @default(now())
-  expiresAt DateTime
+  createdAt DateTime @default(now()) @map("created_at")
+  expiresAt DateTime @map("expires_at")
+
+  @@map("admin_sessions")
 }
 
 model GoogleSession {
   id            String   @id @default(cuid())
-  accessToken   String
-  refreshToken  String?
-  tokenExpiry   DateTime
+  accessToken   String   @map("access_token")
+  refreshToken  String?  @map("refresh_token")
+  tokenExpiry   DateTime @map("token_expiry")
   scope         String   @default("")
   email         String?
   name          String?
   picture       String?
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @updatedAt @map("updated_at")
+
+  @@map("google_sessions")
 }
 
 model Settings {
   key   String @id
   value String @default("")
+
+  @@map("settings")
 }

@@ -51,10 +51,19 @@ function resolveImageUrl(url: string, size = 800): string {
   return url;
 }
 
-function parseImageUrls(val: string): string[] {
+function parseImageUrls(val: unknown): string[] {
   if (!val) return [];
 
-  // Try JSON array
+  // Native array (from PostgreSQL Json type)
+  if (Array.isArray(val)) {
+    return val
+      .filter((u: unknown) => typeof u === 'string' && u.length > 0)
+      .map((u: string) => resolveImageUrl(u));
+  }
+
+  if (typeof val !== 'string') return [];
+
+  // Try JSON array (legacy stringified format)
   if (val.startsWith('[')) {
     try {
       const parsed = JSON.parse(val) as string[];
@@ -412,8 +421,14 @@ export function CatalogPreview({ onAdminLogin }: CatalogPreviewProps) {
   }, [catalog, sectionsLoaded]);
 
   const getCellValue = (row: Row, slug: string): string => {
-    const data = row.data as Record<string, string>;
-    return data[slug] || '';
+    const data = row.data as Record<string, unknown>;
+    const val = data[slug];
+    if (val === undefined || val === null) return '';
+    if (typeof val === 'string') return val;
+    if (typeof val === 'number' || typeof val === 'boolean') return String(val);
+    // Arrays and objects: return stringified for compatibility
+    if (Array.isArray(val)) return val.join(', ');
+    return String(val);
   };
 
   const getCarouselImages = (row: Row, config: SectionConfig): string[] => {
@@ -466,7 +481,7 @@ export function CatalogPreview({ onAdminLogin }: CatalogPreviewProps) {
 
     // Skip rows with no meaningful content
     filtered = filtered.filter(r => {
-      const data = r.data as Record<string, string>;
+      const data = r.data as Record<string, unknown>;
       const hasTitle = config.titleColumn && data[config.titleColumn];
       const hasCover = config.coverColumn && data[config.coverColumn];
       const hasPrice = config.priceColumn && data[config.priceColumn];
@@ -476,7 +491,7 @@ export function CatalogPreview({ onAdminLogin }: CatalogPreviewProps) {
     if (!searchQuery) return filtered;
     const q = searchQuery.toLowerCase();
     return filtered.filter(r => {
-      const data = r.data as Record<string, string>;
+      const data = r.data as Record<string, unknown>;
       return Object.values(data).some(v => String(v).toLowerCase().includes(q));
     });
   };

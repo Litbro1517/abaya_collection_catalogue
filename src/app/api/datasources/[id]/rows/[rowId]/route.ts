@@ -7,7 +7,7 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
     const body = await req.json();
 
     const updateData: Record<string, unknown> = {};
-    if (body.data !== undefined) updateData.data = JSON.stringify(body.data);
+    if (body.data !== undefined) updateData.data = body.data;
     if (body.order !== undefined) updateData.order = body.order;
 
     const row = await db.row.update({
@@ -15,7 +15,7 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
       data: updateData,
     });
 
-    return NextResponse.json({ data: { ...row, data: JSON.parse(row.data as string) }, error: null });
+    return NextResponse.json({ data: row, error: null });
   } catch (e) {
     return NextResponse.json({ data: null, error: 'Failed to update row' }, { status: 500 });
   }

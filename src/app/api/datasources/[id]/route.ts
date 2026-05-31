@@ -26,10 +26,10 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
         return NextResponse.json({ data: null, error: 'Not found' }, { status: 404 });
       }
 
+      // Json fields are returned as native objects by Prisma with PostgreSQL
       const result = {
         ...ds,
         rows: [], // No rows in meta mode
-        columns: ds.columns.map(c => ({ ...c, config: JSON.parse(c.config as string) })),
       };
 
       return NextResponse.json({ data: result, error: null });
@@ -64,10 +64,9 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
       return NextResponse.json({ data: null, error: 'Not found' }, { status: 404 });
     }
 
+    // Json fields are returned as native objects by Prisma with PostgreSQL
     const result = {
       ...ds,
-      rows: ds.rows.map(r => ({ ...r, data: JSON.parse(r.data as string) })),
-      columns: ds.columns.map(c => ({ ...c, config: JSON.parse(c.config as string) })),
       totalRows: rowCount,
       page,
       totalPages: Math.ceil(rowCount / limit),

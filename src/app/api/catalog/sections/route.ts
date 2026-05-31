@@ -26,12 +26,13 @@ export async function POST(req: NextRequest) {
         type: type || 'collection',
         title: title || null,
         subtitle: subtitle || null,
-        config: JSON.stringify(config || {}),
+        config: config || {},
         order: (maxOrder?.order ?? -1) + 1,
       },
     });
 
-    return NextResponse.json({ data: { ...section, config: JSON.parse(section.config as string) }, error: null }, { status: 201 });
+    // Json field (config) is returned as native object by Prisma with PostgreSQL
+    return NextResponse.json({ data: section, error: null }, { status: 201 });
   } catch (e) {
     return NextResponse.json({ data: null, error: 'Failed to create section' }, { status: 500 });
   }

@@ -147,7 +147,7 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    // Create columns
+    // Create columns — pass native objects for Json config fields (PostgreSQL)
     const columnsToCreate = [];
     const columnsToSkip = new Set<number>();
     let imageArraySlug: string | null = null;
@@ -161,7 +161,7 @@ export async function POST(req: NextRequest) {
         order: headers.length,
         visible: true,
         required: false,
-        config: JSON.stringify({ sourceColumns: imageGroupIndices.map(i => columnSlugs[i]) }),
+        config: { sourceColumns: imageGroupIndices.map(i => columnSlugs[i]) },
         dataSourceId: dsId,
       });
       imageGroupIndices.forEach(i => columnsToSkip.add(i));
@@ -196,7 +196,7 @@ export async function POST(req: NextRequest) {
         order: c,
         visible: !columnsToSkip.has(c),
         required: false,
-        config: JSON.stringify(config),
+        config,
         dataSourceId: dsId,
       });
     }
@@ -206,7 +206,7 @@ export async function POST(req: NextRequest) {
       await db.column.create({ data: col });
     }
 
-    // Create rows in batches
+    // Create rows in batches — pass native objects for Json data fields (PostgreSQL)
     const batchSize = 50;
     for (let i = 0; i < dataRows.length; i += batchSize) {
       const batch = dataRows.slice(i, i + batchSize);
@@ -224,7 +224,7 @@ export async function POST(req: NextRequest) {
           }
         }
 
-        // Build grouped image array
+        // Build grouped image array — store as native array (not stringified)
         if (imageArraySlug && imageGroupIndices.length > 0) {
           const images: string[] = [];
           imageGroupIndices.forEach(c => {
@@ -233,14 +233,14 @@ export async function POST(req: NextRequest) {
             }
           });
           if (images.length > 0) {
-            rowData[imageArraySlug] = JSON.stringify(images);
+            rowData[imageArraySlug] = images;
           }
         }
 
         return db.row.create({
           data: {
             dataSourceId: dsId,
-            data: JSON.stringify(rowData),
+            data: rowData,
             order: i + idx,
           },
         });

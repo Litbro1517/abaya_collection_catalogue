@@ -131,8 +131,13 @@ export function ColumnEditorDialog({ open, onOpenChange, dataSourceId, columns, 
             const updatePromises = Object.entries(editingCellValues).map(([rowId, value]) => {
               const row = rows.find(r => r.id === rowId);
               if (!row) return Promise.resolve();
-              const data = { ...row.data } as Record<string, unknown>;
-              data[slug] = value;
+              const data = { ...(row.data as Record<string, unknown>) };
+              // Try to parse JSON values (arrays, objects), otherwise keep as string
+              try {
+                data[slug] = JSON.parse(value);
+              } catch {
+                data[slug] = value;
+              }
               return fetch(`/api/datasources/${dataSourceId}/rows/${rowId}`, {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json' },
@@ -203,7 +208,11 @@ export function ColumnEditorDialog({ open, onOpenChange, dataSourceId, columns, 
   // Get current cell value (edited or original)
   const getCellValue = (row: Row, slug: string) => {
     if (row.id in editingCellValues) return editingCellValues[row.id];
-    return String((row.data as Record<string, unknown>)[slug] || '');
+    const val = (row.data as Record<string, unknown>)[slug];
+    if (val === undefined || val === null) return '';
+    if (typeof val === 'string') return val;
+    if (Array.isArray(val)) return JSON.stringify(val);
+    return String(val);
   };
 
   const otherColumns = columns.filter(c => c.id !== editingColumn?.id);

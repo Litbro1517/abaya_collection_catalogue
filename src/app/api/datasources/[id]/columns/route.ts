@@ -8,8 +8,8 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
       where: { dataSourceId: id },
       orderBy: { order: 'asc' },
     });
-    const parsed = columns.map(c => ({ ...c, config: JSON.parse(c.config as string) }));
-    return NextResponse.json({ data: parsed, error: null });
+    // Json fields are returned as native objects by Prisma with PostgreSQL
+    return NextResponse.json({ data: columns, error: null });
   } catch (e) {
     return NextResponse.json({ data: null, error: 'Failed to fetch columns' }, { status: 500 });
   }
@@ -46,11 +46,11 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
         order: (maxOrder?.order ?? -1) + 1,
         visible: visible !== false,
         required: required === true,
-        config: JSON.stringify(config || {}),
+        config: config || {},
       },
     });
 
-    return NextResponse.json({ data: { ...col, config: JSON.parse(col.config as string) }, error: null }, { status: 201 });
+    return NextResponse.json({ data: col, error: null }, { status: 201 });
   } catch (e: unknown) {
     const msg = e instanceof Error && e.message.includes('Unique') ? 'Column slug already exists' : 'Failed to create column';
     return NextResponse.json({ data: null, error: msg }, { status: 500 });

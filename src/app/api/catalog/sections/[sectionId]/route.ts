@@ -10,7 +10,7 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ sect
     if (body.type !== undefined) updateData.type = body.type;
     if (body.title !== undefined) updateData.title = body.title;
     if (body.subtitle !== undefined) updateData.subtitle = body.subtitle;
-    if (body.config !== undefined) updateData.config = JSON.stringify(body.config);
+    if (body.config !== undefined) updateData.config = body.config;
     if (body.order !== undefined) updateData.order = body.order;
     if (body.visible !== undefined) updateData.visible = body.visible;
 
@@ -19,7 +19,8 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ sect
       data: updateData,
     });
 
-    return NextResponse.json({ data: { ...section, config: JSON.parse(section.config as string) }, error: null });
+    // Json field (config) is returned as native object by Prisma with PostgreSQL
+    return NextResponse.json({ data: section, error: null });
   } catch (e) {
     return NextResponse.json({ data: null, error: 'Failed to update section' }, { status: 500 });
   }

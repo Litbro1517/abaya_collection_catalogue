@@ -56,23 +56,8 @@ export async function GET() {
       });
     }
 
-    // Parse JSON configs
-    const result = {
-      ...catalog,
-      sections: catalog.sections.map(s => ({
-        ...s,
-        config: JSON.parse(s.config as string),
-        components: s.components.map(c => ({
-          ...c,
-          config: JSON.parse(c.config as string),
-        })),
-      })),
-      settings: catalog.settings ? {
-        ...catalog.settings,
-      } : null,
-    };
-
-    return NextResponse.json({ data: result, error: null });
+    // Json fields (config) are returned as native objects by Prisma with PostgreSQL
+    return NextResponse.json({ data: catalog, error: null });
   } catch (e) {
     console.error('Catalog fetch error:', e);
     return NextResponse.json({ data: null, error: 'Failed to fetch catalog' }, { status: 500 });

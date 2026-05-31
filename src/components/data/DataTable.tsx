@@ -111,7 +111,11 @@ export function DataTable({ columns, rows, dataSourceId, loading, onRefresh }: P
 
   const startEditing = (rowId: string, colSlug: string, value: unknown) => {
     setEditingCell(`${rowId}-${colSlug}`);
-    const strVal = typeof value === 'string' ? value : value ? JSON.stringify(value) : '';
+    // Convert native arrays/objects to string for editing
+    let strVal = '';
+    if (typeof value === 'string') strVal = value;
+    else if (Array.isArray(value)) strVal = JSON.stringify(value);
+    else if (value !== null && value !== undefined) strVal = String(value);
     setEditValue(strVal);
   };
 
@@ -120,8 +124,13 @@ export function DataTable({ columns, rows, dataSourceId, loading, onRefresh }: P
     const row = rows.find(r => r.id === rowId);
     if (!row) return;
 
-    const data = { ...row.data } as Record<string, unknown>;
-    data[colSlug] = editValue;
+    const data = { ...(row.data as Record<string, unknown>) };
+    // Try to parse JSON values (arrays, objects), otherwise keep as string
+    try {
+      data[colSlug] = JSON.parse(editValue);
+    } catch {
+      data[colSlug] = editValue;
+    }
 
     try {
       const res = await fetch(`/api/datasources/${dataSourceId}/rows/${rowId}`, {
@@ -379,6 +388,19 @@ export function DataTable({ columns, rows, dataSourceId, loading, onRefresh }: P
   const renderCellValue = (row: Row, col: Column) => {
     const value = (row.data as Record<string, unknown>)[col.slug];
     if (value === undefined || value === null || value === '') return <span className="text-muted-foreground/40">—</span>;
+
+    // Native array (from PostgreSQL Json type)
+    if (Array.isArray(value)) {
+      if (col.type === 'IMAGE' || col.type === 'IMAGE_ARRAY') {
+        return (
+          <Badge variant="secondary" className="text-[10px] gap-1">
+            <Images className="w-2.5 h-2.5" />
+            {value.length} image{value.length > 1 ? 's' : ''}
+          </Badge>
+        );
+      }
+      return <span className="truncate block max-w-[250px]" title={value.join(', ')}>{value.join(', ')}</span>;
+    }
 
     const strVal = String(value);
 

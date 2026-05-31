@@ -21,17 +21,23 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
     let csv = headers.map(h => `"${h.replace(/"/g, '""')}"`).join(',') + '\n';
 
     for (const row of ds.rows) {
-      const data = JSON.parse(row.data as string) as Record<string, unknown>;
+      // Json fields are returned as native objects by Prisma with PostgreSQL
+      const data = row.data as Record<string, unknown>;
       const values = ds.columns.map(c => {
-        const val = String(data[c.slug] ?? '');
-        // If the value is a JSON array, flatten it
-        if (val.startsWith('[')) {
+        const val = data[c.slug];
+        // If the value is an array, flatten it for CSV
+        if (Array.isArray(val)) {
+          return `"${val.join(', ')}"`;
+        }
+        const strVal = String(val ?? '');
+        // If the value is a stringified JSON array, flatten it
+        if (typeof val === 'string' && val.startsWith('[')) {
           try {
             const arr = JSON.parse(val);
             if (Array.isArray(arr)) return `"${arr.join(', ')}"`;
-          } catch {}
+          } catch { /* not valid JSON */ }
         }
-        return `"${val.replace(/"/g, '""')}"`;
+        return `"${strVal.replace(/"/g, '""')}"`;
       });
       csv += values.join(',') + '\n';
     }

@@ -164,10 +164,20 @@ export function resolveImageUrl(url: string, size: number = 800): string {
  * Parse a cell value that may contain multiple image URLs
  * Handles comma-separated, newline-separated, or JSON array formats
  */
-export function parseImageUrls(value: string): string[] {
-  if (!value || typeof value !== 'string') return [];
-  
-  // Try JSON array first
+export function parseImageUrls(value: unknown): string[] {
+  if (!value) return [];
+
+  // Native array (from PostgreSQL Json type)
+  if (Array.isArray(value)) {
+    return value
+      .filter((url: unknown) => typeof url === 'string' && url.length > 0)
+      .map((url: string) => resolveImageUrl(url));
+  }
+
+  // String value
+  if (typeof value !== 'string') return [];
+
+  // Try JSON array first (legacy stringified format)
   if (value.startsWith('[')) {
     try {
       const parsed = JSON.parse(value);
@@ -176,13 +186,13 @@ export function parseImageUrls(value: string): string[] {
       }
     } catch {}
   }
-  
+
   // Split by comma or newline
   const urls = value
     .split(/[,;\n]/)
     .map(u => u.trim())
     .filter(u => u.length > 0 && (u.startsWith('http') || u.startsWith('/api/')));
-  
+
   return urls;
 }
 
