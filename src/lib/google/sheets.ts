@@ -44,13 +44,19 @@ export async function fetchPublicSheetAsCsv(sheetUrl: string, sheetName?: string
   for (const url of urlsToTry) {
     try {
       const response = await fetch(url, {
-        headers: { 'Accept': 'text/csv' },
+        headers: {
+          'Accept': 'text/csv',
+          'User-Agent': 'Mozilla/5.0 (compatible; CatalogBot/1.0)',
+        },
+        redirect: 'follow',
       });
       
       if (!response.ok) continue;
       
       const csvText = await response.text();
       if (!csvText || csvText.trim().length === 0) continue;
+      // Skip if response is HTML (redirect page or error page)
+      if (csvText.trimStart().startsWith('<')) continue;
       
       const result = parseCsvAndDetect(csvText);
       if (result && result.headers.length > 0) return result;
@@ -202,12 +208,51 @@ function parseCsvAndDetect(csvText: string): {
   const rows = parseCSV(csvText);
   if (rows.length === 0) return null;
   
-  const headers = rows[0];
+  // Detect if gviz concatenated headers with data (e.g. "Prix_Vente 270.00 DH 280.00 DH")
+  // The gviz/tq endpoint sometimes merges header + first N values into one cell
+  const headers = rows[0].map(h => cleanGvizHeader(h));
   const dataRows = rows.slice(1);
   
   const { imageColumns, columnTypes } = detectImageColumns(headers, dataRows);
   
   return { headers, rows: dataRows, imageColumns, columnTypes };
+}
+
+/**
+ * Clean a gviz-style header that has data concatenated after the actual column name.
+ * Examples:
+ *   "Prix_Vente 270.00 DH 280.00 DH" → "Prix_Vente"
+ *   "N Ordre 1 2 3 4" → "N Ordre"
+ *   "Image de Garde https://..." → "Image de Garde"
+ *   "Nom_Produit_Docx" → "Nom_Produit_Docx" (unchanged)
+ */
+function cleanGvizHeader(header: string): string {
+  // If header doesn't contain spaces, it's already clean (underscored headers like Prix_Vente)
+  // But we need to handle headers like "N Ordre" or "Image de Garde" that have legitimate spaces
+  
+  // Strategy: If the header contains a URL or a number followed by text,
+  // it's likely a gviz-concatenated header. Extract just the column name.
+  
+  // Pattern 1: Header contains a URL (http or drive.google.com)
+  if (/https?:\/\//.test(header)) {
+    return header.replace(/\s+https?:\/\/.*$/,'').trim();
+  }
+  
+  // Pattern 2: Header has numeric values after the name (e.g. "N Ordre 1 2 3 4" or "Prix_Vente 270.00 DH")
+  // Match: word chars/spaces followed by a number that isn't part of the name
+  const numericMatch = header.match(/^(.+?)\s+\d+[\d.,]*\s/);
+  if (numericMatch && numericMatch[1].length > 0) {
+    return numericMatch[1].trim();
+  }
+  
+  // Pattern 3: Header has repeated words (e.g. "Cliquer ici Cliquez ici Cliquez ici")
+  const repeatedMatch = header.match(/^(.+?)\s+\1/i);
+  if (repeatedMatch) {
+    return repeatedMatch[1].trim();
+  }
+  
+  // No cleaning needed
+  return header;
 }
 
 /**

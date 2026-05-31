@@ -20,12 +20,12 @@ model DataSource {
   icon          String    @default("Table")
   color         String    @default("#C9A84C")
   sourceType    String    @default("manual") // manual, csv, googlesheet
-  sourceUrl     String?   // URL for Google Sheet
-  sheetId       String?   // Google Sheet ID
-  sheetName     String?   // Specific sheet/tab name
+  sourceUrl     String?
+  sheetId       String?
+  sheetName     String?
   syncInterval  Int       @default(0) // minutes (0 = manual only)
   lastSyncedAt  DateTime?
-  googleSessionId String? // Reference to the Google session used
+  googleSessionId String?
   columns       Column[]
   rows          Row[]
   relations     Relation[] @relation("SourceRelation")
@@ -46,7 +46,7 @@ model Column {
   order        Int        @default(0)
   visible      Boolean    @default(true)
   required     Boolean    @default(false)
-  config       Json       @default("{}") // JSON: options for SELECT, sourceColumns for ARRAY, targetTable for RELATION, etc.
+  config       Json       @default("{}")
   width        Int        @default(150)
   createdAt    DateTime   @default(now()) @map("created_at")
   updatedAt    DateTime   @updatedAt @map("updated_at")
@@ -59,7 +59,7 @@ model Row {
   id           String     @id @default(cuid())
   dataSourceId String     @map("data_source_id")
   dataSource   DataSource @relation(fields: [dataSourceId], references: [id], onDelete: Cascade)
-  data         Json       @default("{}") // JSON: { columnSlug: value, ... }
+  data         Json       @default("{}")
   order        Int        @default(0)
   createdAt    DateTime   @default(now()) @map("created_at")
   updatedAt    DateTime   @updatedAt @map("updated_at")
@@ -72,7 +72,7 @@ model Relation {
   name           String
   sourceTableId  String     @map("source_table_id")
   sourceTable    DataSource @relation("SourceRelation", fields: [sourceTableId], references: [id], onDelete: Cascade)
-  sourceColumnId String     @map("source_column_id") // Column in source table that holds the reference
+  sourceColumnId String     @map("source_column_id")
   targetTableId  String     @map("target_table_id")
   targetTable    DataSource @relation("TargetRelation", fields: [targetTableId], references: [id], onDelete: Cascade)
   type           String     @default("manyToOne") // manyToOne, oneToMany, manyToMany
@@ -105,7 +105,7 @@ model Section {
   type         String   @default("collection") // collection, hero, featured, text
   title        String?
   subtitle     String?
-  config       Json     @default("{}") // JSON: layout-specific config
+  config       Json     @default("{}")
   order        Int      @default(0)
   visible      Boolean  @default(true)
   components   Component[]
@@ -120,7 +120,7 @@ model Component {
   sectionId   String   @map("section_id")
   section     Section  @relation(fields: [sectionId], references: [id], onDelete: Cascade)
   type        String   @default("card") // card, carousel, grid, detail, button, text, image
-  config      Json     @default("{}") // JSON: column mappings, styles, etc.
+  config      Json     @default("{}")
   order       Int      @default(0)
   visible     Boolean  @default(true)
   createdAt   DateTime @default(now()) @map("created_at")
