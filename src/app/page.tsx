@@ -4,7 +4,6 @@ import { useEffect, useCallback, useState } from 'react';
 import { useAppStore } from '@/lib/store';
 import { BuilderShell } from '@/components/BuilderShell';
 import { CatalogPreview } from '@/components/preview/CatalogPreview';
-import { LoginModal } from '@/components/LoginModal';
 import { Loader2 } from 'lucide-react';
 
 export default function Home() {
@@ -21,7 +20,7 @@ export default function Home() {
 
   const [initializing, setInitializing] = useState(true);
 
-  // Check auth on mount
+  // Check auth on mount (non-blocking — catalog loads regardless)
   useEffect(() => {
     const checkAuth = async () => {
       try {
@@ -33,13 +32,13 @@ export default function Home() {
           }
         }
       } catch {
-        // Not authenticated
+        // Not authenticated — fine for public visitors
       }
     };
     checkAuth();
   }, [setIsAdmin]);
 
-  // Check Google session on mount
+  // Check Google session on mount (admin-only feature)
   useEffect(() => {
     const checkGoogleSession = async () => {
       try {
@@ -59,7 +58,7 @@ export default function Home() {
           }
         }
       } catch {
-        // No Google session
+        // No Google session — fine for public visitors
       }
     };
     checkGoogleSession();
@@ -104,11 +103,11 @@ export default function Home() {
     }
   }, [setGoogleSession]);
 
-  // Load initial data
+  // Load initial data (catalog is public — always needed)
   const loadData = useCallback(async () => {
     setLoading(true);
     try {
-      // Load data sources
+      // Load data sources (admin feature, but harmless to preload)
       const dsRes = await fetch('/api/datasources');
       if (dsRes.ok) {
         const dsJson = await dsRes.json();
@@ -117,7 +116,7 @@ export default function Home() {
         }
       }
 
-      // Load catalog
+      // Load catalog — always needed for public view
       const catRes = await fetch('/api/catalog');
       if (catRes.ok) {
         const catJson = await catRes.json();
@@ -152,16 +151,16 @@ export default function Home() {
     );
   }
 
-  // Show login if not admin
+  // ── PUBLIC VISITOR: show catalog preview (never a login wall) ──
+  // Admin sees builder by default; visitors always see the catalog.
   if (!isAdmin) {
-    return <LoginModal />;
+    return <CatalogPreview />;
   }
 
-  // Preview mode
+  // Admin mode: toggle between builder and preview
   if (view === 'preview') {
     return <CatalogPreview />;
   }
 
-  // Builder mode
   return <BuilderShell />;
 }

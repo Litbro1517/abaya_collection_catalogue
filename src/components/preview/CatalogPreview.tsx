@@ -8,7 +8,7 @@ import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import {
   ArrowLeft, Search, MessageCircle, Share2, X, ChevronLeft, ChevronRight,
-  ZoomIn, ExternalLink, Mail, Instagram, ImageIcon
+  ZoomIn, ExternalLink, Mail, Instagram, ImageIcon, Lock, Loader2
 } from 'lucide-react';
 import { Dialog, DialogContent } from '@/components/ui/dialog';
 import { cn } from '@/lib/utils';
@@ -105,12 +105,43 @@ function ResolvedImage({
 // ── Main Component ────────────────────────────────────────────────────────
 
 export function CatalogPreview() {
-  const { catalog, settings, setView } = useAppStore();
+  const { catalog, settings, setView, isAdmin, setIsAdmin } = useAppStore();
   const [sections, setSections] = useState<{ section: Section; columns: Column[]; rows: Row[] }[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedProduct, setSelectedProduct] = useState<{ row: Row; columns: Column[]; section: Section } | null>(null);
   const [carouselIdx, setCarouselIdx] = useState(0);
   const [zoomImage, setZoomImage] = useState<string | null>(null);
+
+  // Admin login dialog (only for non-admin visitors who click the lock icon)
+  const [showAdminLogin, setShowAdminLogin] = useState(false);
+  const [adminPassword, setAdminPassword] = useState('');
+  const [adminError, setAdminError] = useState('');
+  const [adminLoading, setAdminLoading] = useState(false);
+
+  const handleAdminLogin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setAdminLoading(true);
+    setAdminError('');
+    try {
+      const res = await fetch('/api/auth', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ password: adminPassword }),
+      });
+      if (res.ok) {
+        setIsAdmin(true);
+        setShowAdminLogin(false);
+        setAdminPassword('');
+      } else {
+        const json = await res.json();
+        setAdminError(json.error || 'Mot de passe incorrect');
+      }
+    } catch {
+      setAdminError('Erreur de connexion');
+    } finally {
+      setAdminLoading(false);
+    }
+  };
 
   const s = settings || catalog?.settings;
 
@@ -201,9 +232,11 @@ export function CatalogPreview() {
       {/* Header */}
       <header className="sticky top-0 z-30 border-b backdrop-blur-md" style={{ backgroundColor: `${s?.backgroundColor || '#FAF8F5'}dd`, borderColor: s?.primaryColor ? `${s.primaryColor}20` : '#E8E2D9' }}>
         <div className="mx-auto max-w-7xl px-4 py-3 flex items-center gap-3">
-          <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setView('builder')}>
-            <ArrowLeft className="w-4 h-4" />
-          </Button>
+          {isAdmin && (
+            <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setView('builder')}>
+              <ArrowLeft className="w-4 h-4" />
+            </Button>
+          )}
           <div className="flex-1">
             <h1 className="font-semibold" style={{ color: s?.secondaryColor || '#1A1A1A' }}>{catalog?.name || 'Mon Catalogue'}</h1>
           </div>
@@ -217,6 +250,18 @@ export function CatalogPreview() {
                 className="h-9 pl-9 text-sm"
               />
             </div>
+          )}
+          {/* Subtle admin access — lock icon only visible to non-admins */}
+          {!isAdmin && (
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-8 w-8 opacity-30 hover:opacity-100 transition-opacity"
+              onClick={() => setShowAdminLogin(true)}
+              title="Accès administrateur"
+            >
+              <Lock className="w-4 h-4" />
+            </Button>
           )}
         </div>
       </header>
@@ -299,8 +344,8 @@ export function CatalogPreview() {
 
         {sections.length === 0 && (
           <div className="text-center py-20 text-muted-foreground">
-            <p className="text-lg font-medium">Aucune section configurée</p>
-            <p className="text-sm mt-1">Ajoutez des sections dans l&apos;onglet Mise en page</p>
+            <p className="text-lg font-medium">Catalogue en préparation</p>
+            <p className="text-sm mt-1">{isAdmin ? 'Ajoutez des sections dans l\'onglet Mise en page' : 'Revenez bientôt découvrir notre collection'}</p>
           </div>
         )}
       </main>
@@ -508,6 +553,37 @@ export function CatalogPreview() {
               </button>
             </div>
           )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Admin Login Dialog (only visible when lock icon clicked) */}
+      <Dialog open={showAdminLogin} onOpenChange={v => { if (!v) { setShowAdminLogin(false); setAdminError(''); } }}>
+        <DialogContent className="sm:max-w-md">
+          <div className="space-y-4">
+            <div className="flex flex-col items-center gap-2 text-center">
+              <div className="w-10 h-10 rounded-full bg-gold/10 flex items-center justify-center">
+                <Lock className="w-5 h-5 text-gold" />
+              </div>
+              <h2 className="text-lg font-semibold">Accès Administrateur</h2>
+              <p className="text-xs text-muted-foreground">Entrez le mot de passe pour modifier le catalogue</p>
+            </div>
+            <form onSubmit={handleAdminLogin} className="space-y-3">
+              <Input
+                type="password"
+                placeholder="Mot de passe"
+                value={adminPassword}
+                onChange={e => setAdminPassword(e.target.value)}
+                autoFocus
+                className="h-10"
+              />
+              {adminError && (
+                <p className="text-xs text-destructive">{adminError}</p>
+              )}
+              <Button type="submit" className="w-full h-10 bg-gold hover:bg-gold/90 text-gold-foreground" disabled={adminLoading || !adminPassword}>
+                {adminLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Se connecter'}
+              </Button>
+            </form>
+          </div>
         </DialogContent>
       </Dialog>
     </div>
