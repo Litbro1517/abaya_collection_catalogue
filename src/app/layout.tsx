@@ -17,8 +17,8 @@ const inter = Inter({
 });
 
 export const metadata: Metadata = {
-  title: "Catalogue Constructeur — Créez votre catalogue produit",
-  description: "Constructeur de catalogue dynamique. Importez vos données, configurez l'affichage, partagez avec vos clients via WhatsApp, Messenger et plus.",
+  title: "Abaya Collection Chic — Catalogue",
+  description: "Découvrez notre collection exclusive d'abayas, robes et ensembles. Commandez via WhatsApp, Messenger et plus.",
   icons: {
     icon: "/logo.svg",
   },

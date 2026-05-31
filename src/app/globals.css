@@ -185,3 +185,49 @@
 .skeleton-pulse {
   animation: pulse-soft 2s ease-in-out infinite;
 }
+
+/* ── Carousel slide animations ─────────────────────────────────────── */
+@keyframes slide-in-right {
+  from { transform: translateX(30px); opacity: 0.7; }
+  to { transform: translateX(0); opacity: 1; }
+}
+@keyframes slide-in-left {
+  from { transform: translateX(-30px); opacity: 0.7; }
+  to { transform: translateX(0); opacity: 1; }
+}
+.animate-slide-in-right {
+  animation: slide-in-right 0.3s ease-out;
+}
+.animate-slide-in-left {
+  animation: slide-in-left 0.3s ease-out;
+}
+
+/* ── Product card image quality ────────────────────────────────────── */
+img {
+  image-rendering: -webkit-optimize-contrast;
+  image-rendering: crisp-edges;
+}
+
+/* ── Dialog overlay smooth ─────────────────────────────────────────── */
+[data-state="open"] .DialogContent {
+  animation: dialog-in 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+}
+@keyframes dialog-in {
+  from { transform: scale(0.95) translateY(10px); opacity: 0; }
+  to { transform: scale(1) translateY(0); opacity: 1; }
+}
+
+/* ── Horizontal scrollbar for thumbnails ───────────────────────────── */
+.overflow-x-auto::-webkit-scrollbar {
+  height: 3px;
+}
+.overflow-x-auto::-webkit-scrollbar-track {
+  background: transparent;
+}
+.overflow-x-auto::-webkit-scrollbar-thumb {
+  background: #C9A84C30;
+  border-radius: 3px;
+}
+.overflow-x-auto::-webkit-scrollbar-thumb:hover {
+  background: #C9A84C60;
+}

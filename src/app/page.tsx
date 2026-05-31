@@ -4,6 +4,7 @@ import { useEffect, useCallback, useState } from 'react';
 import { useAppStore } from '@/lib/store';
 import { BuilderShell } from '@/components/BuilderShell';
 import { CatalogPreview } from '@/components/preview/CatalogPreview';
+import { LoginModal } from '@/components/LoginModal';
 import { Loader2 } from 'lucide-react';
 
 export default function Home() {
@@ -19,8 +20,9 @@ export default function Home() {
   } = useAppStore();
 
   const [initializing, setInitializing] = useState(true);
+  const [showLogin, setShowLogin] = useState(false);
 
-  // Check auth on mount (non-blocking — catalog loads regardless)
+  // Check auth on mount (non-blocking — catalog is always visible)
   useEffect(() => {
     const checkAuth = async () => {
       try {
@@ -32,13 +34,13 @@ export default function Home() {
           }
         }
       } catch {
-        // Not authenticated — fine for public visitors
+        // Not authenticated — that's fine, public visitor
       }
     };
     checkAuth();
   }, [setIsAdmin]);
 
-  // Check Google session on mount (admin-only feature)
+  // Check Google session on mount
   useEffect(() => {
     const checkGoogleSession = async () => {
       try {
@@ -58,7 +60,7 @@ export default function Home() {
           }
         }
       } catch {
-        // No Google session — fine for public visitors
+        // No Google session
       }
     };
     checkGoogleSession();
@@ -103,11 +105,11 @@ export default function Home() {
     }
   }, [setGoogleSession]);
 
-  // Load initial data (catalog is public — always needed)
+  // Load initial data (always, for both public and admin)
   const loadData = useCallback(async () => {
     setLoading(true);
     try {
-      // Load data sources (admin feature, but harmless to preload)
+      // Load data sources
       const dsRes = await fetch('/api/datasources');
       if (dsRes.ok) {
         const dsJson = await dsRes.json();
@@ -116,7 +118,7 @@ export default function Home() {
         }
       }
 
-      // Load catalog — always needed for public view
+      // Load catalog
       const catRes = await fetch('/api/catalog');
       if (catRes.ok) {
         const catJson = await catRes.json();
@@ -151,16 +153,24 @@ export default function Home() {
     );
   }
 
-  // ── PUBLIC VISITOR: show catalog preview (never a login wall) ──
-  // Admin sees builder by default; visitors always see the catalog.
-  if (!isAdmin) {
-    return <CatalogPreview />;
+  // Admin builder mode — only for authenticated admins
+  if (isAdmin && view === 'builder') {
+    return <BuilderShell />;
   }
 
-  // Admin mode: toggle between builder and preview
-  if (view === 'preview') {
-    return <CatalogPreview />;
+  // Login modal overlay — only when explicitly requested
+  if (showLogin && !isAdmin) {
+    return (
+      <LoginModal
+        onLoginSuccess={() => {
+          setIsAdmin(true);
+          setShowLogin(false);
+        }}
+        onCancel={() => setShowLogin(false)}
+      />
+    );
   }
 
-  return <BuilderShell />;
+  // Default: Catalog preview (public + admin)
+  return <CatalogPreview onAdminLogin={() => setShowLogin(true)} />;
 }

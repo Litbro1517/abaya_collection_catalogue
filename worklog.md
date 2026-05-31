@@ -255,3 +255,103 @@ Stage Summary:
 - All static assets (CSS, JS) loading correctly
 - Caddy gateway on port 81 proxies correctly to Next.js on port 3000
 - Auto-restart configured in dev.sh for container restarts
+---
+Task ID: 7
+Agent: Main
+Task: Make catalog publicly accessible without authentication + configure Google OAuth
+
+Work Log:
+- Saved Google OAuth credentials to database via /api/google/credentials PUT endpoint
+  - Client ID: 526879691807-74p2ppjhoiosckvrp4pjr3e0b5lo4uq0.apps.googleusercontent.com
+  - Client Secret: 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
+- Verified Google OAuth URL generation works correctly
+- Rewrote page.tsx: removed the `if (!isAdmin) return <LoginModal />` block that was blocking public access
+  - CatalogPreview now shown by default for ALL visitors (public + admin)
+  - LoginModal only shown when explicitly triggered via "Admin" button
+  - Admin builder mode only accessible when authenticated + view === 'builder'
+- Updated LoginModal: added onLoginSuccess and onCancel props for overlay-style login
+  - Added X close button when shown as overlay (not full-page)
+- Updated CatalogPreview: added onAdminLogin prop and isAdmin-aware UI
+  - Admin sees "back to builder" button (ArrowLeft)
+  - Public visitors see subtle "Admin" link that opens login modal
+  - Updated "no sections" message for public visitors
+- Added BookOpen icon import to CatalogPreview
+- Lint passes cleanly
+- Rebuilt production server and verified public access works
+
+Stage Summary:
+- Catalog is now PUBLIC and accessible without authentication
+- Google OAuth credentials configured and working (generates auth URLs)
+- Admin controls hidden for public visitors, shown for authenticated admins
+- Subtle "Admin" button in catalog header for admin access
+- Server running stably on port 3000
+---
+Task ID: 8
+Agent: Main
+Task: Connect real Google Sheet to the catalog and import all product data
+
+Work Log:
+- Tested public CSV export of the user's Google Sheet (sheet ID: 12R09MIIyYtH8Jovdqsk_sSmUGyeGFINcbztLDl1Iu6c, gid: 2087043853)
+- Sheet is publicly accessible with 67 products including abayas, robes, ensembles
+- Updated fetchPublicSheetAsCsv in sheets.ts to support `gid` parameter for specific tabs
+- Updated sync route to accept and pass through `gid` parameter
+- Called /api/google/sync with sheetId and gid — successfully imported:
+  - 82 rows (67 with actual product data)
+  - 78 columns (12 data columns + 65 image group columns + 1 grouped IMAGE_ARRAY)
+  - Auto-detected column types: IMAGE, CURRENCY, TEXT, URL, NUMBER
+  - Created `groupe_images` IMAGE_ARRAY column combining all 65 image group columns
+- Renamed DataSource to "Abaya Collection" with description
+- Created catalog section "Collection Abaya" with proper column mappings:
+  - coverColumn: image-de-garde (cover image)
+  - titleColumn: nomproduitdocx (product name)
+  - priceColumn: prixvente (sale price)
+  - descriptionColumn: description
+  - variantColumn: optionscouleurs (color options)
+  - carouselColumn: groupe_images (gallery images)
+  - detailColumns: optionstailles, optionscouleurs, nomstore, urlcomplete
+  - columnsPerRow: 2, cardStyle: elevated
+- Updated catalog name to "Abaya Collection Chic" and set published: true
+- Updated CatalogPreview filterRows to skip empty rows (no title, no cover, no price)
+- Updated layout metadata title and description
+- Verified image proxy works (returns JPEG from Google Drive)
+- Verified Google OAuth credentials are configured
+
+Stage Summary:
+- Google Sheet fully connected and synced (67 products)
+- All images proxied through /api/google/image-proxy (Google Drive → proxy → client)
+- Catalog publicly accessible at / with product cards, image carousels, variant badges
+- Admin access via subtle "Admin" button in catalog header
+- Google OAuth configured and ready for login
+---
+Task ID: 9
+Agent: Main
+Task: Fix image display issues - stretching, scrollbars, aspect ratios, Glide-like 4-column layout
+
+Work Log:
+- Analyzed 9 user screenshots using VLM to understand layout issues
+- Issues identified: images stretched on large screens, scrollbars on product detail, inconsistent aspect ratios, 3/4 aspect too tall
+- Completely rewrote CatalogPreview.tsx with Glide-like layout:
+  - Grid: 2 cols mobile, 3 cols tablet, 4 cols desktop (grid-cols-2 sm:grid-cols-3 lg:grid-cols-4)
+  - Card images: aspect-square with object-cover (no stretching, consistent grid)
+  - Removed description from cards (shown only in detail view)
+  - Compact card content (p-2.5, text-xs/sm)
+  - Max width 1400px for better large screen layout
+- Fixed product detail dialog:
+  - No more scrollbars: carousel uses aspect-square with object-contain
+  - Dialog uses flex layout with max-h-[85vh] instead of overflow-y-auto on entire content
+  - Carousel is shrink-0 (fixed), info section scrollable, buttons fixed at bottom
+  - Thumbnail strip is horizontal scrollable with shrink-0
+- Created ProductImage component replacing ResolvedImage:
+  - Supports objectFit prop (cover for cards, contain for detail view)
+  - Handles already-proxied URLs without re-resolving
+  - URL rewriting for size parameter
+- Updated section config: columnsPerRow=4, cardStyle=elevated, showDescription=false
+- Updated layout metadata for "Abaya Collection Chic"
+- Lint passes cleanly
+
+Stage Summary:
+- Glide-like 4-per-row grid on desktop, 3 on tablet, 2 on mobile
+- Square aspect ratio cards with object-cover (no stretching)
+- Product detail dialog: no scrollbars, proper image containment
+- Compact cards with title + price only (description in detail)
+- Max width 1400px for better large screen distribution

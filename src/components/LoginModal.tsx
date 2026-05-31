@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { useAppStore } from '@/lib/store';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import { Lock, Loader2, BookOpen } from 'lucide-react';
+import { Lock, Loader2, BookOpen, X } from 'lucide-react';
 
 function GoogleIcon({ className }: { className?: string }) {
   return (
@@ -17,7 +17,12 @@ function GoogleIcon({ className }: { className?: string }) {
   );
 }
 
-export function LoginModal() {
+interface LoginModalProps {
+  onLoginSuccess?: () => void;
+  onCancel?: () => void;
+}
+
+export function LoginModal({ onLoginSuccess, onCancel }: LoginModalProps) {
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
@@ -39,6 +44,7 @@ export function LoginModal() {
 
       if (res.ok) {
         setIsAdmin(true);
+        onLoginSuccess?.();
       } else {
         const json = await res.json();
         setError(json.error || 'Erreur de connexion');
@@ -85,9 +91,19 @@ export function LoginModal() {
         <div className="absolute -bottom-40 -left-40 w-80 h-80 bg-gold/5 rounded-full blur-3xl" />
       </div>
 
-      {/* Login card - rendered directly, no portal */}
+      {/* Login card */}
       <div className="relative w-full max-w-md">
         <div className="bg-card border border-border rounded-2xl shadow-xl p-8 space-y-6">
+          {/* Close button */}
+          {onCancel && (
+            <button
+              onClick={onCancel}
+              className="absolute top-4 right-4 p-1 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          )}
+
           {/* Header */}
           <div className="flex flex-col items-center gap-3 text-center">
             <div className="w-14 h-14 rounded-full bg-gold/10 flex items-center justify-center">

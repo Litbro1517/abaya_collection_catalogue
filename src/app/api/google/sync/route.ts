@@ -18,7 +18,7 @@ import { resolveImageUrl } from '@/lib/google/drive-images';
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
-    const { sheetId, sheetName, dataSourceId, googleSessionId } = body;
+    const { sheetId, sheetName, dataSourceId, googleSessionId, gid } = body;
 
     if (!sheetId) {
       return NextResponse.json(
@@ -48,7 +48,7 @@ export async function POST(req: NextRequest) {
     // Fallback to public CSV access
     if (!sheetData) {
       const sheetUrl = `https://docs.google.com/spreadsheets/d/${sheetId}/edit`;
-      sheetData = await fetchPublicSheetAsCsv(sheetUrl, sheetName);
+      sheetData = await fetchPublicSheetAsCsv(sheetUrl, sheetName, gid);
     }
 
     if (!sheetData || sheetData.headers.length === 0) {

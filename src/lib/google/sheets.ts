@@ -13,7 +13,7 @@ import { detectImageColumns, extractSheetId } from './drive-images';
  * Fetch a public Google Sheet as CSV
  * The sheet must be published to the web (File > Share > Publish to web)
  */
-export async function fetchPublicSheetAsCsv(sheetUrl: string, sheetName?: string): Promise<{
+export async function fetchPublicSheetAsCsv(sheetUrl: string, sheetName?: string, gid?: string): Promise<{
   headers: string[];
   rows: string[][];
   imageColumns: string[];
@@ -22,31 +22,44 @@ export async function fetchPublicSheetAsCsv(sheetUrl: string, sheetName?: string
   const sheetId = extractSheetId(sheetUrl);
   if (!sheetId) return null;
   
-  // Try the CSV export URL (works for public sheets)
-  const csvUrl = sheetName
-    ? `https://docs.google.com/spreadsheets/d/${sheetId}/gviz/tq?tqx=out:csv&sheet=${encodeURIComponent(sheetName)}`
-    : `https://docs.google.com/spreadsheets/d/${sheetId}/gviz/tq?tqx=out:csv`;
+  // Build CSV export URLs to try, in order of preference
+  const urlsToTry: string[] = [];
   
-  try {
-    const response = await fetch(csvUrl, {
-      headers: { 'Accept': 'text/csv' },
-    });
-    
-    if (!response.ok) {
-      // Try the export URL
-      const exportUrl = `https://docs.google.com/spreadsheets/d/${sheetId}/export?format=csv`;
-      const exportRes = await fetch(exportUrl);
-      if (!exportRes.ok) return null;
-      const csvText = await exportRes.text();
-      return parseCsvAndDetect(csvText);
-    }
-    
-    const csvText = await response.text();
-    return parseCsvAndDetect(csvText);
-  } catch (e) {
-    console.error('Failed to fetch public sheet:', e);
-    return null;
+  // If gid is provided, use the export URL with gid (most reliable for specific tabs)
+  if (gid) {
+    urlsToTry.push(`https://docs.google.com/spreadsheets/d/${sheetId}/export?format=csv&gid=${gid}`);
   }
+  
+  // Try gviz/tq with sheet name
+  if (sheetName) {
+    urlsToTry.push(`https://docs.google.com/spreadsheets/d/${sheetId}/gviz/tq?tqx=out:csv&sheet=${encodeURIComponent(sheetName)}`);
+  }
+  
+  // Fallback: first tab via gviz
+  urlsToTry.push(`https://docs.google.com/spreadsheets/d/${sheetId}/gviz/tq?tqx=out:csv`);
+  
+  // Last resort: export first tab
+  urlsToTry.push(`https://docs.google.com/spreadsheets/d/${sheetId}/export?format=csv`);
+  
+  for (const url of urlsToTry) {
+    try {
+      const response = await fetch(url, {
+        headers: { 'Accept': 'text/csv' },
+      });
+      
+      if (!response.ok) continue;
+      
+      const csvText = await response.text();
+      if (!csvText || csvText.trim().length === 0) continue;
+      
+      const result = parseCsvAndDetect(csvText);
+      if (result && result.headers.length > 0) return result;
+    } catch {
+      // Try next URL
+    }
+  }
+  
+  return null;
 }
 
 /**
