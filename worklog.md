@@ -209,3 +209,29 @@ Stage Summary:
 - Key fix: DIRECT_URL must use Session Mode Pooler (same host as DATABASE_URL but port 5432 without pgbouncer params)
 - Key fix: output:"standalone" must be removed for Vercel deployments
 - Key fix: Column slugs use no underscores (e.g., "nomproduitdocx" not "nom_produit_docx")
+---
+Task ID: vercel-deploy-final
+Agent: Main Agent
+Task: Configure Vercel environment variables, fix DIRECT_URL for Supabase, trigger redeploy
+
+Work Log:
+- Verified prisma/schema.prisma has provider=postgresql + directUrl=env("DIRECT_URL") ✅
+- Verified package.json has "build": "prisma generate && prisma db push && next build" ✅
+- Pushed latest commit (03907b4) to GitHub
+- Found Vercel project: prj_SgTq1Bj0VhAZZN372lZDX8RDdyBI (abaya-collection-catalogue)
+- Deleted old DATABASE_URL and DIRECT_URL env vars
+- Created new DATABASE_URL with Supabase Pooler URL (port 6543, Transaction mode)
+- Created new DIRECT_URL with Supabase Session Mode Pooler (port 5432) — NOT direct connection
+- First deploy failed: P1001 Can't reach db.xxx.supabase.co:5432 (direct connection blocked from Vercel)
+- Fixed by changing DIRECT_URL from direct connection to Session Mode pooler (aws-0-eu-west-3.pooler.supabase.com:5432)
+- Second deploy SUCCEEDED: status READY
+- Verified production URL: https://abaya-collection-catalogue.vercel.app → HTTP 200
+- Verified Supabase DB connection: 1 data source, 78 columns, 50 rows, catalog published with "Notre Collection" section
+
+Stage Summary:
+- ✅ Vercel deployment: READY (green)
+- ✅ Supabase DB: Connected and working
+- ✅ DATABASE_URL: postgresql://postgres.ldvbfsnqgulynwxqwzau:3sHLmkVWQsvbJPTY@aws-0-eu-west-3.pooler.supabase.com:6543/postgres?pgbouncer=true&connection_limit=1
+- ✅ DIRECT_URL: postgresql://postgres.ldvbfsnqgulynwxqwzau:3sHLmkVWQsvbJPTY@aws-0-eu-west-3.pooler.supabase.com:5432/postgres (Session Mode Pooler)
+- ⚠️ Only 50/82 products imported (partial import from previous session)
+- Production URL: https://abaya-collection-catalogue.vercel.app
