@@ -30,8 +30,8 @@ const KNOWN_COLUMNS: Record<string, { type: string; visible: boolean; config?: R
 function generateSlug(name: string): string {
   return name
     .toLowerCase()
-    .replace(/[^a-z0-9\s]/g, '')
-    .replace(/\s+/g, '-')
+    .replace(/[^a-z0-9\s_]/g, '')
+    .replace(/\s+/g, '_')
     .substring(0, 60);
 }
 

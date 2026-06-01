@@ -195,39 +195,34 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
       });
     }
 
-    // Create rows — pass native objects for Json fields (PostgreSQL)
-    const batchSize = 50;
-    for (let i = 0; i < dataRows.length; i += batchSize) {
-      const batch = dataRows.slice(i, i + batchSize);
-      const createPromises = batch.map((row, idx) => {
-        const rowData: Record<string, unknown> = {};
-        for (let c = 0; c < headers.length; c++) {
-          if (c < row.length && row[c]) {
-            rowData[columnSlugs[c]] = row[c];
-          }
+    // Create rows — sequential to avoid connection pool exhaustion with pgbouncer
+    for (let i = 0; i < dataRows.length; i++) {
+      const row = dataRows[i];
+      const rowData: Record<string, unknown> = {};
+      for (let c = 0; c < headers.length; c++) {
+        if (c < row.length && row[c]) {
+          rowData[columnSlugs[c]] = row[c];
         }
+      }
 
-        // Build the grouped image array — store as native array (not stringified)
-        if (imageArraySlug && imageGroupIndices.length > 0) {
-          const images: string[] = [];
-          imageGroupIndices.forEach(c => {
-            if (row[c] && row[c].length > 0) images.push(row[c]);
-          });
-          if (images.length > 0) {
-            rowData[imageArraySlug] = images;
-          }
-        }
-
-        return db.row.create({
-          data: {
-            dataSourceId: id,
-            data: rowData,
-            order: i + idx,
-          },
+      // Build the grouped image array — store as native array (not stringified)
+      if (imageArraySlug && imageGroupIndices.length > 0) {
+        const images: string[] = [];
+        imageGroupIndices.forEach(c => {
+          if (row[c] && row[c].length > 0) images.push(row[c]);
         });
-      });
+        if (images.length > 0) {
+          rowData[imageArraySlug] = images;
+        }
+      }
 
-      await Promise.all(createPromises);
+      await db.row.create({
+        data: {
+          dataSourceId: id,
+          data: rowData,
+          order: i,
+        },
+      });
     }
 
     const ds = await db.dataSource.findUnique({

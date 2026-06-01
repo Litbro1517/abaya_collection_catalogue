@@ -1,5 +1,5 @@
 import { db } from '@/lib/db';
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 
 export async function GET() {
   try {
@@ -94,5 +94,39 @@ export async function POST(req: Request) {
     return NextResponse.json({ data: catalog, error: null }, { status: 201 });
   } catch (e) {
     return NextResponse.json({ data: null, error: 'Failed to create catalog' }, { status: 500 });
+  }
+}
+
+export async function PUT(req: NextRequest) {
+  try {
+    const body = await req.json();
+    const catalog = await db.catalog.findFirst();
+
+    if (!catalog) {
+      return NextResponse.json({ data: null, error: 'No catalog found' }, { status: 404 });
+    }
+
+    const updateData: Record<string, unknown> = {};
+    if (body.name !== undefined) updateData.name = body.name;
+    if (body.slug !== undefined) updateData.slug = body.slug;
+    if (body.published !== undefined) updateData.published = body.published;
+
+    const updated = await db.catalog.update({
+      where: { id: catalog.id },
+      data: updateData,
+      include: {
+        sections: {
+          orderBy: { order: 'asc' },
+          include: {
+            components: { orderBy: { order: 'asc' } },
+          },
+        },
+        settings: true,
+      },
+    });
+
+    return NextResponse.json({ data: updated, error: null });
+  } catch (e) {
+    return NextResponse.json({ data: null, error: 'Failed to update catalog' }, { status: 500 });
   }
 }
