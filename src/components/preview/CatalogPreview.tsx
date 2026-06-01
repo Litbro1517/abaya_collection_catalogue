@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { useAppStore } from '@/lib/store';
 import type { Section, SectionConfig, Column, ColumnConfig, Row, CatalogSettings } from '@/types';
 import { Button } from '@/components/ui/button';
@@ -28,6 +28,7 @@ const BRAND = {
 } as const;
 
 const ITEMS_PER_PAGE = 12;
+const CAROUSEL_VISIBLE_RANGE = 2; // Render current ± 2 images in carousel
 
 // ── Image URL Resolution (high-res by default) ──
 
@@ -56,6 +57,22 @@ function resolveImageUrl(url: string, size = 1200): string {
     }
   }
 
+  return url;
+}
+
+/** Extract a stable key from a URL (Drive file ID or the URL itself) */
+function extractImageId(url: string): string {
+  const proxyMatch = url.match(/\/api\/google\/image-proxy\?id=([^&]+)/);
+  if (proxyMatch) return proxyMatch[1];
+  for (const pattern of [
+    /drive\.google\.com\/file\/d\/([a-zA-Z0-9_-]+)/,
+    /drive\.google\.com\/open\?id=([a-zA-Z0-9_-]+)/,
+    /drive\.google\.com\/uc\?[^#]*id=([a-zA-Z0-9_-]+)/,
+    /lh3\.googleusercontent\.com\/d\/([a-zA-Z0-9_-]+)/,
+  ]) {
+    const match = url.match(pattern);
+    if (match) return match[1];
+  }
   return url;
 }
 
@@ -158,7 +175,67 @@ function ProductImage({
   );
 }
 
-// ── Carousel with Swipe & Smooth Transitions ──
+// ── Compact Dot Indicators (max 7 visible) ──
+function CompactDots({ total, current, onGoTo }: { total: number; current: number; onGoTo: (i: number) => void }) {
+  if (total <= 7) {
+    return (
+      <div className="flex gap-1.5 items-center">
+        {Array.from({ length: total }, (_, i) => (
+          <button
+            key={i}
+            className={cn(
+              'rounded-full transition-all duration-300',
+              i === current ? 'w-6 h-2' : 'w-2 h-2 hover:scale-110'
+            )}
+            style={{
+              backgroundColor: i === current ? BRAND.blanc : 'rgba(255,255,255,0.5)',
+            }}
+            onClick={() => onGoTo(i)}
+          />
+        ))}
+      </div>
+    );
+  }
+
+  // Compact mode: show first, last, and current ± 1 with ellipsis
+  const dots: (number | 'start-ell' | 'end-ell')[] = [];
+  const showStart = current > 2;
+  const showEnd = current < total - 3;
+
+  dots.push(0);
+  if (showStart) dots.push('start-ell');
+  for (let i = Math.max(1, current - 1); i <= Math.min(total - 2, current + 1); i++) {
+    dots.push(i);
+  }
+  if (showEnd) dots.push('end-ell');
+  dots.push(total - 1);
+
+  return (
+    <div className="flex gap-1.5 items-center">
+      {dots.map((d, idx) => {
+        if (d === 'start-ell' || d === 'end-ell') {
+          return <span key={`ell-${idx}`} className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: 'rgba(255,255,255,0.3)' }} />;
+        }
+        const i = d as number;
+        return (
+          <button
+            key={i}
+            className={cn(
+              'rounded-full transition-all duration-300',
+              i === current ? 'w-6 h-2' : 'w-2 h-2 hover:scale-110'
+            )}
+            style={{
+              backgroundColor: i === current ? BRAND.blanc : 'rgba(255,255,255,0.5)',
+            }}
+            onClick={() => onGoTo(i)}
+          />
+        );
+      })}
+    </div>
+  );
+}
+
+// ── Carousel with Swipe & Virtualized Rendering ──
 
 function ImageCarousel({
   images,
@@ -179,7 +256,6 @@ function ImageCarousel({
   const currentIdx = externalIdx !== undefined ? externalIdx : internalIdx;
   const touchStartX = useRef(0);
   const touchEndX = useRef(0);
-  const trackRef = useRef<HTMLDivElement>(null);
 
   const goTo = useCallback((newIdx: number) => {
     setInternalIdx(newIdx);
@@ -210,6 +286,16 @@ function ImageCarousel({
     }
   };
 
+  // Virtualize: only render images near current index
+  const visibleIndices = useMemo(() => {
+    const indices = new Set<number>();
+    for (let offset = -CAROUSEL_VISIBLE_RANGE; offset <= CAROUSEL_VISIBLE_RANGE; offset++) {
+      const idx = currentIdx + offset;
+      if (idx >= 0 && idx < images.length) indices.add(idx);
+    }
+    return indices;
+  }, [currentIdx, images.length]);
+
   if (images.length === 0) {
     return (
       <div style={{ position: 'relative', width: '100%', aspectRatio: '3 / 4', display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: BRAND.beige }}>
@@ -221,28 +307,35 @@ function ImageCarousel({
   return (
     <div
       style={{ position: 'relative', width: '100%', aspectRatio: '3 / 4', overflow: 'hidden', backgroundColor: BRAND.beige }}
-      ref={trackRef}
       onTouchStart={onTouchStart}
       onTouchMove={onTouchMove}
       onTouchEnd={onTouchEnd}
     >
-      {/* Sliding track */}
+      {/* Sliding track — virtualized rendering */}
       <div
         className="flex h-full transition-transform duration-400 ease-out"
         style={{ transform: `translateX(-${currentIdx * 100}%)` }}
       >
-        {images.map((img, i) => (
-          <div key={i} className="w-full h-full shrink-0">
-            <ProductImage
-              src={resolveImageUrl(img, 1920)}
-              alt={`${alt} - ${i + 1}`}
-              className="w-full h-full"
-              objectFit="cover"
-              sizes="(max-width: 640px) 100vw, (max-width: 1024px) 80vw, 60vw"
-              priority={i === 0}
-            />
-          </div>
-        ))}
+        {images.map((img, i) => {
+          const isVisible = visibleIndices.has(i);
+          return (
+            <div key={extractImageId(img) + '-' + i} className="w-full h-full shrink-0">
+              {isVisible ? (
+                <ProductImage
+                  src={resolveImageUrl(img, 1600)}
+                  alt={`${alt} - ${i + 1}`}
+                  className="w-full h-full"
+                  objectFit="cover"
+                  sizes="(max-width: 640px) 100vw, (max-width: 1024px) 80vw, 60vw"
+                  priority={i === currentIdx}
+                />
+              ) : (
+                // Placeholder for non-visible slides — keeps layout stable
+                <div className="w-full h-full" style={{ backgroundColor: BRAND.grisClair }} />
+              )}
+            </div>
+          );
+        })}
       </div>
 
       {/* Zoom button */}
@@ -276,24 +369,10 @@ function ImageCarousel({
         </>
       )}
 
-      {/* Dot indicators — Glide style */}
+      {/* Compact Dot indicators */}
       {images.length > 1 && (
-        <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex gap-2 z-10">
-          {images.map((_, i) => (
-            <button
-              key={i}
-              className={cn(
-                'rounded-full transition-all duration-300',
-                i === currentIdx
-                  ? 'w-6 h-2 shadow-sm'
-                  : 'w-2 h-2 hover:scale-110'
-              )}
-              style={{
-                backgroundColor: i === currentIdx ? BRAND.blanc : 'rgba(255,255,255,0.5)',
-              }}
-              onClick={() => goTo(i)}
-            />
-          ))}
+        <div className="absolute bottom-4 left-1/2 -translate-x-1/2 z-10">
+          <CompactDots total={images.length} current={currentIdx} onGoTo={goTo} />
         </div>
       )}
 
@@ -477,22 +556,34 @@ export function CatalogPreview({ onAdminLogin }: CatalogPreviewProps) {
     return String(val);
   };
 
-  const getCarouselImages = (row: Row, config: SectionConfig, columns?: Column[]): string[] => {
+  /**
+   * Build carousel images for a product.
+   * Key dedup strategy: use Drive file IDs to avoid showing the same image twice
+   * (e.g., cover image that also appears in the gallery column).
+   */
+  const getCarouselImages = useCallback((row: Row, config: SectionConfig, columns?: Column[]): string[] => {
     const images: string[] = [];
+    const seenIds = new Set<string>();
     const rawData = row.data as Record<string, unknown>;
+
+    const addImage = (url: string) => {
+      const id = extractImageId(url);
+      if (seenIds.has(id)) return;
+      seenIds.add(id);
+      images.push(url);
+    };
 
     // 1. Add cover image first
     if (config.coverColumn) {
       const coverVal = rawData[config.coverColumn];
       if (coverVal) {
-        // For cover, use first image if it's an array
         if (Array.isArray(coverVal)) {
           const coverImgs = parseImageUrls(coverVal);
-          if (coverImgs.length > 0) images.push(resolveImageUrl(coverImgs[0], 1600));
+          if (coverImgs.length > 0) addImage(resolveImageUrl(coverImgs[0], 1600));
         } else {
           const coverStr = typeof coverVal === 'string' ? coverVal : String(coverVal);
           const coverImgs = parseImageUrls(coverStr);
-          if (coverImgs.length > 0) images.push(resolveImageUrl(coverImgs[0], 1600));
+          if (coverImgs.length > 0) addImage(resolveImageUrl(coverImgs[0], 1600));
         }
       }
     }
@@ -512,8 +603,10 @@ export function CatalogPreview({ onAdminLogin }: CatalogPreviewProps) {
       }
 
       if (carouselVal !== undefined && carouselVal !== null) {
-        const carouselImgs = parseImageUrls(carouselVal, separator).map(u => resolveImageUrl(u, 1600));
-        images.push(...carouselImgs);
+        const carouselImgs = parseImageUrls(carouselVal, separator);
+        for (const img of carouselImgs) {
+          addImage(resolveImageUrl(img, 1600));
+        }
       }
     }
 
@@ -524,19 +617,18 @@ export function CatalogPreview({ onAdminLogin }: CatalogPreviewProps) {
         const allCoverImgs = parseImageUrls(coverVal);
         // Skip the first one (already added as cover), add the rest
         for (let i = 1; i < allCoverImgs.length; i++) {
-          images.push(resolveImageUrl(allCoverImgs[i], 1600));
+          addImage(resolveImageUrl(allCoverImgs[i], 1600));
         }
       }
     }
 
-    // Deduplicate
-    const seen = new Set<string>();
-    return images.filter(img => {
-      if (seen.has(img)) return false;
-      seen.add(img);
-      return true;
-    });
-  };
+    return images;
+  }, []);
+
+  /** Get the total number of images for a product (for card badge) */
+  const getImageCount = useCallback((row: Row, config: SectionConfig, columns?: Column[]): number => {
+    return getCarouselImages(row, config, columns).length;
+  }, [getCarouselImages]);
 
   const buildConversionLink = (row: Row, config: SectionConfig): string => {
     const title = getCellValue(row, config.titleColumn || '');
@@ -768,6 +860,7 @@ export function CatalogPreview({ onAdminLogin }: CatalogPreviewProps) {
             const title = config.titleColumn ? getCellValue(row, config.titleColumn) : '';
             const price = config.priceColumn ? getCellValue(row, config.priceColumn) : '';
             const isLiked = likedProducts.has(row.id);
+            const imageCount = getImageCount(row, config, columns);
 
             return (
               <div
@@ -799,7 +892,7 @@ export function CatalogPreview({ onAdminLogin }: CatalogPreviewProps) {
                 <div style={{ position: 'relative', width: '100%', aspectRatio: '3 / 4', overflow: 'hidden', background: BRAND.grisClair }}>
                   {coverUrl ? (
                     <img
-                      src={resolveImageUrl(coverUrl, 1600)}
+                      src={resolveImageUrl(coverUrl, 800)}
                       alt={title}
                       loading="lazy"
                       style={{
@@ -848,6 +941,31 @@ export function CatalogPreview({ onAdminLogin }: CatalogPreviewProps) {
                   >
                     <Heart className={isLiked ? 'fill-current' : ''} style={{ width: 16, height: 16, color: isLiked ? '#EF4444' : BRAND.grisMoyen }} />
                   </button>
+
+                  {/* Image count badge — shows total images when > 1 */}
+                  {imageCount > 1 && (
+                    <div
+                      style={{
+                        position: 'absolute',
+                        bottom: 8,
+                        left: 8,
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: 4,
+                        backgroundColor: 'rgba(26,60,52,0.75)',
+                        color: BRAND.blanc,
+                        fontSize: 11,
+                        fontWeight: 600,
+                        padding: '3px 8px',
+                        borderRadius: 12,
+                        backdropFilter: 'blur(8px)',
+                        zIndex: 2,
+                      }}
+                    >
+                      <ImageIcon style={{ width: 12, height: 12 }} />
+                      {imageCount}
+                    </div>
+                  )}
                 </div>
 
                 {/* ── Style typographie ── */}
@@ -954,6 +1072,24 @@ export function CatalogPreview({ onAdminLogin }: CatalogPreviewProps) {
             const variants = config.variantColumn ? getCellValue(row, config.variantColumn) : '';
             const conversionLink = buildConversionLink(row, config);
 
+            // Limit visible thumbnails to max 10, centered around current
+            const maxThumbnails = 10;
+            const thumbnailImages = carouselImages.length > maxThumbnails
+              ? (() => {
+                  const start = Math.max(0, Math.min(
+                    detailCarouselIdx - Math.floor(maxThumbnails / 2),
+                    carouselImages.length - maxThumbnails
+                  ));
+                  return carouselImages.slice(start, start + maxThumbnails);
+                })()
+              : carouselImages;
+            const thumbnailOffset = carouselImages.length > maxThumbnails
+              ? Math.max(0, Math.min(
+                  detailCarouselIdx - Math.floor(maxThumbnails / 2),
+                  carouselImages.length - maxThumbnails
+                ))
+              : 0;
+
             return (
               <div className="flex flex-col max-h-[92vh]">
                 {/* Image Carousel */}
@@ -975,29 +1111,39 @@ export function CatalogPreview({ onAdminLogin }: CatalogPreviewProps) {
                   </div>
                 )}
 
-                {/* Thumbnail strip — Glide-style horizontal scroll */}
+                {/* Thumbnail strip — Glide-style horizontal scroll, limited to max 10 */}
                 {carouselImages.length > 1 && (
                   <div className="flex gap-2.5 px-4 py-3 overflow-x-auto shrink-0 bg-white custom-scrollbar" style={{ borderBottom: `1px solid ${primaryColor}15` }}>
-                    {carouselImages.map((img, i) => (
-                      <button
-                        key={i}
-                        className={cn(
-                          'w-14 h-14 rounded-xl overflow-hidden shrink-0 border-2 transition-all duration-200',
-                        )}
-                        style={{
-                          borderColor: i === detailCarouselIdx ? primaryColor : 'transparent',
-                          opacity: i === detailCarouselIdx ? 1 : 0.5,
-                        }}
-                        onClick={() => setDetailCarouselIdx(i)}
-                      >
-                        <ProductImage
-                          src={resolveImageUrl(img, 150)}
-                          alt=""
-                          className="w-full h-full"
-                          objectFit="cover"
-                        />
-                      </button>
-                    ))}
+                    {thumbnailImages.map((img, i) => {
+                      const realIdx = i + thumbnailOffset;
+                      return (
+                        <button
+                          key={extractImageId(img) + '-' + realIdx}
+                          className={cn(
+                            'w-14 h-14 rounded-xl overflow-hidden shrink-0 border-2 transition-all duration-200',
+                          )}
+                          style={{
+                            borderColor: realIdx === detailCarouselIdx ? primaryColor : 'transparent',
+                            opacity: realIdx === detailCarouselIdx ? 1 : 0.5,
+                          }}
+                          onClick={() => setDetailCarouselIdx(realIdx)}
+                        >
+                          <ProductImage
+                            src={resolveImageUrl(img, 150)}
+                            alt=""
+                            className="w-full h-full"
+                            objectFit="cover"
+                          />
+                        </button>
+                      );
+                    })}
+                    {carouselImages.length > maxThumbnails && (
+                      <div className="shrink-0 flex items-center px-2">
+                        <span className="text-xs font-medium" style={{ color: BRAND.grisMoyen }}>
+                          +{carouselImages.length - maxThumbnails}
+                        </span>
+                      </div>
+                    )}
                   </div>
                 )}
 
