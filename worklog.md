@@ -259,3 +259,31 @@ Stage Summary:
 - Grid respects admin column configuration
 - Card styles from admin are now applied
 - CSS import order fixed, app loads correctly
+
+---
+Task ID: 2
+Agent: main
+Task: Normalize gallery format per user spec - 3:4 portrait, auto-fill grid, proper typography
+
+Work Log:
+- User provided exact CSS specifications for the gallery grid
+- Rewrote entire product grid section with inline styles to prevent override
+- Applied: grid-template-columns: repeat(auto-fill, minmax(200px, 1fr))
+- Applied: product cards with flex-col, white bg, border-radius 8px
+- Applied: images with width:100%, aspect-ratio:3/4, object-fit:cover
+- Applied: typography - title font-weight:600, font-size:14px; price color:#666, font-size:13px
+- Applied: responsive padding 16px mobile → 32px desktop via CSS media query
+- Used raw <img> tags instead of ProductImage component wrapper to ensure proper rendering
+- Updated carousel empty states to 3:4 ratio
+- Updated image proxy placeholder SVGs to 3:4 ratio (600x800)
+- Fixed Prisma DATABASE_URL connection_limit from 1 to 5
+- Committed and pushed to GitHub for Vercel deployment
+- Build succeeds with no errors
+
+Stage Summary:
+- Product gallery now uses exact CSS spec from user
+- Images forced to 3:4 portrait with object-fit:cover (no stretch/crop)
+- Grid is auto-fill responsive (adapts to screen width)
+- Typography follows spec exactly (600/14px title, #666/13px price)
+- Responsive padding works correctly
+- Code pushed, Vercel will auto-deploy
