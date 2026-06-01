@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { useAppStore } from '@/lib/store';
 import type { Section, SectionConfig, Column, ColumnConfig, Row, CatalogSettings } from '@/types';
 import { Button } from '@/components/ui/button';
@@ -8,10 +8,9 @@ import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import {
   ArrowLeft, Search, MessageCircle, Share2, X, ChevronLeft, ChevronRight,
-  ZoomIn, Mail, Instagram, ImageIcon, BookOpen, Home, Grid3X3, Heart,
-  ShoppingBag, ChevronDown, Phone, Sparkles
+  ZoomIn, Mail, Instagram, ImageIcon, BookOpen, Heart,
+  ShoppingBag, Phone
 } from 'lucide-react';
-import { Dialog, DialogContent } from '@/components/ui/dialog';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 
@@ -28,7 +27,6 @@ const BRAND = {
 } as const;
 
 const ITEMS_PER_PAGE = 12;
-const CAROUSEL_VISIBLE_RANGE = 5; // Render current ± 5 images in carousel (higher for smooth scrolling with many images)
 
 // ── Image URL Resolution (high-res by default) ──
 
@@ -175,232 +173,6 @@ function ProductImage({
   );
 }
 
-// ── Compact Dot Indicators (max 7 visible) ──
-function CompactDots({ total, current, onGoTo }: { total: number; current: number; onGoTo: (i: number) => void }) {
-  if (total <= 7) {
-    return (
-      <div className="flex gap-1.5 items-center">
-        {Array.from({ length: total }, (_, i) => (
-          <button
-            key={i}
-            className={cn(
-              'rounded-full transition-all duration-300',
-              i === current ? 'w-6 h-2' : 'w-2 h-2 hover:scale-110'
-            )}
-            style={{
-              backgroundColor: i === current ? BRAND.blanc : 'rgba(255,255,255,0.5)',
-            }}
-            onClick={() => onGoTo(i)}
-          />
-        ))}
-      </div>
-    );
-  }
-
-  // Compact mode: show first, last, and current ± 1 with ellipsis
-  const dots: (number | 'start-ell' | 'end-ell')[] = [];
-  const showStart = current > 2;
-  const showEnd = current < total - 3;
-
-  dots.push(0);
-  if (showStart) dots.push('start-ell');
-  for (let i = Math.max(1, current - 1); i <= Math.min(total - 2, current + 1); i++) {
-    dots.push(i);
-  }
-  if (showEnd) dots.push('end-ell');
-  dots.push(total - 1);
-
-  return (
-    <div className="flex gap-1.5 items-center">
-      {dots.map((d, idx) => {
-        if (d === 'start-ell' || d === 'end-ell') {
-          return <span key={`ell-${idx}`} className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: 'rgba(255,255,255,0.3)' }} />;
-        }
-        const i = d as number;
-        return (
-          <button
-            key={i}
-            className={cn(
-              'rounded-full transition-all duration-300',
-              i === current ? 'w-6 h-2' : 'w-2 h-2 hover:scale-110'
-            )}
-            style={{
-              backgroundColor: i === current ? BRAND.blanc : 'rgba(255,255,255,0.5)',
-            }}
-            onClick={() => onGoTo(i)}
-          />
-        );
-      })}
-    </div>
-  );
-}
-
-// ── Carousel with Swipe & Virtualized Rendering ──
-
-function ImageCarousel({
-  images,
-  alt,
-  enableZoom,
-  onZoom,
-  activeIdx: externalIdx,
-  onIdxChange,
-  maxHeight,
-  objectFit = 'cover',
-}: {
-  images: string[];
-  alt: string;
-  enableZoom?: boolean;
-  onZoom?: (url: string) => void;
-  activeIdx?: number;
-  onIdxChange?: (idx: number) => void;
-  maxHeight?: string; // e.g. '55vh' — when set, carousel uses max-height instead of aspect-ratio
-  objectFit?: 'cover' | 'contain';
-}) {
-  const [internalIdx, setInternalIdx] = useState(0);
-  const currentIdx = externalIdx !== undefined ? externalIdx : internalIdx;
-  const touchStartX = useRef(0);
-  const touchEndX = useRef(0);
-
-  const goTo = useCallback((newIdx: number) => {
-    setInternalIdx(newIdx);
-    onIdxChange?.(newIdx);
-  }, [onIdxChange]);
-
-  const goNext = useCallback(() => {
-    if (images.length <= 1) return;
-    goTo((currentIdx + 1) % images.length);
-  }, [currentIdx, images.length, goTo]);
-
-  const goPrev = useCallback(() => {
-    if (images.length <= 1) return;
-    goTo((currentIdx - 1 + images.length) % images.length);
-  }, [currentIdx, images.length, goTo]);
-
-  const onTouchStart = (e: React.TouchEvent) => {
-    touchStartX.current = e.touches[0].clientX;
-  };
-  const onTouchMove = (e: React.TouchEvent) => {
-    touchEndX.current = e.touches[0].clientX;
-  };
-  const onTouchEnd = () => {
-    const diff = touchStartX.current - touchEndX.current;
-    if (Math.abs(diff) > 50) {
-      if (diff > 0) goNext();
-      else goPrev();
-    }
-  };
-
-  // Virtualize: only render images near current index
-  const visibleIndices = useMemo(() => {
-    const indices = new Set<number>();
-    for (let offset = -CAROUSEL_VISIBLE_RANGE; offset <= CAROUSEL_VISIBLE_RANGE; offset++) {
-      const idx = currentIdx + offset;
-      if (idx >= 0 && idx < images.length) indices.add(idx);
-    }
-    return indices;
-  }, [currentIdx, images.length]);
-
-  // Container style: use height (NOT maxHeight) when provided, otherwise use aspect-ratio
-  // CRITICAL: Using maxHeight creates a circular dependency with h-full children,
-  // causing them to collapse to 0 height. Must use explicit height instead.
-  const containerStyle: React.CSSProperties = maxHeight
-    ? { position: 'relative', width: '100%', height: maxHeight, overflow: 'hidden', backgroundColor: BRAND.beige }
-    : { position: 'relative', width: '100%', aspectRatio: '3 / 4', overflow: 'hidden', backgroundColor: BRAND.beige };
-
-  if (images.length === 0) {
-    return (
-      <div style={{ ...containerStyle, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-        <ImageIcon className="w-16 h-16" style={{ color: BRAND.grisMoyen, opacity: 0.3 }} />
-      </div>
-    );
-  }
-
-  return (
-    <div
-      style={containerStyle}
-      onTouchStart={onTouchStart}
-      onTouchMove={onTouchMove}
-      onTouchEnd={onTouchEnd}
-    >
-      {/* Sliding track — virtualized rendering */}
-      <div
-        className="flex h-full transition-transform duration-300 ease-out"
-        style={{ transform: `translateX(-${currentIdx * 100}%)` }}
-      >
-        {images.map((img, i) => {
-          const isVisible = visibleIndices.has(i);
-          return (
-            <div key={extractImageId(img) + '-' + i} className="w-full h-full shrink-0" style={{ position: 'relative', overflow: 'hidden' }}>
-              {isVisible ? (
-                <ProductImage
-                  src={resolveImageUrl(img, 1600)}
-                  alt={`${alt} - ${i + 1}`}
-                  className="w-full h-full"
-                  objectFit={objectFit}
-                  sizes="(max-width: 640px) 100vw, (max-width: 1024px) 80vw, 60vw"
-                  priority={Math.abs(i - currentIdx) <= 1}
-                />
-              ) : (
-                // Placeholder for non-visible slides — keeps layout stable
-                <div className="w-full h-full" style={{ backgroundColor: BRAND.grisClair }} />
-              )}
-            </div>
-          );
-        })}
-      </div>
-
-      {/* Zoom button */}
-      {enableZoom && images[currentIdx] && (
-        <button
-          className="absolute top-3 right-3 backdrop-blur-md rounded-full p-2.5 hover:scale-105 transition-all z-10 shadow-md"
-          style={{ backgroundColor: 'rgba(255,255,255,0.9)' }}
-          onClick={() => onZoom?.(resolveImageUrl(images[currentIdx], 1920))}
-        >
-          <ZoomIn className="w-4 h-4" style={{ color: BRAND.noir }} />
-        </button>
-      )}
-
-      {/* Navigation arrows — only show when there are multiple images */}
-      {images.length > 1 && (
-        <>
-          <button
-            className="absolute left-2 top-1/2 -translate-y-1/2 backdrop-blur-md rounded-full p-2 hover:scale-110 active:scale-95 transition-all z-10 shadow-lg"
-            style={{ backgroundColor: 'rgba(255,255,255,0.92)' }}
-            onClick={(e) => { e.stopPropagation(); goPrev(); }}
-            aria-label="Image précédente"
-          >
-            <ChevronLeft className="w-5 h-5" style={{ color: BRAND.noir }} />
-          </button>
-          <button
-            className="absolute right-2 top-1/2 -translate-y-1/2 backdrop-blur-md rounded-full p-2 hover:scale-110 active:scale-95 transition-all z-10 shadow-lg"
-            style={{ backgroundColor: 'rgba(255,255,255,0.92)' }}
-            onClick={(e) => { e.stopPropagation(); goNext(); }}
-            aria-label="Image suivante"
-          >
-            <ChevronRight className="w-5 h-5" style={{ color: BRAND.noir }} />
-          </button>
-        </>
-      )}
-
-      {/* Compact Dot indicators */}
-      {images.length > 1 && (
-        <div className="absolute bottom-4 left-1/2 -translate-x-1/2 z-10">
-          <CompactDots total={images.length} current={currentIdx} onGoTo={goTo} />
-        </div>
-      )}
-
-      {/* Image counter */}
-      {images.length > 1 && (
-        <div className="absolute top-3 left-3 backdrop-blur-md text-xs px-2.5 py-1 rounded-full z-10 font-medium"
-          style={{ backgroundColor: 'rgba(26,60,52,0.7)', color: BRAND.blanc }}
-        >
-          {currentIdx + 1}/{images.length}
-        </div>
-      )}
-    </div>
-  );
-}
-
 // ── Pagination ──
 
 function Pagination({
@@ -473,36 +245,34 @@ function Pagination({
   );
 }
 
-// ── Product Detail Content (separate component for hooks) ──
+// ═══════════════════════════════════════════════════════════════════════════
+// ── FULL-PAGE PRODUCT VIEW — Immersive, no-scroll, single-glance design ──
+// ═══════════════════════════════════════════════════════════════════════════
 
-function ProductDetailContent({
+function ProductFullPage({
   row,
   detailColumns,
   section,
   s,
-  detailCarouselIdx,
-  setDetailCarouselIdx,
-  setZoomImage,
   primaryColor,
   secondaryColor,
   accentColor,
   getCellValue,
   getCarouselImages,
   buildConversionLink,
+  onClose,
 }: {
   row: Row;
   detailColumns: Column[];
   section: Section;
   s: CatalogSettings | null | undefined;
-  detailCarouselIdx: number;
-  setDetailCarouselIdx: (idx: number) => void;
-  setZoomImage: (url: string | null) => void;
   primaryColor: string;
   secondaryColor: string;
   accentColor: string;
   getCellValue: (row: Row, slug: string) => string;
   getCarouselImages: (row: Row, config: SectionConfig, columns?: Column[]) => string[];
   buildConversionLink: (row: Row, config: SectionConfig) => string;
+  onClose: () => void;
 }) {
   const config = section.config as SectionConfig;
   const carouselImages = getCarouselImages(row, config, detailColumns);
@@ -512,224 +282,475 @@ function ProductDetailContent({
   const variants = config.variantColumn ? getCellValue(row, config.variantColumn) : '';
   const conversionLink = buildConversionLink(row, config);
 
-  // Thumbnail strip: auto-scroll to keep active thumbnail visible
+  const [currentIdx, setCurrentIdx] = useState(0);
+  const [zoomImage, setZoomImage] = useState<string | null>(null);
+  const touchStartX = useRef(0);
+  const touchEndX = useRef(0);
   const thumbnailRef = useRef<HTMLDivElement>(null);
 
-  useEffect(() => {
-    if (!thumbnailRef.current) return;
-    const activeThumb = thumbnailRef.current.querySelector(`[data-thumb-idx="${detailCarouselIdx}"]`) as HTMLElement;
-    if (activeThumb) {
-      activeThumb.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
-    }
-  }, [detailCarouselIdx]);
+  // ── Non-circular navigation (FIX: Anomaly 4) ──
+  const canGoPrev = currentIdx > 0;
+  const canGoNext = currentIdx < carouselImages.length - 1;
 
-  // Keyboard navigation for carousel
+  const goTo = useCallback((idx: number) => {
+    setCurrentIdx(Math.max(0, Math.min(idx, carouselImages.length - 1)));
+  }, [carouselImages.length]);
+
+  const goNext = useCallback(() => {
+    if (canGoNext) setCurrentIdx(prev => prev + 1);
+  }, [canGoNext]);
+
+  const goPrev = useCallback(() => {
+    if (canGoPrev) setCurrentIdx(prev => prev - 1);
+  }, [canGoPrev]);
+
+  // Touch / swipe
+  const onTouchStart = (e: React.TouchEvent) => {
+    touchStartX.current = e.touches[0].clientX;
+  };
+  const onTouchMove = (e: React.TouchEvent) => {
+    touchEndX.current = e.touches[0].clientX;
+  };
+  const onTouchEnd = () => {
+    const diff = touchStartX.current - touchEndX.current;
+    if (Math.abs(diff) > 50) {
+      if (diff > 0) goNext();
+      else goPrev();
+    }
+  };
+
+  // Keyboard navigation (non-circular)
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'ArrowLeft') {
         e.preventDefault();
-        setDetailCarouselIdx(prev => prev > 0 ? prev - 1 : carouselImages.length - 1);
+        goPrev();
       } else if (e.key === 'ArrowRight') {
         e.preventDefault();
-        setDetailCarouselIdx(prev => prev < carouselImages.length - 1 ? prev + 1 : 0);
+        goNext();
+      } else if (e.key === 'Escape') {
+        e.preventDefault();
+        if (zoomImage) setZoomImage(null);
+        else onClose();
       }
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [carouselImages.length]);
+  }, [goNext, goPrev, onClose, zoomImage]);
 
-  // Calculate carousel height based on viewport and image count
-  const carouselHeight = carouselImages.length > 10 ? '50vh' : '55vh';
+  // Auto-scroll thumbnail strip to keep active visible
+  useEffect(() => {
+    if (!thumbnailRef.current) return;
+    const activeThumb = thumbnailRef.current.querySelector(`[data-thumb-idx="${currentIdx}"]`) as HTMLElement;
+    if (activeThumb) {
+      activeThumb.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
+    }
+  }, [currentIdx]);
+
+  // Prevent body scroll when full-page is open
+  useEffect(() => {
+    document.body.style.overflow = 'hidden';
+    return () => { document.body.style.overflow = ''; };
+  }, []);
 
   return (
-    <div className="flex flex-col max-h-[92vh] relative">
-      {/* Close button — custom positioned over the carousel */}
-      <button
-        className="absolute top-3 right-3 z-20 backdrop-blur-md rounded-full p-2 hover:scale-110 active:scale-95 transition-all shadow-lg"
-        style={{ backgroundColor: 'rgba(255,255,255,0.92)' }}
-        onClick={() => {
-          // Find and click the dialog's close trigger
-          const event = new KeyboardEvent('keydown', { key: 'Escape', bubbles: true });
-          document.dispatchEvent(event);
-        }}
-        aria-label="Fermer"
+    <div
+      className="fixed inset-0 z-50 flex flex-col"
+      style={{ backgroundColor: BRAND.blanc }}
+    >
+      {/* ── Top bar: back + title + counter ── */}
+      <div
+        className="shrink-0 flex items-center gap-3 px-4 py-3 shadow-sm"
+        style={{ backgroundColor: secondaryColor, minHeight: 52 }}
       >
-        <X className="w-4 h-4" style={{ color: BRAND.noir }} />
-      </button>
+        <button
+          onClick={onClose}
+          className="shrink-0 w-9 h-9 rounded-full flex items-center justify-center transition-all hover:bg-white/15 active:scale-95"
+          aria-label="Retour"
+        >
+          <ArrowLeft className="w-5 h-5 text-white" />
+        </button>
 
-      {/* Image Carousel — fixed height so h-full children work correctly */}
-      {carouselImages.length > 0 && (
-        <div className="shrink-0">
-          <ImageCarousel
-            images={carouselImages}
-            alt={title}
-            enableZoom={s?.enableZoom}
-            onZoom={setZoomImage}
-            activeIdx={detailCarouselIdx}
-            onIdxChange={setDetailCarouselIdx}
-            maxHeight={carouselHeight}
-            objectFit="cover"
-          />
-        </div>
-      )}
-      {carouselImages.length === 0 && (
-        <div style={{ position: 'relative', width: '100%', height: '40vh', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, backgroundColor: BRAND.beige }}>
-          <ImageIcon className="w-16 h-16" style={{ color: BRAND.grisMoyen, opacity: 0.3 }} />
-        </div>
-      )}
-
-      {/* Thumbnail strip — scrollable with navigation arrows for many images */}
-      {carouselImages.length > 1 && (
-        <div className="relative shrink-0 bg-white" style={{ borderBottom: `1px solid ${primaryColor}15` }}>
-          {/* Left scroll arrow */}
-          {carouselImages.length > 7 && (
-            <button
-              className="absolute left-0 top-1/2 -translate-y-1/2 z-10 w-7 h-7 rounded-full flex items-center justify-center shadow-md transition-all hover:scale-110"
-              style={{ backgroundColor: 'rgba(255,255,255,0.95)' }}
-              onClick={() => {
-                if (thumbnailRef.current) {
-                  thumbnailRef.current.scrollBy({ left: -120, behavior: 'smooth' });
-                }
-              }}
-              aria-label="Thumbnails précédentes"
-            >
-              <ChevronLeft className="w-3.5 h-3.5" style={{ color: BRAND.noir }} />
-            </button>
-          )}
-
-          {/* Thumbnail container */}
-          <div
-            ref={thumbnailRef}
-            className="flex gap-1.5 px-8 py-2.5 overflow-x-auto custom-scrollbar"
-            style={{ scrollBehavior: 'smooth' }}
-          >
-            {carouselImages.map((img, i) => (
-              <button
-                key={extractImageId(img) + '-' + i}
-                data-thumb-idx={i}
-                className={cn(
-                  'w-11 h-11 sm:w-13 sm:h-13 rounded-lg overflow-hidden shrink-0 border-2 transition-all duration-200',
-                )}
-                style={{
-                  borderColor: i === detailCarouselIdx ? primaryColor : 'transparent',
-                  opacity: i === detailCarouselIdx ? 1 : 0.5,
-                  transform: i === detailCarouselIdx ? 'scale(1.1)' : 'scale(1)',
-                  boxShadow: i === detailCarouselIdx ? `0 2px 8px ${primaryColor}40` : 'none',
-                }}
-                onClick={() => setDetailCarouselIdx(i)}
-              >
-                <ProductImage
-                  src={resolveImageUrl(img, 150)}
-                  alt=""
-                  className="w-full h-full"
-                  objectFit="cover"
-                />
-              </button>
-            ))}
-          </div>
-
-          {/* Right scroll arrow */}
-          {carouselImages.length > 7 && (
-            <button
-              className="absolute right-0 top-1/2 -translate-y-1/2 z-10 w-7 h-7 rounded-full flex items-center justify-center shadow-md transition-all hover:scale-110"
-              style={{ backgroundColor: 'rgba(255,255,255,0.95)' }}
-              onClick={() => {
-                if (thumbnailRef.current) {
-                  thumbnailRef.current.scrollBy({ left: 120, behavior: 'smooth' });
-                }
-              }}
-              aria-label="Thumbnails suivantes"
-            >
-              <ChevronRight className="w-3.5 h-3.5" style={{ color: BRAND.noir }} />
-            </button>
-          )}
-        </div>
-      )}
-
-      {/* Product info — scrollable */}
-      <div className="flex-1 overflow-y-auto px-5 sm:px-6 py-4 space-y-3 custom-scrollbar min-h-0">
-        {/* Title & Price */}
-        <div>
-          <h2 className="text-lg sm:text-xl font-bold" style={{ color: secondaryColor, fontFamily: "'Playfair Display', serif" }}>{title}</h2>
-          {price && (
-            <p className="text-lg sm:text-xl font-bold mt-0.5" style={{ color: primaryColor, fontFamily: "'Playfair Display', serif" }}>{price}</p>
-          )}
+        <div className="flex-1 min-w-0">
+          <h1 className="text-white text-sm sm:text-base font-semibold truncate" style={{ fontFamily: "'Playfair Display', serif" }}>
+            {title}
+          </h1>
         </div>
 
-        {description && (
-          <p className="text-sm leading-relaxed" style={{ color: BRAND.grisMoyen }}>{description}</p>
+        {carouselImages.length > 1 && (
+          <span className="shrink-0 text-xs font-medium px-2.5 py-1 rounded-full"
+            style={{ backgroundColor: 'rgba(255,255,255,0.15)', color: 'rgba(255,255,255,0.85)' }}>
+            {currentIdx + 1}/{carouselImages.length}
+          </span>
         )}
+      </div>
 
-        {/* Variants */}
-        {variants && (
-          <div>
-            <p className="text-[10px] font-semibold uppercase tracking-widest mb-2" style={{ color: BRAND.grisMoyen }}>Options disponibles</p>
-            <div className="flex flex-wrap gap-1.5">
-              {variants.split(/[,;]/).filter(Boolean).map((v, i) => (
-                <Badge
-                  key={i}
-                  className="text-xs font-medium rounded-lg px-2.5 py-0.5"
-                  style={{
-                    backgroundColor: `${secondaryColor}10`,
-                    color: secondaryColor,
-                    border: `1px solid ${secondaryColor}20`,
-                  }}
+      {/* ── Main content: NO SCROLL — everything fits in viewport ── */}
+      <div className="flex-1 flex flex-col min-h-0">
+
+        {/* ── Image carousel — takes all available space ── */}
+        <div
+          className="flex-1 min-h-0 relative"
+          style={{ backgroundColor: BRAND.beige }}
+          onTouchStart={onTouchStart}
+          onTouchMove={onTouchMove}
+          onTouchEnd={onTouchEnd}
+        >
+          {carouselImages.length > 0 ? (
+            <>
+              {/* Sliding track — NO virtualization, all images rendered with lazy loading (FIX: Anomaly 5) */}
+              <div
+                className="flex h-full transition-transform duration-300 ease-out"
+                style={{ transform: `translateX(-${currentIdx * 100}%)` }}
+              >
+                {carouselImages.map((img, i) => (
+                  <div
+                    key={extractImageId(img) + '-' + i}
+                    className="w-full h-full shrink-0 relative overflow-hidden"
+                  >
+                    <ProductImage
+                      src={resolveImageUrl(img, 1600)}
+                      alt={`${title} - ${i + 1}`}
+                      className="w-full h-full"
+                      objectFit="cover"
+                      sizes="100vw"
+                      priority={i === 0}
+                    />
+                  </div>
+                ))}
+              </div>
+
+              {/* Left arrow — disabled at first image (FIX: Anomaly 4 — no wrap-around) */}
+              {carouselImages.length > 1 && (
+                <>
+                  <button
+                    className={cn(
+                      "absolute left-3 top-1/2 -translate-y-1/2 rounded-full p-2.5 transition-all z-10 shadow-lg",
+                      canGoPrev
+                        ? "hover:scale-110 active:scale-95"
+                        : "opacity-20 pointer-events-none"
+                    )}
+                    style={{ backgroundColor: 'rgba(255,255,255,0.92)' }}
+                    onClick={goPrev}
+                    disabled={!canGoPrev}
+                    aria-label="Image précédente"
+                  >
+                    <ChevronLeft className="w-5 h-5" style={{ color: BRAND.noir }} />
+                  </button>
+
+                  {/* Right arrow — disabled at last image */}
+                  <button
+                    className={cn(
+                      "absolute right-3 top-1/2 -translate-y-1/2 rounded-full p-2.5 transition-all z-10 shadow-lg",
+                      canGoNext
+                        ? "hover:scale-110 active:scale-95"
+                        : "opacity-20 pointer-events-none"
+                    )}
+                    style={{ backgroundColor: 'rgba(255,255,255,0.92)' }}
+                    onClick={goNext}
+                    disabled={!canGoNext}
+                    aria-label="Image suivante"
+                  >
+                    <ChevronRight className="w-5 h-5" style={{ color: BRAND.noir }} />
+                  </button>
+                </>
+              )}
+
+              {/* Zoom button */}
+              {s?.enableZoom && carouselImages[currentIdx] && (
+                <button
+                  className="absolute top-3 right-3 backdrop-blur-md rounded-full p-2.5 hover:scale-105 transition-all z-10 shadow-md"
+                  style={{ backgroundColor: 'rgba(255,255,255,0.9)' }}
+                  onClick={() => setZoomImage(resolveImageUrl(carouselImages[currentIdx], 1920))}
                 >
-                  {v.trim()}
-                </Badge>
+                  <ZoomIn className="w-4 h-4" style={{ color: BRAND.noir }} />
+                </button>
+              )}
+
+              {/* Dot indicators (FIX: Anomaly 3 — better visibility) */}
+              {carouselImages.length > 1 && carouselImages.length <= 9 && (
+                <div className="absolute bottom-3 left-1/2 -translate-x-1/2 z-10 flex gap-2 items-center">
+                  {Array.from({ length: carouselImages.length }, (_, i) => (
+                    <button
+                      key={i}
+                      className={cn(
+                        'rounded-full transition-all duration-300',
+                        i === currentIdx ? 'w-7 h-2.5' : 'w-2.5 h-2.5'
+                      )}
+                      style={{
+                        backgroundColor: i === currentIdx
+                          ? BRAND.blanc
+                          : 'rgba(255,255,255,0.5)',
+                        boxShadow: i === currentIdx ? '0 1px 4px rgba(0,0,0,0.3)' : 'none',
+                      }}
+                      onClick={() => goTo(i)}
+                    />
+                  ))}
+                </div>
+              )}
+
+              {/* For many images: compact counter badge instead of dots */}
+              {carouselImages.length > 9 && (
+                <div className="absolute bottom-3 left-1/2 -translate-x-1/2 z-10 backdrop-blur-md text-xs px-3 py-1.5 rounded-full font-medium"
+                  style={{ backgroundColor: 'rgba(26,60,52,0.7)', color: BRAND.blanc }}>
+                  {currentIdx + 1} / {carouselImages.length}
+                </div>
+              )}
+            </>
+          ) : (
+            <div className="w-full h-full flex items-center justify-center">
+              <ImageIcon className="w-20 h-20" style={{ color: BRAND.grisMoyen, opacity: 0.3 }} />
+            </div>
+          )}
+        </div>
+
+        {/* ── Thumbnail strip — no scrollbar, hidden overflow with arrow buttons (FIX: Anomaly 2) ── */}
+        {carouselImages.length > 1 && (
+          <div
+            className="shrink-0 relative bg-white"
+            style={{ height: 64, borderTop: `1px solid ${primaryColor}12` }}
+          >
+            {/* Left scroll arrow */}
+            <button
+              className="absolute left-0 top-0 bottom-0 w-8 z-10 flex items-center justify-center transition-opacity"
+              style={{
+                background: 'linear-gradient(to right, white 60%, transparent)',
+                opacity: 1,
+              }}
+              onClick={() => thumbnailRef.current?.scrollBy({ left: -140, behavior: 'smooth' })}
+              aria-label="Voir images précédentes"
+            >
+              <ChevronLeft className="w-4 h-4" style={{ color: BRAND.noir }} />
+            </button>
+
+            {/* Thumbnail container — NO scrollbar (overflow-x: hidden) */}
+            <div
+              ref={thumbnailRef}
+              className="flex gap-2 items-center h-full px-10"
+              style={{
+                overflowX: 'hidden',
+                scrollBehavior: 'smooth',
+                scrollSnapType: 'x mandatory',
+              }}
+            >
+              {carouselImages.map((img, i) => (
+                <button
+                  key={extractImageId(img) + '-' + i}
+                  data-thumb-idx={i}
+                  className="shrink-0 rounded-lg overflow-hidden border-2 transition-all duration-200"
+                  style={{
+                    width: 44,
+                    height: 44,
+                    borderColor: i === currentIdx ? primaryColor : 'transparent',
+                    opacity: i === currentIdx ? 1 : 0.5,
+                    boxShadow: i === currentIdx ? `0 2px 8px ${primaryColor}30` : 'none',
+                    scrollSnapAlign: 'center',
+                  }}
+                  onClick={() => goTo(i)}
+                >
+                  <ProductImage
+                    src={resolveImageUrl(img, 150)}
+                    alt=""
+                    className="w-full h-full"
+                    objectFit="cover"
+                  />
+                </button>
               ))}
             </div>
+
+            {/* Right scroll arrow */}
+            <button
+              className="absolute right-0 top-0 bottom-0 w-8 z-10 flex items-center justify-center"
+              style={{
+                background: 'linear-gradient(to left, white 60%, transparent)',
+              }}
+              onClick={() => thumbnailRef.current?.scrollBy({ left: 140, behavior: 'smooth' })}
+              aria-label="Voir images suivantes"
+            >
+              <ChevronRight className="w-4 h-4" style={{ color: BRAND.noir }} />
+            </button>
           </div>
         )}
 
-        {/* Detail columns */}
-        {config.detailColumns && config.detailColumns.length > 0 && (
-          <div className="rounded-xl p-3" style={{ backgroundColor: `${accentColor}80` }}>
-            <div className="grid grid-cols-2 gap-2.5">
-              {config.detailColumns.map(slug => {
-                const col = detailColumns.find(c => c.slug === slug);
-                if (!col) return null;
-                const val = getCellValue(row, slug);
-                if (!val) return null;
-                return (
-                  <div key={slug} className="text-sm">
-                    <span className="text-[10px] uppercase tracking-widest font-semibold" style={{ color: BRAND.grisMoyen }}>{col.name}</span>
-                    <p className="font-medium mt-0.5" style={{ color: BRAND.noir }}>{val}</p>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-        )}
-      </div>
-
-      {/* CTA buttons — fixed bottom */}
-      <div className="shrink-0 px-5 sm:px-6 pb-4 pt-3 space-y-2 bg-white" style={{ borderTop: `1px solid ${primaryColor}15` }}>
-        <Button
-          className="w-full h-11 text-sm font-bold gap-2 rounded-xl shadow-md hover:shadow-lg transition-all duration-200"
-          style={{ backgroundColor: secondaryColor, color: BRAND.blanc }}
-          onClick={() => window.open(conversionLink, '_blank')}
+        {/* ── Product info bar — compact, always visible, no scroll (FIX: Anomaly 1) ── */}
+        <div
+          className="shrink-0 px-5 py-3 flex items-center gap-4"
+          style={{ backgroundColor: BRAND.blanc, borderTop: `1px solid ${primaryColor}10` }}
         >
-          <MessageCircle className="w-4 h-4" />
-          {s?.conversionChannel === 'whatsapp' ? 'Commander via WhatsApp' :
-           s?.conversionChannel === 'messenger' ? 'Commander via Messenger' :
-           s?.conversionChannel === 'email' ? 'Commander par email' :
-           'Commander'}
-        </Button>
-        {s?.enableSharing && (
+          {/* Title + Price */}
+          <div className="flex-1 min-w-0">
+            <p className="font-bold text-sm sm:text-base truncate" style={{ color: secondaryColor, fontFamily: "'Playfair Display', serif" }}>
+              {title}
+            </p>
+            {price && (
+              <p className="font-bold text-sm sm:text-base" style={{ color: primaryColor }}>
+                {price}
+              </p>
+            )}
+          </div>
+
+          {/* CTA button — always visible, never clipped */}
           <Button
-            variant="outline"
-            className="w-full h-9 text-sm gap-2 rounded-xl font-medium"
-            style={{ borderColor: `${primaryColor}30`, color: secondaryColor }}
-            onClick={() => {
-              navigator.clipboard.writeText(window.location.href);
-              toast.success('Lien copié !');
-            }}
+            className="shrink-0 h-11 px-5 text-sm font-bold gap-2 rounded-xl shadow-md hover:shadow-lg transition-all duration-200"
+            style={{ backgroundColor: secondaryColor, color: BRAND.blanc }}
+            onClick={() => window.open(conversionLink, '_blank')}
           >
-            <Share2 className="w-4 h-4" /> Partager ce produit
+            <MessageCircle className="w-4 h-4" />
+            <span className="hidden sm:inline">
+              {s?.conversionChannel === 'whatsapp' ? 'Commander via WhatsApp' :
+               s?.conversionChannel === 'messenger' ? 'Commander via Messenger' :
+               s?.conversionChannel === 'email' ? 'Commander par email' :
+               'Commander'}
+            </span>
+            <span className="sm:hidden">Commander</span>
           </Button>
+
+          {/* Share button */}
+          {s?.enableSharing && (
+            <Button
+              variant="outline"
+              className="shrink-0 h-11 w-11 p-0 rounded-xl"
+              style={{ borderColor: `${primaryColor}30`, color: secondaryColor }}
+              onClick={() => {
+                navigator.clipboard.writeText(window.location.href);
+                toast.success('Lien copié !');
+              }}
+            >
+              <Share2 className="w-4 h-4" />
+            </Button>
+          )}
+        </div>
+
+        {/* ── Optional: expandable description panel ── */}
+        {(description || variants) && (
+          <ProductInfoDrawer
+            description={description}
+            variants={variants}
+            detailColumns={config.detailColumns}
+            detailColumnsDef={detailColumns}
+            getCellValue={getCellValue}
+            row={row}
+            primaryColor={primaryColor}
+            secondaryColor={secondaryColor}
+            accentColor={accentColor}
+          />
         )}
       </div>
+
+      {/* ── Zoom overlay ── */}
+      {zoomImage && (
+        <div
+          className="fixed inset-0 z-[60] bg-black/95 flex items-center justify-center"
+          onClick={() => setZoomImage(null)}
+        >
+          <div className="relative w-full h-full flex items-center justify-center p-4" onClick={e => e.stopPropagation()}>
+            <ProductImage
+              src={zoomImage}
+              alt="Zoom"
+              className="max-w-full max-h-full"
+              objectFit="contain"
+              fallbackClassName="w-full h-full"
+            />
+            <button
+              className="absolute top-4 right-4 backdrop-blur-md rounded-full p-3 hover:bg-white/20 z-10 transition-all"
+              onClick={() => setZoomImage(null)}
+            >
+              <X className="w-5 h-5 text-white" />
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ── Expandable Info Drawer — slides up from bottom for description/variants ──
+function ProductInfoDrawer({
+  description,
+  variants,
+  detailColumns,
+  detailColumnsDef,
+  getCellValue,
+  row,
+  primaryColor,
+  secondaryColor,
+  accentColor,
+}: {
+  description: string;
+  variants: string;
+  detailColumns?: string[];
+  detailColumnsDef: Column[];
+  getCellValue: (row: Row, slug: string) => string;
+  row: Row;
+  primaryColor: string;
+  secondaryColor: string;
+  accentColor: string;
+}) {
+  const [expanded, setExpanded] = useState(false);
+
+  return (
+    <div className="shrink-0 bg-white" style={{ borderTop: `1px solid ${primaryColor}10` }}>
+      {/* Toggle button */}
+      <button
+        className="w-full flex items-center justify-center gap-1.5 py-2 text-xs font-medium transition-colors"
+        style={{ color: BRAND.grisMoyen }}
+        onClick={() => setExpanded(!expanded)}
+      >
+        {expanded ? 'Masquer les détails' : 'Voir les détails'}
+        <ChevronRight
+          className="w-3.5 h-3.5 transition-transform duration-200"
+          style={{ transform: expanded ? 'rotate(-90deg)' : 'rotate(90deg)' }}
+        />
+      </button>
+
+      {/* Expandable content */}
+      {expanded && (
+        <div className="px-5 pb-4 space-y-2.5" style={{ maxHeight: '30vh', overflowY: 'auto' }}>
+          {description && (
+            <p className="text-sm leading-relaxed" style={{ color: BRAND.grisMoyen }}>{description}</p>
+          )}
+
+          {variants && (
+            <div>
+              <p className="text-[10px] font-semibold uppercase tracking-widest mb-1.5" style={{ color: BRAND.grisMoyen }}>Options disponibles</p>
+              <div className="flex flex-wrap gap-1.5">
+                {variants.split(/[,;]/).filter(Boolean).map((v, i) => (
+                  <Badge
+                    key={i}
+                    className="text-xs font-medium rounded-lg px-2.5 py-0.5"
+                    style={{
+                      backgroundColor: `${secondaryColor}10`,
+                      color: secondaryColor,
+                      border: `1px solid ${secondaryColor}20`,
+                    }}
+                  >
+                    {v.trim()}
+                  </Badge>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {detailColumns && detailColumns.length > 0 && (
+            <div className="rounded-xl p-3" style={{ backgroundColor: `${accentColor}80` }}>
+              <div className="grid grid-cols-2 gap-2">
+                {detailColumns.map(slug => {
+                  const col = detailColumnsDef.find(c => c.slug === slug);
+                  if (!col) return null;
+                  const val = getCellValue(row, slug);
+                  if (!val) return null;
+                  return (
+                    <div key={slug} className="text-sm">
+                      <span className="text-[10px] uppercase tracking-widest font-semibold" style={{ color: BRAND.grisMoyen }}>{col.name}</span>
+                      <p className="font-medium mt-0.5" style={{ color: BRAND.noir }}>{val}</p>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 }
@@ -745,8 +766,6 @@ export function CatalogPreview({ onAdminLogin }: CatalogPreviewProps) {
   const [sections, setSections] = useState<{ section: Section; columns: Column[]; rows: Row[] }[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedProduct, setSelectedProduct] = useState<{ row: Row; columns: Column[]; section: Section } | null>(null);
-  const [detailCarouselIdx, setDetailCarouselIdx] = useState(0);
-  const [zoomImage, setZoomImage] = useState<string | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
   const [likedProducts, setLikedProducts] = useState<Set<string>>(new Set);
   const [activeFilter, setActiveFilter] = useState<string>('all');
@@ -996,6 +1015,26 @@ export function CatalogPreview({ onAdminLogin }: CatalogPreviewProps) {
 
   const filterOptions = getFilterOptions();
 
+  // ── If a product is selected, show the full-page immersive view ──
+  if (selectedProduct) {
+    return (
+      <ProductFullPage
+        row={selectedProduct.row}
+        detailColumns={selectedProduct.columns}
+        section={selectedProduct.section}
+        s={s}
+        primaryColor={primaryColor}
+        secondaryColor={secondaryColor}
+        accentColor={accentColor}
+        getCellValue={getCellValue}
+        getCarouselImages={getCarouselImages}
+        buildConversionLink={buildConversionLink}
+        onClose={() => setSelectedProduct(null)}
+      />
+    );
+  }
+
+  // ── Default: catalog grid view ──
   return (
     <div className="min-h-screen flex flex-col" style={{ backgroundColor: bgColor }}>
       {/* ── Header — Dark green luxury nav bar ── */}
@@ -1091,8 +1130,6 @@ export function CatalogPreview({ onAdminLogin }: CatalogPreviewProps) {
           paddingBottom: 32,
         }}
       >
-        {/* Responsive padding: 16px mobile → 32px desktop */}
-
         {/* Section title */}
         {sections.length > 0 && sections[0].section.title && (
           <div style={{ marginBottom: 20 }}>
@@ -1159,7 +1196,6 @@ export function CatalogPreview({ onAdminLogin }: CatalogPreviewProps) {
                 }}
                 onClick={() => {
                   setSelectedProduct({ row, columns, section });
-                  setDetailCarouselIdx(0);
                 }}
               >
                 {/* ── Format image strict: aspect-ratio 3/4, object-fit cover ── */}
@@ -1332,52 +1368,6 @@ export function CatalogPreview({ onAdminLogin }: CatalogPreviewProps) {
           </div>
         </div>
       </footer>
-
-      {/* ── Product Detail Sheet — Full Glide-style detail ── */}
-      <Dialog open={!!selectedProduct} onOpenChange={v => { if (!v) setSelectedProduct(null); }}>
-        <DialogContent className="sm:max-w-xl lg:max-w-3xl p-0 gap-0 overflow-hidden rounded-2xl border-0" showCloseButton={false}>
-          {selectedProduct && (
-            <ProductDetailContent
-              row={selectedProduct.row}
-              detailColumns={selectedProduct.columns}
-              section={selectedProduct.section}
-              s={s}
-              detailCarouselIdx={detailCarouselIdx}
-              setDetailCarouselIdx={setDetailCarouselIdx}
-              setZoomImage={setZoomImage}
-              primaryColor={primaryColor}
-              secondaryColor={secondaryColor}
-              accentColor={accentColor}
-              getCellValue={getCellValue}
-              getCarouselImages={getCarouselImages}
-              buildConversionLink={buildConversionLink}
-            />
-          )}
-        </DialogContent>
-      </Dialog>
-
-      {/* Zoom Dialog — full screen with proper aspect ratio */}
-      <Dialog open={!!zoomImage} onOpenChange={v => { if (!v) setZoomImage(null); }}>
-        <DialogContent className="sm:max-w-4xl p-0 overflow-hidden bg-black rounded-2xl border-0">
-          {zoomImage && (
-            <div className="relative flex items-center justify-center" style={{ height: '80vh' }}>
-              <ProductImage
-                src={zoomImage}
-                alt="Zoom"
-                className="w-full h-full"
-                objectFit="contain"
-                fallbackClassName="w-full h-full"
-              />
-              <button
-                className="absolute top-4 right-4 backdrop-blur-md rounded-full p-3 hover:bg-white/30 z-10 transition-all"
-                onClick={() => setZoomImage(null)}
-              >
-                <X className="w-5 h-5 text-white" />
-              </button>
-            </div>
-          )}
-        </DialogContent>
-      </Dialog>
     </div>
   );
 }

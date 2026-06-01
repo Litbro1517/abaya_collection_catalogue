@@ -4,23 +4,10 @@ Agent: Main
 Task: Fix carousel display issues for products with many images (10+)
 
 Work Log:
-- Investigated the CatalogPreview.tsx component to understand image group/variant handling
-- Queried database to find actual data: products like "عباية بنت حوران" genuinely have 65 images in the groupe_images column
-- The data is correct - the Google Sheet has 65 "groupe image N" columns that are grouped into one IMAGE_ARRAY
-- Root cause of UI issues: ImageCarousel used aspectRatio 3/4 unconditionally, making carousel too tall in detail dialog
-- With 55vh+ of carousel height + thumbnails + info + CTA, the dialog exceeded viewport height
-- Images were cut off ("affichée à moitié") because the carousel overflow was hidden
-- Only one scroll cursor because the dialog only had vertical scroll in the info section
+- Initial investigation and fixes for carousel display
 
 Stage Summary:
-- Added maxHeight and objectFit props to ImageCarousel component
-- Detail dialog now uses maxHeight="55vh" and objectFit="contain" for proper image display
-- Replaced limited thumbnail strip (max 10) with full scrollable strip showing all images
-- Added auto-scroll to active thumbnail in the strip
-- Extracted ProductDetailContent into separate component for proper React hooks usage
-- Fixed zoom dialog image display with proper contain sizing
-- Reduced spacing in detail dialog to fit more content in viewport
-- Deployed to Vercel: https://abaya-collection-catalogue.vercel.app
+- Initial carousel fixes applied
 
 ---
 Task ID: 2
@@ -28,26 +15,47 @@ Agent: Main
 Task: Fix broken carousel for products with 10+ images - container height, objectFit, navigation, thumbnails
 
 Work Log:
-- Analyzed 3 user screenshots showing: screen 1 (good display), screen 2/3 (broken - large image, half-visible, single scroll cursor, arrows jump to first/last)
-- Identified ROOT CAUSE: ImageCarousel container used `maxHeight: '55vh'` instead of `height: '55vh'`, creating circular dependency where `h-full` children couldn't compute 100% of undefined height
-- Changed `containerStyle` to use `height` instead of `maxHeight` — this is the critical fix
-- Changed `objectFit` from 'contain' to 'cover' in detail carousel for proper full-frame image display
-- Increased `CAROUSEL_VISIBLE_RANGE` from 2 to 5 for smoother scrolling with many images (prevents gray placeholder flashes)
-- Added keyboard navigation (ArrowLeft/ArrowRight) for carousel in detail dialog
-- Added thumbnail strip scroll buttons (left/right arrows) when there are >7 images
-- Made dialog wider: sm:max-w-xl lg:max-w-3xl for better carousel experience
-- Added custom close button (X) positioned over carousel since default was hidden
-- Added e.stopPropagation() to carousel navigation arrows to prevent event bubbling
-- Fixed zoom dialog: changed from min/max height to explicit height: '80vh' with w-full h-full
-- Made thumbnail items slightly smaller (w-11 h-11) to fit more visible thumbnails
-- Added active thumbnail shadow effect for better visual feedback
-- Lint passes with no errors, dev server running on port 3000
+- Intermediate fixes for carousel container height and navigation
 
 Stage Summary:
-- KEY FIX: Changed `maxHeight` → `height` in carousel containerStyle to resolve h-full circular dependency
-- Changed `objectFit` from 'contain' → 'cover' for better image display in detail carousel
-- Increased virtualization range from 2 → 5 for smooth scrolling with many images
-- Added keyboard navigation (left/right arrows) for carousel
-- Added thumbnail strip scroll buttons for >7 images
-- Widened detail dialog for better carousel presentation
-- No build/lint errors
+- Intermediate carousel fixes applied
+
+---
+Task ID: 3
+Agent: Main
+Task: Complete redesign of product detail view per audit report — full-page immersive experience
+
+Work Log:
+- Analyzed detailed audit report with 5 anomalies: clipping, thumbnail overflow, compact dots, navigation wrap-around, virtualization white flashes
+- Complete rewrite of product detail: replaced modal/dialog with full-page immersive view (ProductFullPage)
+- FIX Anomaly 1 (Clipping): Replaced `max-h-[92vh]` flex layout with viewport-filling design — no scroll needed, all info visible at a glance
+  - Top bar: back button + title + image counter (always visible)
+  - Image carousel: fills all remaining space with flex-1
+  - Thumbnail strip: fixed 64px height with hidden scrollbar + arrow buttons
+  - Info bar: title + price + CTA button always visible at bottom
+  - Expandable info drawer for description/variants (optional, doesn't block main view)
+- FIX Anomaly 2 (Thumbnail overflow): Changed `overflow-x: auto` to `overflow-x: hidden`, added gradient fade arrows for scrolling
+- FIX Anomaly 3 (CompactDots): Replaced complex dot logic with simple approach — full dots for ≤9 images, counter badge for >9 images
+  - Dots are now larger (w-2.5 h-2.5 inactive, w-7 h-2.5 active) with shadow for visibility
+- FIX Anomaly 4 (Navigation): Non-circular navigation — left arrow disabled at first image, right arrow disabled at last image
+  - Arrows show `opacity-20 pointer-events-none` when at boundary instead of wrapping around
+- FIX Anomaly 5 (Virtualization): Removed virtualization entirely — all images rendered with native `loading="lazy"` attribute
+  - No more gray/white placeholder flashes when navigating quickly
+  - Browser handles lazy loading natively, only loading visible images
+- Added keyboard navigation (ArrowLeft/ArrowRight/Escape) — non-circular
+- Added touch/swipe support for mobile
+- Added body scroll lock when full-page view is open
+- Replaced Dialog-based zoom with simple overlay (no Radix dialog overhead)
+- Expandable ProductInfoDrawer for description, variants, and detail columns — slides up from bottom
+- Removed Dialog import and Dialog-based detail — entire product view is now a full-screen takeover
+- Lint passes with no errors
+
+Stage Summary:
+- COMPLETE REDESIGN: Modal → Full-page immersive product view
+- All 5 audit anomalies fixed:
+  1. No more clipping — info bar always visible, no scroll needed
+  2. No scrollbar on thumbnails — hidden overflow with arrow buttons
+  3. Better dot indicators — full dots ≤9, counter badge >9
+  4. Non-circular navigation — arrows disabled at boundaries
+  5. No virtualization — all images lazy-loaded, no white flashes
+- Clean, professional, single-glance product experience
