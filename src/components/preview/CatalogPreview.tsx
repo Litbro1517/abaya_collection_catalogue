@@ -244,6 +244,8 @@ function ImageCarousel({
   onZoom,
   activeIdx: externalIdx,
   onIdxChange,
+  maxHeight,
+  objectFit = 'cover',
 }: {
   images: string[];
   alt: string;
@@ -251,6 +253,8 @@ function ImageCarousel({
   onZoom?: (url: string) => void;
   activeIdx?: number;
   onIdxChange?: (idx: number) => void;
+  maxHeight?: string; // e.g. '55vh' — when set, carousel uses max-height instead of aspect-ratio
+  objectFit?: 'cover' | 'contain';
 }) {
   const [internalIdx, setInternalIdx] = useState(0);
   const currentIdx = externalIdx !== undefined ? externalIdx : internalIdx;
@@ -296,9 +300,14 @@ function ImageCarousel({
     return indices;
   }, [currentIdx, images.length]);
 
+  // Container style: use maxHeight if provided, otherwise use aspect-ratio
+  const containerStyle: React.CSSProperties = maxHeight
+    ? { position: 'relative', width: '100%', maxHeight, overflow: 'hidden', backgroundColor: BRAND.beige }
+    : { position: 'relative', width: '100%', aspectRatio: '3 / 4', overflow: 'hidden', backgroundColor: BRAND.beige };
+
   if (images.length === 0) {
     return (
-      <div style={{ position: 'relative', width: '100%', aspectRatio: '3 / 4', display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: BRAND.beige }}>
+      <div style={{ ...containerStyle, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
         <ImageIcon className="w-16 h-16" style={{ color: BRAND.grisMoyen, opacity: 0.3 }} />
       </div>
     );
@@ -306,7 +315,7 @@ function ImageCarousel({
 
   return (
     <div
-      style={{ position: 'relative', width: '100%', aspectRatio: '3 / 4', overflow: 'hidden', backgroundColor: BRAND.beige }}
+      style={containerStyle}
       onTouchStart={onTouchStart}
       onTouchMove={onTouchMove}
       onTouchEnd={onTouchEnd}
@@ -319,13 +328,13 @@ function ImageCarousel({
         {images.map((img, i) => {
           const isVisible = visibleIndices.has(i);
           return (
-            <div key={extractImageId(img) + '-' + i} className="w-full h-full shrink-0">
+            <div key={extractImageId(img) + '-' + i} className="w-full h-full shrink-0" style={{ position: 'relative' }}>
               {isVisible ? (
                 <ProductImage
                   src={resolveImageUrl(img, 1600)}
                   alt={`${alt} - ${i + 1}`}
                   className="w-full h-full"
-                  objectFit="cover"
+                  objectFit={objectFit}
                   sizes="(max-width: 640px) 100vw, (max-width: 1024px) 80vw, 60vw"
                   priority={i === currentIdx}
                 />
@@ -456,6 +465,199 @@ function Pagination({
       >
         <ChevronRight className="w-5 h-5" />
       </button>
+    </div>
+  );
+}
+
+// ── Product Detail Content (separate component for hooks) ──
+
+function ProductDetailContent({
+  row,
+  detailColumns,
+  section,
+  s,
+  detailCarouselIdx,
+  setDetailCarouselIdx,
+  setZoomImage,
+  primaryColor,
+  secondaryColor,
+  accentColor,
+  getCellValue,
+  getCarouselImages,
+  buildConversionLink,
+}: {
+  row: Row;
+  detailColumns: Column[];
+  section: Section;
+  s: CatalogSettings | null | undefined;
+  detailCarouselIdx: number;
+  setDetailCarouselIdx: (idx: number) => void;
+  setZoomImage: (url: string | null) => void;
+  primaryColor: string;
+  secondaryColor: string;
+  accentColor: string;
+  getCellValue: (row: Row, slug: string) => string;
+  getCarouselImages: (row: Row, config: SectionConfig, columns?: Column[]) => string[];
+  buildConversionLink: (row: Row, config: SectionConfig) => string;
+}) {
+  const config = section.config as SectionConfig;
+  const carouselImages = getCarouselImages(row, config, detailColumns);
+  const title = config.titleColumn ? getCellValue(row, config.titleColumn) : '';
+  const price = config.priceColumn ? getCellValue(row, config.priceColumn) : '';
+  const description = config.descriptionColumn ? getCellValue(row, config.descriptionColumn) : '';
+  const variants = config.variantColumn ? getCellValue(row, config.variantColumn) : '';
+  const conversionLink = buildConversionLink(row, config);
+
+  // Thumbnail strip: auto-scroll to keep active thumbnail visible
+  const thumbnailRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!thumbnailRef.current) return;
+    const activeThumb = thumbnailRef.current.querySelector(`[data-thumb-idx="${detailCarouselIdx}"]`) as HTMLElement;
+    if (activeThumb) {
+      activeThumb.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
+    }
+  }, [detailCarouselIdx]);
+
+  return (
+    <div className="flex flex-col max-h-[92vh]">
+      {/* Image Carousel — constrained height so content fits in dialog */}
+      {carouselImages.length > 0 && (
+        <div className="shrink-0">
+          <ImageCarousel
+            images={carouselImages}
+            alt={title}
+            enableZoom={s?.enableZoom}
+            onZoom={setZoomImage}
+            activeIdx={detailCarouselIdx}
+            onIdxChange={setDetailCarouselIdx}
+            maxHeight="55vh"
+            objectFit="contain"
+          />
+        </div>
+      )}
+      {carouselImages.length === 0 && (
+        <div style={{ position: 'relative', width: '100%', maxHeight: '40vh', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, backgroundColor: BRAND.beige }}>
+          <ImageIcon className="w-16 h-16" style={{ color: BRAND.grisMoyen, opacity: 0.3 }} />
+        </div>
+      )}
+
+      {/* Thumbnail strip — full horizontal scroll with auto-centering */}
+      {carouselImages.length > 1 && (
+        <div
+          ref={thumbnailRef}
+          className="flex gap-2 px-4 py-2.5 overflow-x-auto shrink-0 bg-white custom-scrollbar"
+          style={{ borderBottom: `1px solid ${primaryColor}15`, scrollBehavior: 'smooth' }}
+        >
+          {carouselImages.map((img, i) => (
+            <button
+              key={extractImageId(img) + '-' + i}
+              data-thumb-idx={i}
+              className={cn(
+                'w-12 h-12 sm:w-14 sm:h-14 rounded-lg overflow-hidden shrink-0 border-2 transition-all duration-200',
+              )}
+              style={{
+                borderColor: i === detailCarouselIdx ? primaryColor : 'transparent',
+                opacity: i === detailCarouselIdx ? 1 : 0.45,
+                transform: i === detailCarouselIdx ? 'scale(1.08)' : 'scale(1)',
+              }}
+              onClick={() => setDetailCarouselIdx(i)}
+            >
+              <ProductImage
+                src={resolveImageUrl(img, 150)}
+                alt=""
+                className="w-full h-full"
+                objectFit="cover"
+              />
+            </button>
+          ))}
+        </div>
+      )}
+
+      {/* Product info — scrollable */}
+      <div className="flex-1 overflow-y-auto px-5 sm:px-6 py-4 space-y-3 custom-scrollbar min-h-0">
+        {/* Title & Price */}
+        <div>
+          <h2 className="text-lg sm:text-xl font-bold" style={{ color: secondaryColor, fontFamily: "'Playfair Display', serif" }}>{title}</h2>
+          {price && (
+            <p className="text-lg sm:text-xl font-bold mt-0.5" style={{ color: primaryColor, fontFamily: "'Playfair Display', serif" }}>{price}</p>
+          )}
+        </div>
+
+        {description && (
+          <p className="text-sm leading-relaxed" style={{ color: BRAND.grisMoyen }}>{description}</p>
+        )}
+
+        {/* Variants */}
+        {variants && (
+          <div>
+            <p className="text-[10px] font-semibold uppercase tracking-widest mb-2" style={{ color: BRAND.grisMoyen }}>Options disponibles</p>
+            <div className="flex flex-wrap gap-1.5">
+              {variants.split(/[,;]/).filter(Boolean).map((v, i) => (
+                <Badge
+                  key={i}
+                  className="text-xs font-medium rounded-lg px-2.5 py-0.5"
+                  style={{
+                    backgroundColor: `${secondaryColor}10`,
+                    color: secondaryColor,
+                    border: `1px solid ${secondaryColor}20`,
+                  }}
+                >
+                  {v.trim()}
+                </Badge>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Detail columns */}
+        {config.detailColumns && config.detailColumns.length > 0 && (
+          <div className="rounded-xl p-3" style={{ backgroundColor: `${accentColor}80` }}>
+            <div className="grid grid-cols-2 gap-2.5">
+              {config.detailColumns.map(slug => {
+                const col = detailColumns.find(c => c.slug === slug);
+                if (!col) return null;
+                const val = getCellValue(row, slug);
+                if (!val) return null;
+                return (
+                  <div key={slug} className="text-sm">
+                    <span className="text-[10px] uppercase tracking-widest font-semibold" style={{ color: BRAND.grisMoyen }}>{col.name}</span>
+                    <p className="font-medium mt-0.5" style={{ color: BRAND.noir }}>{val}</p>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* CTA buttons — fixed bottom */}
+      <div className="shrink-0 px-5 sm:px-6 pb-4 pt-3 space-y-2 bg-white" style={{ borderTop: `1px solid ${primaryColor}15` }}>
+        <Button
+          className="w-full h-11 text-sm font-bold gap-2 rounded-xl shadow-md hover:shadow-lg transition-all duration-200"
+          style={{ backgroundColor: secondaryColor, color: BRAND.blanc }}
+          onClick={() => window.open(conversionLink, '_blank')}
+        >
+          <MessageCircle className="w-4 h-4" />
+          {s?.conversionChannel === 'whatsapp' ? 'Commander via WhatsApp' :
+           s?.conversionChannel === 'messenger' ? 'Commander via Messenger' :
+           s?.conversionChannel === 'email' ? 'Commander par email' :
+           'Commander'}
+        </Button>
+        {s?.enableSharing && (
+          <Button
+            variant="outline"
+            className="w-full h-9 text-sm gap-2 rounded-xl font-medium"
+            style={{ borderColor: `${primaryColor}30`, color: secondaryColor }}
+            onClick={() => {
+              navigator.clipboard.writeText(window.location.href);
+              toast.success('Lien copié !');
+            }}
+          >
+            <Share2 className="w-4 h-4" /> Partager ce produit
+          </Button>
+        )}
+      </div>
     </div>
   );
 }
@@ -1062,178 +1264,23 @@ export function CatalogPreview({ onAdminLogin }: CatalogPreviewProps) {
       {/* ── Product Detail Sheet — Full Glide-style detail ── */}
       <Dialog open={!!selectedProduct} onOpenChange={v => { if (!v) setSelectedProduct(null); }}>
         <DialogContent className="sm:max-w-lg lg:max-w-2xl p-0 gap-0 overflow-hidden rounded-2xl border-0">
-          {selectedProduct && (() => {
-            const { row, columns: detailColumns, section } = selectedProduct;
-            const config = section.config as SectionConfig;
-            const carouselImages = getCarouselImages(row, config, detailColumns);
-            const title = config.titleColumn ? getCellValue(row, config.titleColumn) : '';
-            const price = config.priceColumn ? getCellValue(row, config.priceColumn) : '';
-            const description = config.descriptionColumn ? getCellValue(row, config.descriptionColumn) : '';
-            const variants = config.variantColumn ? getCellValue(row, config.variantColumn) : '';
-            const conversionLink = buildConversionLink(row, config);
-
-            // Limit visible thumbnails to max 10, centered around current
-            const maxThumbnails = 10;
-            const thumbnailImages = carouselImages.length > maxThumbnails
-              ? (() => {
-                  const start = Math.max(0, Math.min(
-                    detailCarouselIdx - Math.floor(maxThumbnails / 2),
-                    carouselImages.length - maxThumbnails
-                  ));
-                  return carouselImages.slice(start, start + maxThumbnails);
-                })()
-              : carouselImages;
-            const thumbnailOffset = carouselImages.length > maxThumbnails
-              ? Math.max(0, Math.min(
-                  detailCarouselIdx - Math.floor(maxThumbnails / 2),
-                  carouselImages.length - maxThumbnails
-                ))
-              : 0;
-
-            return (
-              <div className="flex flex-col max-h-[92vh]">
-                {/* Image Carousel */}
-                {carouselImages.length > 0 && (
-                  <div className="shrink-0">
-                    <ImageCarousel
-                      images={carouselImages}
-                      alt={title}
-                      enableZoom={s?.enableZoom}
-                      onZoom={setZoomImage}
-                      activeIdx={detailCarouselIdx}
-                      onIdxChange={setDetailCarouselIdx}
-                    />
-                  </div>
-                )}
-                {carouselImages.length === 0 && (
-                  <div style={{ position: 'relative', width: '100%', aspectRatio: '3 / 4', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, backgroundColor: BRAND.beige }}>
-                    <ImageIcon className="w-16 h-16" style={{ color: BRAND.grisMoyen, opacity: 0.3 }} />
-                  </div>
-                )}
-
-                {/* Thumbnail strip — Glide-style horizontal scroll, limited to max 10 */}
-                {carouselImages.length > 1 && (
-                  <div className="flex gap-2.5 px-4 py-3 overflow-x-auto shrink-0 bg-white custom-scrollbar" style={{ borderBottom: `1px solid ${primaryColor}15` }}>
-                    {thumbnailImages.map((img, i) => {
-                      const realIdx = i + thumbnailOffset;
-                      return (
-                        <button
-                          key={extractImageId(img) + '-' + realIdx}
-                          className={cn(
-                            'w-14 h-14 rounded-xl overflow-hidden shrink-0 border-2 transition-all duration-200',
-                          )}
-                          style={{
-                            borderColor: realIdx === detailCarouselIdx ? primaryColor : 'transparent',
-                            opacity: realIdx === detailCarouselIdx ? 1 : 0.5,
-                          }}
-                          onClick={() => setDetailCarouselIdx(realIdx)}
-                        >
-                          <ProductImage
-                            src={resolveImageUrl(img, 150)}
-                            alt=""
-                            className="w-full h-full"
-                            objectFit="cover"
-                          />
-                        </button>
-                      );
-                    })}
-                    {carouselImages.length > maxThumbnails && (
-                      <div className="shrink-0 flex items-center px-2">
-                        <span className="text-xs font-medium" style={{ color: BRAND.grisMoyen }}>
-                          +{carouselImages.length - maxThumbnails}
-                        </span>
-                      </div>
-                    )}
-                  </div>
-                )}
-
-                {/* Product info — scrollable */}
-                <div className="flex-1 overflow-y-auto px-5 sm:px-6 py-5 space-y-4 custom-scrollbar">
-                  {/* Title & Price */}
-                  <div>
-                    <h2 className="text-xl sm:text-2xl font-bold" style={{ color: secondaryColor, fontFamily: "'Playfair Display', serif" }}>{title}</h2>
-                    {price && (
-                      <p className="text-xl sm:text-2xl font-bold mt-1" style={{ color: primaryColor, fontFamily: "'Playfair Display', serif" }}>{price}</p>
-                    )}
-                  </div>
-
-                  {description && (
-                    <p className="text-sm leading-relaxed" style={{ color: BRAND.grisMoyen }}>{description}</p>
-                  )}
-
-                  {/* Variants */}
-                  {variants && (
-                    <div>
-                      <p className="text-[10px] font-semibold uppercase tracking-widest mb-2.5" style={{ color: BRAND.grisMoyen }}>Options disponibles</p>
-                      <div className="flex flex-wrap gap-2">
-                        {variants.split(/[,;]/).filter(Boolean).map((v, i) => (
-                          <Badge
-                            key={i}
-                            className="text-xs font-medium rounded-lg px-3 py-1"
-                            style={{
-                              backgroundColor: `${secondaryColor}10`,
-                              color: secondaryColor,
-                              border: `1px solid ${secondaryColor}20`,
-                            }}
-                          >
-                            {v.trim()}
-                          </Badge>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Detail columns */}
-                  {config.detailColumns && config.detailColumns.length > 0 && (
-                    <div className="rounded-xl p-4" style={{ backgroundColor: `${accentColor}80` }}>
-                      <div className="grid grid-cols-2 gap-3">
-                        {config.detailColumns.map(slug => {
-                          const col = detailColumns.find(c => c.slug === slug);
-                          if (!col) return null;
-                          const val = getCellValue(row, slug);
-                          if (!val) return null;
-                          return (
-                            <div key={slug} className="text-sm">
-                              <span className="text-[10px] uppercase tracking-widest font-semibold" style={{ color: BRAND.grisMoyen }}>{col.name}</span>
-                              <p className="font-medium mt-0.5" style={{ color: BRAND.noir }}>{val}</p>
-                            </div>
-                          );
-                        })}
-                      </div>
-                    </div>
-                  )}
-                </div>
-
-                {/* CTA buttons — fixed bottom */}
-                <div className="shrink-0 px-5 sm:px-6 pb-5 pt-4 space-y-2.5 bg-white" style={{ borderTop: `1px solid ${primaryColor}15` }}>
-                  <Button
-                    className="w-full h-12 text-sm font-bold gap-2.5 rounded-xl shadow-md hover:shadow-lg transition-all duration-200"
-                    style={{ backgroundColor: secondaryColor, color: BRAND.blanc }}
-                    onClick={() => window.open(conversionLink, '_blank')}
-                  >
-                    <MessageCircle className="w-4.5 h-4.5" />
-                    {s?.conversionChannel === 'whatsapp' ? 'Commander via WhatsApp' :
-                     s?.conversionChannel === 'messenger' ? 'Commander via Messenger' :
-                     s?.conversionChannel === 'email' ? 'Commander par email' :
-                     'Commander'}
-                  </Button>
-                  {s?.enableSharing && (
-                    <Button
-                      variant="outline"
-                      className="w-full h-10 text-sm gap-2 rounded-xl font-medium"
-                      style={{ borderColor: `${primaryColor}30`, color: secondaryColor }}
-                      onClick={() => {
-                        navigator.clipboard.writeText(window.location.href);
-                        toast.success('Lien copié !');
-                      }}
-                    >
-                      <Share2 className="w-4 h-4" /> Partager ce produit
-                    </Button>
-                  )}
-                </div>
-              </div>
-            );
-          })()}
+          {selectedProduct && (
+            <ProductDetailContent
+              row={selectedProduct.row}
+              detailColumns={selectedProduct.columns}
+              section={selectedProduct.section}
+              s={s}
+              detailCarouselIdx={detailCarouselIdx}
+              setDetailCarouselIdx={setDetailCarouselIdx}
+              setZoomImage={setZoomImage}
+              primaryColor={primaryColor}
+              secondaryColor={secondaryColor}
+              accentColor={accentColor}
+              getCellValue={getCellValue}
+              getCarouselImages={getCarouselImages}
+              buildConversionLink={buildConversionLink}
+            />
+          )}
         </DialogContent>
       </Dialog>
 
@@ -1241,11 +1288,11 @@ export function CatalogPreview({ onAdminLogin }: CatalogPreviewProps) {
       <Dialog open={!!zoomImage} onOpenChange={v => { if (!v) setZoomImage(null); }}>
         <DialogContent className="sm:max-w-4xl p-0 overflow-hidden bg-black rounded-2xl border-0">
           {zoomImage && (
-            <div className="relative flex items-center justify-center min-h-[50vh] max-h-[90vh]">
+            <div className="relative flex items-center justify-center" style={{ minHeight: '40vh', maxHeight: '90vh' }}>
               <ProductImage
                 src={zoomImage}
                 alt="Zoom"
-                className="max-w-full max-h-[90vh]"
+                className="w-full"
                 objectFit="contain"
                 fallbackClassName="w-full h-[60vh]"
               />
