@@ -253,3 +253,15 @@ img {
 .overflow-x-auto::-webkit-scrollbar-thumb:hover {
   background: #C9A84C60;
 }
+
+/* ── Abaya Gallery: Responsive Container Padding ── */
+.abaya-gallery-container {
+  padding-left: 16px;
+  padding-right: 16px;
+}
+@media (min-width: 768px) {
+  .abaya-gallery-container {
+    padding-left: 32px !important;
+    padding-right: 32px !important;
+  }
+}

@@ -200,7 +200,7 @@ function ImageCarousel({
 
   if (images.length === 0) {
     return (
-      <div className="relative w-full aspect-[4/5] flex items-center justify-center" style={{ backgroundColor: BRAND.beige }}>
+      <div style={{ position: 'relative', width: '100%', aspectRatio: '3 / 4', display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: BRAND.beige }}>
         <ImageIcon className="w-16 h-16" style={{ color: BRAND.grisMoyen, opacity: 0.3 }} />
       </div>
     );
@@ -208,8 +208,7 @@ function ImageCarousel({
 
   return (
     <div
-      className="relative w-full aspect-[4/5] overflow-hidden"
-      style={{ backgroundColor: BRAND.beige }}
+      style={{ position: 'relative', width: '100%', aspectRatio: '3 / 4', overflow: 'hidden', backgroundColor: BRAND.beige }}
       ref={trackRef}
       onTouchStart={onTouchStart}
       onTouchMove={onTouchMove}
@@ -664,133 +663,176 @@ export function CatalogPreview({ onAdminLogin }: CatalogPreviewProps) {
         </div>
       )}
 
-      {/* ── Product Grid ── */}
-      <main className="flex-1 mx-auto w-full max-w-[1200px] px-4 sm:px-6 py-5 sm:py-8">
+      {/* ── Product Gallery — Normalized format per spec ── */}
+      <main
+        className="flex-1 w-full abaya-gallery-container"
+        style={{
+          maxWidth: 1200,
+          marginLeft: 'auto',
+          marginRight: 'auto',
+          paddingLeft: 16,
+          paddingRight: 16,
+          paddingTop: 24,
+          paddingBottom: 32,
+        }}
+      >
+        {/* Responsive padding: 16px mobile → 32px desktop */}
+
         {/* Section title */}
         {sections.length > 0 && sections[0].section.title && (
-          <div className="mb-5 sm:mb-6">
-            <h2 className="text-xl sm:text-2xl font-bold" style={{ color: secondaryColor, fontFamily: "'Playfair Display', serif" }}>
+          <div style={{ marginBottom: 20 }}>
+            <h2 style={{ color: secondaryColor, fontFamily: "'Playfair Display', serif", fontSize: 22, fontWeight: 700, margin: 0 }}>
               {sections[0].section.title}
             </h2>
             {sections[0].section.subtitle && (
-              <p className="text-sm mt-1" style={{ color: BRAND.grisMoyen }}>{sections[0].section.subtitle}</p>
+              <p style={{ color: BRAND.grisMoyen, fontSize: 14, marginTop: 4 }}>{sections[0].section.subtitle}</p>
             )}
-            <div className="w-12 h-0.5 mt-2 rounded-full" style={{ backgroundColor: primaryColor }} />
+            <div style={{ width: 48, height: 2, marginTop: 8, borderRadius: 2, backgroundColor: primaryColor }} />
           </div>
         )}
 
-        {/* Grid — responsive columns from config, fallback 2/3/4 */}
-        {(() => {
-          const cpr = sections[0] ? ((sections[0].section.config as SectionConfig).columnsPerRow) : undefined;
-          const colsClass = cpr === 2 ? 'grid-cols-2'
-            : cpr === 3 ? 'grid-cols-2 sm:grid-cols-3'
-            : cpr === 5 ? 'grid-cols-2 sm:grid-cols-3 lg:grid-cols-5'
-            : 'grid-cols-2 sm:grid-cols-3 lg:grid-cols-4'; // default 4
-
-          return (
-          <div className={`grid ${colsClass} gap-3 sm:gap-4 lg:gap-5`}>
+        {/* ── Grille flexible: repeat(auto-fill, minmax(200px, 1fr)) ── */}
+        <div className="abaya-gallery-grid" style={{
+          display: 'grid',
+          gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))',
+          gap: 16,
+          padding: 0,
+          width: '100%',
+        }}>
           {paginatedProducts.map(({ row, columns, section, config }) => {
             const coverUrl = config.coverColumn ? getCellValue(row, config.coverColumn) : '';
             const title = config.titleColumn ? getCellValue(row, config.titleColumn) : '';
             const price = config.priceColumn ? getCellValue(row, config.priceColumn) : '';
             const isLiked = likedProducts.has(row.id);
 
-            // Card style from config
-            const cardStyle = config.cardStyle || 'elevated';
-            const cardBaseClass = cardStyle === 'flat'
-              ? 'group cursor-pointer bg-white rounded-2xl overflow-hidden transition-all duration-300 hover:-translate-y-0.5'
-              : cardStyle === 'bordered'
-              ? 'group cursor-pointer bg-white rounded-2xl overflow-hidden border transition-all duration-300 hover:-translate-y-0.5'
-              : 'group cursor-pointer bg-white rounded-2xl overflow-hidden shadow-sm hover:shadow-xl transition-all duration-300 hover:-translate-y-1';
-            const cardBorder = cardStyle === 'bordered' ? `1px solid ${primaryColor}20` : undefined;
-
             return (
               <div
                 key={row.id}
-                className={cardBaseClass}
-                style={cardBorder ? { border: cardBorder } : undefined}
+                className="product-card"
+                style={{
+                  display: 'flex',
+                  flexDirection: 'column',
+                  overflow: 'hidden',
+                  background: '#fff',
+                  borderRadius: 8,
+                  cursor: 'pointer',
+                  transition: 'transform 0.3s ease, box-shadow 0.3s ease',
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.transform = 'translateY(-2px)';
+                  e.currentTarget.style.boxShadow = '0 4px 20px rgba(0,0,0,0.08)';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.transform = 'translateY(0)';
+                  e.currentTarget.style.boxShadow = 'none';
+                }}
                 onClick={() => {
                   setSelectedProduct({ row, columns, section });
                   setDetailCarouselIdx(0);
                 }}
               >
-                {/* Cover Image — 4:5 near-square ratio like Glide */}
-                <div className="relative w-full overflow-hidden aspect-[4/5]" style={{ backgroundColor: BRAND.grisClair }}>
+                {/* ── Format image strict: aspect-ratio 3/4, object-fit cover ── */}
+                <div style={{ position: 'relative', width: '100%', aspectRatio: '3 / 4', overflow: 'hidden', background: BRAND.grisClair }}>
                   {coverUrl ? (
-                    <ProductImage
+                    <img
                       src={resolveImageUrl(coverUrl, 1600)}
                       alt={title}
-                      className="w-full h-full transition-transform duration-700 ease-out group-hover:scale-105"
-                      objectFit="cover"
-                      sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw"
+                      loading="lazy"
+                      style={{
+                        width: '100%',
+                        aspectRatio: '3 / 4',
+                        objectFit: 'cover',
+                        display: 'block',
+                        transition: 'transform 0.3s ease',
+                      }}
+                      onMouseEnter={(e) => { (e.target as HTMLImageElement).style.transform = 'scale(1.03)'; }}
+                      onMouseLeave={(e) => { (e.target as HTMLImageElement).style.transform = 'scale(1)'; }}
+                      onError={(e) => {
+                        const el = e.target as HTMLImageElement;
+                        el.style.display = 'none';
+                        const parent = el.parentElement;
+                        if (parent) {
+                          parent.innerHTML = `<div style="width:100%;aspect-ratio:3/4;display:flex;align-items:center;justify-content:center;background:${BRAND.beige}"><svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="${BRAND.grisMoyen}" stroke-width="1.5"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="m21 15-5-5L5 21"/></svg></div>`;
+                        }
+                      }}
                     />
                   ) : (
-                    <div className="flex items-center justify-center w-full h-full" style={{ backgroundColor: BRAND.beige }}>
-                      <ImageIcon className="w-10 h-10" style={{ color: BRAND.grisMoyen, opacity: 0.3 }} />
+                    <div style={{ width: '100%', aspectRatio: '3 / 4', display: 'flex', alignItems: 'center', justifyContent: 'center', background: BRAND.beige }}>
+                      <ImageIcon style={{ width: 40, height: 40, color: BRAND.grisMoyen, opacity: 0.3 }} />
                     </div>
                   )}
-
-                  {/* Hover overlay — "Commander" as per charte */}
-                  <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors duration-300 flex items-end justify-center pb-4 opacity-0 group-hover:opacity-100">
-                    <span className="px-4 py-1.5 rounded-full text-xs font-semibold text-white backdrop-blur-md"
-                      style={{ backgroundColor: `${secondaryColor}cc` }}>
-                      Voir détails
-                    </span>
-                  </div>
 
                   {/* Like button */}
                   <button
-                    className={cn(
-                      'absolute top-2.5 right-2.5 p-2 rounded-full transition-all duration-200 z-10',
-                      isLiked ? 'shadow-md' : 'opacity-0 group-hover:opacity-100'
-                    )}
-                    style={{
-                      backgroundColor: isLiked ? '#FEE2E2' : 'rgba(255,255,255,0.9)',
-                      backdropFilter: isLiked ? undefined : 'blur(8px)',
-                    }}
                     onClick={(e) => toggleLike(row.id, e)}
+                    style={{
+                      position: 'absolute',
+                      top: 8,
+                      right: 8,
+                      width: 32,
+                      height: 32,
+                      borderRadius: '50%',
+                      border: 'none',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      background: isLiked ? '#FEE2E2' : 'rgba(255,255,255,0.9)',
+                      cursor: 'pointer',
+                      zIndex: 2,
+                      boxShadow: '0 1px 4px rgba(0,0,0,0.1)',
+                    }}
                   >
-                    <Heart className={cn('w-4 h-4', isLiked && 'fill-current')} style={{ color: isLiked ? '#EF4444' : BRAND.grisMoyen }} />
+                    <Heart className={isLiked ? 'fill-current' : ''} style={{ width: 16, height: 16, color: isLiked ? '#EF4444' : BRAND.grisMoyen }} />
                   </button>
-
-                  {/* Price badge */}
-                  {price && config.showPrice !== false && (
-                    <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/60 via-black/20 to-transparent pt-10 pb-2.5 px-3">
-                      <span className="text-white font-bold text-sm sm:text-base drop-shadow-md" style={{ fontFamily: "'Playfair Display', serif" }}>
-                        {price}
-                      </span>
-                    </div>
-                  )}
                 </div>
 
-                {/* Card Content */}
-                <div className="px-3 py-2.5 sm:px-3.5 sm:py-3">
+                {/* ── Style typographie ── */}
+                <div style={{ padding: '8px 12px 12px' }}>
                   {config.showTitle !== false && title && (
-                    <h3 className="text-xs sm:text-sm font-medium line-clamp-2 leading-snug" style={{ color: BRAND.noir }}>
+                    <p style={{
+                      fontWeight: 600,
+                      fontSize: 14,
+                      marginTop: 0,
+                      marginBottom: 0,
+                      color: BRAND.noir,
+                      lineHeight: 1.3,
+                      overflow: 'hidden',
+                      display: '-webkit-box',
+                      WebkitLineClamp: 2,
+                      WebkitBoxOrient: 'vertical',
+                    }}>
                       {title}
-                    </h3>
+                    </p>
+                  )}
+                  {price && config.showPrice !== false && (
+                    <p style={{
+                      color: '#666',
+                      fontSize: 13,
+                      marginTop: 4,
+                      marginBottom: 0,
+                    }}>
+                      {price}
+                    </p>
                   )}
                 </div>
               </div>
             );
           })}
-          </div>
-          );
-        })()}
+        </div>
 
         {/* Empty state */}
         {allProducts.length === 0 && (
-          <div className="text-center py-24">
-            <div className="w-20 h-20 mx-auto mb-5 rounded-2xl flex items-center justify-center" style={{ backgroundColor: `${primaryColor}15` }}>
-              <ShoppingBag className="w-9 h-9" style={{ color: primaryColor, opacity: 0.5 }} />
+          <div style={{ textAlign: 'center', padding: '80px 16px' }}>
+            <div style={{ width: 80, height: 80, margin: '0 auto 20px', borderRadius: 16, display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: `${primaryColor}15` }}>
+              <ShoppingBag style={{ width: 36, height: 36, color: primaryColor, opacity: 0.5 }} />
             </div>
-            <p className="text-lg font-semibold" style={{ color: secondaryColor, fontFamily: "'Playfair Display', serif" }}>Aucun produit trouvé</p>
+            <p style={{ fontSize: 18, fontWeight: 600, color: secondaryColor, fontFamily: "'Playfair Display', serif" }}>Aucun produit trouvé</p>
             {searchQuery ? (
-              <p className="text-sm mt-1.5" style={{ color: BRAND.grisMoyen }}>Essayez un autre terme de recherche</p>
+              <p style={{ fontSize: 14, marginTop: 6, color: BRAND.grisMoyen }}>Essayez un autre terme de recherche</p>
             ) : isAdmin ? (
-              <p className="text-sm mt-1.5" style={{ color: BRAND.grisMoyen }}>Ajoutez des sections dans l&apos;onglet Mise en page</p>
+              <p style={{ fontSize: 14, marginTop: 6, color: BRAND.grisMoyen }}>Ajoutez des sections dans l&apos;onglet Mise en page</p>
             ) : (
-              <p className="text-sm mt-1.5" style={{ color: BRAND.grisMoyen }}>Le catalogue est en cours de préparation. Revenez bientôt !</p>
+              <p style={{ fontSize: 14, marginTop: 6, color: BRAND.grisMoyen }}>Le catalogue est en cours de préparation. Revenez bientôt !</p>
             )}
           </div>
         )}
@@ -864,7 +906,7 @@ export function CatalogPreview({ onAdminLogin }: CatalogPreviewProps) {
                   </div>
                 )}
                 {carouselImages.length === 0 && (
-                  <div className="relative w-full aspect-[4/5] flex items-center justify-center shrink-0" style={{ backgroundColor: BRAND.beige }}>
+                  <div style={{ position: 'relative', width: '100%', aspectRatio: '3 / 4', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, backgroundColor: BRAND.beige }}>
                     <ImageIcon className="w-16 h-16" style={{ color: BRAND.grisMoyen, opacity: 0.3 }} />
                   </div>
                 )}
