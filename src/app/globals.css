@@ -62,18 +62,18 @@
 
 :root {
   --radius: 0.75rem;
-  --background: #FAF8F5;
-  --foreground: #1F1F1F;
+  --background: #FFFFFF;
+  --foreground: #111111;
   --card: #FFFFFF;
-  --card-foreground: #1F1F1F;
+  --card-foreground: #111111;
   --popover: #FFFFFF;
-  --popover-foreground: #1F1F1F;
+  --popover-foreground: #111111;
   --primary: #1A3C34;
   --primary-foreground: #FFFFFF;
   --secondary: #F5F0E8;
   --secondary-foreground: #1F1F1F;
   --muted: #F5F0E8;
-  --muted-foreground: #808080;
+  --muted-foreground: #707070;
   --accent: #F5F0E8;
   --accent-foreground: #1F1F1F;
   --destructive: #800020;
@@ -81,7 +81,7 @@
   --input: #E8E2D9;
   --ring: #C9A84C;
   --gold: #C9A84C;
-  --gold-foreground: #1F1F1F;
+  --gold-foreground: #111111;
   --cream: #FAF8F5;
   --chart-1: #C9A84C;
   --chart-2: #1A3C34;
@@ -91,7 +91,7 @@
   --sidebar: #1A3C34;
   --sidebar-foreground: #FAF8F5;
   --sidebar-primary: #C9A84C;
-  --sidebar-primary-foreground: #1F1F1F;
+  --sidebar-primary-foreground: #111111;
   --sidebar-accent: #2D4A42;
   --sidebar-accent-foreground: #FAF8F5;
   --sidebar-border: #2D4A42;
@@ -141,10 +141,26 @@
   }
   body {
     @apply bg-background text-foreground;
-    font-family: 'Inter', sans-serif;
+    font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    margin: 0;
   }
   h1, h2, h3 {
     font-family: 'Playfair Display', serif;
+  }
+}
+
+/* ── Glide-like Global Layout ── */
+.catalog-container,
+.detail-container {
+  max-width: 1270px;
+  margin: 0 auto;
+  padding: 24px 32px 48px;
+}
+
+@media (max-width: 640px) {
+  .catalog-container,
+  .detail-container {
+    padding: 16px;
   }
 }
 
@@ -179,15 +195,6 @@
   animation: shimmer 3s infinite;
 }
 
-/* ── Product Card Hover (Charte: scale(1.05) + shadow + overlay) ── */
-.product-card-hover {
-  transition: transform 0.2s ease, box-shadow 0.2s ease;
-}
-.product-card-hover:hover {
-  transform: scale(1.05);
-  box-shadow: 0 8px 30px rgba(201, 168, 76, 0.15);
-}
-
 /* ── Category Pill Active ── */
 .category-active {
   background: #1A3C34;
@@ -209,22 +216,6 @@
   animation: shimmer-soft 2s ease-in-out infinite;
 }
 
-/* ── Carousel Slide Animations ── */
-@keyframes slide-in-right {
-  from { transform: translateX(30px); opacity: 0.7; }
-  to { transform: translateX(0); opacity: 1; }
-}
-@keyframes slide-in-left {
-  from { transform: translateX(-30px); opacity: 0.7; }
-  to { transform: translateX(0); opacity: 1; }
-}
-.animate-slide-in-right {
-  animation: slide-in-right 0.3s ease-out;
-}
-.animate-slide-in-left {
-  animation: slide-in-left 0.3s ease-out;
-}
-
 /* ── Image Rendering: auto for photos (not crisp-edges) ── */
 img {
   image-rendering: auto;
@@ -241,14 +232,14 @@ img {
 
 /* ── Hidden Scrollbar: allows programmatic scroll but hides visual bar ── */
 .no-scrollbar {
-  -ms-overflow-style: none;  /* IE/Edge */
-  scrollbar-width: none;     /* Firefox */
+  -ms-overflow-style: none;
+  scrollbar-width: none;
 }
 .no-scrollbar::-webkit-scrollbar {
-  display: none;             /* Chrome/Safari/Opera */
+  display: none;
 }
 
-/* ── Horizontal Scrollbar for Thumbnails ── */
+/* ── Horizontal Scrollbar ── */
 .overflow-x-auto::-webkit-scrollbar {
   height: 3px;
 }
@@ -261,16 +252,4 @@ img {
 }
 .overflow-x-auto::-webkit-scrollbar-thumb:hover {
   background: #C9A84C60;
-}
-
-/* ── Abaya Gallery: Responsive Container Padding ── */
-.abaya-gallery-container {
-  padding-left: 16px;
-  padding-right: 16px;
-}
-@media (min-width: 768px) {
-  .abaya-gallery-container {
-    padding-left: 32px !important;
-    padding-right: 32px !important;
-  }
 }

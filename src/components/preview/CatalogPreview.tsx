@@ -5,30 +5,29 @@ import { useAppStore } from '@/lib/store';
 import type { Section, SectionConfig, Column, ColumnConfig, Row, CatalogSettings } from '@/types';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Badge } from '@/components/ui/badge';
 import {
-  ArrowLeft, Search, MessageCircle, Share2, X, ChevronLeft, ChevronRight,
-  ZoomIn, Mail, Instagram, ImageIcon, BookOpen, Heart,
-  ShoppingBag, Phone
+  ArrowLeft, Search, MessageCircle, Share2, ChevronLeft, ChevronRight,
+  Mail, Instagram, ImageIcon, BookOpen, Heart,
+  ShoppingBag
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 
-// ── Brand Charte Constants (from Guide de Design & Charte Graphique) ──
+// ── Brand Charte Constants ──
 const BRAND = {
-  vertFonce: '#1A3C34',   // Primary dark green
-  dore: '#C9A84C',        // Gold accent
-  beige: '#F5F0E8',       // Background beige
-  noir: '#1F1F1F',        // Text black
-  blanc: '#FFFFFF',        // White
-  grisClair: '#F0F0F0',   // Light gray
-  grisMoyen: '#808080',   // Medium gray
-  bordeaux: '#800020',    // Error/bordeaux
+  vertFonce: '#1A3C34',
+  dore: '#C9A84C',
+  beige: '#F5F0E8',
+  noir: '#1F1F1F',
+  blanc: '#FFFFFF',
+  grisClair: '#F0F0F0',
+  grisMoyen: '#808080',
+  bordeaux: '#800020',
 } as const;
 
-const ITEMS_PER_PAGE = 12;
+const ITEMS_PER_PAGE = 16;
 
-// ── Image URL Resolution (high-res by default) ──
+// ── Image URL Resolution ──
 
 function resolveImageUrl(url: string, size = 1200): string {
   if (!url) return '';
@@ -58,7 +57,6 @@ function resolveImageUrl(url: string, size = 1200): string {
   return url;
 }
 
-/** Extract a stable key from a URL (Drive file ID or the URL itself) */
 function extractImageId(url: string): string {
   const proxyMatch = url.match(/\/api\/google\/image-proxy\?id=([^&]+)/);
   if (proxyMatch) return proxyMatch[1];
@@ -77,7 +75,6 @@ function extractImageId(url: string): string {
 function parseImageUrls(val: unknown, separator?: string): string[] {
   if (!val) return [];
 
-  // Array — already parsed (e.g. from JSON column data)
   if (Array.isArray(val)) {
     return val
       .filter((u: unknown) => typeof u === 'string' && u.length > 0)
@@ -88,7 +85,6 @@ function parseImageUrls(val: unknown, separator?: string): string[] {
   const str = val.trim();
   if (!str) return [];
 
-  // JSON array string: ["url1", "url2"]
   if (str.startsWith('[')) {
     try {
       const parsed = JSON.parse(str) as unknown[];
@@ -100,12 +96,10 @@ function parseImageUrls(val: unknown, separator?: string): string[] {
     } catch { /* not valid JSON */ }
   }
 
-  // Single URL
   if (str.startsWith('http') || str.startsWith('/api/')) {
     return [resolveImageUrl(str)];
   }
 
-  // Multiple URLs separated by comma, semicolon, pipe, or newline
   if (str.includes('http')) {
     const sep = separator || ',';
     const splitRegex = sep === '|' ? /\|/ : sep === '\n' ? /\n/ : sep === ';' ? /;/ : /[,;]/
@@ -119,56 +113,209 @@ function parseImageUrls(val: unknown, separator?: string): string[] {
   return [];
 }
 
-// ── Image Component with Skeleton Loading ──
+// ═══════════════════════════════════════════════════════════════════════════
+// ── PRODUCT PAGE — Glide-like: Hero + Fields + Square Carousel + CTA ──
+// ═══════════════════════════════════════════════════════════════════════════
 
-function ProductImage({
-  src,
-  alt,
-  className,
-  fallbackClassName,
-  objectFit = 'cover',
-  sizes,
-  priority = false,
+function ProductPage({
+  row,
+  detailColumns,
+  section,
+  s,
+  primaryColor,
+  secondaryColor,
+  accentColor,
+  getCellValue,
+  getCarouselImages,
+  buildConversionLink,
+  onBack,
 }: {
-  src: string;
-  alt: string;
-  className?: string;
-  fallbackClassName?: string;
-  objectFit?: 'cover' | 'contain';
-  sizes?: string;
-  priority?: boolean;
+  row: Row;
+  detailColumns: Column[];
+  section: Section;
+  s: CatalogSettings | null | undefined;
+  primaryColor: string;
+  secondaryColor: string;
+  accentColor: string;
+  getCellValue: (row: Row, slug: string) => string;
+  getCarouselImages: (row: Row, config: SectionConfig, columns?: Column[]) => string[];
+  buildConversionLink: (row: Row, config: SectionConfig) => string;
+  onBack: () => void;
 }) {
-  const [error, setError] = useState(false);
-  const [loaded, setLoaded] = useState(false);
-  const resolvedSrc = src.startsWith('/api/') ? src : resolveImageUrl(src);
+  const config = section.config as SectionConfig;
+  const carouselImages = getCarouselImages(row, config, detailColumns);
+  const title = config.titleColumn ? getCellValue(row, config.titleColumn) : '';
+  const price = config.priceColumn ? getCellValue(row, config.priceColumn) : '';
+  const description = config.descriptionColumn ? getCellValue(row, config.descriptionColumn) : '';
+  const variants = config.variantColumn ? getCellValue(row, config.variantColumn) : '';
+  const conversionLink = buildConversionLink(row, config);
 
-  if (error || !resolvedSrc) {
-    return (
-      <div className={cn('flex items-center justify-center', fallbackClassName || className)} style={{ backgroundColor: BRAND.beige }}>
-        <ImageIcon className="w-8 h-8" style={{ color: BRAND.grisMoyen, opacity: 0.4 }} />
-      </div>
-    );
+  // Cover image (first image)
+  const coverImage = carouselImages[0] || '';
+
+  // Parse variants
+  const variantList = variants ? variants.split(/[,;]/).map(v => v.trim()).filter(Boolean) : [];
+  const sizePattern = /^(XS|S|M|L|XL|2XL|3XL|4XL|XXL|XXXL|\d{1,2})$/i;
+  const sizes = variantList.filter(v => sizePattern.test(v));
+  const colors = variantList.filter(v => !sizePattern.test(v));
+
+  // Carousel state
+  const [carouselIdx, setCarouselIdx] = useState(0);
+  const touchStartX = useRef(0);
+  const touchEndX = useRef(0);
+
+  const goPrev = () => setCarouselIdx(i => (i === 0 ? carouselImages.length - 1 : i - 1));
+  const goNext = () => setCarouselIdx(i => (i === carouselImages.length - 1 ? 0 : i + 1));
+  const goTo = (idx: number) => setCarouselIdx(idx);
+
+  // Touch swipe
+  const onTouchStart = (e: React.TouchEvent) => { touchStartX.current = e.touches[0].clientX; };
+  const onTouchMove = (e: React.TouchEvent) => { touchEndX.current = e.touches[0].clientX; };
+  const onTouchEnd = () => {
+    const diff = touchStartX.current - touchEndX.current;
+    if (Math.abs(diff) > 50) {
+      if (diff > 0) goNext();
+      else goPrev();
+    }
+  };
+
+  // Keyboard navigation
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'ArrowLeft') { e.preventDefault(); goPrev(); }
+      else if (e.key === 'ArrowRight') { e.preventDefault(); goNext(); }
+      else if (e.key === 'Escape') { e.preventDefault(); onBack(); }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [onBack]);
+
+  // Scroll to top on mount
+  useEffect(() => {
+    window.scrollTo(0, 0);
+  }, []);
+
+  // Collect detail fields
+  const detailFields: { label: string; value: string }[] = [];
+  if (price) detailFields.push({ label: 'Prix', value: price });
+  if (description) detailFields.push({ label: 'Description', value: description });
+  if (sizes.length > 0) detailFields.push({ label: 'Tailles', value: sizes.join(', ') });
+  if (colors.length > 0) detailFields.push({ label: 'Couleurs', value: colors.join(', ') });
+
+  // Add detail columns from config
+  if (config.detailColumns && config.detailColumns.length > 0) {
+    for (const slug of config.detailColumns) {
+      const col = detailColumns.find(c => c.slug === slug);
+      if (!col) continue;
+      const val = getCellValue(row, slug);
+      if (!val) continue;
+      // Avoid duplicates
+      if (!detailFields.some(f => f.label === col.name)) {
+        detailFields.push({ label: col.name, value: val });
+      }
+    }
   }
 
   return (
-    <div className={cn('relative overflow-hidden', className)}>
-      {/* Skeleton while loading */}
-      {!loaded && (
-        <div className="absolute inset-0 skeleton-pulse" style={{ backgroundColor: BRAND.grisClair }} />
-      )}
-      <img
-        src={resolvedSrc}
-        alt={alt}
-        className={cn(
-          'w-full h-full transition-opacity duration-500',
-          loaded ? 'opacity-100' : 'opacity-0',
+    <div className="min-h-screen flex flex-col" style={{ backgroundColor: BRAND.blanc }}>
+      {/* ── Back button ── */}
+      <div style={{ maxWidth: 1270, margin: '0 auto', width: '100%', padding: '16px 32px 0' }}>
+        <button
+          onClick={onBack}
+          className="flex items-center gap-1.5 text-sm font-medium transition-colors"
+          style={{ color: BRAND.grisMoyen, background: 'none', border: 0, cursor: 'pointer', padding: 0 }}
+        >
+          <ArrowLeft className="w-4 h-4" />
+          Retour
+        </button>
+      </div>
+
+      {/* ── Scrollable content ── */}
+      <main className="flex-1" style={{ maxWidth: 1270, margin: '0 auto', width: '100%', padding: '18px 32px 48px' }}>
+
+        {/* ── Product Hero: thumbnail + title/desc ── */}
+        <section className="product-hero">
+          {coverImage ? (
+            <img
+              className="product-hero-thumb"
+              src={resolveImageUrl(coverImage, 300)}
+              alt={title}
+            />
+          ) : (
+            <div className="product-hero-thumb" style={{ background: BRAND.grisClair, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <ImageIcon className="w-8 h-8" style={{ color: BRAND.grisMoyen, opacity: 0.4 }} />
+            </div>
+          )}
+
+          <div className="product-hero-text">
+            <h1 style={{ fontFamily: "'Playfair Display', serif" }}>{title}</h1>
+            {description && <p>{description}</p>}
+          </div>
+        </section>
+
+        {/* ── Product Fields ── */}
+        {detailFields.length > 0 && (
+          <section className="product-fields">
+            {detailFields.map((field, i) => (
+              <div key={i} className="product-field">
+                <span>{field.label}</span>
+                <strong>{field.value}</strong>
+              </div>
+            ))}
+          </section>
         )}
-        style={{ objectFit, imageRendering: 'auto' }}
-        loading={priority ? 'eager' : 'lazy'}
-        sizes={sizes}
-        onLoad={() => setLoaded(true)}
-        onError={() => setError(true)}
-      />
+
+        {/* ── Glide Carousel: square, no thumbnails ── */}
+        {carouselImages.length > 0 && (
+          <section
+            className="glide-carousel"
+            onTouchStart={onTouchStart}
+            onTouchMove={onTouchMove}
+            onTouchEnd={onTouchEnd}
+          >
+            <img
+              src={resolveImageUrl(carouselImages[carouselIdx], 1600)}
+              alt={`${title} - ${carouselIdx + 1}`}
+            />
+
+            {carouselImages.length > 1 && (
+              <>
+                <button className="carousel-arrow left" onClick={goPrev} aria-label="Image précédente">
+                  ‹
+                </button>
+                <button className="carousel-arrow right" onClick={goNext} aria-label="Image suivante">
+                  ›
+                </button>
+
+                <div className="carousel-dots">
+                  {carouselImages.map((_, i) => (
+                    <button
+                      key={i}
+                      className={i === carouselIdx ? 'active' : ''}
+                      onClick={() => goTo(i)}
+                      aria-label={`Image ${i + 1}`}
+                    />
+                  ))}
+                </div>
+              </>
+            )}
+          </section>
+        )}
+
+        {/* ── WhatsApp CTA ── */}
+        <a
+          className="whatsapp-cta"
+          href={conversionLink}
+          target="_blank"
+          rel="noopener noreferrer"
+          style={{ backgroundColor: primaryColor, color: BRAND.noir }}
+        >
+          {s?.conversionChannel === 'whatsapp' ? 'Commander via WhatsApp' :
+           s?.conversionChannel === 'messenger' ? 'Commander via Messenger' :
+           s?.conversionChannel === 'email' ? 'Commander par email' :
+           'Commander'}
+        </a>
+      </main>
     </div>
   );
 }
@@ -220,9 +367,7 @@ function Pagination({
         ) : (
           <button
             key={p}
-            className={cn(
-              'w-10 h-10 rounded-xl text-sm font-semibold transition-all duration-200',
-            )}
+            className="w-10 h-10 rounded-xl text-sm font-semibold transition-all duration-200"
             style={{
               backgroundColor: p === currentPage ? primaryColor : 'transparent',
               color: p === currentPage ? BRAND.blanc : BRAND.noir,
@@ -246,598 +391,8 @@ function Pagination({
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
-// ── FULL-PAGE PRODUCT VIEW — Glide-like layout, no-scroll, single-glance ──
+// ── Main Catalog Component ──
 // ═══════════════════════════════════════════════════════════════════════════
-
-function ProductFullPage({
-  row,
-  detailColumns,
-  section,
-  s,
-  primaryColor,
-  secondaryColor,
-  accentColor,
-  getCellValue,
-  getCarouselImages,
-  buildConversionLink,
-  onClose,
-}: {
-  row: Row;
-  detailColumns: Column[];
-  section: Section;
-  s: CatalogSettings | null | undefined;
-  primaryColor: string;
-  secondaryColor: string;
-  accentColor: string;
-  getCellValue: (row: Row, slug: string) => string;
-  getCarouselImages: (row: Row, config: SectionConfig, columns?: Column[]) => string[];
-  buildConversionLink: (row: Row, config: SectionConfig) => string;
-  onClose: () => void;
-}) {
-  const config = section.config as SectionConfig;
-  const carouselImages = getCarouselImages(row, config, detailColumns);
-  const title = config.titleColumn ? getCellValue(row, config.titleColumn) : '';
-  const price = config.priceColumn ? getCellValue(row, config.priceColumn) : '';
-  const description = config.descriptionColumn ? getCellValue(row, config.descriptionColumn) : '';
-  const variants = config.variantColumn ? getCellValue(row, config.variantColumn) : '';
-  const conversionLink = buildConversionLink(row, config);
-
-  // Cover image (first image in carousel)
-  const coverImage = carouselImages[0] || '';
-
-  // Parse variants into size and color groups
-  const variantList = variants ? variants.split(/[,;]/).map(v => v.trim()).filter(Boolean) : [];
-  // Heuristic: sizes are short tokens like S, M, L, XL, 2XL, XXL, etc.
-  const sizePattern = /^(XS|S|M|L|XL|2XL|3XL|4XL|XXL|XXXL|\d{1,2})$/i;
-  const sizes = variantList.filter(v => sizePattern.test(v));
-  const colors = variantList.filter(v => !sizePattern.test(v));
-
-  const [currentIdx, setCurrentIdx] = useState(0);
-  const [zoomImage, setZoomImage] = useState<string | null>(null);
-  const touchStartX = useRef(0);
-  const touchEndX = useRef(0);
-  const thumbnailRef = useRef<HTMLDivElement>(null);
-
-  // ── Non-circular navigation ──
-  const canGoPrev = currentIdx > 0;
-  const canGoNext = currentIdx < carouselImages.length - 1;
-
-  const maxIdx = carouselImages.length - 1;
-  const goTo = (idx: number) => {
-    setCurrentIdx(Math.max(0, Math.min(idx, maxIdx)));
-  };
-
-  const goNext = () => {
-    if (canGoNext) setCurrentIdx(prev => prev + 1);
-  };
-
-  const goPrev = () => {
-    if (canGoPrev) setCurrentIdx(prev => prev - 1);
-  };
-
-  // Touch / swipe
-  const onTouchStart = (e: React.TouchEvent) => {
-    touchStartX.current = e.touches[0].clientX;
-  };
-  const onTouchMove = (e: React.TouchEvent) => {
-    touchEndX.current = e.touches[0].clientX;
-  };
-  const onTouchEnd = () => {
-    const diff = touchStartX.current - touchEndX.current;
-    if (Math.abs(diff) > 50) {
-      if (diff > 0) goNext();
-      else goPrev();
-    }
-  };
-
-  // Keyboard navigation (non-circular)
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'ArrowLeft') {
-        e.preventDefault();
-        goPrev();
-      } else if (e.key === 'ArrowRight') {
-        e.preventDefault();
-        goNext();
-      } else if (e.key === 'Escape') {
-        e.preventDefault();
-        if (zoomImage) setZoomImage(null);
-        else onClose();
-      }
-    };
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [goNext, goPrev, onClose, zoomImage]);
-
-  // Auto-scroll thumbnail strip to keep active visible
-  useEffect(() => {
-    if (!thumbnailRef.current) return;
-    const activeThumb = thumbnailRef.current.querySelector(`[data-thumb-idx="${currentIdx}"]`) as HTMLElement;
-    if (activeThumb) {
-      activeThumb.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
-    }
-  }, [currentIdx]);
-
-  // Prevent body scroll when full-page is open
-  useEffect(() => {
-    document.body.style.overflow = 'hidden';
-    return () => { document.body.style.overflow = ''; };
-  }, []);
-
-  return (
-    <div
-      className="fixed inset-0 z-50 flex flex-col"
-      style={{ backgroundColor: BRAND.blanc }}
-    >
-      {/* ── Top bar: back + title + counter + zoom ── */}
-      <div
-        className="shrink-0 flex items-center gap-3 px-4 py-2.5"
-        style={{ backgroundColor: secondaryColor, minHeight: 48 }}
-      >
-        <button
-          onClick={onClose}
-          className="shrink-0 w-8 h-8 rounded-full flex items-center justify-center transition-all hover:bg-white/15 active:scale-95"
-          aria-label="Retour"
-        >
-          <ArrowLeft className="w-5 h-5 text-white" />
-        </button>
-
-        <div className="flex-1 min-w-0">
-          <h1 className="text-white text-sm sm:text-base font-semibold truncate" style={{ fontFamily: "'Playfair Display', serif" }}>
-            {title}
-          </h1>
-        </div>
-
-        {carouselImages.length > 1 && (
-          <span className="shrink-0 text-xs font-medium px-2 py-0.5 rounded-full"
-            style={{ backgroundColor: 'rgba(255,255,255,0.15)', color: 'rgba(255,255,255,0.85)' }}>
-            {currentIdx + 1}/{carouselImages.length}
-          </span>
-        )}
-
-        {/* Zoom button in header */}
-        {s?.enableZoom && carouselImages[currentIdx] && (
-          <button
-            className="shrink-0 w-8 h-8 rounded-full flex items-center justify-center transition-all hover:bg-white/15 active:scale-95"
-            onClick={() => setZoomImage(resolveImageUrl(carouselImages[currentIdx], 1920))}
-            aria-label="Zoom"
-          >
-            <ZoomIn className="w-4 h-4 text-white/80" />
-          </button>
-        )}
-      </div>
-
-      {/* ── Main content: NO SCROLL — everything fits in viewport ── */}
-      <div className="flex-1 flex flex-col min-h-0">
-
-        {/* ── Image carousel — centered, object-contain, beige background ── */}
-        <div
-          className="flex-1 min-h-0 relative"
-          style={{ backgroundColor: BRAND.beige }}
-          onTouchStart={onTouchStart}
-          onTouchMove={onTouchMove}
-          onTouchEnd={onTouchEnd}
-        >
-          {carouselImages.length > 0 ? (
-            <>
-              {/* Cover thumbnail in top-left corner */}
-              {coverImage && (
-                <div
-                  className="absolute top-2.5 left-2.5 z-20 rounded-lg overflow-hidden shadow-md border-2"
-                  style={{ width: 48, height: 48, borderColor: currentIdx === 0 ? primaryColor : `${primaryColor}40` }}
-                >
-                  <ProductImage
-                    src={resolveImageUrl(coverImage, 150)}
-                    alt="Cover"
-                    className="w-full h-full"
-                    objectFit="cover"
-                  />
-                </div>
-              )}
-
-              {/* Sliding track — object-contain, no cropping */}
-              <div
-                className="flex h-full transition-transform duration-300 ease-out"
-                style={{ transform: `translateX(-${currentIdx * 100}%)` }}
-              >
-                {carouselImages.map((img, i) => (
-                  <div
-                    key={extractImageId(img) + '-' + i}
-                    className="w-full h-full shrink-0 flex items-center justify-center"
-                    style={{ backgroundColor: BRAND.beige }}
-                  >
-                    <ProductImage
-                      src={resolveImageUrl(img, 1600)}
-                      alt={`${title} - ${i + 1}`}
-                      className="w-full h-full"
-                      objectFit="contain"
-                      sizes="100vw"
-                      priority={i === 0}
-                    />
-                  </div>
-                ))}
-              </div>
-
-              {/* Left arrow — disabled at first image */}
-              {carouselImages.length > 1 && (
-                <>
-                  <button
-                    className={cn(
-                      "absolute left-2 top-1/2 -translate-y-1/2 rounded-full p-2 transition-all z-10 shadow-lg",
-                      canGoPrev
-                        ? "hover:scale-110 active:scale-95"
-                        : "opacity-20 pointer-events-none"
-                    )}
-                    style={{ backgroundColor: 'rgba(255,255,255,0.9)' }}
-                    onClick={goPrev}
-                    disabled={!canGoPrev}
-                    aria-label="Image précédente"
-                  >
-                    <ChevronLeft className="w-4 h-4" style={{ color: BRAND.noir }} />
-                  </button>
-
-                  {/* Right arrow — disabled at last image */}
-                  <button
-                    className={cn(
-                      "absolute right-2 top-1/2 -translate-y-1/2 rounded-full p-2 transition-all z-10 shadow-lg",
-                      canGoNext
-                        ? "hover:scale-110 active:scale-95"
-                        : "opacity-20 pointer-events-none"
-                    )}
-                    style={{ backgroundColor: 'rgba(255,255,255,0.9)' }}
-                    onClick={goNext}
-                    disabled={!canGoNext}
-                    aria-label="Image suivante"
-                  >
-                    <ChevronRight className="w-4 h-4" style={{ color: BRAND.noir }} />
-                  </button>
-                </>
-              )}
-
-              {/* Dot indicators */}
-              {carouselImages.length > 1 && carouselImages.length <= 9 && (
-                <div className="absolute bottom-2 left-1/2 -translate-x-1/2 z-10 flex gap-1.5 items-center">
-                  {Array.from({ length: carouselImages.length }, (_, i) => (
-                    <button
-                      key={i}
-                      className={cn(
-                        'rounded-full transition-all duration-300',
-                        i === currentIdx ? 'w-6 h-2' : 'w-2 h-2'
-                      )}
-                      style={{
-                        backgroundColor: i === currentIdx
-                          ? BRAND.vertFonce
-                          : 'rgba(26,60,52,0.3)',
-                      }}
-                      onClick={() => goTo(i)}
-                    />
-                  ))}
-                </div>
-              )}
-
-              {/* For many images: compact counter badge */}
-              {carouselImages.length > 9 && (
-                <div className="absolute bottom-2 left-1/2 -translate-x-1/2 z-10 text-xs px-2.5 py-1 rounded-full font-medium"
-                  style={{ backgroundColor: 'rgba(26,60,52,0.6)', color: BRAND.blanc }}>
-                  {currentIdx + 1} / {carouselImages.length}
-                </div>
-              )}
-            </>
-          ) : (
-            <div className="w-full h-full flex items-center justify-center">
-              <ImageIcon className="w-20 h-20" style={{ color: BRAND.grisMoyen, opacity: 0.3 }} />
-            </div>
-          )}
-        </div>
-
-        {/* ── Product Info Section — compact, between image and thumbnails ── */}
-        <div
-          className="shrink-0 px-4 py-2.5"
-          style={{ backgroundColor: BRAND.blanc, borderTop: `1px solid ${primaryColor}08` }}
-        >
-          {/* Title + Price row */}
-          <div className="flex items-start justify-between gap-3">
-            <h2
-              className="font-bold text-base sm:text-lg leading-tight truncate"
-              style={{ color: secondaryColor, fontFamily: "'Playfair Display', serif" }}
-            >
-              {title}
-            </h2>
-            {price && (
-              <span
-                className="shrink-0 font-bold text-base sm:text-lg"
-                style={{ color: primaryColor }}
-              >
-                {price}
-              </span>
-            )}
-          </div>
-
-          {/* Description — max 2 lines */}
-          {description && (
-            <p
-              className="text-xs leading-relaxed mt-1 line-clamp-2"
-              style={{ color: BRAND.grisMoyen }}
-            >
-              {description}
-            </p>
-          )}
-
-          {/* Variant badges: sizes + colors */}
-          {variantList.length > 0 && (
-            <div className="flex flex-wrap gap-1 mt-2">
-              {sizes.length > 0 && sizes.map((sz, i) => (
-                <span
-                  key={`size-${i}`}
-                  className="inline-flex items-center justify-center text-[10px] font-semibold px-2 py-0.5 rounded"
-                  style={{
-                    backgroundColor: `${secondaryColor}10`,
-                    color: secondaryColor,
-                    border: `1px solid ${secondaryColor}20`,
-                    minWidth: 28,
-                  }}
-                >
-                  {sz}
-                </span>
-              ))}
-              {colors.length > 0 && colors.map((cl, i) => (
-                <span
-                  key={`color-${i}`}
-                  className="inline-flex items-center text-[10px] font-medium px-2 py-0.5 rounded-full"
-                  style={{
-                    backgroundColor: `${primaryColor}15`,
-                    color: BRAND.noir,
-                    border: `1px solid ${primaryColor}25`,
-                  }}
-                >
-                  {cl}
-                </span>
-              ))}
-            </div>
-          )}
-
-          {/* Detail columns (compact inline) */}
-          {config.detailColumns && config.detailColumns.length > 0 && (
-            <div className="flex flex-wrap gap-x-3 gap-y-0.5 mt-1.5">
-              {config.detailColumns.map(slug => {
-                const col = detailColumns.find(c => c.slug === slug);
-                if (!col) return null;
-                const val = getCellValue(row, slug);
-                if (!val) return null;
-                return (
-                  <span key={slug} className="text-[10px]" style={{ color: BRAND.grisMoyen }}>
-                    <span className="font-semibold">{col.name}:</span> {val}
-                  </span>
-                );
-              })}
-            </div>
-          )}
-        </div>
-
-        {/* ── Thumbnail strip — no scrollbar ── */}
-        {carouselImages.length > 1 && (
-          <div
-            className="shrink-0 relative bg-white"
-            style={{ height: 56, borderTop: `1px solid ${primaryColor}08` }}
-          >
-            {/* Left scroll arrow */}
-            <button
-              className="absolute left-0 top-0 bottom-0 w-7 z-10 flex items-center justify-center"
-              style={{ background: 'linear-gradient(to right, white 60%, transparent)' }}
-              onClick={() => thumbnailRef.current?.scrollBy({ left: -140, behavior: 'smooth' })}
-              aria-label="Voir images précédentes"
-            >
-              <ChevronLeft className="w-3.5 h-3.5" style={{ color: BRAND.noir }} />
-            </button>
-
-            {/* Thumbnail container — no visible scrollbar */}
-            <div
-              ref={thumbnailRef}
-              className="flex gap-1.5 items-center h-full px-8 no-scrollbar"
-              style={{
-                overflowX: 'auto',
-                scrollBehavior: 'smooth',
-                scrollSnapType: 'x mandatory',
-              }}
-            >
-              {carouselImages.map((img, i) => (
-                <button
-                  key={extractImageId(img) + '-' + i}
-                  data-thumb-idx={i}
-                  className="shrink-0 rounded-md overflow-hidden border-2 transition-all duration-200"
-                  style={{
-                    width: 40,
-                    height: 40,
-                    borderColor: i === currentIdx ? primaryColor : 'transparent',
-                    opacity: i === currentIdx ? 1 : 0.45,
-                    boxShadow: i === currentIdx ? `0 2px 6px ${primaryColor}25` : 'none',
-                    scrollSnapAlign: 'center',
-                  }}
-                  onClick={() => goTo(i)}
-                >
-                  <ProductImage
-                    src={resolveImageUrl(img, 150)}
-                    alt=""
-                    className="w-full h-full"
-                    objectFit="cover"
-                  />
-                </button>
-              ))}
-            </div>
-
-            {/* Right scroll arrow */}
-            <button
-              className="absolute right-0 top-0 bottom-0 w-7 z-10 flex items-center justify-center"
-              style={{ background: 'linear-gradient(to left, white 60%, transparent)' }}
-              onClick={() => thumbnailRef.current?.scrollBy({ left: 140, behavior: 'smooth' })}
-              aria-label="Voir images suivantes"
-            >
-              <ChevronRight className="w-3.5 h-3.5" style={{ color: BRAND.noir }} />
-            </button>
-          </div>
-        )}
-
-        {/* ── CTA bar — always visible at bottom ── */}
-        <div
-          className="shrink-0 px-4 py-2.5 flex items-center gap-3"
-          style={{ backgroundColor: secondaryColor }}
-        >
-          {/* CTA button */}
-          <Button
-            className="flex-1 h-10 text-sm font-bold gap-2 rounded-xl shadow-md hover:shadow-lg transition-all duration-200"
-            style={{ backgroundColor: primaryColor, color: BRAND.noir }}
-            onClick={() => window.open(conversionLink, '_blank')}
-          >
-            <MessageCircle className="w-4 h-4" />
-            <span className="hidden sm:inline">
-              {s?.conversionChannel === 'whatsapp' ? 'Commander via WhatsApp' :
-               s?.conversionChannel === 'messenger' ? 'Commander via Messenger' :
-               s?.conversionChannel === 'email' ? 'Commander par email' :
-               'Commander'}
-            </span>
-            <span className="sm:hidden">
-              {s?.conversionChannel === 'whatsapp' ? 'WhatsApp' :
-               s?.conversionChannel === 'messenger' ? 'Messenger' :
-               s?.conversionChannel === 'email' ? 'Email' :
-               'Commander'}
-            </span>
-          </Button>
-
-          {/* Share button */}
-          {s?.enableSharing && (
-            <Button
-              variant="outline"
-              className="shrink-0 h-10 w-10 p-0 rounded-xl border-white/20 text-white hover:bg-white/10"
-              onClick={() => {
-                navigator.clipboard.writeText(window.location.href);
-                toast.success('Lien copié !');
-              }}
-            >
-              <Share2 className="w-4 h-4" />
-            </Button>
-          )}
-        </div>
-      </div>
-
-      {/* ── Zoom overlay ── */}
-      {zoomImage && (
-        <div
-          className="fixed inset-0 z-[60] bg-black/95 flex items-center justify-center"
-          onClick={() => setZoomImage(null)}
-        >
-          <div className="relative w-full h-full flex items-center justify-center p-4" onClick={e => e.stopPropagation()}>
-            <ProductImage
-              src={zoomImage}
-              alt="Zoom"
-              className="max-w-full max-h-full"
-              objectFit="contain"
-              fallbackClassName="w-full h-full"
-            />
-            <button
-              className="absolute top-4 right-4 backdrop-blur-md rounded-full p-3 hover:bg-white/20 z-10 transition-all"
-              onClick={() => setZoomImage(null)}
-            >
-              <X className="w-5 h-5 text-white" />
-            </button>
-          </div>
-        </div>
-      )}
-    </div>
-  );
-}
-
-// ── Expandable Info Drawer — slides up from bottom for description/variants ──
-function ProductInfoDrawer({
-  description,
-  variants,
-  detailColumns,
-  detailColumnsDef,
-  getCellValue,
-  row,
-  primaryColor,
-  secondaryColor,
-  accentColor,
-}: {
-  description: string;
-  variants: string;
-  detailColumns?: string[];
-  detailColumnsDef: Column[];
-  getCellValue: (row: Row, slug: string) => string;
-  row: Row;
-  primaryColor: string;
-  secondaryColor: string;
-  accentColor: string;
-}) {
-  const [expanded, setExpanded] = useState(false);
-
-  return (
-    <div className="shrink-0 bg-white" style={{ borderTop: `1px solid ${primaryColor}10` }}>
-      {/* Toggle button */}
-      <button
-        className="w-full flex items-center justify-center gap-1.5 py-2 text-xs font-medium transition-colors"
-        style={{ color: BRAND.grisMoyen }}
-        onClick={() => setExpanded(!expanded)}
-      >
-        {expanded ? 'Masquer les détails' : 'Voir les détails'}
-        <ChevronRight
-          className="w-3.5 h-3.5 transition-transform duration-200"
-          style={{ transform: expanded ? 'rotate(-90deg)' : 'rotate(90deg)' }}
-        />
-      </button>
-
-      {/* Expandable content */}
-      {expanded && (
-        <div className="px-5 pb-4 space-y-2.5" style={{ maxHeight: '30vh', overflowY: 'auto' }}>
-          {description && (
-            <p className="text-sm leading-relaxed" style={{ color: BRAND.grisMoyen }}>{description}</p>
-          )}
-
-          {variants && (
-            <div>
-              <p className="text-[10px] font-semibold uppercase tracking-widest mb-1.5" style={{ color: BRAND.grisMoyen }}>Options disponibles</p>
-              <div className="flex flex-wrap gap-1.5">
-                {variants.split(/[,;]/).filter(Boolean).map((v, i) => (
-                  <Badge
-                    key={i}
-                    className="text-xs font-medium rounded-lg px-2.5 py-0.5"
-                    style={{
-                      backgroundColor: `${secondaryColor}10`,
-                      color: secondaryColor,
-                      border: `1px solid ${secondaryColor}20`,
-                    }}
-                  >
-                    {v.trim()}
-                  </Badge>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {detailColumns && detailColumns.length > 0 && (
-            <div className="rounded-xl p-3" style={{ backgroundColor: `${accentColor}80` }}>
-              <div className="grid grid-cols-2 gap-2">
-                {detailColumns.map(slug => {
-                  const col = detailColumnsDef.find(c => c.slug === slug);
-                  if (!col) return null;
-                  const val = getCellValue(row, slug);
-                  if (!val) return null;
-                  return (
-                    <div key={slug} className="text-sm">
-                      <span className="text-[10px] uppercase tracking-widest font-semibold" style={{ color: BRAND.grisMoyen }}>{col.name}</span>
-                      <p className="font-medium mt-0.5" style={{ color: BRAND.noir }}>{val}</p>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-          )}
-        </div>
-      )}
-    </div>
-  );
-}
-
-// ── Main Component ──
 
 interface CatalogPreviewProps {
   onAdminLogin?: () => void;
@@ -853,11 +408,10 @@ export function CatalogPreview({ onAdminLogin }: CatalogPreviewProps) {
   const [activeFilter, setActiveFilter] = useState<string>('all');
 
   const s = settings || catalog?.settings;
-  // Apply brand colors from settings or defaults from charte
   const primaryColor = s?.primaryColor || BRAND.dore;
   const secondaryColor = s?.secondaryColor || BRAND.vertFonce;
   const accentColor = s?.accentColor || BRAND.beige;
-  const bgColor = s?.backgroundColor || BRAND.beige;
+  const bgColor = s?.backgroundColor || BRAND.blanc;
 
   const [sectionsLoaded, setSectionsLoaded] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -931,11 +485,6 @@ export function CatalogPreview({ onAdminLogin }: CatalogPreviewProps) {
     return String(val);
   };
 
-  /**
-   * Build carousel images for a product.
-   * Key dedup strategy: use Drive file IDs to avoid showing the same image twice
-   * (e.g., cover image that also appears in the gallery column).
-   */
   const getCarouselImages = useCallback((row: Row, config: SectionConfig, columns?: Column[]): string[] => {
     const images: string[] = [];
     const seenIds = new Set<string>();
@@ -948,7 +497,6 @@ export function CatalogPreview({ onAdminLogin }: CatalogPreviewProps) {
       images.push(url);
     };
 
-    // 1. Add cover image first
     if (config.coverColumn) {
       const coverVal = rawData[config.coverColumn];
       if (coverVal) {
@@ -963,11 +511,8 @@ export function CatalogPreview({ onAdminLogin }: CatalogPreviewProps) {
       }
     }
 
-    // 2. Add carousel column images — read RAW data to preserve arrays
     if (config.carouselColumn) {
       const carouselVal = rawData[config.carouselColumn];
-
-      // Find the column config to get separator
       let separator: string | undefined;
       if (columns) {
         const col = columns.find(c => c.slug === config.carouselColumn);
@@ -976,7 +521,6 @@ export function CatalogPreview({ onAdminLogin }: CatalogPreviewProps) {
           separator = colConfig.gallerySeparator;
         }
       }
-
       if (carouselVal !== undefined && carouselVal !== null) {
         const carouselImgs = parseImageUrls(carouselVal, separator);
         for (const img of carouselImgs) {
@@ -985,12 +529,10 @@ export function CatalogPreview({ onAdminLogin }: CatalogPreviewProps) {
       }
     }
 
-    // 3. If no carousel column but cover is IMAGE_ARRAY, add remaining cover images
     if (!config.carouselColumn && config.coverColumn) {
       const coverVal = rawData[config.coverColumn];
       if (coverVal) {
         const allCoverImgs = parseImageUrls(coverVal);
-        // Skip the first one (already added as cover), add the rest
         for (let i = 1; i < allCoverImgs.length; i++) {
           addImage(resolveImageUrl(allCoverImgs[i], 1600));
         }
@@ -1000,7 +542,6 @@ export function CatalogPreview({ onAdminLogin }: CatalogPreviewProps) {
     return images;
   }, []);
 
-  /** Get the total number of images for a product (for card badge) */
   const getImageCount = useCallback((row: Row, config: SectionConfig, columns?: Column[]): number => {
     return getCarouselImages(row, config, columns).length;
   }, [getCarouselImages]);
@@ -1023,7 +564,6 @@ export function CatalogPreview({ onAdminLogin }: CatalogPreviewProps) {
     return '#';
   };
 
-  // Collect unique filter values
   const getFilterOptions = (): { value: string; label: string }[] => {
     const options = new Map<string, string>();
     options.set('all', 'Tout');
@@ -1052,7 +592,6 @@ export function CatalogPreview({ onAdminLogin }: CatalogPreviewProps) {
       return hasTitle || hasCover || hasPrice;
     });
 
-    // Apply category filter
     if (activeFilter !== 'all' && config.filterColumn) {
       filtered = filtered.filter(r => {
         const val = getCellValue(r, config.filterColumn!);
@@ -1097,10 +636,10 @@ export function CatalogPreview({ onAdminLogin }: CatalogPreviewProps) {
 
   const filterOptions = getFilterOptions();
 
-  // ── If a product is selected, show the full-page immersive view ──
+  // ── If a product is selected, show the product page ──
   if (selectedProduct) {
     return (
-      <ProductFullPage
+      <ProductPage
         row={selectedProduct.row}
         detailColumns={selectedProduct.columns}
         section={selectedProduct.section}
@@ -1111,7 +650,7 @@ export function CatalogPreview({ onAdminLogin }: CatalogPreviewProps) {
         getCellValue={getCellValue}
         getCarouselImages={getCarouselImages}
         buildConversionLink={buildConversionLink}
-        onClose={() => setSelectedProduct(null)}
+        onBack={() => setSelectedProduct(null)}
       />
     );
   }
@@ -1119,9 +658,9 @@ export function CatalogPreview({ onAdminLogin }: CatalogPreviewProps) {
   // ── Default: catalog grid view ──
   return (
     <div className="min-h-screen flex flex-col" style={{ backgroundColor: bgColor }}>
-      {/* ── Header — Dark green luxury nav bar ── */}
-      <header className="sticky top-0 z-30 shadow-lg" style={{ backgroundColor: secondaryColor }}>
-        <div className="mx-auto max-w-[1200px] px-4 sm:px-6 py-3 flex items-center gap-3">
+      {/* ── Header ── */}
+      <header className="sticky top-0 z-30 shadow-md" style={{ backgroundColor: secondaryColor }}>
+        <div style={{ maxWidth: 1270, margin: '0 auto', padding: '12px 32px', display: 'flex', alignItems: 'center', gap: 16 }}>
           {/* Admin button */}
           {isAdmin ? (
             <Button variant="ghost" size="icon" className="h-9 w-9 shrink-0 text-white/80 hover:text-white hover:bg-white/10" onClick={() => setView('builder')}>
@@ -1139,10 +678,10 @@ export function CatalogPreview({ onAdminLogin }: CatalogPreviewProps) {
 
           {/* Logo/Title */}
           <div className="flex-1 min-w-0 flex items-center gap-2">
-            <div className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0 gold-shimmer">
+            <div className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0" style={{ background: 'linear-gradient(135deg, #C9A84C, #E8D48B, #C9A84C)', backgroundSize: '200% 200%' }}>
               <span className="text-sm font-bold" style={{ color: BRAND.noir }}>A</span>
             </div>
-            <h1 className="font-bold text-base sm:text-lg text-white truncate tracking-wide" style={{ fontFamily: "'Playfair Display', serif" }}>
+            <h1 className="font-bold text-base sm:text-lg text-white truncate" style={{ fontFamily: "'Playfair Display', serif" }}>
               {catalog?.name || 'Abaya Chic Collection'}
             </h1>
           </div>
@@ -1165,15 +704,13 @@ export function CatalogPreview({ onAdminLogin }: CatalogPreviewProps) {
       {/* ── Category Filter Bar ── */}
       {filterOptions.length > 1 && (
         <div className="sticky top-[52px] z-20 border-b backdrop-blur-md" style={{ backgroundColor: `${bgColor}ee`, borderColor: `${primaryColor}20` }}>
-          <div className="mx-auto max-w-[1200px] px-4 sm:px-6 py-2.5 flex gap-2 overflow-x-auto custom-scrollbar">
+          <div style={{ maxWidth: 1270, margin: '0 auto', padding: '8px 32px', display: 'flex', gap: 8, overflowX: 'auto' }} className="no-scrollbar">
             {filterOptions.map(opt => (
               <button
                 key={opt.value}
                 className={cn(
                   'px-4 py-1.5 rounded-full text-xs sm:text-sm font-medium whitespace-nowrap transition-all duration-200',
-                  activeFilter === opt.value
-                    ? 'shadow-sm'
-                    : 'hover:opacity-80'
+                  activeFilter === opt.value ? 'shadow-sm' : 'hover:opacity-80'
                 )}
                 style={{
                   backgroundColor: activeFilter === opt.value ? secondaryColor : 'transparent',
@@ -1191,7 +728,7 @@ export function CatalogPreview({ onAdminLogin }: CatalogPreviewProps) {
 
       {/* ── Error ── */}
       {loadError && (
-        <div className="mx-auto max-w-[1200px] px-4 py-3">
+        <div style={{ maxWidth: 1270, margin: '0 auto', padding: '16px 32px', width: '100%' }}>
           <div className="rounded-xl p-4 text-center" style={{ backgroundColor: `${BRAND.bordeaux}10`, border: `1px solid ${BRAND.bordeaux}30` }}>
             <p className="text-sm" style={{ color: BRAND.bordeaux }}>{loadError}</p>
             <button onClick={() => { setSectionsLoaded(false); setLoadError(null); }} className="text-xs underline mt-1" style={{ color: BRAND.bordeaux }}>Réessayer</button>
@@ -1199,48 +736,37 @@ export function CatalogPreview({ onAdminLogin }: CatalogPreviewProps) {
         </div>
       )}
 
-      {/* ── Product Gallery — Normalized format per spec ── */}
+      {/* ── Product Gallery ── */}
       <main
-        className="flex-1 w-full abaya-gallery-container"
+        className="flex-1"
         style={{
-          maxWidth: 1200,
-          marginLeft: 'auto',
-          marginRight: 'auto',
-          paddingLeft: 16,
-          paddingRight: 16,
-          paddingTop: 24,
-          paddingBottom: 32,
+          maxWidth: 1270,
+          margin: '0 auto',
+          width: '100%',
+          padding: '24px 32px 48px',
         }}
       >
         {/* Section title */}
         {sections.length > 0 && sections[0].section.title && (
-          <div style={{ marginBottom: 20 }}>
-            <h2 style={{ color: secondaryColor, fontFamily: "'Playfair Display', serif", fontSize: 22, fontWeight: 700, margin: 0 }}>
+          <div style={{ marginBottom: 28 }}>
+            <h2 style={{ color: secondaryColor, fontFamily: "'Playfair Display', serif", fontSize: 28, fontWeight: 700, margin: 0, lineHeight: 1.1 }}>
               {sections[0].section.title}
             </h2>
             {sections[0].section.subtitle && (
-              <p style={{ color: BRAND.grisMoyen, fontSize: 14, marginTop: 4 }}>{sections[0].section.subtitle}</p>
+              <p style={{ color: BRAND.grisMoyen, fontSize: 15, marginTop: 8 }}>{sections[0].section.subtitle}</p>
             )}
-            <div style={{ width: 48, height: 2, marginTop: 8, borderRadius: 2, backgroundColor: primaryColor }} />
+            <div style={{ width: 48, height: 2, marginTop: 12, borderRadius: 2, backgroundColor: primaryColor }} />
           </div>
         )}
 
-        {/* ── Grille flexible: repeat(auto-fill, minmax(200px, 1fr)) ── */}
-        <div className="abaya-gallery-grid" style={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))',
-          gap: 16,
-          padding: 0,
-          width: '100%',
-        }}>
+        {/* ── Glide-like grid: 4 cols desktop, 3 cols tablet, 2 cols mobile ── */}
+        <div className="catalog-grid">
           {paginatedProducts.map(({ row, columns, section, config }) => {
-            // Read cover from raw data to support IMAGE_ARRAY (multiple images)
             const rawData = row.data as Record<string, unknown>;
             const coverRawVal = config.coverColumn ? rawData[config.coverColumn] : null;
             let coverUrl = '';
             if (coverRawVal) {
               if (Array.isArray(coverRawVal)) {
-                // IMAGE_ARRAY: use first image as cover
                 const imgs = parseImageUrls(coverRawVal);
                 coverUrl = imgs[0] || '';
               } else if (typeof coverRawVal === 'string') {
@@ -1256,60 +782,30 @@ export function CatalogPreview({ onAdminLogin }: CatalogPreviewProps) {
             const imageCount = getImageCount(row, config, columns);
 
             return (
-              <div
+              <button
                 key={row.id}
                 className="product-card"
-                style={{
-                  display: 'flex',
-                  flexDirection: 'column',
-                  overflow: 'hidden',
-                  background: '#fff',
-                  borderRadius: 8,
-                  cursor: 'pointer',
-                  transition: 'transform 0.3s ease, box-shadow 0.3s ease, border-color 0.3s ease',
-                  border: '2px solid transparent',
-                }}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.transform = 'scale(1.03)';
-                  e.currentTarget.style.boxShadow = '0 8px 30px rgba(0,0,0,0.12)';
-                  e.currentTarget.style.borderColor = primaryColor;
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.transform = 'scale(1)';
-                  e.currentTarget.style.boxShadow = 'none';
-                  e.currentTarget.style.borderColor = 'transparent';
-                }}
-                onClick={() => {
-                  setSelectedProduct({ row, columns, section });
-                }}
+                onClick={() => setSelectedProduct({ row, columns, section })}
               >
-                {/* ── Format image strict: aspect-ratio 3/4, object-fit cover ── */}
-                <div style={{ position: 'relative', width: '100%', aspectRatio: '3 / 4', overflow: 'hidden', background: BRAND.grisClair }}>
+                {/* Image: aspect-ratio 4/3, object-fit cover, no hover effects */}
+                <div className="product-card-image-wrap">
                   {coverUrl ? (
                     <img
                       src={resolveImageUrl(coverUrl, 800)}
                       alt={title}
                       loading="lazy"
-                      style={{
-                        width: '100%',
-                        aspectRatio: '3 / 4',
-                        objectFit: 'cover',
-                        display: 'block',
-                        transition: 'transform 0.3s ease',
-                      }}
-                      onMouseEnter={(e) => { (e.target as HTMLImageElement).style.transform = 'scale(1.03)'; }}
-                      onMouseLeave={(e) => { (e.target as HTMLImageElement).style.transform = 'scale(1)'; }}
+                      className="product-card-img"
                       onError={(e) => {
                         const el = e.target as HTMLImageElement;
                         el.style.display = 'none';
                         const parent = el.parentElement;
                         if (parent) {
-                          parent.innerHTML = `<div style="width:100%;aspect-ratio:3/4;display:flex;align-items:center;justify-content:center;background:${BRAND.beige}"><svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="${BRAND.grisMoyen}" stroke-width="1.5"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="m21 15-5-5L5 21"/></svg></div>`;
+                          parent.innerHTML = `<div class="product-card-placeholder"><svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="${BRAND.grisMoyen}" stroke-width="1.5"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="m21 15-5-5L5 21"/></svg></div>`;
                         }
                       }}
                     />
                   ) : (
-                    <div style={{ width: '100%', aspectRatio: '3 / 4', display: 'flex', alignItems: 'center', justifyContent: 'center', background: BRAND.beige }}>
+                    <div className="product-card-placeholder">
                       <ImageIcon style={{ width: 40, height: 40, color: BRAND.grisMoyen, opacity: 0.3 }} />
                     </div>
                   )}
@@ -1317,82 +813,29 @@ export function CatalogPreview({ onAdminLogin }: CatalogPreviewProps) {
                   {/* Like button */}
                   <button
                     onClick={(e) => toggleLike(row.id, e)}
-                    style={{
-                      position: 'absolute',
-                      top: 8,
-                      right: 8,
-                      width: 32,
-                      height: 32,
-                      borderRadius: '50%',
-                      border: 'none',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      background: isLiked ? '#FEE2E2' : 'rgba(255,255,255,0.9)',
-                      cursor: 'pointer',
-                      zIndex: 2,
-                      boxShadow: '0 1px 4px rgba(0,0,0,0.1)',
-                    }}
+                    className="product-card-like"
+                    style={{ background: isLiked ? '#FEE2E2' : 'rgba(255,255,255,0.9)' }}
                   >
-                    <Heart className={isLiked ? 'fill-current' : ''} style={{ width: 16, height: 16, color: isLiked ? '#EF4444' : BRAND.grisMoyen }} />
+                    <Heart className={isLiked ? 'fill-current' : ''} style={{ width: 14, height: 14, color: isLiked ? '#EF4444' : BRAND.grisMoyen }} />
                   </button>
 
-                  {/* Image count badge — shows total images when > 1 */}
+                  {/* Image count badge */}
                   {imageCount > 1 && (
-                    <div
-                      style={{
-                        position: 'absolute',
-                        bottom: 8,
-                        left: 8,
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: 4,
-                        backgroundColor: 'rgba(26,60,52,0.75)',
-                        color: BRAND.blanc,
-                        fontSize: 11,
-                        fontWeight: 600,
-                        padding: '3px 8px',
-                        borderRadius: 12,
-                        backdropFilter: 'blur(8px)',
-                        zIndex: 2,
-                      }}
-                    >
-                      <ImageIcon style={{ width: 12, height: 12 }} />
+                    <div className="product-card-count">
+                      <ImageIcon style={{ width: 11, height: 11 }} />
                       {imageCount}
                     </div>
                   )}
                 </div>
 
-                {/* ── Style typographie ── */}
-                <div style={{ padding: '8px 12px 12px' }}>
-                  {config.showTitle !== false && title && (
-                    <p style={{
-                      fontWeight: 600,
-                      fontSize: 14,
-                      marginTop: 0,
-                      marginBottom: 0,
-                      color: BRAND.noir,
-                      lineHeight: 1.3,
-                      overflow: 'hidden',
-                      display: '-webkit-box',
-                      WebkitLineClamp: 2,
-                      WebkitBoxOrient: 'vertical',
-                    }}>
-                      {title}
-                    </p>
-                  )}
-                  {price && config.showPrice !== false && (
-                    <p style={{
-                      color: '#666',
-                      fontSize: 13,
-                      marginTop: 4,
-                      marginBottom: 0,
-                    }}>
-                      {price}
-                    </p>
-                  )}
-                </div>
-              </div>
+                {/* Text */}
+                {config.showTitle !== false && title && (
+                  <strong className="product-card-title">{title}</strong>
+                )}
+                {price && config.showPrice !== false && (
+                  <span className="product-card-price">{price}</span>
+                )}
+              </button>
             );
           })}
         </div>
@@ -1423,18 +866,18 @@ export function CatalogPreview({ onAdminLogin }: CatalogPreviewProps) {
         />
       </main>
 
-      {/* ── Footer — Dark green with gold accents ── */}
+      {/* ── Footer ── */}
       <footer className="mt-auto py-4 sm:py-5" style={{ backgroundColor: secondaryColor }}>
-        <div className="mx-auto max-w-[1200px] px-4 sm:px-6 flex flex-col items-center gap-3 sm:flex-row sm:justify-between">
-          <div className="flex items-center gap-2">
-            <div className="w-6 h-6 rounded-md flex items-center justify-center gold-shimmer">
+        <div style={{ maxWidth: 1270, margin: '0 auto', padding: '0 32px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <div className="w-6 h-6 rounded-md flex items-center justify-center" style={{ background: 'linear-gradient(135deg, #C9A84C, #E8D48B)' }}>
               <span className="text-[10px] font-bold" style={{ color: BRAND.noir }}>A</span>
             </div>
             <span className="font-semibold text-xs sm:text-sm text-white" style={{ fontFamily: "'Playfair Display', serif" }}>
               {catalog?.name || 'Abaya Chic Collection'}
             </span>
           </div>
-          <div className="flex items-center gap-5 text-xs text-white/70">
+          <div style={{ display: 'flex', alignItems: 'center', gap: 20 }} className="text-xs text-white/70">
             {s?.whatsappNumber && (
               <a href={`https://wa.me/${s.whatsappNumber}`} target="_blank" rel="noopener noreferrer" className="hover:text-green-400 transition-colors flex items-center gap-1.5">
                 <MessageCircle className="w-4 h-4" /> WhatsApp
@@ -1453,6 +896,311 @@ export function CatalogPreview({ onAdminLogin }: CatalogPreviewProps) {
           </div>
         </div>
       </footer>
+
+      {/* ── Scoped Glide-like styles ── */}
+      <style jsx global>{`
+        /* ── Catalog Grid ── */
+        .catalog-grid {
+          display: grid;
+          grid-template-columns: repeat(4, minmax(0, 1fr));
+          column-gap: 20px;
+          row-gap: 36px;
+        }
+
+        @media (max-width: 900px) {
+          .catalog-grid {
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+          }
+        }
+
+        @media (max-width: 640px) {
+          .catalog-grid {
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            column-gap: 10px;
+            row-gap: 24px;
+          }
+        }
+
+        /* ── Product Card ── */
+        .product-card {
+          display: block;
+          padding: 0;
+          border: 0;
+          background: transparent;
+          text-align: left;
+          cursor: pointer;
+        }
+
+        .product-card-image-wrap {
+          position: relative;
+          width: 100%;
+          aspect-ratio: 4 / 3;
+          overflow: hidden;
+          border-radius: 10px;
+          background: #f1f1f1;
+        }
+
+        .product-card-img {
+          width: 100%;
+          height: 100%;
+          object-fit: cover;
+          display: block;
+        }
+
+        .product-card-placeholder {
+          width: 100%;
+          aspect-ratio: 4 / 3;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          background: #F5F0E8;
+        }
+
+        .product-card-like {
+          position: absolute;
+          top: 8px;
+          right: 8px;
+          width: 28px;
+          height: 28px;
+          border-radius: 50%;
+          border: none;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          cursor: pointer;
+          z-index: 2;
+          box-shadow: 0 1px 4px rgba(0,0,0,0.1);
+        }
+
+        .product-card-count {
+          position: absolute;
+          bottom: 8px;
+          left: 8px;
+          display: flex;
+          align-items: center;
+          gap: 4px;
+          background-color: rgba(26,60,52,0.75);
+          color: #fff;
+          font-size: 11px;
+          font-weight: 600;
+          padding: 3px 8px;
+          border-radius: 12px;
+          z-index: 2;
+        }
+
+        .product-card-title {
+          display: block;
+          margin-top: 10px;
+          font-size: 16px;
+          line-height: 1.2;
+          color: #111;
+          font-weight: 600;
+          overflow: hidden;
+          display: -webkit-box;
+          -webkit-line-clamp: 2;
+          -webkit-box-orient: vertical;
+        }
+
+        .product-card-price {
+          display: block;
+          margin-top: 3px;
+          color: #707070;
+          font-size: 15px;
+          font-weight: 400;
+        }
+
+        @media (max-width: 640px) {
+          .product-card-title,
+          .product-card-price {
+            font-size: 13px;
+          }
+        }
+
+        /* ── Product Hero ── */
+        .product-hero {
+          min-height: 120px;
+          display: grid;
+          grid-template-columns: 120px 1fr;
+          align-items: center;
+          gap: 20px;
+          margin-bottom: 24px;
+        }
+
+        .product-hero-thumb {
+          width: 120px;
+          height: 120px;
+          object-fit: cover;
+          border-radius: 10px;
+        }
+
+        .product-hero-text h1 {
+          margin: 0 0 8px;
+          font-size: 24px;
+          line-height: 1.2;
+          color: #111;
+        }
+
+        .product-hero-text p {
+          margin: 0;
+          color: #707070;
+          font-size: 15px;
+          line-height: 1.5;
+          display: -webkit-box;
+          -webkit-line-clamp: 3;
+          -webkit-box-orient: vertical;
+          overflow: hidden;
+        }
+
+        @media (max-width: 640px) {
+          .product-hero {
+            grid-template-columns: 72px 1fr;
+            min-height: 72px;
+          }
+
+          .product-hero-thumb {
+            width: 72px;
+            height: 72px;
+          }
+
+          .product-hero-text h1 {
+            font-size: 18px;
+          }
+
+          .product-hero-text p {
+            font-size: 13px;
+          }
+        }
+
+        /* ── Product Fields ── */
+        .product-fields {
+          display: grid;
+          grid-template-columns: repeat(3, minmax(0, 1fr));
+          gap: 28px;
+          margin: 24px 0 32px;
+        }
+
+        .product-field span {
+          display: block;
+          color: #707070;
+          font-size: 14px;
+          margin-bottom: 6px;
+          font-weight: 500;
+        }
+
+        .product-field strong {
+          display: block;
+          font-size: 15px;
+          font-weight: 500;
+          color: #111;
+          word-break: break-word;
+        }
+
+        @media (max-width: 640px) {
+          .product-fields {
+            grid-template-columns: 1fr;
+            gap: 16px;
+          }
+        }
+
+        /* ── Glide Carousel ── */
+        .glide-carousel {
+          position: relative;
+          width: 100%;
+          aspect-ratio: 1 / 1;
+          overflow: hidden;
+          border-radius: 10px;
+          background: #f2f2f2;
+        }
+
+        .glide-carousel img {
+          width: 100%;
+          height: 100%;
+          object-fit: cover;
+        }
+
+        .carousel-arrow {
+          position: absolute;
+          top: 50%;
+          width: 44px;
+          height: 56px;
+          transform: translateY(-50%);
+          border: 0;
+          border-radius: 12px;
+          background: rgba(0, 0, 0, 0.16);
+          color: white;
+          font-size: 34px;
+          line-height: 1;
+          cursor: pointer;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          transition: background 0.2s;
+        }
+
+        .carousel-arrow:hover {
+          background: rgba(0, 0, 0, 0.3);
+        }
+
+        .carousel-arrow.left {
+          left: 12px;
+        }
+
+        .carousel-arrow.right {
+          right: 12px;
+        }
+
+        .carousel-dots {
+          position: absolute;
+          bottom: 14px;
+          left: 50%;
+          display: flex;
+          gap: 6px;
+          transform: translateX(-50%);
+          flex-wrap: wrap;
+          justify-content: center;
+          max-width: 90%;
+        }
+
+        .carousel-dots button {
+          width: 7px;
+          height: 7px;
+          padding: 0;
+          border: 0;
+          border-radius: 999px;
+          background: rgba(255, 255, 255, 0.55);
+          cursor: pointer;
+          transition: background 0.2s;
+        }
+
+        .carousel-dots button.active {
+          background: white;
+        }
+
+        /* ── WhatsApp CTA ── */
+        .whatsapp-cta {
+          display: block;
+          margin-top: 24px;
+          padding: 15px 18px;
+          border-radius: 12px;
+          text-align: center;
+          text-decoration: none;
+          font-weight: 700;
+          font-size: 16px;
+          transition: opacity 0.2s;
+        }
+
+        .whatsapp-cta:hover {
+          opacity: 0.9;
+        }
+
+        @media (max-width: 640px) {
+          .whatsapp-cta {
+            position: sticky;
+            bottom: 12px;
+            z-index: 20;
+          }
+        }
+      `}</style>
     </div>
   );
 }
