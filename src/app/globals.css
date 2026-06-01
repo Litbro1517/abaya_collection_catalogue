@@ -1,6 +1,9 @@
 @import "tailwindcss";
 @import "tw-animate-css";
 
+/* ── Brand Fonts (Charte Graphique Abaya Chic) ─────────────────────── */
+@import url('https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,500;0,600;0,700;0,800;1,400;1,500&family=Inter:wght@300;400;500;600;700&display=swap');
+
 @custom-variant dark (&:is(.dark *));
 
 @theme inline {
@@ -46,41 +49,52 @@
   --radius-xl: calc(var(--radius) + 4px);
 }
 
+/* ── Brand Colors from Charte Graphique ──
+  Vert Foncé: #1A3C34  (Primary)
+  Doré:       #C9A84C  (Accent)
+  Beige:      #F5F0E8  (Background)
+  Noir:       #1F1F1F  (Text)
+  Blanc:      #FFFFFF
+  Gris Clair: #F0F0F0
+  Gris Moyen: #808080
+  Bordeaux:   #800020
+*/
+
 :root {
   --radius: 0.75rem;
   --background: #FAF8F5;
-  --foreground: #1A1A1A;
+  --foreground: #1F1F1F;
   --card: #FFFFFF;
-  --card-foreground: #1A1A1A;
+  --card-foreground: #1F1F1F;
   --popover: #FFFFFF;
-  --popover-foreground: #1A1A1A;
-  --primary: #1A1A1A;
-  --primary-foreground: #FAF8F5;
+  --popover-foreground: #1F1F1F;
+  --primary: #1A3C34;
+  --primary-foreground: #FFFFFF;
   --secondary: #F5F0E8;
-  --secondary-foreground: #1A1A1A;
+  --secondary-foreground: #1F1F1F;
   --muted: #F5F0E8;
-  --muted-foreground: #8C8C8C;
+  --muted-foreground: #808080;
   --accent: #F5F0E8;
-  --accent-foreground: #1A1A1A;
-  --destructive: #D32F2F;
+  --accent-foreground: #1F1F1F;
+  --destructive: #800020;
   --border: #E8E2D9;
   --input: #E8E2D9;
   --ring: #C9A84C;
   --gold: #C9A84C;
-  --gold-foreground: #FFFFFF;
+  --gold-foreground: #1F1F1F;
   --cream: #FAF8F5;
   --chart-1: #C9A84C;
-  --chart-2: #1A1A1A;
+  --chart-2: #1A3C34;
   --chart-3: #8B4513;
   --chart-4: #F48FB1;
   --chart-5: #483C32;
-  --sidebar: #1A1A1A;
+  --sidebar: #1A3C34;
   --sidebar-foreground: #FAF8F5;
   --sidebar-primary: #C9A84C;
-  --sidebar-primary-foreground: #1A1A1A;
-  --sidebar-accent: #2D2D2D;
+  --sidebar-primary-foreground: #1F1F1F;
+  --sidebar-accent: #2D4A42;
   --sidebar-accent-foreground: #FAF8F5;
-  --sidebar-border: #333333;
+  --sidebar-border: #2D4A42;
   --sidebar-ring: #C9A84C;
 }
 
@@ -127,10 +141,14 @@
   }
   body {
     @apply bg-background text-foreground;
+    font-family: 'Inter', sans-serif;
+  }
+  h1, h2, h3 {
+    font-family: 'Playfair Display', serif;
   }
 }
 
-/* Custom scrollbar */
+/* ── Custom Scrollbar (brand gold) ── */
 .custom-scrollbar::-webkit-scrollbar {
   width: 6px;
 }
@@ -145,48 +163,53 @@
   background: #C9A84C80;
 }
 
-/* Smooth transitions */
+/* ── Smooth luxury transitions ── */
 .transition-luxury {
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
-/* Gold shimmer effect */
+/* ── Gold Shimmer Effect ── */
 @keyframes shimmer {
   0% { background-position: -200% 0; }
   100% { background-position: 200% 0; }
 }
-
 .gold-shimmer {
   background: linear-gradient(90deg, #C9A84C 0%, #E8D48B 50%, #C9A84C 100%);
   background-size: 200% 100%;
   animation: shimmer 3s infinite;
 }
 
-/* Product card hover */
+/* ── Product Card Hover (Charte: scale(1.05) + shadow + overlay) ── */
 .product-card-hover {
   transition: transform 0.2s ease, box-shadow 0.2s ease;
 }
 .product-card-hover:hover {
-  transform: scale(1.02);
+  transform: scale(1.05);
   box-shadow: 0 8px 30px rgba(201, 168, 76, 0.15);
 }
 
-/* Category pill active */
+/* ── Category Pill Active ── */
 .category-active {
-  background: #1A1A1A;
-  color: #FAF8F5;
+  background: #1A3C34;
+  color: #FFFFFF;
 }
 
-/* Image placeholder skeleton */
+/* ── Image Skeleton Loading ── */
 @keyframes pulse-soft {
   0%, 100% { opacity: 1; }
   50% { opacity: 0.6; }
 }
+@keyframes shimmer-soft {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
 .skeleton-pulse {
-  animation: pulse-soft 2s ease-in-out infinite;
+  background: linear-gradient(90deg, #F0F0F0 25%, #F5F0E8 50%, #F0F0F0 75%);
+  background-size: 200% 200%;
+  animation: shimmer-soft 2s ease-in-out infinite;
 }
 
-/* ── Carousel slide animations ─────────────────────────────────────── */
+/* ── Carousel Slide Animations ── */
 @keyframes slide-in-right {
   from { transform: translateX(30px); opacity: 0.7; }
   to { transform: translateX(0); opacity: 1; }
@@ -202,13 +225,12 @@
   animation: slide-in-left 0.3s ease-out;
 }
 
-/* ── Product card image quality ────────────────────────────────────── */
+/* ── Image Rendering: auto for photos (not crisp-edges) ── */
 img {
-  image-rendering: -webkit-optimize-contrast;
-  image-rendering: crisp-edges;
+  image-rendering: auto;
 }
 
-/* ── Dialog overlay smooth ─────────────────────────────────────────── */
+/* ── Dialog Overlay Smooth ── */
 [data-state="open"] .DialogContent {
   animation: dialog-in 0.25s cubic-bezier(0.16, 1, 0.3, 1);
 }
@@ -217,7 +239,7 @@ img {
   to { transform: scale(1) translateY(0); opacity: 1; }
 }
 
-/* ── Horizontal scrollbar for thumbnails ───────────────────────────── */
+/* ── Horizontal Scrollbar for Thumbnails ── */
 .overflow-x-auto::-webkit-scrollbar {
   height: 3px;
 }
