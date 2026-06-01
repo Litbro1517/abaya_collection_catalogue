@@ -34,13 +34,13 @@ export async function GET() {
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
-    const { name, description, sourceType, sourceUrl, icon, color } = body;
+    const { name, description, sourceType, sourceUrl, icon, color, sheetId, sheetName, slug: customSlug } = body;
 
     if (!name) {
       return NextResponse.json({ data: null, error: 'Name is required' }, { status: 400 });
     }
 
-    const slug = name
+    const slug = customSlug || name
       .toLowerCase()
       .replace(/[^a-z0-9\s]/g, '')
       .replace(/\s+/g, '-')
@@ -53,6 +53,8 @@ export async function POST(req: NextRequest) {
         description: description || null,
         sourceType: sourceType || 'manual',
         sourceUrl: sourceUrl || null,
+        sheetId: sheetId || null,
+        sheetName: sheetName || null,
         icon: icon || 'Table',
         color: color || '#C9A84C',
       },

@@ -90,6 +90,11 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
         icon: body.icon,
         color: body.color,
         sourceUrl: body.sourceUrl,
+        sourceType: body.sourceType,
+        sheetId: body.sheetId,
+        sheetName: body.sheetName,
+        syncInterval: body.syncInterval,
+        lastSyncedAt: body.lastSyncedAt ? new Date(body.lastSyncedAt) : undefined,
       },
     });
     return NextResponse.json({ data: ds, error: null });
