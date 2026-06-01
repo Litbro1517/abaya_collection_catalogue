@@ -246,7 +246,7 @@ function Pagination({
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
-// ── FULL-PAGE PRODUCT VIEW — Immersive, no-scroll, single-glance design ──
+// ── FULL-PAGE PRODUCT VIEW — Glide-like layout, no-scroll, single-glance ──
 // ═══════════════════════════════════════════════════════════════════════════
 
 function ProductFullPage({
@@ -282,27 +282,38 @@ function ProductFullPage({
   const variants = config.variantColumn ? getCellValue(row, config.variantColumn) : '';
   const conversionLink = buildConversionLink(row, config);
 
+  // Cover image (first image in carousel)
+  const coverImage = carouselImages[0] || '';
+
+  // Parse variants into size and color groups
+  const variantList = variants ? variants.split(/[,;]/).map(v => v.trim()).filter(Boolean) : [];
+  // Heuristic: sizes are short tokens like S, M, L, XL, 2XL, XXL, etc.
+  const sizePattern = /^(XS|S|M|L|XL|2XL|3XL|4XL|XXL|XXXL|\d{1,2})$/i;
+  const sizes = variantList.filter(v => sizePattern.test(v));
+  const colors = variantList.filter(v => !sizePattern.test(v));
+
   const [currentIdx, setCurrentIdx] = useState(0);
   const [zoomImage, setZoomImage] = useState<string | null>(null);
   const touchStartX = useRef(0);
   const touchEndX = useRef(0);
   const thumbnailRef = useRef<HTMLDivElement>(null);
 
-  // ── Non-circular navigation (FIX: Anomaly 4) ──
+  // ── Non-circular navigation ──
   const canGoPrev = currentIdx > 0;
   const canGoNext = currentIdx < carouselImages.length - 1;
 
-  const goTo = useCallback((idx: number) => {
-    setCurrentIdx(Math.max(0, Math.min(idx, carouselImages.length - 1)));
-  }, [carouselImages.length]);
+  const maxIdx = carouselImages.length - 1;
+  const goTo = (idx: number) => {
+    setCurrentIdx(Math.max(0, Math.min(idx, maxIdx)));
+  };
 
-  const goNext = useCallback(() => {
+  const goNext = () => {
     if (canGoNext) setCurrentIdx(prev => prev + 1);
-  }, [canGoNext]);
+  };
 
-  const goPrev = useCallback(() => {
+  const goPrev = () => {
     if (canGoPrev) setCurrentIdx(prev => prev - 1);
-  }, [canGoPrev]);
+  };
 
   // Touch / swipe
   const onTouchStart = (e: React.TouchEvent) => {
@@ -358,14 +369,14 @@ function ProductFullPage({
       className="fixed inset-0 z-50 flex flex-col"
       style={{ backgroundColor: BRAND.blanc }}
     >
-      {/* ── Top bar: back + title + counter ── */}
+      {/* ── Top bar: back + title + counter + zoom ── */}
       <div
-        className="shrink-0 flex items-center gap-3 px-4 py-3 shadow-sm"
-        style={{ backgroundColor: secondaryColor, minHeight: 52 }}
+        className="shrink-0 flex items-center gap-3 px-4 py-2.5"
+        style={{ backgroundColor: secondaryColor, minHeight: 48 }}
       >
         <button
           onClick={onClose}
-          className="shrink-0 w-9 h-9 rounded-full flex items-center justify-center transition-all hover:bg-white/15 active:scale-95"
+          className="shrink-0 w-8 h-8 rounded-full flex items-center justify-center transition-all hover:bg-white/15 active:scale-95"
           aria-label="Retour"
         >
           <ArrowLeft className="w-5 h-5 text-white" />
@@ -378,17 +389,28 @@ function ProductFullPage({
         </div>
 
         {carouselImages.length > 1 && (
-          <span className="shrink-0 text-xs font-medium px-2.5 py-1 rounded-full"
+          <span className="shrink-0 text-xs font-medium px-2 py-0.5 rounded-full"
             style={{ backgroundColor: 'rgba(255,255,255,0.15)', color: 'rgba(255,255,255,0.85)' }}>
             {currentIdx + 1}/{carouselImages.length}
           </span>
+        )}
+
+        {/* Zoom button in header */}
+        {s?.enableZoom && carouselImages[currentIdx] && (
+          <button
+            className="shrink-0 w-8 h-8 rounded-full flex items-center justify-center transition-all hover:bg-white/15 active:scale-95"
+            onClick={() => setZoomImage(resolveImageUrl(carouselImages[currentIdx], 1920))}
+            aria-label="Zoom"
+          >
+            <ZoomIn className="w-4 h-4 text-white/80" />
+          </button>
         )}
       </div>
 
       {/* ── Main content: NO SCROLL — everything fits in viewport ── */}
       <div className="flex-1 flex flex-col min-h-0">
 
-        {/* ── Image carousel — takes all available space ── */}
+        {/* ── Image carousel — centered, object-contain, beige background ── */}
         <div
           className="flex-1 min-h-0 relative"
           style={{ backgroundColor: BRAND.beige }}
@@ -398,7 +420,22 @@ function ProductFullPage({
         >
           {carouselImages.length > 0 ? (
             <>
-              {/* Sliding track — NO virtualization, all images rendered with lazy loading (FIX: Anomaly 5) */}
+              {/* Cover thumbnail in top-left corner */}
+              {coverImage && (
+                <div
+                  className="absolute top-2.5 left-2.5 z-20 rounded-lg overflow-hidden shadow-md border-2"
+                  style={{ width: 48, height: 48, borderColor: currentIdx === 0 ? primaryColor : `${primaryColor}40` }}
+                >
+                  <ProductImage
+                    src={resolveImageUrl(coverImage, 150)}
+                    alt="Cover"
+                    className="w-full h-full"
+                    objectFit="cover"
+                  />
+                </div>
+              )}
+
+              {/* Sliding track — object-contain, no cropping */}
               <div
                 className="flex h-full transition-transform duration-300 ease-out"
                 style={{ transform: `translateX(-${currentIdx * 100}%)` }}
@@ -406,13 +443,14 @@ function ProductFullPage({
                 {carouselImages.map((img, i) => (
                   <div
                     key={extractImageId(img) + '-' + i}
-                    className="w-full h-full shrink-0 relative overflow-hidden"
+                    className="w-full h-full shrink-0 flex items-center justify-center"
+                    style={{ backgroundColor: BRAND.beige }}
                   >
                     <ProductImage
                       src={resolveImageUrl(img, 1600)}
                       alt={`${title} - ${i + 1}`}
                       className="w-full h-full"
-                      objectFit="cover"
+                      objectFit="contain"
                       sizes="100vw"
                       priority={i === 0}
                     />
@@ -420,68 +458,56 @@ function ProductFullPage({
                 ))}
               </div>
 
-              {/* Left arrow — disabled at first image (FIX: Anomaly 4 — no wrap-around) */}
+              {/* Left arrow — disabled at first image */}
               {carouselImages.length > 1 && (
                 <>
                   <button
                     className={cn(
-                      "absolute left-3 top-1/2 -translate-y-1/2 rounded-full p-2.5 transition-all z-10 shadow-lg",
+                      "absolute left-2 top-1/2 -translate-y-1/2 rounded-full p-2 transition-all z-10 shadow-lg",
                       canGoPrev
                         ? "hover:scale-110 active:scale-95"
                         : "opacity-20 pointer-events-none"
                     )}
-                    style={{ backgroundColor: 'rgba(255,255,255,0.92)' }}
+                    style={{ backgroundColor: 'rgba(255,255,255,0.9)' }}
                     onClick={goPrev}
                     disabled={!canGoPrev}
                     aria-label="Image précédente"
                   >
-                    <ChevronLeft className="w-5 h-5" style={{ color: BRAND.noir }} />
+                    <ChevronLeft className="w-4 h-4" style={{ color: BRAND.noir }} />
                   </button>
 
                   {/* Right arrow — disabled at last image */}
                   <button
                     className={cn(
-                      "absolute right-3 top-1/2 -translate-y-1/2 rounded-full p-2.5 transition-all z-10 shadow-lg",
+                      "absolute right-2 top-1/2 -translate-y-1/2 rounded-full p-2 transition-all z-10 shadow-lg",
                       canGoNext
                         ? "hover:scale-110 active:scale-95"
                         : "opacity-20 pointer-events-none"
                     )}
-                    style={{ backgroundColor: 'rgba(255,255,255,0.92)' }}
+                    style={{ backgroundColor: 'rgba(255,255,255,0.9)' }}
                     onClick={goNext}
                     disabled={!canGoNext}
                     aria-label="Image suivante"
                   >
-                    <ChevronRight className="w-5 h-5" style={{ color: BRAND.noir }} />
+                    <ChevronRight className="w-4 h-4" style={{ color: BRAND.noir }} />
                   </button>
                 </>
               )}
 
-              {/* Zoom button */}
-              {s?.enableZoom && carouselImages[currentIdx] && (
-                <button
-                  className="absolute top-3 right-3 backdrop-blur-md rounded-full p-2.5 hover:scale-105 transition-all z-10 shadow-md"
-                  style={{ backgroundColor: 'rgba(255,255,255,0.9)' }}
-                  onClick={() => setZoomImage(resolveImageUrl(carouselImages[currentIdx], 1920))}
-                >
-                  <ZoomIn className="w-4 h-4" style={{ color: BRAND.noir }} />
-                </button>
-              )}
-
-              {/* Dot indicators (FIX: Anomaly 3 — better visibility) */}
+              {/* Dot indicators */}
               {carouselImages.length > 1 && carouselImages.length <= 9 && (
-                <div className="absolute bottom-3 left-1/2 -translate-x-1/2 z-10 flex gap-2 items-center">
+                <div className="absolute bottom-2 left-1/2 -translate-x-1/2 z-10 flex gap-1.5 items-center">
                   {Array.from({ length: carouselImages.length }, (_, i) => (
                     <button
                       key={i}
                       className={cn(
                         'rounded-full transition-all duration-300',
-                        i === currentIdx ? 'w-7 h-2.5' : 'w-2.5 h-2.5'
+                        i === currentIdx ? 'w-6 h-2' : 'w-2 h-2'
                       )}
                       style={{
                         backgroundColor: i === currentIdx
-                          ? BRAND.blanc
-                          : 'rgba(255,255,255,0.5)',
-                        boxShadow: i === currentIdx ? '0 1px 4px rgba(0,0,0,0.3)' : 'none',
+                          ? BRAND.vertFonce
+                          : 'rgba(26,60,52,0.3)',
                       }}
                       onClick={() => goTo(i)}
                     />
@@ -489,10 +515,10 @@ function ProductFullPage({
                 </div>
               )}
 
-              {/* For many images: compact counter badge instead of dots */}
+              {/* For many images: compact counter badge */}
               {carouselImages.length > 9 && (
-                <div className="absolute bottom-3 left-1/2 -translate-x-1/2 z-10 backdrop-blur-md text-xs px-3 py-1.5 rounded-full font-medium"
-                  style={{ backgroundColor: 'rgba(26,60,52,0.7)', color: BRAND.blanc }}>
+                <div className="absolute bottom-2 left-1/2 -translate-x-1/2 z-10 text-xs px-2.5 py-1 rounded-full font-medium"
+                  style={{ backgroundColor: 'rgba(26,60,52,0.6)', color: BRAND.blanc }}>
                   {currentIdx + 1} / {carouselImages.length}
                 </div>
               )}
@@ -504,29 +530,110 @@ function ProductFullPage({
           )}
         </div>
 
-        {/* ── Thumbnail strip — no scrollbar, hidden overflow with arrow buttons (FIX: Anomaly 2) ── */}
+        {/* ── Product Info Section — compact, between image and thumbnails ── */}
+        <div
+          className="shrink-0 px-4 py-2.5"
+          style={{ backgroundColor: BRAND.blanc, borderTop: `1px solid ${primaryColor}08` }}
+        >
+          {/* Title + Price row */}
+          <div className="flex items-start justify-between gap-3">
+            <h2
+              className="font-bold text-base sm:text-lg leading-tight truncate"
+              style={{ color: secondaryColor, fontFamily: "'Playfair Display', serif" }}
+            >
+              {title}
+            </h2>
+            {price && (
+              <span
+                className="shrink-0 font-bold text-base sm:text-lg"
+                style={{ color: primaryColor }}
+              >
+                {price}
+              </span>
+            )}
+          </div>
+
+          {/* Description — max 2 lines */}
+          {description && (
+            <p
+              className="text-xs leading-relaxed mt-1 line-clamp-2"
+              style={{ color: BRAND.grisMoyen }}
+            >
+              {description}
+            </p>
+          )}
+
+          {/* Variant badges: sizes + colors */}
+          {variantList.length > 0 && (
+            <div className="flex flex-wrap gap-1 mt-2">
+              {sizes.length > 0 && sizes.map((sz, i) => (
+                <span
+                  key={`size-${i}`}
+                  className="inline-flex items-center justify-center text-[10px] font-semibold px-2 py-0.5 rounded"
+                  style={{
+                    backgroundColor: `${secondaryColor}10`,
+                    color: secondaryColor,
+                    border: `1px solid ${secondaryColor}20`,
+                    minWidth: 28,
+                  }}
+                >
+                  {sz}
+                </span>
+              ))}
+              {colors.length > 0 && colors.map((cl, i) => (
+                <span
+                  key={`color-${i}`}
+                  className="inline-flex items-center text-[10px] font-medium px-2 py-0.5 rounded-full"
+                  style={{
+                    backgroundColor: `${primaryColor}15`,
+                    color: BRAND.noir,
+                    border: `1px solid ${primaryColor}25`,
+                  }}
+                >
+                  {cl}
+                </span>
+              ))}
+            </div>
+          )}
+
+          {/* Detail columns (compact inline) */}
+          {config.detailColumns && config.detailColumns.length > 0 && (
+            <div className="flex flex-wrap gap-x-3 gap-y-0.5 mt-1.5">
+              {config.detailColumns.map(slug => {
+                const col = detailColumns.find(c => c.slug === slug);
+                if (!col) return null;
+                const val = getCellValue(row, slug);
+                if (!val) return null;
+                return (
+                  <span key={slug} className="text-[10px]" style={{ color: BRAND.grisMoyen }}>
+                    <span className="font-semibold">{col.name}:</span> {val}
+                  </span>
+                );
+              })}
+            </div>
+          )}
+        </div>
+
+        {/* ── Thumbnail strip — no scrollbar ── */}
         {carouselImages.length > 1 && (
           <div
             className="shrink-0 relative bg-white"
-            style={{ height: 64, borderTop: `1px solid ${primaryColor}12` }}
+            style={{ height: 56, borderTop: `1px solid ${primaryColor}08` }}
           >
             {/* Left scroll arrow */}
             <button
-              className="absolute left-0 top-0 bottom-0 w-8 z-10 flex items-center justify-center transition-opacity"
-              style={{
-                background: 'linear-gradient(to right, white 60%, transparent)',
-                opacity: 1,
-              }}
+              className="absolute left-0 top-0 bottom-0 w-7 z-10 flex items-center justify-center"
+              style={{ background: 'linear-gradient(to right, white 60%, transparent)' }}
               onClick={() => thumbnailRef.current?.scrollBy({ left: -140, behavior: 'smooth' })}
               aria-label="Voir images précédentes"
             >
-              <ChevronLeft className="w-4 h-4" style={{ color: BRAND.noir }} />
+              <ChevronLeft className="w-3.5 h-3.5" style={{ color: BRAND.noir }} />
             </button>
 
-            {/* Thumbnail container — no visible scrollbar, programmatic scroll OK */}
+            {/* Thumbnail container — no visible scrollbar */}
             <div
               ref={thumbnailRef}
-              className="flex gap-2 items-center h-full px-10 no-scrollbar"
+              className="flex gap-1.5 items-center h-full px-8 no-scrollbar"
               style={{
                 overflowX: 'auto',
                 scrollBehavior: 'smooth',
@@ -537,13 +644,13 @@ function ProductFullPage({
                 <button
                   key={extractImageId(img) + '-' + i}
                   data-thumb-idx={i}
-                  className="shrink-0 rounded-lg overflow-hidden border-2 transition-all duration-200"
+                  className="shrink-0 rounded-md overflow-hidden border-2 transition-all duration-200"
                   style={{
-                    width: 44,
-                    height: 44,
+                    width: 40,
+                    height: 40,
                     borderColor: i === currentIdx ? primaryColor : 'transparent',
-                    opacity: i === currentIdx ? 1 : 0.5,
-                    boxShadow: i === currentIdx ? `0 2px 8px ${primaryColor}30` : 'none',
+                    opacity: i === currentIdx ? 1 : 0.45,
+                    boxShadow: i === currentIdx ? `0 2px 6px ${primaryColor}25` : 'none',
                     scrollSnapAlign: 'center',
                   }}
                   onClick={() => goTo(i)}
@@ -560,39 +667,25 @@ function ProductFullPage({
 
             {/* Right scroll arrow */}
             <button
-              className="absolute right-0 top-0 bottom-0 w-8 z-10 flex items-center justify-center"
-              style={{
-                background: 'linear-gradient(to left, white 60%, transparent)',
-              }}
+              className="absolute right-0 top-0 bottom-0 w-7 z-10 flex items-center justify-center"
+              style={{ background: 'linear-gradient(to left, white 60%, transparent)' }}
               onClick={() => thumbnailRef.current?.scrollBy({ left: 140, behavior: 'smooth' })}
               aria-label="Voir images suivantes"
             >
-              <ChevronRight className="w-4 h-4" style={{ color: BRAND.noir }} />
+              <ChevronRight className="w-3.5 h-3.5" style={{ color: BRAND.noir }} />
             </button>
           </div>
         )}
 
-        {/* ── Product info bar — compact, always visible, no scroll (FIX: Anomaly 1) ── */}
+        {/* ── CTA bar — always visible at bottom ── */}
         <div
-          className="shrink-0 px-5 py-3 flex items-center gap-4"
-          style={{ backgroundColor: BRAND.blanc, borderTop: `1px solid ${primaryColor}10` }}
+          className="shrink-0 px-4 py-2.5 flex items-center gap-3"
+          style={{ backgroundColor: secondaryColor }}
         >
-          {/* Title + Price */}
-          <div className="flex-1 min-w-0">
-            <p className="font-bold text-sm sm:text-base truncate" style={{ color: secondaryColor, fontFamily: "'Playfair Display', serif" }}>
-              {title}
-            </p>
-            {price && (
-              <p className="font-bold text-sm sm:text-base" style={{ color: primaryColor }}>
-                {price}
-              </p>
-            )}
-          </div>
-
-          {/* CTA button — always visible, never clipped */}
+          {/* CTA button */}
           <Button
-            className="shrink-0 h-11 px-5 text-sm font-bold gap-2 rounded-xl shadow-md hover:shadow-lg transition-all duration-200"
-            style={{ backgroundColor: secondaryColor, color: BRAND.blanc }}
+            className="flex-1 h-10 text-sm font-bold gap-2 rounded-xl shadow-md hover:shadow-lg transition-all duration-200"
+            style={{ backgroundColor: primaryColor, color: BRAND.noir }}
             onClick={() => window.open(conversionLink, '_blank')}
           >
             <MessageCircle className="w-4 h-4" />
@@ -602,15 +695,19 @@ function ProductFullPage({
                s?.conversionChannel === 'email' ? 'Commander par email' :
                'Commander'}
             </span>
-            <span className="sm:hidden">Commander</span>
+            <span className="sm:hidden">
+              {s?.conversionChannel === 'whatsapp' ? 'WhatsApp' :
+               s?.conversionChannel === 'messenger' ? 'Messenger' :
+               s?.conversionChannel === 'email' ? 'Email' :
+               'Commander'}
+            </span>
           </Button>
 
           {/* Share button */}
           {s?.enableSharing && (
             <Button
               variant="outline"
-              className="shrink-0 h-11 w-11 p-0 rounded-xl"
-              style={{ borderColor: `${primaryColor}30`, color: secondaryColor }}
+              className="shrink-0 h-10 w-10 p-0 rounded-xl border-white/20 text-white hover:bg-white/10"
               onClick={() => {
                 navigator.clipboard.writeText(window.location.href);
                 toast.success('Lien copié !');
@@ -620,21 +717,6 @@ function ProductFullPage({
             </Button>
           )}
         </div>
-
-        {/* ── Optional: expandable description panel ── */}
-        {(description || variants) && (
-          <ProductInfoDrawer
-            description={description}
-            variants={variants}
-            detailColumns={config.detailColumns}
-            detailColumnsDef={detailColumns}
-            getCellValue={getCellValue}
-            row={row}
-            primaryColor={primaryColor}
-            secondaryColor={secondaryColor}
-            accentColor={accentColor}
-          />
-        )}
       </div>
 
       {/* ── Zoom overlay ── */}
@@ -1184,15 +1266,18 @@ export function CatalogPreview({ onAdminLogin }: CatalogPreviewProps) {
                   background: '#fff',
                   borderRadius: 8,
                   cursor: 'pointer',
-                  transition: 'transform 0.3s ease, box-shadow 0.3s ease',
+                  transition: 'transform 0.3s ease, box-shadow 0.3s ease, border-color 0.3s ease',
+                  border: '2px solid transparent',
                 }}
                 onMouseEnter={(e) => {
-                  e.currentTarget.style.transform = 'translateY(-2px)';
-                  e.currentTarget.style.boxShadow = '0 4px 20px rgba(0,0,0,0.08)';
+                  e.currentTarget.style.transform = 'scale(1.03)';
+                  e.currentTarget.style.boxShadow = '0 8px 30px rgba(0,0,0,0.12)';
+                  e.currentTarget.style.borderColor = primaryColor;
                 }}
                 onMouseLeave={(e) => {
-                  e.currentTarget.style.transform = 'translateY(0)';
+                  e.currentTarget.style.transform = 'scale(1)';
                   e.currentTarget.style.boxShadow = 'none';
+                  e.currentTarget.style.borderColor = 'transparent';
                 }}
                 onClick={() => {
                   setSelectedProduct({ row, columns, section });
