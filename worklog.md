@@ -287,3 +287,26 @@ Stage Summary:
 - Typography follows spec exactly (600/14px title, #666/13px price)
 - Responsive padding works correctly
 - Code pushed, Vercel will auto-deploy
+
+---
+Task ID: 3
+Agent: main
+Task: Fix carousel and IMAGE_ARRAY column bugs
+
+Work Log:
+- Diagnosed critical bug: getCellValue() used .join(', ') on arrays, then parseImageUrls split by [,;] producing " url2" with leading space that failed startsWith('http') — only 1st image shown
+- Rewrote parseImageUrls to support | and \n separators (matching gallerySeparator config options)
+- Rewrote getCarouselImages to read raw data directly from row.data, bypassing getCellValue
+- Added column config reading to pass gallerySeparator from ColumnConfig to parseImageUrls
+- Fixed cover image card to also read raw data and support IMAGE_ARRAY as cover column
+- Added fallback: when no carouselColumn configured but cover is IMAGE_ARRAY, remaining cover images are added to carousel
+- Added ColumnConfig to imports for proper typing
+- Build succeeds, lint clean, page loads 200 OK
+- Pushed to GitHub for Vercel deployment
+
+Stage Summary:
+- CAROUSEL NOW WORKS: Raw data reading preserves IMAGE_ARRAY arrays
+- parseImageUrls handles all separators (comma, semicolon, pipe, newline)
+- Cover cards support IMAGE_ARRAY columns (first image = cover)
+- Carousel shows all images even without a dedicated carouselColumn
+- gallerySeparator from column config is now respected
