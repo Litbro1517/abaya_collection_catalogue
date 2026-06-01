@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useAppStore } from '@/lib/store';
-import type { Section, SectionConfig, Column, Row, CatalogSettings } from '@/types';
+import type { Section, SectionConfig, Column, ColumnConfig, Row, CatalogSettings } from '@/types';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
@@ -59,9 +59,10 @@ function resolveImageUrl(url: string, size = 1200): string {
   return url;
 }
 
-function parseImageUrls(val: unknown): string[] {
+function parseImageUrls(val: unknown, separator?: string): string[] {
   if (!val) return [];
 
+  // Array — already parsed (e.g. from JSON column data)
   if (Array.isArray(val)) {
     return val
       .filter((u: unknown) => typeof u === 'string' && u.length > 0)
@@ -69,23 +70,34 @@ function parseImageUrls(val: unknown): string[] {
   }
 
   if (typeof val !== 'string') return [];
+  const str = val.trim();
+  if (!str) return [];
 
-  if (val.startsWith('[')) {
+  // JSON array string: ["url1", "url2"]
+  if (str.startsWith('[')) {
     try {
-      const parsed = JSON.parse(val) as string[];
-      return parsed.map(u => resolveImageUrl(u)).filter(Boolean);
+      const parsed = JSON.parse(str) as unknown[];
+      if (Array.isArray(parsed)) {
+        return parsed
+          .filter((u): u is string => typeof u === 'string' && u.length > 0)
+          .map(u => resolveImageUrl(u));
+      }
     } catch { /* not valid JSON */ }
   }
 
-  if (val.startsWith('http') || val.startsWith('/api/')) {
-    return [resolveImageUrl(val)];
+  // Single URL
+  if (str.startsWith('http') || str.startsWith('/api/')) {
+    return [resolveImageUrl(str)];
   }
 
-  if (val.includes('http')) {
-    return val
-      .split(/[,;]/)
+  // Multiple URLs separated by comma, semicolon, pipe, or newline
+  if (str.includes('http')) {
+    const sep = separator || ',';
+    const splitRegex = sep === '|' ? /\|/ : sep === '\n' ? /\n/ : sep === ';' ? /;/ : /[,;]/
+    return str
+      .split(splitRegex)
       .map(s => s.trim())
-      .filter(s => s.startsWith('http'))
+      .filter(s => s.startsWith('http') || s.startsWith('/api/'))
       .map(u => resolveImageUrl(u));
   }
 
@@ -465,22 +477,59 @@ export function CatalogPreview({ onAdminLogin }: CatalogPreviewProps) {
     return String(val);
   };
 
-  const getCarouselImages = (row: Row, config: SectionConfig): string[] => {
+  const getCarouselImages = (row: Row, config: SectionConfig, columns?: Column[]): string[] => {
     const images: string[] = [];
+    const rawData = row.data as Record<string, unknown>;
 
+    // 1. Add cover image first
     if (config.coverColumn) {
-      const cover = getCellValue(row, config.coverColumn);
-      if (cover) {
-        images.push(resolveImageUrl(cover, 1200));
+      const coverVal = rawData[config.coverColumn];
+      if (coverVal) {
+        // For cover, use first image if it's an array
+        if (Array.isArray(coverVal)) {
+          const coverImgs = parseImageUrls(coverVal);
+          if (coverImgs.length > 0) images.push(resolveImageUrl(coverImgs[0], 1600));
+        } else {
+          const coverStr = typeof coverVal === 'string' ? coverVal : String(coverVal);
+          const coverImgs = parseImageUrls(coverStr);
+          if (coverImgs.length > 0) images.push(resolveImageUrl(coverImgs[0], 1600));
+        }
       }
     }
 
+    // 2. Add carousel column images — read RAW data to preserve arrays
     if (config.carouselColumn) {
-      const val = getCellValue(row, config.carouselColumn);
-      const carouselImgs = parseImageUrls(val).map(u => resolveImageUrl(u, 1200));
-      images.push(...carouselImgs);
+      const carouselVal = rawData[config.carouselColumn];
+
+      // Find the column config to get separator
+      let separator: string | undefined;
+      if (columns) {
+        const col = columns.find(c => c.slug === config.carouselColumn);
+        if (col?.config && typeof col.config === 'object') {
+          const colConfig = col.config as ColumnConfig;
+          separator = colConfig.gallerySeparator;
+        }
+      }
+
+      if (carouselVal !== undefined && carouselVal !== null) {
+        const carouselImgs = parseImageUrls(carouselVal, separator).map(u => resolveImageUrl(u, 1600));
+        images.push(...carouselImgs);
+      }
     }
 
+    // 3. If no carousel column but cover is IMAGE_ARRAY, add remaining cover images
+    if (!config.carouselColumn && config.coverColumn) {
+      const coverVal = rawData[config.coverColumn];
+      if (coverVal) {
+        const allCoverImgs = parseImageUrls(coverVal);
+        // Skip the first one (already added as cover), add the rest
+        for (let i = 1; i < allCoverImgs.length; i++) {
+          images.push(resolveImageUrl(allCoverImgs[i], 1600));
+        }
+      }
+    }
+
+    // Deduplicate
     const seen = new Set<string>();
     return images.filter(img => {
       if (seen.has(img)) return false;
@@ -700,7 +749,22 @@ export function CatalogPreview({ onAdminLogin }: CatalogPreviewProps) {
           width: '100%',
         }}>
           {paginatedProducts.map(({ row, columns, section, config }) => {
-            const coverUrl = config.coverColumn ? getCellValue(row, config.coverColumn) : '';
+            // Read cover from raw data to support IMAGE_ARRAY (multiple images)
+            const rawData = row.data as Record<string, unknown>;
+            const coverRawVal = config.coverColumn ? rawData[config.coverColumn] : null;
+            let coverUrl = '';
+            if (coverRawVal) {
+              if (Array.isArray(coverRawVal)) {
+                // IMAGE_ARRAY: use first image as cover
+                const imgs = parseImageUrls(coverRawVal);
+                coverUrl = imgs[0] || '';
+              } else if (typeof coverRawVal === 'string') {
+                const imgs = parseImageUrls(coverRawVal);
+                coverUrl = imgs[0] || '';
+              } else {
+                coverUrl = String(coverRawVal);
+              }
+            }
             const title = config.titleColumn ? getCellValue(row, config.titleColumn) : '';
             const price = config.priceColumn ? getCellValue(row, config.priceColumn) : '';
             const isLiked = likedProducts.has(row.id);
@@ -883,7 +947,7 @@ export function CatalogPreview({ onAdminLogin }: CatalogPreviewProps) {
           {selectedProduct && (() => {
             const { row, columns: detailColumns, section } = selectedProduct;
             const config = section.config as SectionConfig;
-            const carouselImages = getCarouselImages(row, config);
+            const carouselImages = getCarouselImages(row, config, detailColumns);
             const title = config.titleColumn ? getCellValue(row, config.titleColumn) : '';
             const price = config.priceColumn ? getCellValue(row, config.priceColumn) : '';
             const description = config.descriptionColumn ? getCellValue(row, config.descriptionColumn) : '';
