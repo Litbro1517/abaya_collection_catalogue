@@ -201,52 +201,51 @@ export async function POST(req: NextRequest) {
       });
     }
 
-    // Create columns in DB
-    for (const col of columnsToCreate) {
-      await db.column.create({ data: col });
+    // Create columns in DB — use createMany for a single INSERT (avoids connection pool exhaustion)
+    await db.column.createMany({ data: columnsToCreate });
+
+    // Build row data — resolve URLs and group images
+    const rowsToCreate: { dataSourceId: string; data: Record<string, unknown>; order: number }[] = [];
+    for (let i = 0; i < dataRows.length; i++) {
+      const row = dataRows[i];
+      const rowData: Record<string, unknown> = {};
+      for (let c = 0; c < headers.length; c++) {
+        if (c < row.length && row[c]) {
+          // Resolve Drive image URLs to proxy URLs
+          const colType = columnTypes[c];
+          if (colType === 'IMAGE' || colType === 'IMAGE_ARRAY') {
+            rowData[columnSlugs[c]] = resolveImageUrl(row[c]);
+          } else {
+            rowData[columnSlugs[c]] = row[c];
+          }
+        }
+      }
+
+      // Build grouped image array — store as native array (not stringified)
+      if (imageArraySlug && imageGroupIndices.length > 0) {
+        const images: string[] = [];
+        imageGroupIndices.forEach(c => {
+          if (row[c] && row[c].length > 0) {
+            images.push(resolveImageUrl(row[c]));
+          }
+        });
+        if (images.length > 0) {
+          rowData[imageArraySlug] = images;
+        }
+      }
+
+      rowsToCreate.push({
+        dataSourceId: dsId,
+        data: rowData,
+        order: i,
+      });
     }
 
-    // Create rows in batches — pass native objects for Json data fields (PostgreSQL)
+    // Insert rows in batches using createMany (single INSERT per batch — avoids connection pool issues)
     const batchSize = 50;
-    for (let i = 0; i < dataRows.length; i += batchSize) {
-      const batch = dataRows.slice(i, i + batchSize);
-      const createPromises = batch.map((row, idx) => {
-        const rowData: Record<string, unknown> = {};
-        for (let c = 0; c < headers.length; c++) {
-          if (c < row.length && row[c]) {
-            // Resolve Drive image URLs to proxy URLs
-            const colType = columnTypes[c];
-            if (colType === 'IMAGE' || colType === 'IMAGE_ARRAY') {
-              rowData[columnSlugs[c]] = resolveImageUrl(row[c]);
-            } else {
-              rowData[columnSlugs[c]] = row[c];
-            }
-          }
-        }
-
-        // Build grouped image array — store as native array (not stringified)
-        if (imageArraySlug && imageGroupIndices.length > 0) {
-          const images: string[] = [];
-          imageGroupIndices.forEach(c => {
-            if (row[c] && row[c].length > 0) {
-              images.push(resolveImageUrl(row[c]));
-            }
-          });
-          if (images.length > 0) {
-            rowData[imageArraySlug] = images;
-          }
-        }
-
-        return db.row.create({
-          data: {
-            dataSourceId: dsId,
-            data: rowData,
-            order: i + idx,
-          },
-        });
-      });
-
-      await Promise.all(createPromises);
+    for (let i = 0; i < rowsToCreate.length; i += batchSize) {
+      const batch = rowsToCreate.slice(i, i + batchSize);
+      await db.row.createMany({ data: batch });
     }
 
     // Update lastSyncedAt
