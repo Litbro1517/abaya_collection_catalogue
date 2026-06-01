@@ -143,13 +143,17 @@ export async function fetchPrivateSheetData(
  */
 export async function listDriveSheets(accessToken: string): Promise<import('@/types').GoogleSheetInfo[]> {
   try {
-    const url = 'https://www.googleapis.com/drive/v3/files?q=' +
-      encodeURIComponent('mimeType="application/vnd.google-apps.spreadsheet"') +
-      '&fields=files(id,name,mimeType,modifiedTime,webViewLink,thumbnailLink,iconLink,owners(displayName,emailAddress))' +
-      '&orderBy=modifiedTime desc&pageSize=50' +
-      '&includeItemsFromAllDrives=true&supportsAllDrives=true';
+    // Build URL properly using URL + URLSearchParams to ensure correct encoding
+    const driveUrl = new URL('https://www.googleapis.com/drive/v3/files');
+    driveUrl.searchParams.set('q', 'mimeType="application/vnd.google-apps.spreadsheet"');
+    driveUrl.searchParams.set('fields', 'files(id,name,mimeType,modifiedTime,webViewLink,thumbnailLink,iconLink,owners(displayName,emailAddress))');
+    driveUrl.searchParams.set('orderBy', 'modifiedTime desc');
+    driveUrl.searchParams.set('pageSize', '100');
+    driveUrl.searchParams.set('includeItemsFromAllDrives', 'true');
+    driveUrl.searchParams.set('supportsAllDrives', 'true');
+    driveUrl.searchParams.set('corpora', 'allDrives');
     
-    const res = await fetch(url, {
+    const res = await fetch(driveUrl.toString(), {
       headers: { 'Authorization': `Bearer ${accessToken}` },
     });
     
@@ -160,7 +164,7 @@ export async function listDriveSheets(accessToken: string): Promise<import('@/ty
     }
     const data = await res.json();
     
-    return (data.files || []).map((file: {
+    const files = (data.files || []).map((file: {
       id: string;
       name: string;
       mimeType: string;
@@ -179,6 +183,46 @@ export async function listDriveSheets(accessToken: string): Promise<import('@/ty
       iconLink: file.iconLink,
       owners: file.owners,
     }));
+
+    // If no results with corpora=allDrives, try without it (user's own Drive)
+    if (files.length === 0) {
+      const userUrl = new URL('https://www.googleapis.com/drive/v3/files');
+      userUrl.searchParams.set('q', 'mimeType="application/vnd.google-apps.spreadsheet"');
+      userUrl.searchParams.set('fields', 'files(id,name,mimeType,modifiedTime,webViewLink,thumbnailLink,iconLink)');
+      userUrl.searchParams.set('orderBy', 'modifiedTime desc');
+      userUrl.searchParams.set('pageSize', '100');
+      userUrl.searchParams.set('includeItemsFromAllDrives', 'true');
+      userUrl.searchParams.set('supportsAllDrives', 'true');
+
+      const userRes = await fetch(userUrl.toString(), {
+        headers: { 'Authorization': `Bearer ${accessToken}` },
+      });
+
+      if (userRes.ok) {
+        const userData = await userRes.json();
+        const userFiles = userData.files || [];
+        return userFiles.map((file: {
+          id: string;
+          name: string;
+          mimeType: string;
+          modifiedTime: string;
+          webViewLink: string;
+          thumbnailLink?: string;
+          iconLink?: string;
+        }) => ({
+          id: file.id,
+          name: file.name,
+          mimeType: file.mimeType,
+          modifiedTime: file.modifiedTime,
+          webViewLink: file.webViewLink,
+          thumbnailLink: file.thumbnailLink,
+          iconLink: file.iconLink,
+          owners: [],
+        }));
+      }
+    }
+
+    return files;
   } catch (e) {
     console.error('Failed to list Drive sheets:', e);
     return [];

@@ -17,13 +17,20 @@ export async function GET() {
     }
 
     // Use Drive API v3 to list spreadsheets
-    const url = 'https://www.googleapis.com/drive/v3/files?q=' +
-      encodeURIComponent('mimeType="application/vnd.google-apps.spreadsheet"') +
-      '&fields=files(id,name,mimeType,modifiedTime,webViewLink,thumbnailLink,iconLink,owners(displayName,emailAddress))' +
-      '&orderBy=modifiedTime desc&pageSize=50' +
-      '&includeItemsFromAllDrives=true&supportsAllDrives=true';
+    // Build URL properly using URL + URLSearchParams to ensure correct encoding
+    const driveUrl = new URL('https://www.googleapis.com/drive/v3/files');
+    driveUrl.searchParams.set('q', 'mimeType="application/vnd.google-apps.spreadsheet"');
+    driveUrl.searchParams.set('fields', 'files(id,name,mimeType,modifiedTime,webViewLink,thumbnailLink,iconLink,owners(displayName,emailAddress))');
+    driveUrl.searchParams.set('orderBy', 'modifiedTime desc');
+    driveUrl.searchParams.set('pageSize', '100');
+    driveUrl.searchParams.set('includeItemsFromAllDrives', 'true');
+    driveUrl.searchParams.set('supportsAllDrives', 'true');
+    driveUrl.searchParams.set('corpora', 'allDrives');
 
-    const res = await fetch(url, {
+    console.log('[Sheets API] Fetching Drive files with token scope:', tokenInfo.accessToken ? 'present' : 'missing');
+    console.log('[Sheets API] URL:', driveUrl.toString());
+
+    const res = await fetch(driveUrl.toString(), {
       headers: { 'Authorization': `Bearer ${tokenInfo.accessToken}` },
     });
 
@@ -31,13 +38,15 @@ export async function GET() {
       const errorText = await res.text();
       console.error('Drive API error:', res.status, errorText);
       return NextResponse.json(
-        { data: null, error: `Drive API error (${res.status}): ${errorText.slice(0, 200)}` },
+        { data: null, error: `Drive API error (${res.status}): ${errorText.slice(0, 500)}` },
         { status: res.status }
       );
     }
 
     const data = await res.json();
     const files = data.files || [];
+
+    console.log(`[Sheets API] Found ${files.length} spreadsheet(s) in Drive`);
 
     const sheets = files.map((file: {
       id: string;
@@ -58,6 +67,52 @@ export async function GET() {
       iconLink: file.iconLink,
       owners: file.owners,
     }));
+
+    // If no results with corpora=allDrives, try without (for some Drive configurations)
+    if (sheets.length === 0) {
+      console.log('[Sheets API] No results with allDrives, trying user corpus...');
+      const userUrl = new URL('https://www.googleapis.com/drive/v3/files');
+      userUrl.searchParams.set('q', 'mimeType="application/vnd.google-apps.spreadsheet"');
+      userUrl.searchParams.set('fields', 'files(id,name,mimeType,modifiedTime,webViewLink,thumbnailLink,iconLink)');
+      userUrl.searchParams.set('orderBy', 'modifiedTime desc');
+      userUrl.searchParams.set('pageSize', '100');
+      userUrl.searchParams.set('includeItemsFromAllDrives', 'true');
+      userUrl.searchParams.set('supportsAllDrives', 'true');
+
+      const userRes = await fetch(userUrl.toString(), {
+        headers: { 'Authorization': `Bearer ${tokenInfo.accessToken}` },
+      });
+
+      if (userRes.ok) {
+        const userData = await userRes.json();
+        const userFiles = userData.files || [];
+        console.log(`[Sheets API] User corpus found ${userFiles.length} spreadsheet(s)`);
+
+        if (userFiles.length > 0) {
+          return NextResponse.json({
+            data: userFiles.map((file: {
+              id: string;
+              name: string;
+              mimeType: string;
+              modifiedTime: string;
+              webViewLink: string;
+              thumbnailLink?: string;
+              iconLink?: string;
+            }) => ({
+              id: file.id,
+              name: file.name,
+              mimeType: file.mimeType,
+              modifiedTime: file.modifiedTime,
+              webViewLink: file.webViewLink,
+              thumbnailLink: file.thumbnailLink,
+              iconLink: file.iconLink,
+              owners: [],
+            })),
+            error: null,
+          });
+        }
+      }
+    }
 
     return NextResponse.json({
       data: sheets,

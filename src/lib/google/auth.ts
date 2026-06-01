@@ -59,22 +59,38 @@ export async function getValidAccessToken(): Promise<{
   accessToken: string;
   sessionId: string;
 } | null> {
-  const session = await db.googleSession.findFirst({
-    orderBy: { createdAt: 'desc' },
-  });
+  try {
+    const session = await db.googleSession.findFirst({
+      orderBy: { createdAt: 'desc' },
+    });
 
-  if (!session) return null;
+    if (!session) {
+      console.log('[Google Auth] No Google session found in database');
+      return null;
+    }
 
-  // Check if token is still valid (with 5 min buffer)
-  const isExpired = new Date(session.tokenExpiry).getTime() < Date.now() + 5 * 60 * 1000;
+    console.log('[Google Auth] Found session for:', session.email, '| Scope:', session.scope?.slice(0, 80), '| Has refresh token:', !!session.refreshToken);
 
-  if (!isExpired) {
-    return { accessToken: session.accessToken, sessionId: session.id };
+    // Check if token is still valid (with 5 min buffer)
+    const isExpired = new Date(session.tokenExpiry).getTime() < Date.now() + 5 * 60 * 1000;
+
+    if (!isExpired) {
+      console.log('[Google Auth] Token is still valid until:', session.tokenExpiry);
+      return { accessToken: session.accessToken, sessionId: session.id };
+    }
+
+    // Try to refresh
+    console.log('[Google Auth] Token expired, attempting refresh...');
+    const newAccessToken = await refreshAccessToken(session);
+    if (!newAccessToken) {
+      console.error('[Google Auth] Failed to refresh token. Session may need re-authorization.');
+      return null;
+    }
+
+    console.log('[Google Auth] Token refreshed successfully');
+    return { accessToken: newAccessToken, sessionId: session.id };
+  } catch (e) {
+    console.error('[Google Auth] Error getting valid access token:', e);
+    return null;
   }
-
-  // Try to refresh
-  const newAccessToken = await refreshAccessToken(session);
-  if (!newAccessToken) return null;
-
-  return { accessToken: newAccessToken, sessionId: session.id };
 }

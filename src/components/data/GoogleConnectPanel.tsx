@@ -8,7 +8,7 @@ import { Sheet, Unplug, RefreshCw, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 
 export function GoogleConnectPanel() {
-  const { googleSession, setGoogleSession, setSyncStatus, setSyncMessage, syncStatus } = useAppStore();
+  const { googleSession, setGoogleSession, syncStatus, setShowGoogleSheetsBrowser } = useAppStore();
 
   const handleConnect = async () => {
     try {
@@ -47,26 +47,9 @@ export function GoogleConnectPanel() {
     }
   };
 
-  const handleSync = async () => {
-    setSyncStatus('syncing');
-    setSyncMessage('Synchronisation en cours...');
-    try {
-      const res = await fetch('/api/google/sync', { method: 'POST' });
-      if (res.ok) {
-        setSyncStatus('success');
-        setSyncMessage('Synchronisé avec succès');
-        setTimeout(() => setSyncStatus('idle'), 3000);
-      } else {
-        const json = await res.json();
-        setSyncStatus('error');
-        setSyncMessage(json.error || 'Erreur de synchronisation');
-        setTimeout(() => setSyncStatus('idle'), 5000);
-      }
-    } catch {
-      setSyncStatus('error');
-      setSyncMessage('Erreur de connexion');
-      setTimeout(() => setSyncStatus('idle'), 5000);
-    }
+  const handleSync = () => {
+    // Open the sheets browser to let user pick a sheet to sync/import
+    setShowGoogleSheetsBrowser(true);
   };
 
   const isSyncing = syncStatus === 'syncing';
@@ -114,7 +97,7 @@ export function GoogleConnectPanel() {
             className="h-7 w-7 p-0"
             onClick={handleSync}
             disabled={isSyncing}
-            title="Synchroniser"
+            title="Importer une feuille"
           >
             {isSyncing ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <RefreshCw className="w-3.5 h-3.5" />}
           </Button>
