@@ -15,11 +15,20 @@ export function GoogleConnectPanel() {
       const res = await fetch('/api/google/auth');
       if (res.ok) {
         const json = await res.json();
-        if (json.url) {
-          window.location.href = json.url;
+        // API returns { data: { authUrl, state }, error: null }
+        const authUrl = json.data?.authUrl || json.url;
+        if (authUrl) {
+          window.location.href = authUrl;
+        } else {
+          toast.error(json.error || 'URL d\'authentification non trouvée');
         }
       } else {
-        toast.error('Google non configuré');
+        const json = await res.json();
+        if (json.setupRequired) {
+          toast.error('Google OAuth non configuré. Ajoutez vos identifiants dans les paramètres.');
+        } else {
+          toast.error('Google non configuré');
+        }
       }
     } catch {
       toast.error('Erreur de connexion Google');

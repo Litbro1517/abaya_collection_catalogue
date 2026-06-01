@@ -107,42 +107,44 @@ function HomeContent() {
     checkGoogleSession();
   }, [setGoogleSession]);
 
-  // Handle Google OAuth callback (if redirected back with code)
+  // Handle Google OAuth callback redirect from server
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
-    const code = params.get('code');
-    const state = params.get('state');
+    const googleConnected = params.get('google_connected');
+    const googleError = params.get('google_error');
 
-    if (code) {
-      const handleOAuthCallback = async () => {
+    if (googleConnected === 'true') {
+      // Server already handled token exchange and stored session
+      // Fetch the session from the API to update the UI
+      const fetchGoogleSession = async () => {
         try {
-          const res = await fetch('/api/google/auth', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ code, state }),
-          });
+          const res = await fetch('/api/google/session');
           if (res.ok) {
             const json = await res.json();
-            if (json.data) {
+            if (json.data?.connected) {
               setGoogleSession({
                 id: json.data.id,
                 email: json.data.email,
                 name: json.data.name,
                 picture: json.data.picture,
-                scope: '',
-                createdAt: new Date().toISOString(),
-                updatedAt: new Date().toISOString(),
+                scope: json.data.scope || '',
+                createdAt: json.data.createdAt,
+                updatedAt: json.data.updatedAt,
               });
             }
           }
         } catch {
-          // OAuth callback failed
+          // Failed to fetch session
         } finally {
           // Clean up URL
           window.history.replaceState({}, '', window.location.pathname);
         }
       };
-      handleOAuthCallback();
+      fetchGoogleSession();
+    } else if (googleError) {
+      // Show error and clean up URL
+      console.error('Google OAuth error:', googleError);
+      window.history.replaceState({}, '', window.location.pathname);
     }
   }, [setGoogleSession]);
 
