@@ -23,7 +23,7 @@ model DataSource {
   sourceUrl     String?
   sheetId       String?
   sheetName     String?
-  syncInterval  Int       @default(0) // minutes (0 = manual only)
+  syncInterval  Int       @default(0)
   lastSyncedAt  DateTime?
   googleSessionId String?
   columns       Column[]
@@ -40,7 +40,7 @@ model Column {
   id           String     @id @default(cuid())
   name         String
   slug         String
-  type         String     @default("TEXT") // TEXT, NUMBER, CURRENCY, IMAGE, IMAGE_ARRAY, SELECT, MULTI_SELECT, RELATION, ARRAY, BOOLEAN, URL
+  type         String     @default("TEXT")
   dataSourceId String     @map("data_source_id")
   dataSource   DataSource @relation(fields: [dataSourceId], references: [id], onDelete: Cascade)
   order        Int        @default(0)
@@ -75,7 +75,7 @@ model Relation {
   sourceColumnId String     @map("source_column_id")
   targetTableId  String     @map("target_table_id")
   targetTable    DataSource @relation("TargetRelation", fields: [targetTableId], references: [id], onDelete: Cascade)
-  type           String     @default("manyToOne") // manyToOne, oneToMany, manyToMany
+  type           String     @default("manyToOne")
   createdAt      DateTime   @default(now()) @map("created_at")
 
   @@map("relations")
@@ -102,7 +102,7 @@ model Section {
   id           String   @id @default(cuid())
   catalogId    String   @map("catalog_id")
   catalog      Catalog  @relation(fields: [catalogId], references: [id], onDelete: Cascade)
-  type         String   @default("collection") // collection, hero, featured, text
+  type         String   @default("collection")
   title        String?
   subtitle     String?
   config       Json     @default("{}")
@@ -119,7 +119,7 @@ model Component {
   id          String   @id @default(cuid())
   sectionId   String   @map("section_id")
   section     Section  @relation(fields: [sectionId], references: [id], onDelete: Cascade)
-  type        String   @default("card") // card, carousel, grid, detail, button, text, image
+  type        String   @default("card")
   config      Json     @default("{}")
   order       Int      @default(0)
   visible     Boolean  @default(true)
@@ -137,8 +137,8 @@ model CatalogSettings {
   id                String   @id @default(cuid())
   catalogId         String   @unique @map("catalog_id")
   catalog           Catalog  @relation(fields: [catalogId], references: [id], onDelete: Cascade)
-  language          String   @default("fr") // fr, en, ar
-  currency          String   @default("MAD") // MAD, EUR, USD
+  language          String   @default("fr")
+  currency          String   @default("MAD")
   whatsappNumber    String   @default("") @map("whatsapp_number")
   messengerLink     String   @default("") @map("messenger_link")
   emailContact      String   @default("") @map("email_contact")
@@ -147,11 +147,11 @@ model CatalogSettings {
   secondaryColor    String   @default("#1A1A1A") @map("secondary_color")
   accentColor       String   @default("#F5F0E8") @map("accent_color")
   backgroundColor   String   @default("#FAF8F5") @map("background_color")
-  fontFamily        String   @default("inter") @map("font_family") // inter, playfair, roboto
+  fontFamily        String   @default("inter") @map("font_family")
   enableZoom        Boolean  @default(true) @map("enable_zoom")
   enableSearch      Boolean  @default(true) @map("enable_search")
   enableSharing     Boolean  @default(true) @map("enable_sharing")
-  conversionChannel String   @default("whatsapp") @map("conversion_channel") // whatsapp, messenger, landing, email
+  conversionChannel String   @default("whatsapp") @map("conversion_channel")
   conversionMessage String   @default("") @map("conversion_message")
   customCSS         String   @default("") @map("custom_css")
   favicon           String?
