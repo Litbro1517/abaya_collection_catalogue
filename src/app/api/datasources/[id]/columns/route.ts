@@ -27,7 +27,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
 
     const slug = name
       .toLowerCase()
-      .replace(/[^a-z0-9\s]/g, '')
+      .replace(/[^a-z0-9\s_]/g, '')
       .replace(/\s+/g, '_')
       .substring(0, 60);
 

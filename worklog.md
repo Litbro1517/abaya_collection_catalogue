@@ -183,3 +183,29 @@ Stage Summary:
 - Prisma client regenerated for PostgreSQL
 - All code passes lint validation
 - Pushed to GitHub as commit: "feat: migrate Prisma datasource from SQLite to PostgreSQL with directUrl for Supabase"
+---
+Task ID: 1-7
+Agent: Main Agent
+Task: Configure Vercel + Supabase deployment end-to-end
+
+Work Log:
+- Found Vercel project: prj_SgTq1Bj0VhAZZN372lZDX8RDdyBI (abaya-collection-catalogue)
+- Created DATABASE_URL and DIRECT_URL env vars on Vercel via API
+- First deployment failed with db_unreachable error (DIRECT_URL used direct connection port 5432)
+- Fixed by changing DIRECT_URL to Session Mode Pooler (port 5432 on pooler endpoint)
+- Second deployment succeeded (READY) but showed 404 due to output:"standalone" in next.config.ts
+- Removed output:"standalone" and updated build command to "prisma generate && prisma db push && next build"
+- Added postinstall hook for prisma generate
+- Third deployment succeeded and app works correctly
+- Login with password "abayachic2024" works via API
+- Data source "Catalogue Abayas" with 78 columns and 82 rows already exists on Supabase
+- Fixed column mapping slugs in section config (e.g., nom_produit_docx → nomproduitdocx)
+- Catalog displays correctly with products, pagination, product detail, WhatsApp button
+- Production URL: https://abaya-collection-catalogue.vercel.app/
+
+Stage Summary:
+- Vercel deployment is LIVE and functional
+- Supabase PostgreSQL database connected and populated
+- Key fix: DIRECT_URL must use Session Mode Pooler (same host as DATABASE_URL but port 5432 without pgbouncer params)
+- Key fix: output:"standalone" must be removed for Vercel deployments
+- Key fix: Column slugs use no underscores (e.g., "nomproduitdocx" not "nom_produit_docx")
