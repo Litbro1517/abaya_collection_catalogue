@@ -119,23 +119,24 @@ export function isImageUrl(url: string): boolean {
 
 /**
  * Convert a Google Drive URL to a direct displayable image URL
- * Uses the thumbnail API which is more reliable than uc?export=view
+ * Routes through the image proxy which prioritizes lh3.googleusercontent.com
+ * for best quality, then falls back to thumbnail API and content URL.
  */
 export function resolveDriveImageUrl(driveUrl: string, size: number = 800): string {
   const fileId = extractDriveFileId(driveUrl);
   if (!fileId) return driveUrl;
   
-  // Use the thumbnail API - this is the most reliable method
-  // The sz parameter controls the image size
+  // The proxy will transform sz into lh3...=w{sz} for highest quality
   return `/api/google/image-proxy?id=${fileId}&sz=${size}`;
 }
 
 /**
  * Get the direct Google Drive thumbnail URL (server-side, no proxy)
  * This URL works when the file is publicly shared
+ * Uses sz=w{size} format which explicitly requests width-based resize
  */
 export function getDriveThumbnailUrl(fileId: string, size: number = 800): string {
-  return `https://drive.google.com/thumbnail?id=${fileId}&sz=${size}`;
+  return `https://drive.google.com/thumbnail?id=${fileId}&sz=w${size}`;
 }
 
 /**
