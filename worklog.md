@@ -310,3 +310,28 @@ Stage Summary:
 - Cover cards support IMAGE_ARRAY columns (first image = cover)
 - Carousel shows all images even without a dedicated carouselColumn
 - gallerySeparator from column config is now respected
+
+---
+Task ID: 1
+Agent: Main Agent
+Task: Fix image groups showing wrong variant counts (1/65, 1/25, 1/18), missing carousel, display issues
+
+Work Log:
+- Investigated database: found that "عباية بنت حوران" genuinely has 65 images (all 65 groupe-image columns filled), "عباية راقية" has 25, "Robe hiba" has 18 — data is correct, not erroneous
+- Identified root cause: ImageCarousel rendered ALL images at 1920px simultaneously, causing Google Drive rate limiting and broken display
+- Virtualized ImageCarousel: only renders current ± 2 images instead of all 65+
+- Added CompactDots component: max 7 dot indicators with ellipsis for large image counts
+- Limited thumbnail strip to 10 images with "+N" overflow indicator
+- Added image count badge on product cards (bottom-left corner)
+- Reduced card cover image size from 1600px to 800px for faster loading
+- Improved deduplication using Drive file IDs instead of URL strings
+- Used stable keys based on Drive file ID for carousel slides
+- Deployed to Vercel (deployment: dpl_GydxuaCpf3i5LQ8wihZHspuHrgWa — READY)
+
+Stage Summary:
+- Carousel now works correctly with products having many images (65+)
+- Only visible images are rendered (performance optimization)
+- Dot indicators are compact and don't overflow
+- Thumbnail strip is limited and scrollable
+- Image count badge shows total images per product on cards
+- Cover image click opens detail dialog with working carousel
