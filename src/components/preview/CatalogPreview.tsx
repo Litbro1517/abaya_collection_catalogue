@@ -153,7 +153,7 @@ function ImageCarousel({
   alt,
   enableZoom,
   onZoom,
-  activeIdx,
+  activeIdx: externalIdx,
   onIdxChange,
 }: {
   images: string[];
@@ -163,13 +163,14 @@ function ImageCarousel({
   activeIdx?: number;
   onIdxChange?: (idx: number) => void;
 }) {
-  const currentIdx = activeIdx !== undefined ? activeIdx : idx;
+  const [internalIdx, setInternalIdx] = useState(0);
+  const currentIdx = externalIdx !== undefined ? externalIdx : internalIdx;
   const touchStartX = useRef(0);
   const touchEndX = useRef(0);
   const trackRef = useRef<HTMLDivElement>(null);
 
   const goTo = useCallback((newIdx: number) => {
-    setIdx(newIdx);
+    setInternalIdx(newIdx);
     onIdxChange?.(newIdx);
   }, [onIdxChange]);
 
@@ -199,7 +200,7 @@ function ImageCarousel({
 
   if (images.length === 0) {
     return (
-      <div className="relative w-full aspect-[3/4] flex items-center justify-center" style={{ backgroundColor: BRAND.beige }}>
+      <div className="relative w-full aspect-[4/5] flex items-center justify-center" style={{ backgroundColor: BRAND.beige }}>
         <ImageIcon className="w-16 h-16" style={{ color: BRAND.grisMoyen, opacity: 0.3 }} />
       </div>
     );
@@ -207,7 +208,7 @@ function ImageCarousel({
 
   return (
     <div
-      className="relative w-full aspect-[3/4] overflow-hidden"
+      className="relative w-full aspect-[4/5] overflow-hidden"
       style={{ backgroundColor: BRAND.beige }}
       ref={trackRef}
       onTouchStart={onTouchStart}
@@ -222,7 +223,7 @@ function ImageCarousel({
         {images.map((img, i) => (
           <div key={i} className="w-full h-full shrink-0">
             <ProductImage
-              src={resolveImageUrl(img, 1200)}
+              src={resolveImageUrl(img, 1920)}
               alt={`${alt} - ${i + 1}`}
               className="w-full h-full"
               objectFit="cover"
@@ -238,7 +239,7 @@ function ImageCarousel({
         <button
           className="absolute top-3 right-3 backdrop-blur-md rounded-full p-2.5 hover:scale-105 transition-all z-10 shadow-md"
           style={{ backgroundColor: 'rgba(255,255,255,0.9)' }}
-          onClick={() => onZoom?.(resolveImageUrl(images[currentIdx], 1600))}
+          onClick={() => onZoom?.(resolveImageUrl(images[currentIdx], 1920))}
         >
           <ZoomIn className="w-4 h-4" style={{ color: BRAND.noir }} />
         </button>
@@ -678,28 +679,46 @@ export function CatalogPreview({ onAdminLogin }: CatalogPreviewProps) {
           </div>
         )}
 
-        {/* Grid: 2 cols mobile, 3 tablet, 4 desktop */}
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-4 lg:gap-5">
+        {/* Grid — responsive columns from config, fallback 2/3/4 */}
+        {(() => {
+          const cpr = sections[0] ? ((sections[0].section.config as SectionConfig).columnsPerRow) : undefined;
+          const colsClass = cpr === 2 ? 'grid-cols-2'
+            : cpr === 3 ? 'grid-cols-2 sm:grid-cols-3'
+            : cpr === 5 ? 'grid-cols-2 sm:grid-cols-3 lg:grid-cols-5'
+            : 'grid-cols-2 sm:grid-cols-3 lg:grid-cols-4'; // default 4
+
+          return (
+          <div className={`grid ${colsClass} gap-3 sm:gap-4 lg:gap-5`}>
           {paginatedProducts.map(({ row, columns, section, config }) => {
             const coverUrl = config.coverColumn ? getCellValue(row, config.coverColumn) : '';
             const title = config.titleColumn ? getCellValue(row, config.titleColumn) : '';
             const price = config.priceColumn ? getCellValue(row, config.priceColumn) : '';
             const isLiked = likedProducts.has(row.id);
 
+            // Card style from config
+            const cardStyle = config.cardStyle || 'elevated';
+            const cardBaseClass = cardStyle === 'flat'
+              ? 'group cursor-pointer bg-white rounded-2xl overflow-hidden transition-all duration-300 hover:-translate-y-0.5'
+              : cardStyle === 'bordered'
+              ? 'group cursor-pointer bg-white rounded-2xl overflow-hidden border transition-all duration-300 hover:-translate-y-0.5'
+              : 'group cursor-pointer bg-white rounded-2xl overflow-hidden shadow-sm hover:shadow-xl transition-all duration-300 hover:-translate-y-1';
+            const cardBorder = cardStyle === 'bordered' ? `1px solid ${primaryColor}20` : undefined;
+
             return (
               <div
                 key={row.id}
-                className="group cursor-pointer bg-white rounded-2xl overflow-hidden shadow-sm hover:shadow-xl transition-all duration-300 hover:-translate-y-1"
+                className={cardBaseClass}
+                style={cardBorder ? { border: cardBorder } : undefined}
                 onClick={() => {
                   setSelectedProduct({ row, columns, section });
                   setDetailCarouselIdx(0);
                 }}
               >
-                {/* Cover Image — 3:4 portrait ratio as per charte */}
-                <div className="relative w-full overflow-hidden aspect-[3/4]" style={{ backgroundColor: BRAND.grisClair }}>
+                {/* Cover Image — 4:5 near-square ratio like Glide */}
+                <div className="relative w-full overflow-hidden aspect-[4/5]" style={{ backgroundColor: BRAND.grisClair }}>
                   {coverUrl ? (
                     <ProductImage
-                      src={resolveImageUrl(coverUrl, 800)}
+                      src={resolveImageUrl(coverUrl, 1600)}
                       alt={title}
                       className="w-full h-full transition-transform duration-700 ease-out group-hover:scale-105"
                       objectFit="cover"
@@ -755,7 +774,9 @@ export function CatalogPreview({ onAdminLogin }: CatalogPreviewProps) {
               </div>
             );
           })}
-        </div>
+          </div>
+          );
+        })()}
 
         {/* Empty state */}
         {allProducts.length === 0 && (
@@ -843,7 +864,7 @@ export function CatalogPreview({ onAdminLogin }: CatalogPreviewProps) {
                   </div>
                 )}
                 {carouselImages.length === 0 && (
-                  <div className="relative w-full aspect-[3/4] flex items-center justify-center shrink-0" style={{ backgroundColor: BRAND.beige }}>
+                  <div className="relative w-full aspect-[4/5] flex items-center justify-center shrink-0" style={{ backgroundColor: BRAND.beige }}>
                     <ImageIcon className="w-16 h-16" style={{ color: BRAND.grisMoyen, opacity: 0.3 }} />
                   </div>
                 )}

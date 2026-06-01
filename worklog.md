@@ -235,3 +235,27 @@ Stage Summary:
 - ✅ DIRECT_URL: postgresql://postgres.ldvbfsnqgulynwxqwzau:3sHLmkVWQsvbJPTY@aws-0-eu-west-3.pooler.supabase.com:5432/postgres (Session Mode Pooler)
 - ⚠️ Only 50/82 products imported (partial import from previous session)
 - Production URL: https://abaya-collection-catalogue.vercel.app
+---
+Task ID: 1
+Agent: main
+Task: Fix carousel, image quality, image format - redesign product grid to match Glide reference
+
+Work Log:
+- Analyzed uploaded Glide reference screenshot showing 4-column grid with near-square product images
+- Read full CatalogPreview.tsx (990 lines) and identified all issues
+- Fixed carousel bug: `idx` was undefined variable - replaced with `useState(0)` as `internalIdx`, renamed prop `activeIdx` to `externalIdx` for clarity
+- Changed image aspect ratio from `aspect-[3/4]` (tall portrait) to `aspect-[4/5]` (near-square like Glide) in 3 places: product cards, carousel, empty state
+- Increased image resolution: cover cards 800→1600, carousel 1200→1920, zoom 1600→1920
+- Updated image proxy: added size cap at 1920px, changed placeholder SVGs from 600x800 (3:4) to 600x750 (4:5)
+- Fixed grid to respect `columnsPerRow` from admin config (2/3/4/5 columns)
+- Applied `cardStyle` from config (elevated/flat/bordered) instead of ignoring it
+- Fixed CSS `@import` order error: moved Google Fonts import before Tailwind imports to prevent 500 error
+- Verified: lint passes, dev server returns 200
+
+Stage Summary:
+- Carousel now works properly with internal state management
+- Product images are near-square (4:5) like the Glide reference
+- Image quality significantly improved (1600px cards, 1920px carousel/zoom)
+- Grid respects admin column configuration
+- Card styles from admin are now applied
+- CSS import order fixed, app loads correctly

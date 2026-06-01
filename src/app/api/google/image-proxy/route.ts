@@ -12,7 +12,9 @@ export async function GET(req: NextRequest) {
   try {
     const { searchParams } = new URL(req.url);
     const fileId = searchParams.get('id');
-    const sz = searchParams.get('sz') || '1200';
+    const rawSz = parseInt(searchParams.get('sz') || '1200', 10);
+    // Google Drive thumbnail API works best with specific sizes; cap at 1920
+    const sz = Math.min(rawSz, 1920);
 
     if (!fileId) {
       return NextResponse.json(
@@ -129,12 +131,12 @@ export async function GET(req: NextRequest) {
     }
 
     // All methods failed - return SVG placeholder
-    const placeholderSvg = `<svg xmlns="http://www.w3.org/2000/svg" width="600" height="800" viewBox="0 0 600 800">
-      <rect width="600" height="800" fill="#F5F0E8"/>
-      <rect x="270" y="360" width="60" height="60" rx="8" fill="#E8E2D9"/>
-      <path d="M290 400 L300 385 L310 400 Z" fill="#C9A84C" opacity="0.5"/>
-      <circle cx="295" cy="375" r="5" fill="#C9A84C" opacity="0.5"/>
-      <text x="300" y="440" text-anchor="middle" fill="#808080" font-family="Inter, sans-serif" font-size="13">Image non disponible</text>
+    const placeholderSvg = `<svg xmlns="http://www.w3.org/2000/svg" width="600" height="750" viewBox="0 0 600 750">
+      <rect width="600" height="750" fill="#F5F0E8"/>
+      <rect x="270" y="340" width="60" height="60" rx="8" fill="#E8E2D9"/>
+      <path d="M290 380 L300 365 L310 380 Z" fill="#C9A84C" opacity="0.5"/>
+      <circle cx="295" cy="355" r="5" fill="#C9A84C" opacity="0.5"/>
+      <text x="300" y="420" text-anchor="middle" fill="#808080" font-family="Inter, sans-serif" font-size="13">Image non disponible</text>
     </svg>`;
 
     return new NextResponse(placeholderSvg, {
@@ -148,9 +150,9 @@ export async function GET(req: NextRequest) {
   } catch (e) {
     console.error('Image proxy error:', e);
 
-    const errorSvg = `<svg xmlns="http://www.w3.org/2000/svg" width="600" height="800" viewBox="0 0 600 800">
-      <rect width="600" height="800" fill="#F5F0E8"/>
-      <text x="300" y="400" text-anchor="middle" fill="#800020" font-family="Inter, sans-serif" font-size="14">Erreur de chargement</text>
+    const errorSvg = `<svg xmlns="http://www.w3.org/2000/svg" width="600" height="750" viewBox="0 0 600 750">
+      <rect width="600" height="750" fill="#F5F0E8"/>
+      <text x="300" y="375" text-anchor="middle" fill="#800020" font-family="Inter, sans-serif" font-size="14">Erreur de chargement</text>
     </svg>`;
 
     return new NextResponse(errorSvg, {
