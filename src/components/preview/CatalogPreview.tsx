@@ -6,14 +6,13 @@ import type { Section, SectionConfig, Column, ColumnConfig, Row, CatalogSettings
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import {
-  ArrowLeft, Search, MessageCircle, Share2, ChevronLeft, ChevronRight,
+  ArrowLeft, Search, MessageCircle, ChevronLeft, ChevronRight,
   Mail, Instagram, ImageIcon, BookOpen, Heart,
   ShoppingBag
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { toast } from 'sonner';
 
-// ── Brand Charte Constants ──
+// ── Brand Constants ──
 const BRAND = {
   vertFonce: '#1A3C34',
   dore: '#C9A84C',
@@ -114,7 +113,7 @@ function parseImageUrls(val: unknown, separator?: string): string[] {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
-// ── PRODUCT PAGE — Glide-like: Hero + Fields + Square Carousel + CTA ──
+// ── PRODUCT PAGE — Glide-like: Back → Hero → Fields → Carousel → CTA ──
 // ═══════════════════════════════════════════════════════════════════════════
 
 function ProductPage({
@@ -197,10 +196,10 @@ function ProductPage({
 
   // Collect detail fields
   const detailFields: { label: string; value: string }[] = [];
-  if (price) detailFields.push({ label: 'Prix', value: price });
+  if (price) detailFields.push({ label: 'Prix_Vente', value: price });
   if (description) detailFields.push({ label: 'Description', value: description });
-  if (sizes.length > 0) detailFields.push({ label: 'Tailles', value: sizes.join(', ') });
-  if (colors.length > 0) detailFields.push({ label: 'Couleurs', value: colors.join(', ') });
+  if (sizes.length > 0) detailFields.push({ label: 'Options_Tailles', value: sizes.join(', ') });
+  if (colors.length > 0) detailFields.push({ label: 'Options_Couleurs', value: colors.join(', ') });
 
   // Add detail columns from config
   if (config.detailColumns && config.detailColumns.length > 0) {
@@ -217,23 +216,15 @@ function ProductPage({
   }
 
   return (
-    <div className="min-h-screen flex flex-col" style={{ backgroundColor: BRAND.blanc }}>
-      {/* ── Back button ── */}
-      <div style={{ maxWidth: 1270, margin: '0 auto', width: '100%', padding: '16px 32px 0' }}>
-        <button
-          onClick={onBack}
-          className="flex items-center gap-1.5 text-sm font-medium transition-colors"
-          style={{ color: BRAND.grisMoyen, background: 'none', border: 0, cursor: 'pointer', padding: 0 }}
-        >
-          <ArrowLeft className="w-4 h-4" />
-          Retour
+    <div className="min-h-screen flex flex-col" style={{ backgroundColor: '#ffffff' }}>
+      <main className="detail-container flex-1">
+
+        {/* ── Back button ── */}
+        <button className="back-button" onClick={onBack}>
+          ← Retour
         </button>
-      </div>
 
-      {/* ── Scrollable content ── */}
-      <main className="flex-1" style={{ maxWidth: 1270, margin: '0 auto', width: '100%', padding: '18px 32px 48px' }}>
-
-        {/* ── Product Hero: thumbnail + title/desc ── */}
+        {/* ── Product Hero: cover thumbnail + name + desc + edit ── */}
         <section className="product-hero">
           {coverImage ? (
             <img
@@ -242,14 +233,17 @@ function ProductPage({
               alt={title}
             />
           ) : (
-            <div className="product-hero-thumb" style={{ background: BRAND.grisClair, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-              <ImageIcon className="w-8 h-8" style={{ color: BRAND.grisMoyen, opacity: 0.4 }} />
+            <div className="product-hero-thumb product-hero-thumb-placeholder">
+              <ImageIcon style={{ width: 32, height: 32, color: '#808080', opacity: 0.4 }} />
             </div>
           )}
 
           <div className="product-hero-text">
-            <h1 style={{ fontFamily: "'Playfair Display', serif" }}>{title}</h1>
+            <h1>{title}</h1>
             {description && <p>{description}</p>}
+            <button className="product-hero-edit" style={{ backgroundColor: secondaryColor }}>
+              Edit
+            </button>
           </div>
         </section>
 
@@ -308,7 +302,7 @@ function ProductPage({
           href={conversionLink}
           target="_blank"
           rel="noopener noreferrer"
-          style={{ backgroundColor: primaryColor, color: BRAND.noir }}
+          style={{ backgroundColor: primaryColor, color: '#111' }}
         >
           {s?.conversionChannel === 'whatsapp' ? 'Commander via WhatsApp' :
            s?.conversionChannel === 'messenger' ? 'Commander via Messenger' :
@@ -660,7 +654,7 @@ export function CatalogPreview({ onAdminLogin }: CatalogPreviewProps) {
     <div className="min-h-screen flex flex-col" style={{ backgroundColor: bgColor }}>
       {/* ── Header ── */}
       <header className="sticky top-0 z-30 shadow-md" style={{ backgroundColor: secondaryColor }}>
-        <div style={{ maxWidth: 1270, margin: '0 auto', padding: '12px 32px', display: 'flex', alignItems: 'center', gap: 16 }}>
+        <div className="catalog-header-inner">
           {/* Admin button */}
           {isAdmin ? (
             <Button variant="ghost" size="icon" className="h-9 w-9 shrink-0 text-white/80 hover:text-white hover:bg-white/10" onClick={() => setView('builder')}>
@@ -678,7 +672,7 @@ export function CatalogPreview({ onAdminLogin }: CatalogPreviewProps) {
 
           {/* Logo/Title */}
           <div className="flex-1 min-w-0 flex items-center gap-2">
-            <div className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0" style={{ background: 'linear-gradient(135deg, #C9A84C, #E8D48B, #C9A84C)', backgroundSize: '200% 200%' }}>
+            <div className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0" style={{ background: 'linear-gradient(135deg, #C9A84C, #E8D48B, #C9A84C)' }}>
               <span className="text-sm font-bold" style={{ color: BRAND.noir }}>A</span>
             </div>
             <h1 className="font-bold text-base sm:text-lg text-white truncate" style={{ fontFamily: "'Playfair Display', serif" }}>
@@ -704,7 +698,7 @@ export function CatalogPreview({ onAdminLogin }: CatalogPreviewProps) {
       {/* ── Category Filter Bar ── */}
       {filterOptions.length > 1 && (
         <div className="sticky top-[52px] z-20 border-b backdrop-blur-md" style={{ backgroundColor: `${bgColor}ee`, borderColor: `${primaryColor}20` }}>
-          <div style={{ maxWidth: 1270, margin: '0 auto', padding: '8px 32px', display: 'flex', gap: 8, overflowX: 'auto' }} className="no-scrollbar">
+          <div className="catalog-filter-bar no-scrollbar">
             {filterOptions.map(opt => (
               <button
                 key={opt.value}
@@ -728,7 +722,7 @@ export function CatalogPreview({ onAdminLogin }: CatalogPreviewProps) {
 
       {/* ── Error ── */}
       {loadError && (
-        <div style={{ maxWidth: 1270, margin: '0 auto', padding: '16px 32px', width: '100%' }}>
+        <div className="catalog-container">
           <div className="rounded-xl p-4 text-center" style={{ backgroundColor: `${BRAND.bordeaux}10`, border: `1px solid ${BRAND.bordeaux}30` }}>
             <p className="text-sm" style={{ color: BRAND.bordeaux }}>{loadError}</p>
             <button onClick={() => { setSectionsLoaded(false); setLoadError(null); }} className="text-xs underline mt-1" style={{ color: BRAND.bordeaux }}>Réessayer</button>
@@ -737,29 +731,20 @@ export function CatalogPreview({ onAdminLogin }: CatalogPreviewProps) {
       )}
 
       {/* ── Product Gallery ── */}
-      <main
-        className="flex-1"
-        style={{
-          maxWidth: 1270,
-          margin: '0 auto',
-          width: '100%',
-          padding: '24px 32px 48px',
-        }}
-      >
+      <main className="catalog-container flex-1">
         {/* Section title */}
         {sections.length > 0 && sections[0].section.title && (
-          <div style={{ marginBottom: 28 }}>
-            <h2 style={{ color: secondaryColor, fontFamily: "'Playfair Display', serif", fontSize: 28, fontWeight: 700, margin: 0, lineHeight: 1.1 }}>
+          <div className="catalog-toolbar">
+            <h2 style={{ color: secondaryColor, fontFamily: "'Playfair Display', serif" }}>
               {sections[0].section.title}
             </h2>
             {sections[0].section.subtitle && (
-              <p style={{ color: BRAND.grisMoyen, fontSize: 15, marginTop: 8 }}>{sections[0].section.subtitle}</p>
+              <span style={{ color: '#777', fontSize: 15 }}>{sections[0].section.subtitle}</span>
             )}
-            <div style={{ width: 48, height: 2, marginTop: 12, borderRadius: 2, backgroundColor: primaryColor }} />
           </div>
         )}
 
-        {/* ── Glide-like grid: 4 cols desktop, 3 cols tablet, 2 cols mobile ── */}
+        {/* ── Glide-like grid ── */}
         <div className="catalog-grid">
           {paginatedProducts.map(({ row, columns, section, config }) => {
             const rawData = row.data as Record<string, unknown>;
@@ -782,12 +767,15 @@ export function CatalogPreview({ onAdminLogin }: CatalogPreviewProps) {
             const imageCount = getImageCount(row, config, columns);
 
             return (
-              <button
-                key={row.id}
-                className="product-card"
-                onClick={() => setSelectedProduct({ row, columns, section })}
-              >
-                {/* Image: aspect-ratio 4/3, object-fit cover, no hover effects */}
+              <article key={row.id} className="product-card">
+                {/* Clickable overlay — no nested buttons */}
+                <button
+                  className="product-card-action"
+                  onClick={() => setSelectedProduct({ row, columns, section })}
+                  aria-label={`Voir ${title}`}
+                />
+
+                {/* Image: aspect-ratio 4/3, object-fit cover */}
                 <div className="product-card-image-wrap">
                   {coverUrl ? (
                     <img
@@ -800,23 +788,24 @@ export function CatalogPreview({ onAdminLogin }: CatalogPreviewProps) {
                         el.style.display = 'none';
                         const parent = el.parentElement;
                         if (parent) {
-                          parent.innerHTML = `<div class="product-card-placeholder"><svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="${BRAND.grisMoyen}" stroke-width="1.5"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="m21 15-5-5L5 21"/></svg></div>`;
+                          parent.innerHTML = `<div class="product-card-placeholder"><svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#808080" stroke-width="1.5"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="m21 15-5-5L5 21"/></svg></div>`;
                         }
                       }}
                     />
                   ) : (
                     <div className="product-card-placeholder">
-                      <ImageIcon style={{ width: 40, height: 40, color: BRAND.grisMoyen, opacity: 0.3 }} />
+                      <ImageIcon style={{ width: 40, height: 40, color: '#808080', opacity: 0.3 }} />
                     </div>
                   )}
 
-                  {/* Like button */}
+                  {/* Like button — separate from card action */}
                   <button
                     onClick={(e) => toggleLike(row.id, e)}
                     className="product-card-like"
                     style={{ background: isLiked ? '#FEE2E2' : 'rgba(255,255,255,0.9)' }}
+                    aria-label="Favori"
                   >
-                    <Heart className={isLiked ? 'fill-current' : ''} style={{ width: 14, height: 14, color: isLiked ? '#EF4444' : BRAND.grisMoyen }} />
+                    <Heart className={isLiked ? 'fill-current' : ''} style={{ width: 14, height: 14, color: isLiked ? '#EF4444' : '#808080' }} />
                   </button>
 
                   {/* Image count badge */}
@@ -835,7 +824,7 @@ export function CatalogPreview({ onAdminLogin }: CatalogPreviewProps) {
                 {price && config.showPrice !== false && (
                   <span className="product-card-price">{price}</span>
                 )}
-              </button>
+              </article>
             );
           })}
         </div>
@@ -848,11 +837,11 @@ export function CatalogPreview({ onAdminLogin }: CatalogPreviewProps) {
             </div>
             <p style={{ fontSize: 18, fontWeight: 600, color: secondaryColor, fontFamily: "'Playfair Display', serif" }}>Aucun produit trouvé</p>
             {searchQuery ? (
-              <p style={{ fontSize: 14, marginTop: 6, color: BRAND.grisMoyen }}>Essayez un autre terme de recherche</p>
+              <p style={{ fontSize: 14, marginTop: 6, color: '#777' }}>Essayez un autre terme de recherche</p>
             ) : isAdmin ? (
-              <p style={{ fontSize: 14, marginTop: 6, color: BRAND.grisMoyen }}>Ajoutez des sections dans l&apos;onglet Mise en page</p>
+              <p style={{ fontSize: 14, marginTop: 6, color: '#777' }}>Ajoutez des sections dans l&apos;onglet Mise en page</p>
             ) : (
-              <p style={{ fontSize: 14, marginTop: 6, color: BRAND.grisMoyen }}>Le catalogue est en cours de préparation. Revenez bientôt !</p>
+              <p style={{ fontSize: 14, marginTop: 6, color: '#777' }}>Le catalogue est en cours de préparation. Revenez bientôt !</p>
             )}
           </div>
         )}
@@ -896,311 +885,6 @@ export function CatalogPreview({ onAdminLogin }: CatalogPreviewProps) {
           </div>
         </div>
       </footer>
-
-      {/* ── Scoped Glide-like styles ── */}
-      <style jsx global>{`
-        /* ── Catalog Grid ── */
-        .catalog-grid {
-          display: grid;
-          grid-template-columns: repeat(4, minmax(0, 1fr));
-          column-gap: 20px;
-          row-gap: 36px;
-        }
-
-        @media (max-width: 900px) {
-          .catalog-grid {
-            grid-template-columns: repeat(3, minmax(0, 1fr));
-          }
-        }
-
-        @media (max-width: 640px) {
-          .catalog-grid {
-            grid-template-columns: repeat(2, minmax(0, 1fr));
-            column-gap: 10px;
-            row-gap: 24px;
-          }
-        }
-
-        /* ── Product Card ── */
-        .product-card {
-          display: block;
-          padding: 0;
-          border: 0;
-          background: transparent;
-          text-align: left;
-          cursor: pointer;
-        }
-
-        .product-card-image-wrap {
-          position: relative;
-          width: 100%;
-          aspect-ratio: 4 / 3;
-          overflow: hidden;
-          border-radius: 10px;
-          background: #f1f1f1;
-        }
-
-        .product-card-img {
-          width: 100%;
-          height: 100%;
-          object-fit: cover;
-          display: block;
-        }
-
-        .product-card-placeholder {
-          width: 100%;
-          aspect-ratio: 4 / 3;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          background: #F5F0E8;
-        }
-
-        .product-card-like {
-          position: absolute;
-          top: 8px;
-          right: 8px;
-          width: 28px;
-          height: 28px;
-          border-radius: 50%;
-          border: none;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          cursor: pointer;
-          z-index: 2;
-          box-shadow: 0 1px 4px rgba(0,0,0,0.1);
-        }
-
-        .product-card-count {
-          position: absolute;
-          bottom: 8px;
-          left: 8px;
-          display: flex;
-          align-items: center;
-          gap: 4px;
-          background-color: rgba(26,60,52,0.75);
-          color: #fff;
-          font-size: 11px;
-          font-weight: 600;
-          padding: 3px 8px;
-          border-radius: 12px;
-          z-index: 2;
-        }
-
-        .product-card-title {
-          display: block;
-          margin-top: 10px;
-          font-size: 16px;
-          line-height: 1.2;
-          color: #111;
-          font-weight: 600;
-          overflow: hidden;
-          display: -webkit-box;
-          -webkit-line-clamp: 2;
-          -webkit-box-orient: vertical;
-        }
-
-        .product-card-price {
-          display: block;
-          margin-top: 3px;
-          color: #707070;
-          font-size: 15px;
-          font-weight: 400;
-        }
-
-        @media (max-width: 640px) {
-          .product-card-title,
-          .product-card-price {
-            font-size: 13px;
-          }
-        }
-
-        /* ── Product Hero ── */
-        .product-hero {
-          min-height: 120px;
-          display: grid;
-          grid-template-columns: 120px 1fr;
-          align-items: center;
-          gap: 20px;
-          margin-bottom: 24px;
-        }
-
-        .product-hero-thumb {
-          width: 120px;
-          height: 120px;
-          object-fit: cover;
-          border-radius: 10px;
-        }
-
-        .product-hero-text h1 {
-          margin: 0 0 8px;
-          font-size: 24px;
-          line-height: 1.2;
-          color: #111;
-        }
-
-        .product-hero-text p {
-          margin: 0;
-          color: #707070;
-          font-size: 15px;
-          line-height: 1.5;
-          display: -webkit-box;
-          -webkit-line-clamp: 3;
-          -webkit-box-orient: vertical;
-          overflow: hidden;
-        }
-
-        @media (max-width: 640px) {
-          .product-hero {
-            grid-template-columns: 72px 1fr;
-            min-height: 72px;
-          }
-
-          .product-hero-thumb {
-            width: 72px;
-            height: 72px;
-          }
-
-          .product-hero-text h1 {
-            font-size: 18px;
-          }
-
-          .product-hero-text p {
-            font-size: 13px;
-          }
-        }
-
-        /* ── Product Fields ── */
-        .product-fields {
-          display: grid;
-          grid-template-columns: repeat(3, minmax(0, 1fr));
-          gap: 28px;
-          margin: 24px 0 32px;
-        }
-
-        .product-field span {
-          display: block;
-          color: #707070;
-          font-size: 14px;
-          margin-bottom: 6px;
-          font-weight: 500;
-        }
-
-        .product-field strong {
-          display: block;
-          font-size: 15px;
-          font-weight: 500;
-          color: #111;
-          word-break: break-word;
-        }
-
-        @media (max-width: 640px) {
-          .product-fields {
-            grid-template-columns: 1fr;
-            gap: 16px;
-          }
-        }
-
-        /* ── Glide Carousel ── */
-        .glide-carousel {
-          position: relative;
-          width: 100%;
-          aspect-ratio: 1 / 1;
-          overflow: hidden;
-          border-radius: 10px;
-          background: #f2f2f2;
-        }
-
-        .glide-carousel img {
-          width: 100%;
-          height: 100%;
-          object-fit: cover;
-        }
-
-        .carousel-arrow {
-          position: absolute;
-          top: 50%;
-          width: 44px;
-          height: 56px;
-          transform: translateY(-50%);
-          border: 0;
-          border-radius: 12px;
-          background: rgba(0, 0, 0, 0.16);
-          color: white;
-          font-size: 34px;
-          line-height: 1;
-          cursor: pointer;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          transition: background 0.2s;
-        }
-
-        .carousel-arrow:hover {
-          background: rgba(0, 0, 0, 0.3);
-        }
-
-        .carousel-arrow.left {
-          left: 12px;
-        }
-
-        .carousel-arrow.right {
-          right: 12px;
-        }
-
-        .carousel-dots {
-          position: absolute;
-          bottom: 14px;
-          left: 50%;
-          display: flex;
-          gap: 6px;
-          transform: translateX(-50%);
-          flex-wrap: wrap;
-          justify-content: center;
-          max-width: 90%;
-        }
-
-        .carousel-dots button {
-          width: 7px;
-          height: 7px;
-          padding: 0;
-          border: 0;
-          border-radius: 999px;
-          background: rgba(255, 255, 255, 0.55);
-          cursor: pointer;
-          transition: background 0.2s;
-        }
-
-        .carousel-dots button.active {
-          background: white;
-        }
-
-        /* ── WhatsApp CTA ── */
-        .whatsapp-cta {
-          display: block;
-          margin-top: 24px;
-          padding: 15px 18px;
-          border-radius: 12px;
-          text-align: center;
-          text-decoration: none;
-          font-weight: 700;
-          font-size: 16px;
-          transition: opacity 0.2s;
-        }
-
-        .whatsapp-cta:hover {
-          opacity: 0.9;
-        }
-
-        @media (max-width: 640px) {
-          .whatsapp-cta {
-            position: sticky;
-            bottom: 12px;
-            z-index: 20;
-          }
-        }
-      `}</style>
     </div>
   );
 }
