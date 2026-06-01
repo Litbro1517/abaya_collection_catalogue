@@ -239,6 +239,15 @@ img {
   to { transform: scale(1) translateY(0); opacity: 1; }
 }
 
+/* ── Hidden Scrollbar: allows programmatic scroll but hides visual bar ── */
+.no-scrollbar {
+  -ms-overflow-style: none;  /* IE/Edge */
+  scrollbar-width: none;     /* Firefox */
+}
+.no-scrollbar::-webkit-scrollbar {
+  display: none;             /* Chrome/Safari/Opera */
+}
+
 /* ── Horizontal Scrollbar for Thumbnails ── */
 .overflow-x-auto::-webkit-scrollbar {
   height: 3px;

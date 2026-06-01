@@ -523,12 +523,12 @@ function ProductFullPage({
               <ChevronLeft className="w-4 h-4" style={{ color: BRAND.noir }} />
             </button>
 
-            {/* Thumbnail container — NO scrollbar (overflow-x: hidden) */}
+            {/* Thumbnail container — no visible scrollbar, programmatic scroll OK */}
             <div
               ref={thumbnailRef}
-              className="flex gap-2 items-center h-full px-10"
+              className="flex gap-2 items-center h-full px-10 no-scrollbar"
               style={{
-                overflowX: 'hidden',
+                overflowX: 'auto',
                 scrollBehavior: 'smooth',
                 scrollSnapType: 'x mandatory',
               }}
