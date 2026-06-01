@@ -88,7 +88,11 @@ export async function fetchPrivateSheetData(
       headers: { 'Authorization': `Bearer ${accessToken}` },
     });
     
-    if (!metaRes.ok) return null;
+    if (!metaRes.ok) {
+      const errorText = await metaRes.text();
+      console.error('Sheets API metadata error:', metaRes.status, errorText.slice(0, 300));
+      return null;
+    }
     const metaData = await metaRes.json();
     
     // Find the target sheet or use the first one
@@ -139,13 +143,21 @@ export async function fetchPrivateSheetData(
  */
 export async function listDriveSheets(accessToken: string): Promise<import('@/types').GoogleSheetInfo[]> {
   try {
-    const url = 'https://www.googleapis.com/drive/v3/files?q=mimeType%3D%22application%2Fvnd.google-apps.spreadsheet%22&fields=files(id,name,mimeType,modifiedTime,webViewLink,thumbnailLink,iconLink,owners(displayName,emailAddress))&orderBy=modifiedTime desc&pageSize=50';
+    const url = 'https://www.googleapis.com/drive/v3/files?q=' +
+      encodeURIComponent('mimeType="application/vnd.google-apps.spreadsheet"') +
+      '&fields=files(id,name,mimeType,modifiedTime,webViewLink,thumbnailLink,iconLink,owners(displayName,emailAddress))' +
+      '&orderBy=modifiedTime desc&pageSize=50' +
+      '&includeItemsFromAllDrives=true&supportsAllDrives=true';
     
     const res = await fetch(url, {
       headers: { 'Authorization': `Bearer ${accessToken}` },
     });
     
-    if (!res.ok) return [];
+    if (!res.ok) {
+      const errorText = await res.text();
+      console.error('Drive API list error:', res.status, errorText.slice(0, 300));
+      return [];
+    }
     const data = await res.json();
     
     return (data.files || []).map((file: {
