@@ -28,7 +28,7 @@ const BRAND = {
 } as const;
 
 const ITEMS_PER_PAGE = 12;
-const CAROUSEL_VISIBLE_RANGE = 2; // Render current ± 2 images in carousel
+const CAROUSEL_VISIBLE_RANGE = 5; // Render current ± 5 images in carousel (higher for smooth scrolling with many images)
 
 // ── Image URL Resolution (high-res by default) ──
 
@@ -300,9 +300,11 @@ function ImageCarousel({
     return indices;
   }, [currentIdx, images.length]);
 
-  // Container style: use maxHeight if provided, otherwise use aspect-ratio
+  // Container style: use height (NOT maxHeight) when provided, otherwise use aspect-ratio
+  // CRITICAL: Using maxHeight creates a circular dependency with h-full children,
+  // causing them to collapse to 0 height. Must use explicit height instead.
   const containerStyle: React.CSSProperties = maxHeight
-    ? { position: 'relative', width: '100%', maxHeight, overflow: 'hidden', backgroundColor: BRAND.beige }
+    ? { position: 'relative', width: '100%', height: maxHeight, overflow: 'hidden', backgroundColor: BRAND.beige }
     : { position: 'relative', width: '100%', aspectRatio: '3 / 4', overflow: 'hidden', backgroundColor: BRAND.beige };
 
   if (images.length === 0) {
@@ -322,13 +324,13 @@ function ImageCarousel({
     >
       {/* Sliding track — virtualized rendering */}
       <div
-        className="flex h-full transition-transform duration-400 ease-out"
+        className="flex h-full transition-transform duration-300 ease-out"
         style={{ transform: `translateX(-${currentIdx * 100}%)` }}
       >
         {images.map((img, i) => {
           const isVisible = visibleIndices.has(i);
           return (
-            <div key={extractImageId(img) + '-' + i} className="w-full h-full shrink-0" style={{ position: 'relative' }}>
+            <div key={extractImageId(img) + '-' + i} className="w-full h-full shrink-0" style={{ position: 'relative', overflow: 'hidden' }}>
               {isVisible ? (
                 <ProductImage
                   src={resolveImageUrl(img, 1600)}
@@ -336,7 +338,7 @@ function ImageCarousel({
                   className="w-full h-full"
                   objectFit={objectFit}
                   sizes="(max-width: 640px) 100vw, (max-width: 1024px) 80vw, 60vw"
-                  priority={i === currentIdx}
+                  priority={Math.abs(i - currentIdx) <= 1}
                 />
               ) : (
                 // Placeholder for non-visible slides — keeps layout stable
@@ -358,20 +360,22 @@ function ImageCarousel({
         </button>
       )}
 
-      {/* Navigation arrows */}
+      {/* Navigation arrows — only show when there are multiple images */}
       {images.length > 1 && (
         <>
           <button
-            className="absolute left-2 top-1/2 -translate-y-1/2 backdrop-blur-md rounded-full p-2 hover:scale-105 transition-all z-10 shadow-md"
-            style={{ backgroundColor: 'rgba(255,255,255,0.9)' }}
-            onClick={goPrev}
+            className="absolute left-2 top-1/2 -translate-y-1/2 backdrop-blur-md rounded-full p-2 hover:scale-110 active:scale-95 transition-all z-10 shadow-lg"
+            style={{ backgroundColor: 'rgba(255,255,255,0.92)' }}
+            onClick={(e) => { e.stopPropagation(); goPrev(); }}
+            aria-label="Image précédente"
           >
             <ChevronLeft className="w-5 h-5" style={{ color: BRAND.noir }} />
           </button>
           <button
-            className="absolute right-2 top-1/2 -translate-y-1/2 backdrop-blur-md rounded-full p-2 hover:scale-105 transition-all z-10 shadow-md"
-            style={{ backgroundColor: 'rgba(255,255,255,0.9)' }}
-            onClick={goNext}
+            className="absolute right-2 top-1/2 -translate-y-1/2 backdrop-blur-md rounded-full p-2 hover:scale-110 active:scale-95 transition-all z-10 shadow-lg"
+            style={{ backgroundColor: 'rgba(255,255,255,0.92)' }}
+            onClick={(e) => { e.stopPropagation(); goNext(); }}
+            aria-label="Image suivante"
           >
             <ChevronRight className="w-5 h-5" style={{ color: BRAND.noir }} />
           </button>
@@ -519,9 +523,41 @@ function ProductDetailContent({
     }
   }, [detailCarouselIdx]);
 
+  // Keyboard navigation for carousel
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'ArrowLeft') {
+        e.preventDefault();
+        setDetailCarouselIdx(prev => prev > 0 ? prev - 1 : carouselImages.length - 1);
+      } else if (e.key === 'ArrowRight') {
+        e.preventDefault();
+        setDetailCarouselIdx(prev => prev < carouselImages.length - 1 ? prev + 1 : 0);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [carouselImages.length]);
+
+  // Calculate carousel height based on viewport and image count
+  const carouselHeight = carouselImages.length > 10 ? '50vh' : '55vh';
+
   return (
-    <div className="flex flex-col max-h-[92vh]">
-      {/* Image Carousel — constrained height so content fits in dialog */}
+    <div className="flex flex-col max-h-[92vh] relative">
+      {/* Close button — custom positioned over the carousel */}
+      <button
+        className="absolute top-3 right-3 z-20 backdrop-blur-md rounded-full p-2 hover:scale-110 active:scale-95 transition-all shadow-lg"
+        style={{ backgroundColor: 'rgba(255,255,255,0.92)' }}
+        onClick={() => {
+          // Find and click the dialog's close trigger
+          const event = new KeyboardEvent('keydown', { key: 'Escape', bubbles: true });
+          document.dispatchEvent(event);
+        }}
+        aria-label="Fermer"
+      >
+        <X className="w-4 h-4" style={{ color: BRAND.noir }} />
+      </button>
+
+      {/* Image Carousel — fixed height so h-full children work correctly */}
       {carouselImages.length > 0 && (
         <div className="shrink-0">
           <ImageCarousel
@@ -531,46 +567,82 @@ function ProductDetailContent({
             onZoom={setZoomImage}
             activeIdx={detailCarouselIdx}
             onIdxChange={setDetailCarouselIdx}
-            maxHeight="55vh"
-            objectFit="contain"
+            maxHeight={carouselHeight}
+            objectFit="cover"
           />
         </div>
       )}
       {carouselImages.length === 0 && (
-        <div style={{ position: 'relative', width: '100%', maxHeight: '40vh', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, backgroundColor: BRAND.beige }}>
+        <div style={{ position: 'relative', width: '100%', height: '40vh', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, backgroundColor: BRAND.beige }}>
           <ImageIcon className="w-16 h-16" style={{ color: BRAND.grisMoyen, opacity: 0.3 }} />
         </div>
       )}
 
-      {/* Thumbnail strip — full horizontal scroll with auto-centering */}
+      {/* Thumbnail strip — scrollable with navigation arrows for many images */}
       {carouselImages.length > 1 && (
-        <div
-          ref={thumbnailRef}
-          className="flex gap-2 px-4 py-2.5 overflow-x-auto shrink-0 bg-white custom-scrollbar"
-          style={{ borderBottom: `1px solid ${primaryColor}15`, scrollBehavior: 'smooth' }}
-        >
-          {carouselImages.map((img, i) => (
+        <div className="relative shrink-0 bg-white" style={{ borderBottom: `1px solid ${primaryColor}15` }}>
+          {/* Left scroll arrow */}
+          {carouselImages.length > 7 && (
             <button
-              key={extractImageId(img) + '-' + i}
-              data-thumb-idx={i}
-              className={cn(
-                'w-12 h-12 sm:w-14 sm:h-14 rounded-lg overflow-hidden shrink-0 border-2 transition-all duration-200',
-              )}
-              style={{
-                borderColor: i === detailCarouselIdx ? primaryColor : 'transparent',
-                opacity: i === detailCarouselIdx ? 1 : 0.45,
-                transform: i === detailCarouselIdx ? 'scale(1.08)' : 'scale(1)',
+              className="absolute left-0 top-1/2 -translate-y-1/2 z-10 w-7 h-7 rounded-full flex items-center justify-center shadow-md transition-all hover:scale-110"
+              style={{ backgroundColor: 'rgba(255,255,255,0.95)' }}
+              onClick={() => {
+                if (thumbnailRef.current) {
+                  thumbnailRef.current.scrollBy({ left: -120, behavior: 'smooth' });
+                }
               }}
-              onClick={() => setDetailCarouselIdx(i)}
+              aria-label="Thumbnails précédentes"
             >
-              <ProductImage
-                src={resolveImageUrl(img, 150)}
-                alt=""
-                className="w-full h-full"
-                objectFit="cover"
-              />
+              <ChevronLeft className="w-3.5 h-3.5" style={{ color: BRAND.noir }} />
             </button>
-          ))}
+          )}
+
+          {/* Thumbnail container */}
+          <div
+            ref={thumbnailRef}
+            className="flex gap-1.5 px-8 py-2.5 overflow-x-auto custom-scrollbar"
+            style={{ scrollBehavior: 'smooth' }}
+          >
+            {carouselImages.map((img, i) => (
+              <button
+                key={extractImageId(img) + '-' + i}
+                data-thumb-idx={i}
+                className={cn(
+                  'w-11 h-11 sm:w-13 sm:h-13 rounded-lg overflow-hidden shrink-0 border-2 transition-all duration-200',
+                )}
+                style={{
+                  borderColor: i === detailCarouselIdx ? primaryColor : 'transparent',
+                  opacity: i === detailCarouselIdx ? 1 : 0.5,
+                  transform: i === detailCarouselIdx ? 'scale(1.1)' : 'scale(1)',
+                  boxShadow: i === detailCarouselIdx ? `0 2px 8px ${primaryColor}40` : 'none',
+                }}
+                onClick={() => setDetailCarouselIdx(i)}
+              >
+                <ProductImage
+                  src={resolveImageUrl(img, 150)}
+                  alt=""
+                  className="w-full h-full"
+                  objectFit="cover"
+                />
+              </button>
+            ))}
+          </div>
+
+          {/* Right scroll arrow */}
+          {carouselImages.length > 7 && (
+            <button
+              className="absolute right-0 top-1/2 -translate-y-1/2 z-10 w-7 h-7 rounded-full flex items-center justify-center shadow-md transition-all hover:scale-110"
+              style={{ backgroundColor: 'rgba(255,255,255,0.95)' }}
+              onClick={() => {
+                if (thumbnailRef.current) {
+                  thumbnailRef.current.scrollBy({ left: 120, behavior: 'smooth' });
+                }
+              }}
+              aria-label="Thumbnails suivantes"
+            >
+              <ChevronRight className="w-3.5 h-3.5" style={{ color: BRAND.noir }} />
+            </button>
+          )}
         </div>
       )}
 
@@ -1263,7 +1335,7 @@ export function CatalogPreview({ onAdminLogin }: CatalogPreviewProps) {
 
       {/* ── Product Detail Sheet — Full Glide-style detail ── */}
       <Dialog open={!!selectedProduct} onOpenChange={v => { if (!v) setSelectedProduct(null); }}>
-        <DialogContent className="sm:max-w-lg lg:max-w-2xl p-0 gap-0 overflow-hidden rounded-2xl border-0">
+        <DialogContent className="sm:max-w-xl lg:max-w-3xl p-0 gap-0 overflow-hidden rounded-2xl border-0" showCloseButton={false}>
           {selectedProduct && (
             <ProductDetailContent
               row={selectedProduct.row}
@@ -1284,17 +1356,17 @@ export function CatalogPreview({ onAdminLogin }: CatalogPreviewProps) {
         </DialogContent>
       </Dialog>
 
-      {/* Zoom Dialog */}
+      {/* Zoom Dialog — full screen with proper aspect ratio */}
       <Dialog open={!!zoomImage} onOpenChange={v => { if (!v) setZoomImage(null); }}>
         <DialogContent className="sm:max-w-4xl p-0 overflow-hidden bg-black rounded-2xl border-0">
           {zoomImage && (
-            <div className="relative flex items-center justify-center" style={{ minHeight: '40vh', maxHeight: '90vh' }}>
+            <div className="relative flex items-center justify-center" style={{ height: '80vh' }}>
               <ProductImage
                 src={zoomImage}
                 alt="Zoom"
-                className="w-full"
+                className="w-full h-full"
                 objectFit="contain"
-                fallbackClassName="w-full h-[60vh]"
+                fallbackClassName="w-full h-full"
               />
               <button
                 className="absolute top-4 right-4 backdrop-blur-md rounded-full p-3 hover:bg-white/30 z-10 transition-all"
