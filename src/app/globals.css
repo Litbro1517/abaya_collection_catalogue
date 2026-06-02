@@ -379,32 +379,46 @@
   }
 }
 
-/* ── Product Detail: Hero ── */
-.product-hero {
+/* ── Product Detail: Layout ── */
+.detail-layout {
   display: grid;
-  grid-template-columns: 150px 1fr;
-  align-items: center;
-  gap: 20px;
-  margin: 24px 0;
+  grid-template-columns: 1fr 420px;
+  gap: 40px;
+  align-items: start;
+}
+
+@media (max-width: 900px) {
+  .detail-layout {
+    grid-template-columns: 1fr;
+    gap: 0;
+  }
+}
+
+/* ── Product Detail: Right info column (sticky on desktop) ── */
+.detail-info {
+  position: sticky;
+  top: 80px;
+}
+
+/* ── Product Detail: Hero (inside right column on desktop) ── */
+.product-hero {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin: 0 0 20px;
 }
 
 .product-hero-thumb {
-  width: 150px;
-  height: 150px;
-  object-fit: cover;
-  border-radius: var(--radius-glide);
+  display: none; /* Hide thumbnail on detail page — carousel replaces it */
 }
 
 .product-hero-thumb-placeholder {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: #f1f1f1;
+  display: none;
 }
 
 .product-hero-text h1 {
-  margin: 0 0 8px;
-  font-size: 28px;
+  margin: 0 0 6px;
+  font-size: 26px;
   line-height: 1.2;
   color: #111;
 }
@@ -412,29 +426,43 @@
 .product-hero-text p {
   margin: 0;
   color: #777;
-  font-size: 16px;
+  font-size: 15px;
   line-height: 1.5;
   display: -webkit-box;
-  -webkit-line-clamp: 3;
+  -webkit-line-clamp: 4;
   -webkit-box-orient: vertical;
   overflow: hidden;
 }
 
 .product-hero-price {
-  margin: 4px 0 0;
-  font-size: 20px;
+  margin: 6px 0 0;
+  font-size: 22px;
   font-weight: 700;
   color: #C9A84C;
 }
 
-@media (max-width: 640px) {
+@media (max-width: 900px) {
   .product-hero {
+    display: grid;
     grid-template-columns: 120px 1fr;
+    align-items: center;
     gap: 18px;
     margin: 20px 0;
   }
 
   .product-hero-thumb {
+    display: block;
+    width: 120px;
+    height: 140px;
+    object-fit: cover;
+    border-radius: var(--radius-glide);
+  }
+
+  .product-hero-thumb-placeholder {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: #f1f1f1;
     width: 120px;
     height: 140px;
   }
@@ -452,72 +480,106 @@
   }
 }
 
-/* ── Product Detail: Fields ── */
+@media (max-width: 640px) {
+  .product-hero {
+    grid-template-columns: 100px 1fr;
+    gap: 14px;
+    margin: 16px 0;
+  }
+
+  .product-hero-thumb {
+    width: 100px;
+    height: 120px;
+  }
+
+  .product-hero-thumb-placeholder {
+    width: 100px;
+    height: 120px;
+  }
+
+  .product-hero-text h1 {
+    font-size: 20px;
+  }
+}
+
+/* ── Product Detail: Fields (inside right column on desktop) ── */
 .product-fields {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 28px;
-  margin: 24px 0 32px;
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  margin: 16px 0 24px;
+  padding: 16px 0;
+  border-top: 1px solid #f0ece5;
 }
 
 .product-field {
+  display: grid;
+  grid-template-columns: 130px 1fr;
+  gap: 12px;
+  padding: 10px 0;
+  border-bottom: 1px solid #f0ece5;
   min-width: 0;
+}
+
+.product-field:last-child {
+  border-bottom: none;
 }
 
 .product-field span {
   display: block;
   color: #777;
-  font-size: 16px;
-  margin-bottom: 6px;
+  font-size: 14px;
+  margin-bottom: 0;
 }
 
 .product-field strong {
   display: block;
-  font-size: 16px;
+  font-size: 14px;
   font-weight: 500;
   color: #111;
   word-break: break-word;
+  text-align: right;
 }
 
 @media (max-width: 640px) {
-  .product-fields {
-    grid-template-columns: 1fr;
-    gap: 0;
-    margin: 22px 0 26px;
-  }
-
-  .product-field {
-    display: grid;
-    grid-template-columns: 130px 1fr;
-    gap: 12px;
-    padding: 10px 0;
-    border-bottom: 1px solid #eee;
-  }
-
   .product-field span,
   .product-field strong {
-    font-size: 15px;
-  }
-
-  .product-field strong {
-    text-align: right;
+    font-size: 14px;
   }
 }
 
-/* ── Glide Carousel ── */
+/* ── Glide Carousel (consistent sizing with contain) ── */
 .glide-carousel {
   position: relative;
   width: 100%;
-  aspect-ratio: 1 / 1;
+  max-height: 680px;
+  aspect-ratio: 3 / 4;
   overflow: hidden;
   border-radius: var(--radius-glide);
-  background: #f2f2f2;
+  background: #f8f6f2;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .glide-carousel img {
   width: 100%;
   height: 100%;
-  object-fit: cover;
+  object-fit: contain;
+  object-position: center;
+}
+
+@media (max-width: 900px) {
+  .glide-carousel {
+    aspect-ratio: 3 / 4;
+    max-height: none;
+  }
+}
+
+@media (max-width: 640px) {
+  .glide-carousel {
+    aspect-ratio: 3 / 4;
+  }
 }
 
 .carousel-arrow {

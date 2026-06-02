@@ -600,89 +600,98 @@ export function CatalogPreview({ onAdminLogin }: CatalogPreviewProps) {
         {/* ── Breadcrumb: inside product container, above hero ── */}
         {renderBreadcrumbs()}
 
-        {/* ── Product Hero: cover thumbnail + title + description (NO Edit button) ── */}
-        <section className="product-hero">
-          {coverImage ? (
-            <img
-              className="product-hero-thumb"
-              src={resolveImageUrl(coverImage, 400)}
-              alt={title}
-            />
-          ) : (
-            <div className="product-hero-thumb product-hero-thumb-placeholder">
-              <ImageIcon style={{ width: 32, height: 32, color: '#808080', opacity: 0.4 }} />
-            </div>
-          )}
+        {/* ── Desktop/Tablet: Side-by-side layout; Mobile: Stacked ── */}
+        <div className="detail-layout">
+          {/* LEFT COLUMN: Carousel */}
+          <div>
+            {/* ── Glide Carousel: 3/4 portrait, object-contain for consistent sizing ── */}
+            {carouselImages.length > 0 && (
+              <section
+                className="glide-carousel"
+                onTouchStart={onTouchStart}
+                onTouchMove={onTouchMove}
+                onTouchEnd={onTouchEnd}
+              >
+                <img
+                  src={resolveImageUrl(carouselImages[carouselIdx], 1600)}
+                  alt={`${title} - ${carouselIdx + 1}`}
+                />
 
-          <div className="product-hero-text">
-            <h1>{title}</h1>
-            {price && <p className="product-hero-price">{price}</p>}
-            {description && <p>{description}</p>}
-          </div>
-        </section>
+                {carouselImages.length > 1 && (
+                  <>
+                    <button className="carousel-arrow left" onClick={goPrev} aria-label="Image précédente">
+                      ‹
+                    </button>
+                    <button className="carousel-arrow right" onClick={goNext} aria-label="Image suivante">
+                      ›
+                    </button>
 
-        {/* ── Product Fields ── */}
-        {detailFields.length > 0 && (
-          <section className="product-fields">
-            {detailFields.map((field, i) => (
-              <div key={i} className="product-field">
-                <span>{field.label}</span>
-                <strong>{field.value}</strong>
-              </div>
-            ))}
-          </section>
-        )}
-
-        {/* ── Glide Carousel: square, no thumbnails ── */}
-        {carouselImages.length > 0 && (
-          <section
-            className="glide-carousel"
-            onTouchStart={onTouchStart}
-            onTouchMove={onTouchMove}
-            onTouchEnd={onTouchEnd}
-          >
-            <img
-              src={resolveImageUrl(carouselImages[carouselIdx], 1600)}
-              alt={`${title} - ${carouselIdx + 1}`}
-            />
-
-            {carouselImages.length > 1 && (
-              <>
-                <button className="carousel-arrow left" onClick={goPrev} aria-label="Image précédente">
-                  ‹
-                </button>
-                <button className="carousel-arrow right" onClick={goNext} aria-label="Image suivante">
-                  ›
-                </button>
-
-                <div className="carousel-dots">
-                  {carouselImages.map((_, i) => (
-                    <button
-                      key={i}
-                      className={i === carouselIdx ? 'active' : ''}
-                      onClick={() => goTo(i)}
-                      aria-label={`Image ${i + 1}`}
-                    />
-                  ))}
-                </div>
-              </>
+                    <div className="carousel-dots">
+                      {carouselImages.map((_, i) => (
+                        <button
+                          key={i}
+                          className={i === carouselIdx ? 'active' : ''}
+                          onClick={() => goTo(i)}
+                          aria-label={`Image ${i + 1}`}
+                        />
+                      ))}
+                    </div>
+                  </>
+                )}
+              </section>
             )}
-          </section>
-        )}
+          </div>
 
-        {/* ── WhatsApp CTA ── */}
-        <a
-          className="whatsapp-cta"
-          href={conversionLink}
-          target="_blank"
-          rel="noopener noreferrer"
-          style={{ backgroundColor: primaryColor, color: '#111' }}
-        >
-          {s?.conversionChannel === 'whatsapp' ? 'Commander via WhatsApp' :
-           s?.conversionChannel === 'messenger' ? 'Commander via Messenger' :
-           s?.conversionChannel === 'email' ? 'Commander par email' :
-           'Commander'}
-        </a>
+          {/* RIGHT COLUMN: Product Info (sticky on desktop) */}
+          <div className="detail-info">
+            {/* ── Product Hero: title + price + description ── */}
+            <section className="product-hero">
+              {coverImage ? (
+                <img
+                  className="product-hero-thumb"
+                  src={resolveImageUrl(coverImage, 400)}
+                  alt={title}
+                />
+              ) : (
+                <div className="product-hero-thumb product-hero-thumb-placeholder">
+                  <ImageIcon style={{ width: 32, height: 32, color: '#808080', opacity: 0.4 }} />
+                </div>
+              )}
+
+              <div className="product-hero-text">
+                <h1>{title}</h1>
+                {price && <p className="product-hero-price">{price}</p>}
+                {description && <p>{description}</p>}
+              </div>
+            </section>
+
+            {/* ── Product Fields ── */}
+            {detailFields.length > 0 && (
+              <section className="product-fields">
+                {detailFields.map((field, i) => (
+                  <div key={i} className="product-field">
+                    <span>{field.label}</span>
+                    <strong>{field.value}</strong>
+                  </div>
+                ))}
+              </section>
+            )}
+
+            {/* ── WhatsApp CTA ── */}
+            <a
+              className="whatsapp-cta"
+              href={conversionLink}
+              target="_blank"
+              rel="noopener noreferrer"
+              style={{ backgroundColor: primaryColor, color: '#111' }}
+            >
+              {s?.conversionChannel === 'whatsapp' ? 'Commander via WhatsApp' :
+               s?.conversionChannel === 'messenger' ? 'Commander via Messenger' :
+               s?.conversionChannel === 'email' ? 'Commander par email' :
+               'Commander'}
+            </a>
+          </div>
+        </div>
       </main>
     );
   };
