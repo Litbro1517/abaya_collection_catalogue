@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import {
   ArrowLeft, Search, MessageCircle, ChevronLeft, ChevronRight,
-  Mail, Instagram, ImageIcon, BookOpen, Heart,
+  Mail, Instagram, ImageIcon, BookOpen, Settings, Heart,
   ShoppingBag
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -112,208 +112,6 @@ function parseImageUrls(val: unknown, separator?: string): string[] {
   return [];
 }
 
-// ═══════════════════════════════════════════════════════════════════════════
-// ── PRODUCT PAGE — Glide-like: Back → Hero → Fields → Carousel → CTA ──
-// ═══════════════════════════════════════════════════════════════════════════
-
-function ProductPage({
-  row,
-  detailColumns,
-  section,
-  s,
-  primaryColor,
-  secondaryColor,
-  accentColor,
-  getCellValue,
-  getCarouselImages,
-  buildConversionLink,
-  onBack,
-}: {
-  row: Row;
-  detailColumns: Column[];
-  section: Section;
-  s: CatalogSettings | null | undefined;
-  primaryColor: string;
-  secondaryColor: string;
-  accentColor: string;
-  getCellValue: (row: Row, slug: string) => string;
-  getCarouselImages: (row: Row, config: SectionConfig, columns?: Column[]) => string[];
-  buildConversionLink: (row: Row, config: SectionConfig) => string;
-  onBack: () => void;
-}) {
-  const config = section.config as SectionConfig;
-  const carouselImages = getCarouselImages(row, config, detailColumns);
-  const title = config.titleColumn ? getCellValue(row, config.titleColumn) : '';
-  const price = config.priceColumn ? getCellValue(row, config.priceColumn) : '';
-  const description = config.descriptionColumn ? getCellValue(row, config.descriptionColumn) : '';
-  const variants = config.variantColumn ? getCellValue(row, config.variantColumn) : '';
-  const conversionLink = buildConversionLink(row, config);
-
-  // Cover image (first image)
-  const coverImage = carouselImages[0] || '';
-
-  // Parse variants
-  const variantList = variants ? variants.split(/[,;]/).map(v => v.trim()).filter(Boolean) : [];
-  const sizePattern = /^(XS|S|M|L|XL|2XL|3XL|4XL|XXL|XXXL|\d{1,2})$/i;
-  const sizes = variantList.filter(v => sizePattern.test(v));
-  const colors = variantList.filter(v => !sizePattern.test(v));
-
-  // Carousel state
-  const [carouselIdx, setCarouselIdx] = useState(0);
-  const touchStartX = useRef(0);
-  const touchEndX = useRef(0);
-
-  const goPrev = () => setCarouselIdx(i => (i === 0 ? carouselImages.length - 1 : i - 1));
-  const goNext = () => setCarouselIdx(i => (i === carouselImages.length - 1 ? 0 : i + 1));
-  const goTo = (idx: number) => setCarouselIdx(idx);
-
-  // Touch swipe
-  const onTouchStart = (e: React.TouchEvent) => { touchStartX.current = e.touches[0].clientX; };
-  const onTouchMove = (e: React.TouchEvent) => { touchEndX.current = e.touches[0].clientX; };
-  const onTouchEnd = () => {
-    const diff = touchStartX.current - touchEndX.current;
-    if (Math.abs(diff) > 50) {
-      if (diff > 0) goNext();
-      else goPrev();
-    }
-  };
-
-  // Keyboard navigation
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'ArrowLeft') { e.preventDefault(); goPrev(); }
-      else if (e.key === 'ArrowRight') { e.preventDefault(); goNext(); }
-      else if (e.key === 'Escape') { e.preventDefault(); onBack(); }
-    };
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [onBack]);
-
-  // Scroll to top on mount
-  useEffect(() => {
-    window.scrollTo(0, 0);
-  }, []);
-
-  // Collect detail fields
-  const detailFields: { label: string; value: string }[] = [];
-  if (price) detailFields.push({ label: 'Prix_Vente', value: price });
-  if (description) detailFields.push({ label: 'Description', value: description });
-  if (sizes.length > 0) detailFields.push({ label: 'Options_Tailles', value: sizes.join(', ') });
-  if (colors.length > 0) detailFields.push({ label: 'Options_Couleurs', value: colors.join(', ') });
-
-  // Add detail columns from config
-  if (config.detailColumns && config.detailColumns.length > 0) {
-    for (const slug of config.detailColumns) {
-      const col = detailColumns.find(c => c.slug === slug);
-      if (!col) continue;
-      const val = getCellValue(row, slug);
-      if (!val) continue;
-      // Avoid duplicates
-      if (!detailFields.some(f => f.label === col.name)) {
-        detailFields.push({ label: col.name, value: val });
-      }
-    }
-  }
-
-  return (
-    <div className="min-h-screen flex flex-col" style={{ backgroundColor: '#ffffff' }}>
-      <main className="detail-container flex-1">
-
-        {/* ── Back button ── */}
-        <button className="back-button" onClick={onBack}>
-          ← Retour
-        </button>
-
-        {/* ── Product Hero: cover thumbnail + name + desc + edit ── */}
-        <section className="product-hero">
-          {coverImage ? (
-            <img
-              className="product-hero-thumb"
-              src={resolveImageUrl(coverImage, 300)}
-              alt={title}
-            />
-          ) : (
-            <div className="product-hero-thumb product-hero-thumb-placeholder">
-              <ImageIcon style={{ width: 32, height: 32, color: '#808080', opacity: 0.4 }} />
-            </div>
-          )}
-
-          <div className="product-hero-text">
-            <h1>{title}</h1>
-            {description && <p>{description}</p>}
-            <button className="product-hero-edit" style={{ backgroundColor: secondaryColor }}>
-              Edit
-            </button>
-          </div>
-        </section>
-
-        {/* ── Product Fields ── */}
-        {detailFields.length > 0 && (
-          <section className="product-fields">
-            {detailFields.map((field, i) => (
-              <div key={i} className="product-field">
-                <span>{field.label}</span>
-                <strong>{field.value}</strong>
-              </div>
-            ))}
-          </section>
-        )}
-
-        {/* ── Glide Carousel: square, no thumbnails ── */}
-        {carouselImages.length > 0 && (
-          <section
-            className="glide-carousel"
-            onTouchStart={onTouchStart}
-            onTouchMove={onTouchMove}
-            onTouchEnd={onTouchEnd}
-          >
-            <img
-              src={resolveImageUrl(carouselImages[carouselIdx], 1600)}
-              alt={`${title} - ${carouselIdx + 1}`}
-            />
-
-            {carouselImages.length > 1 && (
-              <>
-                <button className="carousel-arrow left" onClick={goPrev} aria-label="Image précédente">
-                  ‹
-                </button>
-                <button className="carousel-arrow right" onClick={goNext} aria-label="Image suivante">
-                  ›
-                </button>
-
-                <div className="carousel-dots">
-                  {carouselImages.map((_, i) => (
-                    <button
-                      key={i}
-                      className={i === carouselIdx ? 'active' : ''}
-                      onClick={() => goTo(i)}
-                      aria-label={`Image ${i + 1}`}
-                    />
-                  ))}
-                </div>
-              </>
-            )}
-          </section>
-        )}
-
-        {/* ── WhatsApp CTA ── */}
-        <a
-          className="whatsapp-cta"
-          href={conversionLink}
-          target="_blank"
-          rel="noopener noreferrer"
-          style={{ backgroundColor: primaryColor, color: '#111' }}
-        >
-          {s?.conversionChannel === 'whatsapp' ? 'Commander via WhatsApp' :
-           s?.conversionChannel === 'messenger' ? 'Commander via Messenger' :
-           s?.conversionChannel === 'email' ? 'Commander par email' :
-           'Commander'}
-        </a>
-      </main>
-    </div>
-  );
-}
-
 // ── Pagination ──
 
 function Pagination({
@@ -409,6 +207,19 @@ export function CatalogPreview({ onAdminLogin }: CatalogPreviewProps) {
 
   const [sectionsLoaded, setSectionsLoaded] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
+
+  const isDetailView = !!selectedProduct;
+  const catalogName = catalog?.name || 'Abaya Chic Collection';
+
+  // Carousel state (at top level to comply with hooks rules)
+  const [carouselIdx, setCarouselIdx] = useState(0);
+  const touchStartX = useRef(0);
+  const touchEndX = useRef(0);
+
+  // Scroll to top when switching views
+  useEffect(() => {
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }, [selectedProduct]);
 
   useEffect(() => {
     if (!catalog?.sections || sectionsLoaded) return;
@@ -630,72 +441,270 @@ export function CatalogPreview({ onAdminLogin }: CatalogPreviewProps) {
 
   const filterOptions = getFilterOptions();
 
-  // ── If a product is selected, show the product page ──
-  if (selectedProduct) {
-    return (
-      <ProductPage
-        row={selectedProduct.row}
-        detailColumns={selectedProduct.columns}
-        section={selectedProduct.section}
-        s={s}
-        primaryColor={primaryColor}
-        secondaryColor={secondaryColor}
-        accentColor={accentColor}
-        getCellValue={getCellValue}
-        getCarouselImages={getCarouselImages}
-        buildConversionLink={buildConversionLink}
-        onBack={() => setSelectedProduct(null)}
-      />
-    );
-  }
+  // ═══════════════════════════════════════════════════════════════════════
+  // ── PERSISTENT HEADER (sticky top bar — always visible) ──
+  // ═══════════════════════════════════════════════════════════════════════
+  const renderHeader = () => (
+    <header className="catalog-header sticky top-0 z-30 border-b bg-white/95" style={{ borderColor: `${BRAND.dore}15` }}>
+      <div className="catalog-header-inner">
+        {/* Back arrow — only visible on detail view */}
+        {isDetailView ? (
+          <button
+            onClick={() => setSelectedProduct(null)}
+            className="flex items-center justify-center w-9 h-9 rounded-full hover:bg-gray-100 transition-colors shrink-0"
+            aria-label="Retour au catalogue"
+          >
+            <ArrowLeft className="w-5 h-5" style={{ color: BRAND.noir }} />
+          </button>
+        ) : (
+          <div className="w-9 h-9 shrink-0" />
+        )}
 
-  // ── Default: catalog grid view ──
-  return (
-    <div className="min-h-screen flex flex-col" style={{ backgroundColor: bgColor }}>
-      {/* ── Header ── */}
-      <header className="sticky top-0 z-30 shadow-md" style={{ backgroundColor: secondaryColor }}>
-        <div className="catalog-header-inner">
-          {/* Admin button */}
-          {isAdmin ? (
-            <Button variant="ghost" size="icon" className="h-9 w-9 shrink-0 text-white/80 hover:text-white hover:bg-white/10" onClick={() => setView('builder')}>
-              <ArrowLeft className="w-5 h-5" />
-            </Button>
-          ) : (
-            <button
-              onClick={onAdminLogin}
-              className="flex items-center gap-1.5 text-xs text-white/50 hover:text-white/80 transition-colors px-2 py-1.5 rounded-lg hover:bg-white/10 shrink-0"
-              title="Accès administrateur"
-            >
-              <BookOpen className="w-3.5 h-3.5" />
-            </button>
-          )}
-
-          {/* Logo/Title */}
-          <div className="flex-1 min-w-0 flex items-center gap-2">
-            <div className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0" style={{ background: 'linear-gradient(135deg, #C9A84C, #E8D48B, #C9A84C)' }}>
-              <span className="text-sm font-bold" style={{ color: BRAND.noir }}>A</span>
-            </div>
-            <h1 className="font-bold text-base sm:text-lg text-white truncate" style={{ fontFamily: "'Playfair Display', serif" }}>
-              {catalog?.name || 'Abaya Chic Collection'}
-            </h1>
+        {/* Logo badge + Catalog Name */}
+        <div className="flex-1 min-w-0 flex items-center gap-2.5">
+          <div className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0" style={{ background: 'linear-gradient(135deg, #C9A84C, #E8D48B, #C9A84C)' }}>
+            <span className="text-sm font-bold" style={{ color: BRAND.noir }}>A</span>
           </div>
+          <h1 className="font-bold text-sm sm:text-base truncate" style={{ color: BRAND.noir, fontFamily: "'Playfair Display', serif" }}>
+            {catalogName}
+          </h1>
+        </div>
 
-          {/* Search */}
-          {s?.enableSearch && (
-            <div className="relative w-full max-w-[180px] sm:max-w-xs">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white/40" />
-              <Input
-                value={searchQuery}
-                onChange={e => setSearchQuery(e.target.value)}
-                placeholder="Rechercher..."
-                className="h-9 pl-9 text-sm rounded-full border-white/20 bg-white/10 text-white placeholder:text-white/40 focus:bg-white/20 focus:border-white/40"
-              />
+        {/* Admin gear icon */}
+        <button
+          onClick={isAdmin ? () => setView('builder') : onAdminLogin}
+          className="flex items-center justify-center w-9 h-9 rounded-full hover:bg-gray-100 transition-colors shrink-0"
+          title={isAdmin ? 'Retour au builder' : 'Accès administrateur'}
+          aria-label="Admin"
+        >
+          <Settings className="w-4 h-4" style={{ color: BRAND.grisMoyen }} />
+        </button>
+      </div>
+    </header>
+  );
+
+  // ═══════════════════════════════════════════════════════════════════════
+  // ── DYNAMIC BREADCRUMBS (only on detail view, scrolls with content) ──
+  // ═══════════════════════════════════════════════════════════════════════
+  const renderBreadcrumbs = () => {
+    if (!selectedProduct) return null;
+
+    const { section } = selectedProduct;
+    const config = section.config as SectionConfig;
+    const productTitle = config.titleColumn ? getCellValue(selectedProduct.row, config.titleColumn) : '';
+    const sectionTitle = section.title || 'Collection';
+
+    return (
+      <nav className="catalog-breadcrumb border-b" style={{ borderColor: `${BRAND.dore}10` }}>
+        <div className="catalog-breadcrumb-inner">
+          {/* Small back arrow for redundancy */}
+          <button
+            onClick={() => setSelectedProduct(null)}
+            className="flex items-center justify-center shrink-0 hover:opacity-60 transition-opacity"
+            aria-label="Retour"
+          >
+            <ArrowLeft className="w-3.5 h-3.5" style={{ color: BRAND.grisMoyen }} />
+          </button>
+
+          {/* Catalog Name segment */}
+          <button
+            className="breadcrumb-segment"
+            style={{ color: BRAND.grisMoyen }}
+            onClick={() => setSelectedProduct(null)}
+          >
+            {catalogName}
+          </button>
+
+          <span style={{ color: BRAND.grisMoyen }} className="shrink-0">/</span>
+
+          {/* Section Title segment */}
+          <button
+            className="breadcrumb-segment"
+            style={{ color: BRAND.grisMoyen }}
+            onClick={() => setSelectedProduct(null)}
+          >
+            {sectionTitle}
+          </button>
+
+          <span style={{ color: BRAND.grisMoyen }} className="shrink-0">/</span>
+
+          {/* Current product — bolder, not clickable */}
+          <span
+            className="breadcrumb-segment font-medium truncate"
+            style={{ color: BRAND.noir, cursor: 'default' }}
+          >
+            {productTitle}
+          </span>
+        </div>
+      </nav>
+    );
+  };
+
+  // ═══════════════════════════════════════════════════════════════════════
+  // ── PRODUCT DETAIL VIEW (full-page inline, NOT a Dialog) ──
+  // ═══════════════════════════════════════════════════════════════════════
+  const renderDetailView = () => {
+    if (!selectedProduct) return null;
+    const { row, columns: detailColumns, section } = selectedProduct;
+    const config = section.config as SectionConfig;
+    const carouselImages = getCarouselImages(row, config, detailColumns);
+    const title = config.titleColumn ? getCellValue(row, config.titleColumn) : '';
+    const price = config.priceColumn ? getCellValue(row, config.priceColumn) : '';
+    const description = config.descriptionColumn ? getCellValue(row, config.descriptionColumn) : '';
+    const variants = config.variantColumn ? getCellValue(row, config.variantColumn) : '';
+    const conversionLink = buildConversionLink(row, config);
+    const coverImage = carouselImages[0] || '';
+
+    // Parse variants
+    const variantList = variants ? variants.split(/[,;]/).map(v => v.trim()).filter(Boolean) : [];
+    const sizePattern = /^(XS|S|M|L|XL|2XL|3XL|4XL|XXL|XXXL|\d{1,2})$/i;
+    const sizes = variantList.filter(v => sizePattern.test(v));
+    const colors = variantList.filter(v => !sizePattern.test(v));
+
+    const goPrev = () => setCarouselIdx(i => (i === 0 ? carouselImages.length - 1 : i - 1));
+    const goNext = () => setCarouselIdx(i => (i === carouselImages.length - 1 ? 0 : i + 1));
+    const goTo = (idx: number) => setCarouselIdx(idx);
+
+    // Touch swipe
+    const onTouchStart = (e: React.TouchEvent) => { touchStartX.current = e.touches[0].clientX; };
+    const onTouchMove = (e: React.TouchEvent) => { touchEndX.current = e.touches[0].clientX; };
+    const onTouchEnd = () => {
+      const diff = touchStartX.current - touchEndX.current;
+      if (Math.abs(diff) > 50) {
+        if (diff > 0) goNext();
+        else goPrev();
+      }
+    };
+
+    // Collect detail fields
+    const detailFields: { label: string; value: string }[] = [];
+    if (price) detailFields.push({ label: 'Prix_Vente', value: price });
+    if (description) detailFields.push({ label: 'Description', value: description });
+    if (sizes.length > 0) detailFields.push({ label: 'Options_Tailles', value: sizes.join(', ') });
+    if (colors.length > 0) detailFields.push({ label: 'Options_Couleurs', value: colors.join(', ') });
+
+    if (config.detailColumns && config.detailColumns.length > 0) {
+      for (const slug of config.detailColumns) {
+        const col = detailColumns.find(c => c.slug === slug);
+        if (!col) continue;
+        const val = getCellValue(row, slug);
+        if (!val) continue;
+        if (!detailFields.some(f => f.label === col.name)) {
+          detailFields.push({ label: col.name, value: val });
+        }
+      }
+    }
+
+    return (
+      <main className="detail-container flex-1 pb-24 sm:pb-8">
+        {/* ── Product Hero: cover thumbnail + title + description (NO Edit button) ── */}
+        <section className="product-hero">
+          {coverImage ? (
+            <img
+              className="product-hero-thumb"
+              src={resolveImageUrl(coverImage, 400)}
+              alt={title}
+            />
+          ) : (
+            <div className="product-hero-thumb product-hero-thumb-placeholder">
+              <ImageIcon style={{ width: 32, height: 32, color: '#808080', opacity: 0.4 }} />
             </div>
           )}
-        </div>
-      </header>
 
-      {/* ── Category Filter Bar ── */}
+          <div className="product-hero-text">
+            <h1>{title}</h1>
+            {price && <p className="product-hero-price">{price}</p>}
+            {description && <p>{description}</p>}
+          </div>
+        </section>
+
+        {/* ── Product Fields ── */}
+        {detailFields.length > 0 && (
+          <section className="product-fields">
+            {detailFields.map((field, i) => (
+              <div key={i} className="product-field">
+                <span>{field.label}</span>
+                <strong>{field.value}</strong>
+              </div>
+            ))}
+          </section>
+        )}
+
+        {/* ── Glide Carousel: square, no thumbnails ── */}
+        {carouselImages.length > 0 && (
+          <section
+            className="glide-carousel"
+            onTouchStart={onTouchStart}
+            onTouchMove={onTouchMove}
+            onTouchEnd={onTouchEnd}
+          >
+            <img
+              src={resolveImageUrl(carouselImages[carouselIdx], 1600)}
+              alt={`${title} - ${carouselIdx + 1}`}
+            />
+
+            {carouselImages.length > 1 && (
+              <>
+                <button className="carousel-arrow left" onClick={goPrev} aria-label="Image précédente">
+                  ‹
+                </button>
+                <button className="carousel-arrow right" onClick={goNext} aria-label="Image suivante">
+                  ›
+                </button>
+
+                <div className="carousel-dots">
+                  {carouselImages.map((_, i) => (
+                    <button
+                      key={i}
+                      className={i === carouselIdx ? 'active' : ''}
+                      onClick={() => goTo(i)}
+                      aria-label={`Image ${i + 1}`}
+                    />
+                  ))}
+                </div>
+              </>
+            )}
+          </section>
+        )}
+
+        {/* ── WhatsApp CTA ── */}
+        <a
+          className="whatsapp-cta"
+          href={conversionLink}
+          target="_blank"
+          rel="noopener noreferrer"
+          style={{ backgroundColor: primaryColor, color: '#111' }}
+        >
+          {s?.conversionChannel === 'whatsapp' ? 'Commander via WhatsApp' :
+           s?.conversionChannel === 'messenger' ? 'Commander via Messenger' :
+           s?.conversionChannel === 'email' ? 'Commander par email' :
+           'Commander'}
+        </a>
+      </main>
+    );
+  };
+
+  // ═══════════════════════════════════════════════════════════════════════
+  // ── CATALOG GRID VIEW ──
+  // ═══════════════════════════════════════════════════════════════════════
+  const renderGridView = () => (
+    <>
+      {/* Search bar below header */}
+      {s?.enableSearch && (
+        <div className="mx-auto max-w-[1270px] px-4 sm:px-8 pt-4">
+          <div className="relative w-full max-w-md mx-auto">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4" style={{ color: BRAND.grisMoyen }} />
+            <Input
+              value={searchQuery}
+              onChange={e => setSearchQuery(e.target.value)}
+              placeholder="Rechercher..."
+              className="h-10 pl-10 text-sm rounded-full border-gray-200 bg-gray-50 focus:bg-white"
+            />
+          </div>
+        </div>
+      )}
+
+      {/* Category Filter Bar */}
       {filterOptions.length > 1 && (
         <div className="sticky top-[52px] z-20 border-b backdrop-blur-md" style={{ backgroundColor: `${bgColor}ee`, borderColor: `${primaryColor}20` }}>
           <div className="catalog-filter-bar no-scrollbar">
@@ -720,7 +729,7 @@ export function CatalogPreview({ onAdminLogin }: CatalogPreviewProps) {
         </div>
       )}
 
-      {/* ── Error ── */}
+      {/* Error */}
       {loadError && (
         <div className="catalog-container">
           <div className="rounded-xl p-4 text-center" style={{ backgroundColor: `${BRAND.bordeaux}10`, border: `1px solid ${BRAND.bordeaux}30` }}>
@@ -730,7 +739,7 @@ export function CatalogPreview({ onAdminLogin }: CatalogPreviewProps) {
         </div>
       )}
 
-      {/* ── Product Gallery ── */}
+      {/* Product Gallery */}
       <main className="catalog-container flex-1">
         {/* Section title */}
         {sections.length > 0 && sections[0].section.title && (
@@ -744,7 +753,7 @@ export function CatalogPreview({ onAdminLogin }: CatalogPreviewProps) {
           </div>
         )}
 
-        {/* ── Glide-like grid ── */}
+        {/* Glide-like grid */}
         <div className="catalog-grid">
           {paginatedProducts.map(({ row, columns, section, config }) => {
             const rawData = row.data as Record<string, unknown>;
@@ -768,10 +777,10 @@ export function CatalogPreview({ onAdminLogin }: CatalogPreviewProps) {
 
             return (
               <article key={row.id} className="product-card">
-                {/* Clickable overlay — no nested buttons */}
+                {/* Clickable overlay */}
                 <button
                   className="product-card-action"
-                  onClick={() => setSelectedProduct({ row, columns, section })}
+                  onClick={() => { setSelectedProduct({ row, columns, section }); setCarouselIdx(0); }}
                   aria-label={`Voir ${title}`}
                 />
 
@@ -798,7 +807,7 @@ export function CatalogPreview({ onAdminLogin }: CatalogPreviewProps) {
                     </div>
                   )}
 
-                  {/* Like button — separate from card action */}
+                  {/* Like button */}
                   <button
                     onClick={(e) => toggleLike(row.id, e)}
                     className="product-card-like"
@@ -855,7 +864,7 @@ export function CatalogPreview({ onAdminLogin }: CatalogPreviewProps) {
         />
       </main>
 
-      {/* ── Footer ── */}
+      {/* Footer — sticky to bottom */}
       <footer className="mt-auto py-4 sm:py-5" style={{ backgroundColor: secondaryColor }}>
         <div style={{ maxWidth: 1270, margin: '0 auto', padding: '0 32px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
@@ -863,7 +872,7 @@ export function CatalogPreview({ onAdminLogin }: CatalogPreviewProps) {
               <span className="text-[10px] font-bold" style={{ color: BRAND.noir }}>A</span>
             </div>
             <span className="font-semibold text-xs sm:text-sm text-white" style={{ fontFamily: "'Playfair Display', serif" }}>
-              {catalog?.name || 'Abaya Chic Collection'}
+              {catalogName}
             </span>
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 20 }} className="text-xs text-white/70">
@@ -885,6 +894,22 @@ export function CatalogPreview({ onAdminLogin }: CatalogPreviewProps) {
           </div>
         </div>
       </footer>
+    </>
+  );
+
+  // ═══════════════════════════════════════════════════════════════════════
+  // ── MAIN RENDER ──
+  // ═══════════════════════════════════════════════════════════════════════
+  return (
+    <div className="min-h-screen flex flex-col" style={{ backgroundColor: bgColor }}>
+      {/* Persistent Header — always visible */}
+      {renderHeader()}
+
+      {/* Dynamic Breadcrumbs — only on detail view, scrolls with content */}
+      {renderBreadcrumbs()}
+
+      {/* Conditional: Grid or Detail */}
+      {isDetailView ? renderDetailView() : renderGridView()}
     </div>
   );
 }
