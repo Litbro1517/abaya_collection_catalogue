@@ -105,3 +105,46 @@ Stage Summary:
 - Mobile product page: stacked layout preserved (thumbnail + text, then carousel)
 - Carousel: 3/4 portrait, object-contain, neutral background — all images consistent
 - Files changed: CatalogPreview.tsx, globals.css
+
+---
+Task ID: 5
+Agent: main
+Task: Fix carousel image inconsistency — uniform ratios, consistent arrows, proper rounded corners
+
+Work Log:
+- Analyzed user-uploaded video showing carousel image anomalies
+- Used VLM to evaluate key frames: confirmed images don't fill container, rounded corners not visible, arrows positioned inconsistently (sometimes inside, sometimes outside image)
+- Root cause identified: `object-fit: contain` leaves gaps around images with different aspect ratios
+  - When image doesn't fill container → rounded corners invisible (image doesn't reach edges)
+  - When image doesn't fill container → arrows appear outside the image visual area
+  - Different aspect ratio images appear at vastly different sizes
+- Changed `object-fit: contain` → `object-fit: cover` on `.glide-carousel img`
+  - All images now fill the 3:4 container uniformly
+  - Rounded corners properly clip because images reach container edges
+  - Arrows always overlay the image since it fills the container
+- Removed `max-height: 680px` from carousel (could distort aspect ratio)
+- Removed `display: flex; align-items: center; justify-content: center` (only needed with contain)
+- Redesigned carousel arrows:
+  - Changed from rectangular dark buttons to circular white buttons
+  - Added backdrop-filter blur for modern look
+  - Added box-shadow for depth
+  - Added hover scale animation and active press feedback
+  - Responsive sizing (40px desktop, 34px mobile)
+- Improved carousel dots:
+  - Added background pill with backdrop blur for better visibility
+  - Active dot now wider (18px) for clear indicator
+- Improved detail layout for large screens:
+  - Added 1280px+ breakpoint with wider info column and gap
+  - Made info column sticky only on desktop (static on mobile/tablet)
+  - Added border separator to product hero section
+- Updated comment in CatalogPreview.tsx
+- Lint passes clean
+- Committed and pushed to GitHub → Vercel auto-deploy
+
+Stage Summary:
+- Carousel: `object-fit: contain` → `object-fit: cover` — ALL images now fill uniformly
+- Arrows: circular white buttons with blur, always inside image, consistent on every slide
+- Dots: background pill, active indicator wider for clarity
+- Rounded corners: now properly clip images since they fill the container
+- Desktop layout: improved with 1280px+ breakpoint, better spacing
+- Files changed: src/app/globals.css, src/components/preview/CatalogPreview.tsx
