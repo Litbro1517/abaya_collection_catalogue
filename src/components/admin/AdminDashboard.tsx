@@ -7,7 +7,6 @@ import {
   Layout,
   Settings,
   Eye,
-  Pen,
   Users,
   Shield,
   ExternalLink,
@@ -18,9 +17,12 @@ import {
   Loader2,
   Pencil,
   Unplug,
+  LogOut,
+  Cable,
 } from 'lucide-react';
 import Link from 'next/link';
 import type { AppView, Pillar, SettingsTab } from '@/types';
+import { toast } from 'sonner';
 
 // ── Brand Constants ──
 const BRAND = {
@@ -56,6 +58,9 @@ export function AdminDashboard({ admin }: AdminDashboardProps) {
     admins: number;
   } | null>(null);
   const [statsLoading, setStatsLoading] = useState(true);
+  const [googleConnecting, setGoogleConnecting] = useState(false);
+  const [googleDisconnecting, setGoogleDisconnecting] = useState(false);
+  const [showGooglePanel, setShowGooglePanel] = useState(false);
 
   useEffect(() => {
     setIsAdmin(true);
@@ -100,7 +105,7 @@ export function AdminDashboard({ admin }: AdminDashboardProps) {
         ]);
 
         let sections = 0;
-        let admins = 0;
+        let adminsCount = 0;
 
         if (catRes.ok) {
           const catJson = await catRes.json();
@@ -109,10 +114,10 @@ export function AdminDashboard({ admin }: AdminDashboardProps) {
 
         if (adminsRes.ok) {
           const adminsJson = await adminsRes.json();
-          admins = adminsJson.data?.length || 0;
+          adminsCount = adminsJson.data?.length || 0;
         }
 
-        setStats({ datasources, sections, totalRows, admins });
+        setStats({ datasources, sections, totalRows, admins: adminsCount });
       } catch {
         // Stats not critical
       } finally {
@@ -123,83 +128,114 @@ export function AdminDashboard({ admin }: AdminDashboardProps) {
   }, []);
 
   // ── Smart navigation ──
+  // Detects whether we're on /admin (separate page) or / (same SPA)
   const isOnAdminPage = typeof window !== 'undefined' && window.location.pathname === '/admin';
 
   const navigateTo = (view: AppView, opts?: { pillar?: Pillar; settingsTab?: SettingsTab }) => {
     if (isOnAdminPage) {
+      // On /admin page → use URL params to pass navigation state to / page
       const params = new URLSearchParams({ view });
       if (opts?.pillar) params.set('pillar', opts.pillar);
       if (opts?.settingsTab) params.set('settingsTab', opts.settingsTab);
       window.location.href = `/?${params.toString()}`;
     } else {
+      // On / page → use Zustand directly for instant SPA navigation
       setView(view);
       if (opts?.pillar) setPillar(opts.pillar);
       if (opts?.settingsTab) setSettingsTab(opts.settingsTab);
     }
   };
 
+  // ── Google OAuth: start connection flow ──
   const handleConnectGoogle = async () => {
+    setGoogleConnecting(true);
     try {
       const res = await fetch('/api/google/auth');
       if (res.ok) {
         const json = await res.json();
-        if (json.url) {
-          window.location.href = json.url;
+        // API returns { data: { authUrl, state } } — navigate to Google OAuth
+        if (json.data?.authUrl) {
+          window.location.href = json.data.authUrl;
+          return;
         }
       }
-    } catch { /* ignore */ }
+      // If we reach here, Google OAuth isn't configured
+      toast.error('Google non configuré', {
+        description: 'Veuillez d\'abord configurer les identifiants Google OAuth dans les paramètres.',
+      });
+      // Navigate to Settings > Admin where OAuth credentials can be configured
+      navigateTo('builder', { pillar: 'settings', settingsTab: 'admin' });
+    } catch {
+      toast.error('Erreur de connexion Google');
+    } finally {
+      setGoogleConnecting(false);
+    }
   };
 
-  // ── Éditer: opens the data editing interface directly ──
-  // Selects the first data source automatically so the DataTable is visible
+  // ── Google: disconnect ──
+  const handleDisconnectGoogle = async () => {
+    setGoogleDisconnecting(true);
+    try {
+      const res = await fetch('/api/google/session', { method: 'DELETE' });
+      if (res.ok) {
+        useAppStore.getState().setGoogleSession(null);
+        toast.success('Google déconnecté', {
+          description: 'La connexion Google a été supprimée.',
+        });
+        setShowGooglePanel(false);
+      } else {
+        toast.error('Erreur lors de la déconnexion');
+      }
+    } catch {
+      toast.error('Erreur de connexion');
+    } finally {
+      setGoogleDisconnecting(false);
+    }
+  };
+
+  // ── Éditer: directly open the data editing interface ──
+  // Like the green edit button: switches to builder mode, data pillar,
+  // auto-selects the first data source so the DataTable is immediately visible
   const handleEdit = () => {
     // Auto-select first data source if none is selected
-    if (!useAppStore.getState().activeDataSourceId && dataSources.length > 0) {
-      setActiveDataSourceId(dataSources[0].id);
+    const state = useAppStore.getState();
+    if (!state.activeDataSourceId && state.dataSources.length > 0) {
+      setActiveDataSourceId(state.dataSources[0].id);
     }
     navigateTo('builder', { pillar: 'data' });
   };
 
-  // ── Google Sheets: connection/configuration only ──
-  // If not connected → OAuth flow
-  // If connected → navigate to Settings > Admin tab to manage Google OAuth credentials
+  // ── Google Sheets: EXCLUSIVELY for connection/configuration ──
+  // Not connected → OAuth flow
+  // Connected → Show connection management panel (disconnect/reconnect/configure)
   const handleGoogleSheets = () => {
     if (!googleSession) {
+      // Not connected → start OAuth flow
       handleConnectGoogle();
     } else {
-      // Navigate to Settings > Admin tab where Google OAuth config lives
-      navigateTo('builder', { pillar: 'settings', settingsTab: 'admin' });
+      // Connected → toggle the connection management panel
+      setShowGooglePanel(prev => !prev);
     }
   };
 
-  // ── Gestion des administrateurs: directly to Settings > Admin tab ──
+  // ── Gestion des administrateurs: directly to admin management ──
+  // Navigates to builder > settings > admin tab where AdminUserManager lives
   const handleAdminManagement = () => {
     navigateTo('builder', { pillar: 'settings', settingsTab: 'admin' });
   };
 
+  // ── Logout ──
+  const handleLogout = async () => {
+    await fetch('/api/auth', { method: 'DELETE' });
+    setIsAdmin(false);
+    setAdminUser(null);
+    if (isOnAdminPage) {
+      window.location.href = '/';
+    }
+  };
+
   // ── Quick access cards ──
   const cards = [
-    {
-      title: 'Données',
-      description: 'Sources de données, colonnes, import Google Sheets',
-      icon: Database,
-      action: () => navigateTo('builder', { pillar: 'data' }),
-      color: BRAND.vertFonce,
-    },
-    {
-      title: 'Mise en page',
-      description: 'Sections, configuration du catalogue, organisation visuelle',
-      icon: Layout,
-      action: () => navigateTo('builder', { pillar: 'layout' }),
-      color: BRAND.dore,
-    },
-    {
-      title: 'Paramètres',
-      description: 'Couleurs, WhatsApp, réseaux sociaux',
-      icon: Settings,
-      action: () => navigateTo('builder', { pillar: 'settings', settingsTab: 'general' }),
-      color: '#8B4513',
-    },
     {
       title: 'Éditer',
       description: 'Édition directe des données du catalogue',
@@ -215,10 +251,31 @@ export function AdminDashboard({ admin }: AdminDashboardProps) {
       color: '#455d68',
     },
     {
+      title: 'Données',
+      description: 'Sources de données, colonnes, import',
+      icon: Database,
+      action: () => navigateTo('builder', { pillar: 'data' }),
+      color: BRAND.vertFonce,
+    },
+    {
+      title: 'Mise en page',
+      description: 'Sections, configuration du catalogue',
+      icon: Layout,
+      action: () => navigateTo('builder', { pillar: 'layout' }),
+      color: BRAND.dore,
+    },
+    {
+      title: 'Paramètres',
+      description: 'Couleurs, WhatsApp, réseaux sociaux',
+      icon: Settings,
+      action: () => navigateTo('builder', { pillar: 'settings', settingsTab: 'general' }),
+      color: '#8B4513',
+    },
+    {
       title: googleSession ? 'Google Sheets' : 'Connexion Google',
       description: googleSession
-        ? 'Gérer la connexion Google Drive/Sheets'
-        : 'Lier votre compte Google pour importer des feuilles',
+        ? `Connecté : ${googleSession.email || googleSession.name || 'Compte Google'}`
+        : 'Lier votre compte Google Drive/Sheets',
       icon: googleSession ? Sheet : Unplug,
       action: handleGoogleSheets,
       color: googleSession ? '#16a34a' : '#4285F4',
@@ -255,15 +312,26 @@ export function AdminDashboard({ admin }: AdminDashboardProps) {
             </div>
           </div>
 
-          {/* Quick link to catalog preview */}
-          <Link
-            href="/?view=preview"
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium hover:bg-gray-100 transition-colors"
-            style={{ color: BRAND.vertFonce }}
-          >
-            <ExternalLink className="w-3.5 h-3.5" />
-            <span className="hidden sm:inline">Catalogue</span>
-          </Link>
+          {/* Quick links */}
+          <div className="flex items-center gap-1">
+            <Link
+              href="/?view=preview"
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium hover:bg-gray-100 transition-colors"
+              style={{ color: BRAND.vertFonce }}
+            >
+              <ExternalLink className="w-3.5 h-3.5" />
+              <span className="hidden sm:inline">Catalogue</span>
+            </Link>
+
+            <button
+              onClick={handleLogout}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium hover:bg-gray-100 transition-colors text-gray-500"
+              title="Déconnexion"
+            >
+              <LogOut className="w-3.5 h-3.5" />
+              <span className="hidden sm:inline">Déconnexion</span>
+            </button>
+          </div>
         </div>
       </header>
 
@@ -292,7 +360,7 @@ export function AdminDashboard({ admin }: AdminDashboardProps) {
 
         {/* ── Quick Access Cards ── */}
         <h2 className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">Accès rapides</h2>
-        <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 sm:gap-4 mb-8">
+        <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 sm:gap-4 mb-4">
           {cards.map(card => (
             <button
               key={card.title}
@@ -300,14 +368,83 @@ export function AdminDashboard({ admin }: AdminDashboardProps) {
               className="bg-white rounded-xl p-4 sm:p-5 border text-left hover:shadow-md transition-all duration-200 group cursor-pointer"
               style={{ borderColor: 'rgba(0,0,0,0.05)' }}
             >
-              <div className="w-10 h-10 rounded-xl flex items-center justify-center mb-3" style={{ backgroundColor: `${card.color}10` }}>
-                <card.icon className="w-5 h-5" style={{ color: card.color }} />
+              <div className="flex items-center justify-between mb-3">
+                <div className="w-10 h-10 rounded-xl flex items-center justify-center" style={{ backgroundColor: `${card.color}10` }}>
+                  <card.icon className="w-5 h-5" style={{ color: card.color }} />
+                </div>
+                {/* Show connecting spinner for Google */}
+                {card.title === 'Connexion Google' && googleConnecting && (
+                  <Loader2 className="w-4 h-4 animate-spin" style={{ color: '#4285F4' }} />
+                )}
               </div>
               <h3 className="font-semibold text-sm mb-0.5" style={{ color: BRAND.noir }}>{card.title}</h3>
               <p className="text-[11px] sm:text-xs text-gray-500 leading-relaxed line-clamp-2">{card.description}</p>
             </button>
           ))}
         </div>
+
+        {/* ── Google Connection Panel (shown when Google Sheets card is clicked while connected) ── */}
+        {showGooglePanel && googleSession && (
+          <div className="mb-6 bg-white rounded-xl border overflow-hidden" style={{ borderColor: 'rgba(0,0,0,0.05)' }}>
+            <div className="p-4 sm:p-5">
+              <div className="flex items-center gap-3 mb-4">
+                <div className="w-10 h-10 rounded-full flex items-center justify-center" style={{ backgroundColor: '#16a34a10' }}>
+                  <Sheet className="w-5 h-5" style={{ color: '#16a34a' }} />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <h3 className="font-semibold text-sm" style={{ color: BRAND.noir }}>Connexion Google</h3>
+                  <p className="text-[11px] text-gray-500 truncate">{googleSession.email || googleSession.name || 'Compte Google connecté'}</p>
+                </div>
+                <span className="px-2.5 py-1 rounded-full text-[10px] font-semibold" style={{ backgroundColor: '#16a34a15', color: '#16a34a' }}>
+                  Connecté
+                </span>
+              </div>
+
+              <div className="flex flex-col sm:flex-row gap-2">
+                <button
+                  onClick={() => {
+                    setShowGooglePanel(false);
+                    navigateTo('builder', { pillar: 'settings', settingsTab: 'admin' });
+                  }}
+                  className="flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg text-xs font-medium border hover:bg-gray-50 transition-colors"
+                  style={{ borderColor: 'rgba(0,0,0,0.1)', color: BRAND.noir }}
+                >
+                  <Cable className="w-3.5 h-3.5" />
+                  Configurer OAuth
+                </button>
+                <button
+                  onClick={() => {
+                    setShowGooglePanel(false);
+                    // Navigate to builder > data and auto-open Google Sheets browser
+                    if (isOnAdminPage) {
+                      // On /admin: use URL params with openSheets flag
+                      window.location.href = '/?view=builder&pillar=data&openSheets=true';
+                    } else {
+                      // On /: use Zustand directly
+                      if (dataSources.length > 0) setActiveDataSourceId(dataSources[0].id);
+                      setView('builder');
+                      setPillar('data');
+                      setTimeout(() => useAppStore.getState().setShowGoogleSheetsBrowser(true), 300);
+                    }
+                  }}
+                  className="flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg text-xs font-medium border hover:bg-gray-50 transition-colors"
+                  style={{ borderColor: 'rgba(0,0,0,0.1)', color: BRAND.noir }}
+                >
+                  <Sheet className="w-3.5 h-3.5" />
+                  Importer une feuille
+                </button>
+                <button
+                  onClick={handleDisconnectGoogle}
+                  disabled={googleDisconnecting}
+                  className="flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg text-xs font-medium border border-red-200 text-red-600 hover:bg-red-50 transition-colors disabled:opacity-50"
+                >
+                  {googleDisconnecting ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <LogOut className="w-3.5 h-3.5" />}
+                  Déconnecter
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* ── Admin Management ── */}
         {admin.role === 'owner' && (

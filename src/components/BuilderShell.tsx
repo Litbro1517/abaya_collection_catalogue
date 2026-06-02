@@ -39,11 +39,12 @@ export function BuilderShell() {
       const res = await fetch('/api/google/auth');
       if (res.ok) {
         const json = await res.json();
-        if (json.url) {
-          window.location.href = json.url;
+        // API returns { data: { authUrl, state } }
+        if (json.data?.authUrl) {
+          window.location.href = json.data.authUrl;
         }
       } else {
-        toast({ title: 'Google non configuré', description: 'Veuillez configurer les identifiants Google' });
+        toast({ title: 'Google non configuré', description: 'Veuillez configurer les identifiants Google dans Paramètres > Admin' });
       }
     } catch {
       toast({ title: 'Erreur', description: 'Impossible de se connecter à Google' });

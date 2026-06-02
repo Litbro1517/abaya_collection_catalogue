@@ -77,6 +77,7 @@ function HomeContent() {
     const viewParam = params.get('view') as AppView | null;
     const pillarParam = params.get('pillar') as Pillar | null;
     const settingsTabParam = params.get('settingsTab') as SettingsTab | null;
+    const openSheets = params.get('openSheets');
 
     if (viewParam && ['builder', 'preview', 'dashboard'].includes(viewParam)) {
       setView(viewParam);
@@ -88,8 +89,16 @@ function HomeContent() {
       setSettingsTab(settingsTabParam);
     }
 
+    // Auto-open Google Sheets browser when navigating from Dashboard
+    if (openSheets === 'true') {
+      // Small delay to ensure the DataPillar has mounted
+      setTimeout(() => {
+        useAppStore.getState().setShowGoogleSheetsBrowser(true);
+      }, 300);
+    }
+
     // Clean up URL params after reading them
-    if (viewParam || pillarParam || settingsTabParam) {
+    if (viewParam || pillarParam || settingsTabParam || openSheets) {
       window.history.replaceState({}, '', window.location.pathname);
     }
   }, [setView, setPillar, setSettingsTab]);
