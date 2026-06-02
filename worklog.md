@@ -79,3 +79,29 @@ Stage Summary:
 - Modified: src/app/api/auth/admins/route.ts (added PATCH handler)
 - Modified: src/components/settings/SettingsPillar.tsx (integrated AdminUserManager, fixed password form)
 - All changes deployed via git push → Vercel auto-deploy
+
+---
+Task ID: 4
+Agent: main
+Task: Redesign product page layout for PC/tablet + fix carousel image inconsistency
+
+Work Log:
+- Analyzed user screenshots showing inconsistent carousel image sizes and poor PC layout
+- Used VLM to evaluate current product page and identify issues
+- Redesigned product detail page with side-by-side layout for desktop:
+  - Left column: Carousel (3/4 portrait ratio, max-height 680px)
+  - Right column: Product info (sticky), hero, fields, CTA
+- Changed carousel from `object-fit: cover` (crops images) to `object-fit: contain` (shows full image)
+- Set consistent aspect-ratio 3/4 for carousel with neutral background (#f8f6f2)
+- On desktop: product hero shows only title/price/description (no thumbnail)
+- On mobile/tablet: preserved stacked layout with thumbnail + text hero
+- Product fields redesigned as clean label/value list on all screens
+- Verified with VLM: both products show identical carousel size, full images, consistent layout
+- Desktop: 8/10 rating, Mobile: professional and readable
+- Lint clean, pushed to GitHub, deployed on Vercel
+
+Stage Summary:
+- Desktop product page: side-by-side layout (carousel left, info right sticky)
+- Mobile product page: stacked layout preserved (thumbnail + text, then carousel)
+- Carousel: 3/4 portrait, object-contain, neutral background — all images consistent
+- Files changed: CatalogPreview.tsx, globals.css
