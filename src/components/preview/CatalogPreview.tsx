@@ -608,21 +608,52 @@ export function CatalogPreview({ onAdminLogin }: CatalogPreviewProps) {
             {carouselImages.length > 0 && (
               <section
                 className="glide-carousel"
+                style={{
+                  position: 'relative',
+                  width: '100%',
+                  aspectRatio: '3 / 4',
+                  overflow: 'hidden',
+                  borderRadius: 'var(--radius-glide, 10px)',
+                  background: '#f8f6f2',
+                }}
                 onTouchStart={onTouchStart}
                 onTouchMove={onTouchMove}
                 onTouchEnd={onTouchEnd}
               >
+                {/* Preload adjacent images for instant navigation */}
+                {carouselImages.length > 1 && (
+                  <>
+                    <link rel="preload" as="image" href={resolveImageUrl(carouselImages[carouselIdx === 0 ? carouselImages.length - 1 : carouselIdx - 1], 800)} />
+                    <link rel="preload" as="image" href={resolveImageUrl(carouselImages[carouselIdx === carouselImages.length - 1 ? 0 : carouselIdx + 1], 800)} />
+                  </>
+                )}
+
                 <img
-                  src={resolveImageUrl(carouselImages[carouselIdx], 1600)}
+                  src={resolveImageUrl(carouselImages[carouselIdx], 800)}
                   alt={`${title} - ${carouselIdx + 1}`}
+                  style={{
+                    width: '100%',
+                    height: '100%',
+                    objectFit: 'cover',
+                    objectPosition: 'center',
+                    display: 'block',
+                  }}
                 />
 
                 {carouselImages.length > 1 && (
                   <>
-                    <button className="carousel-arrow left" onClick={goPrev} aria-label="Image précédente">
+                    <button
+                      className="carousel-arrow left"
+                      onClick={goPrev}
+                      aria-label="Image précédente"
+                    >
                       ‹
                     </button>
-                    <button className="carousel-arrow right" onClick={goNext} aria-label="Image suivante">
+                    <button
+                      className="carousel-arrow right"
+                      onClick={goNext}
+                      aria-label="Image suivante"
+                    >
                       ›
                     </button>
 
