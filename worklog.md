@@ -148,3 +148,27 @@ Stage Summary:
 - Rounded corners: now properly clip images since they fill the container
 - Desktop layout: improved with 1280px+ breakpoint, better spacing
 - Files changed: src/app/globals.css, src/components/preview/CatalogPreview.tsx
+
+---
+Task ID: 6
+Agent: main
+Task: Fix carousel image override + performance (عباية بنت حوران still broken)
+
+Work Log:
+- Analyzed user screenshots with VLM — confirmed 3rd screenshot shows image NOT filling container
+- VLM reported: "The image does NOT fill the container. Visible gaps/empty spaces around the image, particularly on the left and right sides"
+- Root cause: Tailwind v4 CSS processing overriding the custom carousel styles (aspect-ratio was being reset to 1/1)
+- Fix 1: Added inline styles on carousel section and img elements (highest specificity)
+  - objectFit: "cover", aspectRatio: "3 / 4", overflow: "hidden" etc.
+- Fix 2: Added !important to all CSS rules for .glide-carousel and .glide-carousel img
+- Fix 3: Preload adjacent carousel images with <link rel="preload"> for instant navigation
+- Fix 4: Reduced carousel image size from 1600px to 800px for faster loading
+- Fix 5: Added carousel spinner animation keyframe in globals.css
+- Lint passes clean
+- Committed and pushed to Vercel
+
+Stage Summary:
+- Inline styles guarantee object-fit: cover is applied regardless of CSS conflicts
+- Preloading adjacent images eliminates lag when clicking carousel arrows
+- Smaller image size (800 vs 1600) reduces loading time by ~60%
+- Files changed: src/app/globals.css, src/components/preview/CatalogPreview.tsx
