@@ -565,7 +565,7 @@
   }
 }
 
-/* ── Glide Carousel (uniform fill with cover) ── */
+/* ── Glide Carousel (uniform fill with cover, sliding track) ── */
 .glide-carousel {
   position: relative !important;
   width: 100% !important;
@@ -575,13 +575,27 @@
   background: #f8f6f2 !important;
 }
 
-.glide-carousel img {
+.glide-carousel-track {
+  display: flex !important;
+  width: 100% !important;
+  height: 100% !important;
+  transition: transform 0.35s cubic-bezier(0.25, 0.46, 0.45, 0.94) !important;
+  will-change: transform !important;
+}
+
+.glide-carousel-slide {
+  flex: 0 0 100% !important;
+  width: 100% !important;
+  height: 100% !important;
+  overflow: hidden !important;
+}
+
+.glide-carousel-slide img {
   width: 100% !important;
   height: 100% !important;
   object-fit: cover !important;
   object-position: center !important;
   display: block !important;
-  transition: opacity 0.2s ease;
 }
 
 @media (max-width: 900px) {

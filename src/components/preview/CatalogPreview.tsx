@@ -28,7 +28,35 @@ const ITEMS_PER_PAGE = 16;
 
 // ── Image URL Resolution ──
 
-function resolveImageUrl(url: string, size = 1200): string {
+// Direct CDN URL — for <img> src (no CORS proxy needed, instant loading)
+function resolveDirectImageUrl(url: string, size = 1200): string {
+  if (!url) return '';
+
+  // Already a proxy URL — extract the ID and build direct CDN URL
+  const proxyMatch = url.match(/\/api\/google\/image-proxy\?id=([^&]+)&sz=(\d+)/);
+  if (proxyMatch) {
+    return `https://lh3.googleusercontent.com/d/${proxyMatch[1]}=w${size}`;
+  }
+
+  const drivePatterns = [
+    /drive\.google\.com\/file\/d\/([a-zA-Z0-9_-]+)/,
+    /drive\.google\.com\/open\?id=([a-zA-Z0-9_-]+)/,
+    /drive\.google\.com\/uc\?[^#]*id=([a-zA-Z0-9_-]+)/,
+    /lh3\.googleusercontent\.com\/d\/([a-zA-Z0-9_-]+)/,
+  ];
+
+  for (const pattern of drivePatterns) {
+    const match = url.match(pattern);
+    if (match) {
+      return `https://lh3.googleusercontent.com/d/${match[1]}=w${size}`;
+    }
+  }
+
+  return url;
+}
+
+// Proxy URL — fallback for images that fail to load via direct CDN
+function resolveProxyImageUrl(url: string, size = 1200): string {
   if (!url) return '';
 
   const proxyMatch = url.match(/\/api\/google\/image-proxy\?id=([^&]+)&sz=(\d+)/);
@@ -54,6 +82,11 @@ function resolveImageUrl(url: string, size = 1200): string {
   }
 
   return url;
+}
+
+// Legacy alias — routes through proxy (kept for non-img usage)
+function resolveImageUrl(url: string, size = 1200): string {
+  return resolveProxyImageUrl(url, size);
 }
 
 function extractImageId(url: string): string {
@@ -302,18 +335,43 @@ export function CatalogPreview({ onAdminLogin }: CatalogPreviewProps) {
       images.push(url);
     };
 
-    if (config.coverColumn) {
-      const coverVal = rawData[config.coverColumn];
-      if (coverVal) {
-        if (Array.isArray(coverVal)) {
-          const coverImgs = parseImageUrls(coverVal);
-          if (coverImgs.length > 0) addImage(resolveImageUrl(coverImgs[0], 1600));
-        } else {
-          const coverStr = typeof coverVal === 'string' ? coverVal : String(coverVal);
-          const coverImgs = parseImageUrls(coverStr);
-          if (coverImgs.length > 0) addImage(resolveImageUrl(coverImgs[0], 1600));
+    // Collect raw image URLs (original format, no proxy)
+    const collectRaw = (val: unknown, sep?: string): string[] => {
+      if (!val) return [];
+      if (Array.isArray(val)) {
+        return val.filter((u: unknown) => typeof u === 'string' && u.length > 0) as string[];
+      }
+      if (typeof val === 'string') {
+        const str = val.trim();
+        if (!str) return [];
+        if (str.startsWith('[')) {
+          try {
+            const parsed = JSON.parse(str) as unknown[];
+            if (Array.isArray(parsed)) {
+              return parsed.filter((u): u is string => typeof u === 'string' && u.length > 0);
+            }
+          } catch { /* not JSON */ }
+        }
+        if (str.startsWith('http')) return [str];
+        if (str.includes('http')) {
+          const splitRegex = sep === '|' ? /\|/ : sep === '\n' ? /\n/ : sep === ';' ? /;/ : /[,;]/;
+          return str.split(splitRegex).map(s => s.trim()).filter(s => s.startsWith('http'));
         }
       }
+      return [];
+    };
+
+    if (config.coverColumn) {
+      const coverVal = rawData[config.coverColumn];
+      let sep: string | undefined;
+      if (columns) {
+        const col = columns.find(c => c.slug === config.coverColumn);
+        if (col?.config && typeof col.config === 'object') {
+          sep = (col.config as ColumnConfig).gallerySeparator;
+        }
+      }
+      const rawImgs = collectRaw(coverVal, sep);
+      if (rawImgs.length > 0) addImage(rawImgs[0]);
     }
 
     if (config.carouselColumn) {
@@ -322,25 +380,27 @@ export function CatalogPreview({ onAdminLogin }: CatalogPreviewProps) {
       if (columns) {
         const col = columns.find(c => c.slug === config.carouselColumn);
         if (col?.config && typeof col.config === 'object') {
-          const colConfig = col.config as ColumnConfig;
-          separator = colConfig.gallerySeparator;
+          separator = (col.config as ColumnConfig).gallerySeparator;
         }
       }
-      if (carouselVal !== undefined && carouselVal !== null) {
-        const carouselImgs = parseImageUrls(carouselVal, separator);
-        for (const img of carouselImgs) {
-          addImage(resolveImageUrl(img, 1600));
-        }
+      const rawImgs = collectRaw(carouselVal, separator);
+      for (const img of rawImgs) {
+        addImage(img);
       }
     }
 
     if (!config.carouselColumn && config.coverColumn) {
       const coverVal = rawData[config.coverColumn];
-      if (coverVal) {
-        const allCoverImgs = parseImageUrls(coverVal);
-        for (let i = 1; i < allCoverImgs.length; i++) {
-          addImage(resolveImageUrl(allCoverImgs[i], 1600));
+      let sep: string | undefined;
+      if (columns) {
+        const col = columns.find(c => c.slug === config.coverColumn);
+        if (col?.config && typeof col.config === 'object') {
+          sep = (col.config as ColumnConfig).gallerySeparator;
         }
+      }
+      const rawImgs = collectRaw(coverVal, sep);
+      for (let i = 1; i < rawImgs.length; i++) {
+        addImage(rawImgs[i]);
       }
     }
 
@@ -604,41 +664,44 @@ export function CatalogPreview({ onAdminLogin }: CatalogPreviewProps) {
         <div className="detail-layout">
           {/* LEFT COLUMN: Carousel */}
           <div>
-            {/* ── Glide Carousel: 3/4 portrait, object-cover for uniform fill ── */}
+            {/* ── Glide Carousel: all images pre-rendered, CSS transform sliding ── */}
             {carouselImages.length > 0 && (
               <section
                 className="glide-carousel"
-                style={{
-                  position: 'relative',
-                  width: '100%',
-                  aspectRatio: '3 / 4',
-                  overflow: 'hidden',
-                  borderRadius: 'var(--radius-glide, 10px)',
-                  background: '#f8f6f2',
-                }}
                 onTouchStart={onTouchStart}
                 onTouchMove={onTouchMove}
                 onTouchEnd={onTouchEnd}
               >
-                {/* Preload adjacent images for instant navigation */}
-                {carouselImages.length > 1 && (
-                  <>
-                    <link rel="preload" as="image" href={resolveImageUrl(carouselImages[carouselIdx === 0 ? carouselImages.length - 1 : carouselIdx - 1], 800)} />
-                    <link rel="preload" as="image" href={resolveImageUrl(carouselImages[carouselIdx === carouselImages.length - 1 ? 0 : carouselIdx + 1], 800)} />
-                  </>
-                )}
-
-                <img
-                  src={resolveImageUrl(carouselImages[carouselIdx], 800)}
-                  alt={`${title} - ${carouselIdx + 1}`}
+                {/* Sliding track — all images side by side, translated by index */}
+                <div
+                  className="glide-carousel-track"
                   style={{
-                    width: '100%',
-                    height: '100%',
-                    objectFit: 'cover',
-                    objectPosition: 'center',
-                    display: 'block',
+                    transform: `translateX(-${carouselIdx * 100}%)`,
                   }}
-                />
+                >
+                  {carouselImages.map((rawUrl, i) => {
+                    const directUrl = resolveDirectImageUrl(rawUrl, 1000);
+                    const proxyUrl = resolveProxyImageUrl(rawUrl, 1000);
+                    return (
+                      <div key={i} className="glide-carousel-slide">
+                        <img
+                          src={directUrl}
+                          alt={`${title} - ${i + 1}`}
+                          loading={i < 3 ? 'eager' : 'lazy'}
+                          decoding="async"
+                          onError={(e) => {
+                            const el = e.target as HTMLImageElement;
+                            // Avoid infinite loop: only retry once with proxy
+                            if (!el.dataset.retried) {
+                              el.dataset.retried = '1';
+                              el.src = proxyUrl;
+                            }
+                          }}
+                        />
+                      </div>
+                    );
+                  })}
+                </div>
 
                 {carouselImages.length > 1 && (
                   <>
@@ -680,8 +743,15 @@ export function CatalogPreview({ onAdminLogin }: CatalogPreviewProps) {
               {coverImage ? (
                 <img
                   className="product-hero-thumb"
-                  src={resolveImageUrl(coverImage, 400)}
+                  src={resolveDirectImageUrl(coverImage, 400)}
                   alt={title}
+                  onError={(e) => {
+                    const el = e.target as HTMLImageElement;
+                    if (!el.dataset.retried) {
+                      el.dataset.retried = '1';
+                      el.src = resolveProxyImageUrl(coverImage, 400);
+                    }
+                  }}
                 />
               ) : (
                 <div className="product-hero-thumb product-hero-thumb-placeholder">
@@ -831,12 +901,20 @@ export function CatalogPreview({ onAdminLogin }: CatalogPreviewProps) {
                 <div className="product-card-image-wrap">
                   {coverUrl ? (
                     <img
-                      src={resolveImageUrl(coverUrl, 800)}
+                      src={resolveDirectImageUrl(coverUrl, 800)}
                       alt={title}
                       loading="lazy"
+                      decoding="async"
                       className="product-card-img"
                       onError={(e) => {
                         const el = e.target as HTMLImageElement;
+                        // Retry with proxy if direct CDN fails
+                        if (!el.dataset.retried) {
+                          el.dataset.retried = '1';
+                          el.src = resolveProxyImageUrl(coverUrl, 800);
+                          return;
+                        }
+                        // Both failed — show placeholder
                         el.style.display = 'none';
                         const parent = el.parentElement;
                         if (parent) {
