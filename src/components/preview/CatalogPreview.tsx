@@ -664,7 +664,7 @@ export function CatalogPreview({ onAdminLogin }: CatalogPreviewProps) {
         <div className="detail-layout">
           {/* LEFT COLUMN: Carousel */}
           <div>
-            {/* ── Glide Carousel: all images pre-rendered, CSS transform sliding ── */}
+            {/* ── Glide Carousel: virtual-window sliding with CSS transforms ── */}
             {carouselImages.length > 0 && (
               <section
                 className="glide-carousel"
@@ -672,7 +672,7 @@ export function CatalogPreview({ onAdminLogin }: CatalogPreviewProps) {
                 onTouchMove={onTouchMove}
                 onTouchEnd={onTouchEnd}
               >
-                {/* Sliding track — all images side by side, translated by index */}
+                {/* Sliding track — virtual window: only render visible ± 2 slides */}
                 <div
                   className="glide-carousel-track"
                   style={{
@@ -680,24 +680,29 @@ export function CatalogPreview({ onAdminLogin }: CatalogPreviewProps) {
                   }}
                 >
                   {carouselImages.map((rawUrl, i) => {
-                    const directUrl = resolveDirectImageUrl(rawUrl, 1000);
-                    const proxyUrl = resolveProxyImageUrl(rawUrl, 1000);
+                    // Virtual window: only load images within ±2 of current index
+                    const isVisible = Math.abs(i - carouselIdx) <= 2;
+                    const directUrl = isVisible ? resolveDirectImageUrl(rawUrl, 1000) : '';
+                    const proxyUrl = isVisible ? resolveProxyImageUrl(rawUrl, 1000) : '';
                     return (
                       <div key={i} className="glide-carousel-slide">
-                        <img
-                          src={directUrl}
-                          alt={`${title} - ${i + 1}`}
-                          loading={i < 3 ? 'eager' : 'lazy'}
-                          decoding="async"
-                          onError={(e) => {
-                            const el = e.target as HTMLImageElement;
-                            // Avoid infinite loop: only retry once with proxy
-                            if (!el.dataset.retried) {
-                              el.dataset.retried = '1';
-                              el.src = proxyUrl;
-                            }
-                          }}
-                        />
+                        {isVisible ? (
+                          <img
+                            src={directUrl}
+                            alt={`${title} - ${i + 1}`}
+                            loading={Math.abs(i - carouselIdx) <= 1 ? 'eager' : 'lazy'}
+                            decoding="async"
+                            onError={(e) => {
+                              const el = e.target as HTMLImageElement;
+                              if (!el.dataset.retried) {
+                                el.dataset.retried = '1';
+                                el.src = proxyUrl;
+                              }
+                            }}
+                          />
+                        ) : (
+                          <div className="glide-carousel-placeholder" />
+                        )}
                       </div>
                     );
                   })}
@@ -720,15 +725,55 @@ export function CatalogPreview({ onAdminLogin }: CatalogPreviewProps) {
                       ›
                     </button>
 
+                    {/* Dots: compact window for many images, full display for few */}
                     <div className="carousel-dots">
-                      {carouselImages.map((_, i) => (
-                        <button
-                          key={i}
-                          className={i === carouselIdx ? 'active' : ''}
-                          onClick={() => goTo(i)}
-                          aria-label={`Image ${i + 1}`}
-                        />
-                      ))}
+                      {carouselImages.length <= 10 ? (
+                        carouselImages.map((_, i) => (
+                          <button
+                            key={i}
+                            className={i === carouselIdx ? 'active' : ''}
+                            onClick={() => goTo(i)}
+                            aria-label={`Image ${i + 1}`}
+                          />
+                        ))
+                      ) : (
+                        <>
+                          {/* First dot */}
+                          <button
+                            className={carouselIdx === 0 ? 'active' : ''}
+                            onClick={() => goTo(0)}
+                            aria-label="Image 1"
+                          />
+                          {/* Left ellipsis */}
+                          {carouselIdx > 3 && <span className="carousel-ellipsis">…</span>}
+                          {/* Window dots around current */}
+                          {Array.from({ length: carouselImages.length }, (_, i) => i)
+                            .filter(i => {
+                              if (i === 0 || i === carouselImages.length - 1) return false;
+                              return Math.abs(i - carouselIdx) <= 2;
+                            })
+                            .map(i => (
+                              <button
+                                key={i}
+                                className={i === carouselIdx ? 'active' : ''}
+                                onClick={() => goTo(i)}
+                                aria-label={`Image ${i + 1}`}
+                              />
+                            ))}
+                          {/* Right ellipsis */}
+                          {carouselIdx < carouselImages.length - 4 && <span className="carousel-ellipsis">…</span>}
+                          {/* Last dot */}
+                          <button
+                            className={carouselIdx === carouselImages.length - 1 ? 'active' : ''}
+                            onClick={() => goTo(carouselImages.length - 1)}
+                            aria-label={`Image ${carouselImages.length}`}
+                          />
+                          {/* Counter badge */}
+                          <span className="carousel-counter">
+                            {carouselIdx + 1}/{carouselImages.length}
+                          </span>
+                        </>
+                      )}
                     </div>
                   </>
                 )}
