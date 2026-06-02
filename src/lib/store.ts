@@ -11,6 +11,8 @@ interface AppState {
   // ── Auth ──
   isAdmin: boolean;
   setIsAdmin: (v: boolean) => void;
+  adminUser: { id: string; email: string; name: string | null; picture: string | null; role: string } | null;
+  setAdminUser: (admin: AppState['adminUser']) => void;
   showLoginModal: boolean;
   setShowLoginModal: (v: boolean) => void;
 
@@ -80,6 +82,8 @@ export const useAppStore = create<AppState>((set, get) => ({
   // ── Auth ──
   isAdmin: false,
   setIsAdmin: (isAdmin) => set({ isAdmin }),
+  adminUser: null,
+  setAdminUser: (adminUser) => set({ adminUser }),
   showLoginModal: false,
   setShowLoginModal: (showLoginModal) => set({ showLoginModal }),
 

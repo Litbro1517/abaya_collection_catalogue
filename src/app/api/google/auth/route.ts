@@ -1,4 +1,5 @@
 import { db } from '@/lib/db';
+import { createAdminSession, auditLog } from '@/lib/auth';
 import { NextRequest, NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import { v4 as uuidv4 } from 'uuid';
@@ -215,8 +216,38 @@ async function handleOAuthCallback(req: NextRequest, code: string, state: string
       path: '/',
     });
 
-    // Redirect back to the app with success indicator
-    return NextResponse.redirect(`${origin}/?google_connected=true`);
+    // Check if this Google user is an admin
+    let isAdmin = false;
+    if (userInfo.email) {
+      const adminUser = await db.adminUser.findFirst({
+        where: { email: userInfo.email.toLowerCase(), status: 'active' },
+      });
+
+      if (adminUser) {
+        // Grant admin access
+        const ip = req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ?? undefined;
+        const userAgent = req.headers.get('user-agent') ?? undefined;
+        await createAdminSession(adminUser.id, ip, userAgent);
+        await auditLog(adminUser.id, 'login', 'auth', undefined, { method: 'google' }, ip);
+
+        // Update AdminUser with Google info if missing
+        if (!adminUser.googleSub || !adminUser.picture) {
+          await db.adminUser.update({
+            where: { id: adminUser.id },
+            data: {
+              googleSub: tokenData.id || null,
+              picture: adminUser.picture || userInfo.picture || null,
+              name: adminUser.name || userInfo.name || null,
+            },
+          });
+        }
+
+        isAdmin = true;
+      }
+    }
+
+    // Redirect back to the app with success indicator and admin status
+    return NextResponse.redirect(`${origin}/?google_connected=true&admin=${isAdmin}`);
   } catch (e) {
     console.error('Google OAuth callback error:', e);
     const origin = getOrigin(req);

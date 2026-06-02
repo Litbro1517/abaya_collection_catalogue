@@ -1,10 +1,10 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useAppStore } from '@/lib/store';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import { Lock, Loader2, BookOpen, X } from 'lucide-react';
+import { Lock, Loader2, BookOpen, X, Mail, User } from 'lucide-react';
 
 function GoogleIcon({ className }: { className?: string }) {
   return (
@@ -22,13 +22,41 @@ interface LoginModalProps {
   onCancel?: () => void;
 }
 
+type Mode = 'login' | 'register' | 'checking';
+
 export function LoginModal({ onLoginSuccess, onCancel }: LoginModalProps) {
+  const [mode, setMode] = useState<Mode>('checking');
+  const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [name, setName] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
   const [googleUnavailable, setGoogleUnavailable] = useState(false);
-  const { setIsAdmin } = useAppStore();
+  const { setIsAdmin, setAdminUser } = useAppStore();
+
+  // Check if any admins exist on mount
+  useEffect(() => {
+    const checkAdmins = async () => {
+      try {
+        const res = await fetch('/api/auth/admins?public_check=true');
+        if (res.ok) {
+          const json = await res.json();
+          if (json.hasAdmins === false) {
+            setMode('register');
+          } else {
+            setMode('login');
+          }
+        } else {
+          // If the endpoint fails or returns 401, assume admins exist
+          setMode('login');
+        }
+      } catch {
+        setMode('login');
+      }
+    };
+    checkAdmins();
+  }, []);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -39,10 +67,14 @@ export function LoginModal({ onLoginSuccess, onCancel }: LoginModalProps) {
       const res = await fetch('/api/auth', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ password }),
+        body: JSON.stringify({ email: email.trim(), password }),
       });
 
       if (res.ok) {
+        const json = await res.json();
+        if (json.data?.admin) {
+          setAdminUser(json.data.admin);
+        }
         setIsAdmin(true);
         onLoginSuccess?.();
       } else {
@@ -56,6 +88,46 @@ export function LoginModal({ onLoginSuccess, onCancel }: LoginModalProps) {
     }
   };
 
+  const handleRegister = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+    setError('');
+
+    if (password.length < 8) {
+      setError('Le mot de passe doit contenir au moins 8 caractères');
+      setLoading(false);
+      return;
+    }
+
+    try {
+      const res = await fetch('/api/auth/register', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          email: email.trim(),
+          password,
+          name: name.trim() || undefined,
+        }),
+      });
+
+      if (res.ok) {
+        const json = await res.json();
+        if (json.data?.admin) {
+          setAdminUser(json.data.admin);
+        }
+        setIsAdmin(true);
+        onLoginSuccess?.();
+      } else {
+        const json = await res.json();
+        setError(json.error || 'Erreur lors de l\'inscription');
+      }
+    } catch {
+      setError('Erreur lors de l\'inscription');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleGoogleLogin = async () => {
     setGoogleLoading(true);
     setError('');
@@ -63,14 +135,16 @@ export function LoginModal({ onLoginSuccess, onCancel }: LoginModalProps) {
       const res = await fetch('/api/google/auth');
       if (res.ok) {
         const json = await res.json();
-        if (json.url) {
+        if (json.data?.authUrl) {
+          window.location.href = json.data.authUrl;
+        } else if (json.url) {
           window.location.href = json.url;
         } else {
           setError('URL de connexion Google non disponible');
         }
       } else {
         const json = await res.json();
-        if (json.error?.includes('non configur') || res.status === 503) {
+        if (json.error?.includes('non configur') || json.setupRequired || res.status === 503) {
           setGoogleUnavailable(true);
         } else {
           setError(json.error || 'Erreur de connexion Google');
@@ -82,6 +156,20 @@ export function LoginModal({ onLoginSuccess, onCancel }: LoginModalProps) {
       setGoogleLoading(false);
     }
   };
+
+  // Show loading spinner while checking admin status
+  if (mode === 'checking') {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-cream via-background to-secondary/30 p-4">
+        <div className="flex flex-col items-center gap-3">
+          <Loader2 className="w-8 h-8 text-gold animate-spin" />
+          <p className="text-sm text-muted-foreground">Vérification...</p>
+        </div>
+      </div>
+    );
+  }
+
+  const isRegister = mode === 'register';
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-cream via-background to-secondary/30 p-4">
@@ -111,9 +199,18 @@ export function LoginModal({ onLoginSuccess, onCancel }: LoginModalProps) {
             </div>
             <div>
               <h2 className="text-xl font-semibold text-foreground">Abaya Collection</h2>
-              <p className="text-sm text-muted-foreground mt-1">Accès Administrateur</p>
+              <p className="text-sm text-muted-foreground mt-1">
+                {isRegister ? 'Première configuration' : 'Accès Administrateur'}
+              </p>
             </div>
           </div>
+
+          {/* First-time setup notice */}
+          {isRegister && (
+            <div className="bg-gold/5 border border-gold/20 rounded-lg px-4 py-3 text-sm text-muted-foreground">
+              Aucun administrateur n&apos;existe encore. Créez votre compte propriétaire pour commencer.
+            </div>
+          )}
 
           {/* Google Sign In */}
           <Button
@@ -149,8 +246,36 @@ export function LoginModal({ onLoginSuccess, onCancel }: LoginModalProps) {
             </div>
           </div>
 
-          {/* Password Login */}
-          <form onSubmit={handleLogin} className="space-y-4">
+          {/* Login / Register Form */}
+          <form onSubmit={isRegister ? handleRegister : handleLogin} className="space-y-4">
+            {/* Name field (register only) */}
+            {isRegister && (
+              <div className="relative">
+                <User className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                <Input
+                  type="text"
+                  placeholder="Nom (optionnel)"
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  className="h-11 pl-10 border-border"
+                />
+              </div>
+            )}
+
+            {/* Email field */}
+            <div className="relative">
+              <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+              <Input
+                type="email"
+                placeholder="Email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                autoFocus={!isRegister}
+                className="h-11 pl-10 border-border"
+              />
+            </div>
+
+            {/* Password field */}
             <div className="relative">
               <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
               <Input
@@ -158,7 +283,7 @@ export function LoginModal({ onLoginSuccess, onCancel }: LoginModalProps) {
                 placeholder="Mot de passe"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                autoFocus
+                autoFocus={isRegister}
                 className="h-11 pl-10 border-border"
               />
             </div>
@@ -169,21 +294,28 @@ export function LoginModal({ onLoginSuccess, onCancel }: LoginModalProps) {
               </div>
             )}
 
-            <Button type="submit" className="w-full h-11 bg-gold hover:bg-gold/90 text-gold-foreground" disabled={loading || !password}>
+            <Button
+              type="submit"
+              className="w-full h-11 bg-gold hover:bg-gold/90 text-gold-foreground"
+              disabled={loading || !email || !password}
+            >
               {loading ? (
                 <>
                   <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                  Connexion...
+                  {isRegister ? 'Création du compte...' : 'Connexion...'}
                 </>
               ) : (
-                'Se connecter'
+                isRegister ? 'Créer le compte' : 'Se connecter'
               )}
             </Button>
           </form>
 
           {/* Footer */}
           <p className="text-xs text-muted-foreground text-center">
-            Entrez votre mot de passe admin pour accéder au constructeur
+            {isRegister
+              ? 'Ce compte sera le propriétaire de l\'application'
+              : 'Entrez vos identifiants pour accéder au constructeur'
+            }
           </p>
         </div>
       </div>

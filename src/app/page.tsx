@@ -53,6 +53,7 @@ function HomeContent() {
     view,
     isAdmin,
     setIsAdmin,
+    setAdminUser,
     setDataSources,
     setCatalog,
     setSettings,
@@ -70,8 +71,9 @@ function HomeContent() {
         const res = await fetch('/api/auth');
         if (res.ok) {
           const json = await res.json();
-          if (json.authenticated) {
+          if (json.authenticated && json.admin) {
             setIsAdmin(true);
+            setAdminUser(json.admin);
           }
         }
       } catch {
@@ -79,7 +81,7 @@ function HomeContent() {
       }
     };
     checkAuth();
-  }, [setIsAdmin]);
+  }, [setIsAdmin, setAdminUser]);
 
   // Check Google session on mount
   useEffect(() => {
@@ -114,6 +116,8 @@ function HomeContent() {
     const googleError = params.get('google_error');
 
     if (googleConnected === 'true') {
+      const googleAdmin = params.get('admin');
+
       // Server already handled token exchange and stored session
       // Fetch the session from the API to update the UI
       const fetchGoogleSession = async () => {
@@ -135,10 +139,24 @@ function HomeContent() {
           }
         } catch {
           // Failed to fetch session
-        } finally {
-          // Clean up URL
-          window.history.replaceState({}, '', window.location.pathname);
         }
+
+        // If Google login also granted admin access, set admin state
+        if (googleAdmin === 'true') {
+          setIsAdmin(true);
+          try {
+            const authRes = await fetch('/api/auth');
+            if (authRes.ok) {
+              const authJson = await authRes.json();
+              if (authJson.admin) setAdminUser(authJson.admin);
+            }
+          } catch {
+            // Failed to fetch admin info
+          }
+        }
+
+        // Clean up URL
+        window.history.replaceState({}, '', window.location.pathname);
       };
       fetchGoogleSession();
     } else if (googleError) {
@@ -205,9 +223,19 @@ function HomeContent() {
   if (showLogin && !isAdmin) {
     return (
       <LoginModal
-        onLoginSuccess={() => {
+        onLoginSuccess={async () => {
           setIsAdmin(true);
           setShowLogin(false);
+          // Fetch admin user info
+          try {
+            const authRes = await fetch('/api/auth');
+            if (authRes.ok) {
+              const authJson = await authRes.json();
+              if (authJson.admin) setAdminUser(authJson.admin);
+            }
+          } catch {
+            // Failed to fetch admin info
+          }
         }}
         onCancel={() => setShowLogin(false)}
       />

@@ -23,12 +23,13 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { useToast } from '@/hooks/use-toast';
 
 export function BuilderShell() {
-  const { pillar, setPillar, view, setView, catalog, sidebarCollapsed, setSidebarCollapsed, setIsAdmin, googleSession, setShowGoogleSheetsBrowser } = useAppStore();
+  const { pillar, setPillar, view, setView, catalog, sidebarCollapsed, setSidebarCollapsed, setIsAdmin, setAdminUser, googleSession, setShowGoogleSheetsBrowser } = useAppStore();
   const { toast } = useToast();
 
   const handleLogout = async () => {
     await fetch('/api/auth', { method: 'DELETE' });
     setIsAdmin(false);
+    setAdminUser(null);
     toast({ title: 'Déconnecté', description: 'Vous avez été déconnecté' });
   };
 

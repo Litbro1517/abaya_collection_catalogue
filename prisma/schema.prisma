@@ -163,17 +163,56 @@ model CatalogSettings {
 }
 
 // ═══════════════════════════════════════════════════════════════
-// GOOGLE INTEGRATION
+// AUTHENTICATION & ADMIN USERS
 // ═══════════════════════════════════════════════════════════════
 
+model AdminUser {
+  id           String        @id @default(cuid())
+  email        String        @unique
+  name         String?
+  picture      String?
+  role         String        @default("admin") // owner, admin, editor
+  status       String        @default("active") // active, suspended
+  passwordHash String?       @map("password_hash")
+  googleSub    String?       @map("google_sub") // Google OAuth subject ID
+  sessions     AdminSession[]
+  auditLogs    AuditLog[]
+  createdAt    DateTime      @default(now()) @map("created_at")
+  updatedAt    DateTime      @updatedAt @map("updated_at")
+
+  @@map("admin_users")
+}
+
 model AdminSession {
-  id        String   @id @default(cuid())
-  token     String   @unique
-  createdAt DateTime @default(now()) @map("created_at")
-  expiresAt DateTime @map("expires_at")
+  id         String    @id @default(cuid())
+  token      String    @unique
+  adminId    String    @map("admin_id")
+  admin      AdminUser @relation(fields: [adminId], references: [id], onDelete: Cascade)
+  ip         String?   @map("ip_address")
+  userAgent  String?   @map("user_agent")
+  createdAt  DateTime  @default(now()) @map("created_at")
+  expiresAt  DateTime  @map("expires_at")
 
   @@map("admin_sessions")
 }
+
+model AuditLog {
+  id        String   @id @default(cuid())
+  adminId   String   @map("admin_id")
+  admin     AdminUser @relation(fields: [adminId], references: [id], onDelete: Cascade)
+  action    String // create, update, delete, login, logout, sync
+  entity    String // datasource, section, catalog, settings, etc.
+  entityId  String? @map("entity_id")
+  details   Json     @default("{}")
+  ip        String?  @map("ip_address")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@map("audit_logs")
+}
+
+// ═══════════════════════════════════════════════════════════════
+// GOOGLE INTEGRATION (Drive & Sheets API tokens)
+// ═══════════════════════════════════════════════════════════════
 
 model GoogleSession {
   id            String   @id @default(cuid())
