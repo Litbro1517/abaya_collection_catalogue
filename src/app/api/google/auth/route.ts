@@ -67,8 +67,8 @@ async function generateAuthUrl(req: NextRequest) {
     // Generate a random state for CSRF protection
     const state = uuidv4();
 
-    // Determine the redirect URI
-    const redirectUri = `${getOrigin(req)}/api/google/auth`;
+    // Determine the redirect URI (always use production domain on Vercel)
+    const redirectUri = getOAuthRedirectUri();
 
     // Build the OAuth URL
     const params = new URLSearchParams({
@@ -140,7 +140,7 @@ async function handleOAuthCallback(req: NextRequest, code: string, state: string
     }
 
     // Determine the redirect URI (must match the one used in generateAuthUrl)
-    const redirectUri = `${origin}/api/google/auth`;
+    const redirectUri = getOAuthRedirectUri();
 
     // Exchange code for tokens
     const tokenRes = await fetch('https://oauth2.googleapis.com/token', {
@@ -300,7 +300,7 @@ export async function POST(req: NextRequest) {
     }
 
     // Determine the redirect URI (must match the one used in GET)
-    const redirectUri = `${getOrigin(req)}/api/google/auth`;
+    const redirectUri = getOAuthRedirectUri();
 
     // Exchange code for tokens
     const tokenRes = await fetch('https://oauth2.googleapis.com/token', {
@@ -389,9 +389,34 @@ export async function POST(req: NextRequest) {
 
 /**
  * Helper: Determine the origin from request headers
+ * IMPORTANT: For OAuth redirect URIs, we always use the production domain
+ * to avoid redirect_uri_mismatch errors with Vercel's unique deployment URLs.
+ * Each Vercel deployment gets a unique URL, and Google OAuth requires exact match.
+ * By always redirecting to the production domain, we only need one authorized URI.
  */
+const PRODUCTION_ORIGIN = 'https://abaya-collection-catalogue-9dum.vercel.app';
+
 function getOrigin(req: NextRequest): string {
-  return req.headers.get('x-forwarded-host')
-    ? `${req.headers.get('x-forwarded-proto') || 'https'}://${req.headers.get('x-forwarded-host')}`
-    : req.headers.get('origin') || 'http://localhost:3000';
+  // For OAuth flows (redirect URI), always use production domain
+  // to avoid redirect_uri_mismatch with Vercel's per-deployment URLs
+  const host = req.headers.get('x-forwarded-host');
+  if (host) {
+    const proto = req.headers.get('x-forwarded-proto') || 'https';
+    return `${proto}://${host}`;
+  }
+  return req.headers.get('origin') || 'http://localhost:3000';
+}
+
+/**
+ * Get the redirect URI for Google OAuth - always uses the production domain
+ * This ensures the redirect URI matches what's configured in Google Cloud Console
+ */
+function getOAuthRedirectUri(): string {
+  // In production (Vercel), always use the stable production domain
+  // This prevents redirect_uri_mismatch errors from per-deployment URLs
+  if (process.env.VERCEL) {
+    return `${PRODUCTION_ORIGIN}/api/google/auth`;
+  }
+  // In local development, use localhost
+  return 'http://localhost:3000/api/google/auth';
 }
