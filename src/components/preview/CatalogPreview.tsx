@@ -8,7 +8,7 @@ import { Input } from '@/components/ui/input';
 import {
   ArrowLeft, Search, MessageCircle, ChevronLeft, ChevronRight,
   Mail, Instagram, ImageIcon, BookOpen, Settings, Heart,
-  ShoppingBag
+  ShoppingBag, LayoutDashboard
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -533,18 +533,19 @@ export function CatalogPreview({ onAdminLogin }: CatalogPreviewProps) {
           </h1>
         </div>
 
-        {/* Admin gear icon — only visible for owner/admin roles */}
+        {/* Dashboard button — only visible for owner/admin roles */}
         {canAccessBuilder ? (
           <button
             onClick={() => setView('dashboard')}
-            className="flex items-center justify-center w-9 h-9 rounded-full hover:bg-gray-100 transition-colors shrink-0"
-            title="Dashboard administrateur"
-            aria-label="Admin"
+            className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg hover:bg-gray-100 transition-colors shrink-0"
+            title="Retour au Dashboard"
+            aria-label="Dashboard"
           >
-            <Settings className="w-4 h-4" style={{ color: BRAND.grisMoyen }} />
+            <LayoutDashboard className="w-4 h-4" style={{ color: BRAND.vertFonce }} />
+            <span className="text-[11px] font-medium hidden sm:inline" style={{ color: BRAND.vertFonce }}>Dashboard</span>
           </button>
         ) : (
-          <div className="w-9 h-9 shrink-0" />
+          <div className="w-9 shrink-0" />
         )}
       </div>
     </header>

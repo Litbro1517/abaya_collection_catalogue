@@ -8,6 +8,7 @@ import { AdminDashboard } from '@/components/admin/AdminDashboard';
 import { LoginModal } from '@/components/LoginModal';
 import { Loader2, AlertTriangle, RefreshCw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import type { Pillar, AppView } from '@/types';
 
 // ── Error Boundary Wrapper ────────────────────────────────────────────────
 function withErrorBoundary<P extends object>(Component: ComponentType<P>, fallbackTitle: string) {
@@ -61,10 +62,32 @@ function HomeContent() {
     setSettings,
     setLoading,
     setGoogleSession,
+    setView,
+    setPillar,
   } = useAppStore();
 
   const [initializing, setInitializing] = useState(true);
   const [showLogin, setShowLogin] = useState(false);
+
+  // ── Read URL params and set Zustand state on mount ──
+  // This allows navigation from /admin via ?view=builder&pillar=data etc.
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const viewParam = params.get('view') as AppView | null;
+    const pillarParam = params.get('pillar') as Pillar | null;
+
+    if (viewParam && ['builder', 'preview', 'dashboard'].includes(viewParam)) {
+      setView(viewParam);
+    }
+    if (pillarParam && ['data', 'layout', 'settings'].includes(pillarParam)) {
+      setPillar(pillarParam);
+    }
+
+    // Clean up URL params after reading them
+    if (viewParam || pillarParam) {
+      window.history.replaceState({}, '', window.location.pathname);
+    }
+  }, [setView, setPillar]);
 
   // Check auth on mount (non-blocking — catalog is always visible)
   useEffect(() => {

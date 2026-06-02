@@ -15,8 +15,10 @@ import {
   BarChart3,
   ArrowLeft,
   LayoutDashboard,
+  Loader2,
 } from 'lucide-react';
 import Link from 'next/link';
+import type { AppView, Pillar } from '@/types';
 
 // ── Brand Constants ──
 const BRAND = {
@@ -39,13 +41,14 @@ interface AdminDashboardProps {
 }
 
 export function AdminDashboard({ admin }: AdminDashboardProps) {
-  const { setView, setIsAdmin, setAdminUser, setPillar, googleSession, setShowGoogleSheetsBrowser } = useAppStore();
+  const { setView, setPillar, setIsAdmin, setAdminUser, googleSession, setShowGoogleSheetsBrowser } = useAppStore();
   const [stats, setStats] = useState<{
     datasources: number;
     sections: number;
     totalRows: number;
     admins: number;
   } | null>(null);
+  const [statsLoading, setStatsLoading] = useState(true);
 
   useEffect(() => {
     setIsAdmin(true);
@@ -54,26 +57,22 @@ export function AdminDashboard({ admin }: AdminDashboardProps) {
 
   useEffect(() => {
     const fetchStats = async () => {
+      setStatsLoading(true);
       try {
-        const [dsRes, catRes, adminsRes] = await Promise.all([
-          fetch('/api/datasources'),
-          fetch('/api/catalog'),
-          fetch('/api/auth/admins'),
-        ]);
-
+        // Fetch datasources first to get row counts
+        const dsRes = await fetch('/api/datasources');
         let datasources = 0;
         let totalRows = 0;
-        let sections = 0;
-        let admins = 0;
 
         if (dsRes.ok) {
           const dsJson = await dsRes.json();
           const dsList = dsJson.data || [];
           datasources = dsList.length;
+
           // Sum rowCount from all datasources
           totalRows = dsList.reduce((sum: number, ds: { rowCount?: number }) => sum + (ds.rowCount || 0), 0);
 
-          // If rowCount is 0, fetch from individual datasources
+          // If rowCount is 0 from the list, fetch actual counts from individual datasources
           if (totalRows === 0 && dsList.length > 0) {
             const rowCounts = await Promise.all(
               dsList.map(async (ds: { id: string }) => {
@@ -91,6 +90,15 @@ export function AdminDashboard({ admin }: AdminDashboardProps) {
           }
         }
 
+        // Fetch catalog sections and admins in parallel
+        const [catRes, adminsRes] = await Promise.all([
+          fetch('/api/catalog'),
+          fetch('/api/auth/admins'),
+        ]);
+
+        let sections = 0;
+        let admins = 0;
+
         if (catRes.ok) {
           const catJson = await catRes.json();
           sections = catJson.data?.sections?.length || 0;
@@ -104,15 +112,29 @@ export function AdminDashboard({ admin }: AdminDashboardProps) {
         setStats({ datasources, sections, totalRows, admins });
       } catch {
         // Stats not critical
+      } finally {
+        setStatsLoading(false);
       }
     };
     fetchStats();
   }, []);
 
-  // Navigation actions
-  const goToBuilder = (pillarId?: 'data' | 'layout' | 'settings') => {
-    if (pillarId) setPillar(pillarId);
-    setView('builder');
+  // ── Smart navigation ──
+  // When Dashboard is rendered inside HomeContent (/), Zustand state changes work instantly.
+  // When Dashboard is on /admin (separate page), we need URL navigation.
+  const isOnAdminPage = typeof window !== 'undefined' && window.location.pathname === '/admin';
+
+  const navigateTo = (view: AppView, pillar?: Pillar) => {
+    if (isOnAdminPage) {
+      // On /admin — must navigate via URL so HomeContent reads the params
+      const params = new URLSearchParams({ view });
+      if (pillar) params.set('pillar', pillar);
+      window.location.href = `/?${params.toString()}`;
+    } else {
+      // Inside HomeContent — use Zustand for instant switching
+      setView(view);
+      if (pillar) setPillar(pillar);
+    }
   };
 
   const handleConnectGoogle = async () => {
@@ -127,41 +149,51 @@ export function AdminDashboard({ admin }: AdminDashboardProps) {
     } catch { /* ignore */ }
   };
 
+  const handleGoogleSheets = () => {
+    if (isOnAdminPage) {
+      // Navigate to builder data pillar via URL
+      navigateTo('builder', 'data');
+    } else {
+      // Inside HomeContent — show the Google Sheets browser directly
+      setShowGoogleSheetsBrowser(true);
+    }
+  };
+
   // ── Quick access cards ──
   const cards = [
     {
       title: 'Données',
       description: 'Sources de données, colonnes, import Google Sheets',
       icon: Database,
-      action: () => goToBuilder('data'),
+      action: () => navigateTo('builder', 'data'),
       color: BRAND.vertFonce,
     },
     {
       title: 'Mise en page',
       description: 'Sections, configuration du catalogue, organisation visuelle',
       icon: Layout,
-      action: () => goToBuilder('layout'),
+      action: () => navigateTo('builder', 'layout'),
       color: BRAND.dore,
     },
     {
       title: 'Paramètres',
       description: 'Couleurs, WhatsApp, réseaux sociaux, administration',
       icon: Settings,
-      action: () => goToBuilder('settings'),
+      action: () => navigateTo('builder', 'settings'),
       color: '#8B4513',
     },
     {
       title: 'Éditer',
       description: 'Mode édition complet du catalogue avec tous les outils',
       icon: Pen,
-      action: () => goToBuilder(),
+      action: () => navigateTo('builder'),
       color: BRAND.noir,
     },
     {
       title: 'Aperçu',
       description: 'Visualiser le catalogue tel que le voient les visiteurs',
       icon: Eye,
-      action: () => setView('preview'),
+      action: () => navigateTo('preview'),
       color: '#455d68',
     },
     {
@@ -170,22 +202,22 @@ export function AdminDashboard({ admin }: AdminDashboardProps) {
         ? `Connecté : ${googleSession.email}`
         : 'Lier votre compte Google pour importer des feuilles',
       icon: Sheet,
-      action: googleSession ? () => setShowGoogleSheetsBrowser(true) : handleConnectGoogle,
+      action: googleSession ? handleGoogleSheets : handleConnectGoogle,
       color: googleSession ? '#16a34a' : '#4285F4',
     },
   ];
 
   return (
-    <div className="min-h-screen" style={{ backgroundColor: BRAND.beige }}>
+    <div className="min-h-screen flex flex-col" style={{ backgroundColor: BRAND.beige }}>
       {/* ── Header ── */}
       <header className="sticky top-0 z-30 bg-white/95 backdrop-blur-md border-b" style={{ borderColor: `${BRAND.dore}20` }}>
         <div className="max-w-5xl mx-auto px-4 sm:px-6 py-3 flex items-center gap-3">
-          {/* Back arrow → goes to builder */}
+          {/* Back arrow → navigates to builder */}
           <button
-            onClick={() => goToBuilder()}
+            onClick={() => navigateTo('builder')}
             className="flex items-center justify-center w-9 h-9 rounded-full hover:bg-gray-100 transition-colors shrink-0"
-            aria-label="Retour au builder"
-            title="Retour au builder"
+            aria-label="Retour au catalogue"
+            title="Retour au catalogue"
           >
             <ArrowLeft className="w-5 h-5" style={{ color: BRAND.noir }} />
           </button>
@@ -205,9 +237,9 @@ export function AdminDashboard({ admin }: AdminDashboardProps) {
             </div>
           </div>
 
-          {/* Quick link to catalog */}
+          {/* Quick link to catalog preview */}
           <Link
-            href="/"
+            href="/?view=preview"
             className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium hover:bg-gray-100 transition-colors"
             style={{ color: BRAND.vertFonce }}
           >
@@ -217,7 +249,7 @@ export function AdminDashboard({ admin }: AdminDashboardProps) {
         </div>
       </header>
 
-      <main className="max-w-5xl mx-auto px-4 sm:px-6 py-8">
+      <main className="max-w-5xl mx-auto px-4 sm:px-6 py-8 flex-1">
         {/* ── Stats Grid ── */}
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4 mb-8">
           {[
@@ -231,7 +263,11 @@ export function AdminDashboard({ admin }: AdminDashboardProps) {
                 <s.icon className="w-4 h-4" style={{ color: s.color }} />
                 <span className="text-[11px] sm:text-xs text-gray-500 font-medium">{s.label}</span>
               </div>
-              <p className="text-xl sm:text-2xl font-bold" style={{ color: s.color }}>{s.value}</p>
+              {statsLoading && !stats ? (
+                <Loader2 className="w-5 h-5 animate-spin" style={{ color: s.color }} />
+              ) : (
+                <p className="text-xl sm:text-2xl font-bold" style={{ color: s.color }}>{s.value}</p>
+              )}
             </div>
           ))}
         </div>
@@ -243,7 +279,7 @@ export function AdminDashboard({ admin }: AdminDashboardProps) {
             <button
               key={card.title}
               onClick={card.action}
-              className="bg-white rounded-xl p-4 sm:p-5 border text-left hover:shadow-md transition-all duration-200 group"
+              className="bg-white rounded-xl p-4 sm:p-5 border text-left hover:shadow-md transition-all duration-200 group cursor-pointer"
               style={{ borderColor: 'rgba(0,0,0,0.05)' }}
             >
               <div className="w-10 h-10 rounded-xl flex items-center justify-center mb-3" style={{ backgroundColor: `${card.color}10` }}>
@@ -260,8 +296,8 @@ export function AdminDashboard({ admin }: AdminDashboardProps) {
           <div className="mb-8">
             <h2 className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">Administration</h2>
             <button
-              onClick={() => goToBuilder('settings')}
-              className="w-full bg-white rounded-xl p-4 sm:p-5 border text-left hover:shadow-md transition-all duration-200 flex items-center gap-4"
+              onClick={() => navigateTo('builder', 'settings')}
+              className="w-full bg-white rounded-xl p-4 sm:p-5 border text-left hover:shadow-md transition-all duration-200 flex items-center gap-4 cursor-pointer"
               style={{ borderColor: 'rgba(0,0,0,0.05)' }}
             >
               <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0" style={{ backgroundColor: `${BRAND.bordeaux}10` }}>
@@ -288,6 +324,13 @@ export function AdminDashboard({ admin }: AdminDashboardProps) {
           </div>
         </div>
       </main>
+
+      {/* ── Footer ── */}
+      <footer className="border-t py-4 text-center" style={{ borderColor: `${BRAND.dore}20` }}>
+        <p className="text-[11px] text-gray-400">
+          Abaya Collection Dashboard · {new Date().getFullYear()}
+        </p>
+      </footer>
     </div>
   );
 }
