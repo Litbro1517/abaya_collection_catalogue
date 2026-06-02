@@ -211,3 +211,46 @@ Stage Summary:
 - Virtual window: only ±2 slides have real images, rest are placeholders
 - Compact dots with counter for products with many images
 - Files changed: src/components/preview/CatalogPreview.tsx, src/app/globals.css
+
+---
+Task ID: 8
+Agent: main
+Task: Secure admin interface — hide gear button for non-admins, protect /admin route
+
+Work Log:
+- Explored auth system: custom session-based auth with admin_users table (roles: owner/admin/editor)
+- Current state: gear button was ALWAYS visible to all users, no route protection existed
+- Modified CatalogPreview.tsx:
+  - Added `canAccessBuilder` flag: only true if isAdmin + adminUser.role is 'owner' or 'admin'
+  - Gear button: conditionally rendered only for owner/admin, replaced with invisible spacer div otherwise
+  - Removed `onAdminLogin` callback from gear button — public users can no longer see or trigger admin access from catalog
+- Modified page.tsx:
+  - Builder mode access now checks `canAccessBuilder` (owner/admin only)
+  - Editors who are authenticated but not admin/owner cannot access builder
+- Created /admin route (src/app/admin/page.tsx):
+  - Server-side auth check via getCurrentAdmin()
+  - Redirects non-authenticated and non-owner/admin users to /
+  - Renders AdminDashboard component
+- Created AdminDashboard component (src/components/admin/AdminDashboard.tsx):
+  - Stats cards (datasources, sections, products, admins)
+  - Quick action cards (builder, catalog view, admin management)
+  - Security notice section
+- Created Next.js middleware (src/middleware.ts):
+  - /admin route: redirects non-auth/non-owner/admin to /
+  - /api/auth/admins: requires authentication (401 if not)
+  - Write operations (POST/PUT/PATCH/DELETE) on datasources/catalog/sections/settings: requires auth
+  - Read operations (GET) remain public for catalog display
+- Verified on Vercel:
+  - Public user: gear button NOT visible ✅
+  - /admin route: redirects to / ✅
+  - /api/auth/admins: returns 401 ✅
+  - /api/catalog GET: still public 200 ✅
+  - /api/datasources POST: returns 401 ✅
+  - /api/datasources GET: still public 200 ✅
+
+Stage Summary:
+- Gear button: hidden for non-owner/admin users (editors + public)
+- Builder mode: restricted to owner/admin roles
+- /admin route: protected with server-side redirect
+- API routes: write operations require auth, read operations remain public
+- Files changed: CatalogPreview.tsx, page.tsx, new admin/page.tsx, new AdminDashboard.tsx, new middleware.ts
