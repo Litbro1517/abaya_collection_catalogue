@@ -235,7 +235,7 @@ export type SyncStatus = 'idle' | 'syncing' | 'success' | 'error';
 
 // ─── App State ────────────────────────────────────────────────────────────
 
-export type AppView = 'preview' | 'builder';
+export type AppView = 'preview' | 'builder' | 'dashboard';
 export type Pillar = 'data' | 'layout' | 'settings';
 
 export interface ImportResult {

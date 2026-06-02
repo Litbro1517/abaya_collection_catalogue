@@ -4,6 +4,7 @@ import { useEffect, useCallback, useState, ComponentType } from 'react';
 import { useAppStore } from '@/lib/store';
 import { BuilderShell } from '@/components/BuilderShell';
 import { CatalogPreview } from '@/components/preview/CatalogPreview';
+import { AdminDashboard } from '@/components/admin/AdminDashboard';
 import { LoginModal } from '@/components/LoginModal';
 import { Loader2, AlertTriangle, RefreshCw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -219,6 +220,11 @@ function HomeContent() {
   const canAccessBuilder = isAdmin && adminUser && (adminUser.role === 'owner' || adminUser.role === 'admin');
   if (canAccessBuilder && view === 'builder') {
     return <BuilderShell />;
+  }
+
+  // Admin dashboard — central navigation hub
+  if (canAccessBuilder && view === 'dashboard' && adminUser) {
+    return <AdminDashboard admin={adminUser} />;
   }
 
   // Login modal overlay — only when explicitly requested

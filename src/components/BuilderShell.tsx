@@ -15,6 +15,7 @@ import {
   LogOut,
   BookOpen,
   Sheet,
+  LayoutDashboard,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
@@ -150,6 +151,22 @@ export function BuilderShell() {
           'border-r border-border bg-card flex flex-col items-center py-3 gap-1 shrink-0 transition-all duration-200',
           sidebarCollapsed ? 'w-14' : 'w-16'
         )}>
+          {/* Dashboard button at top */}
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <button
+                onClick={() => setView('dashboard')}
+                className="w-11 h-11 rounded-xl flex flex-col items-center justify-center gap-0.5 transition-all text-muted-foreground hover:bg-muted hover:text-foreground"
+              >
+                <LayoutDashboard className="w-5 h-5" />
+                <span className="text-[9px] leading-none">Dashboard</span>
+              </button>
+            </TooltipTrigger>
+            <TooltipContent side="right">Retour au Dashboard</TooltipContent>
+          </Tooltip>
+
+          <div className="w-8 border-t border-border my-1" />
+
           {pillars.map((p) => (
             <Tooltip key={p.id}>
               <TooltipTrigger asChild>

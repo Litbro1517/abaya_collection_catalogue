@@ -536,9 +536,9 @@ export function CatalogPreview({ onAdminLogin }: CatalogPreviewProps) {
         {/* Admin gear icon — only visible for owner/admin roles */}
         {canAccessBuilder ? (
           <button
-            onClick={() => setView('builder')}
+            onClick={() => setView('dashboard')}
             className="flex items-center justify-center w-9 h-9 rounded-full hover:bg-gray-100 transition-colors shrink-0"
-            title="Retour au builder"
+            title="Dashboard administrateur"
             aria-label="Admin"
           >
             <Settings className="w-4 h-4" style={{ color: BRAND.grisMoyen }} />
