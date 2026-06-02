@@ -16,9 +16,11 @@ import {
   ArrowLeft,
   LayoutDashboard,
   Loader2,
+  Pencil,
+  Unplug,
 } from 'lucide-react';
 import Link from 'next/link';
-import type { AppView, Pillar } from '@/types';
+import type { AppView, Pillar, SettingsTab } from '@/types';
 
 // ── Brand Constants ──
 const BRAND = {
@@ -41,7 +43,12 @@ interface AdminDashboardProps {
 }
 
 export function AdminDashboard({ admin }: AdminDashboardProps) {
-  const { setView, setPillar, setIsAdmin, setAdminUser, googleSession, setShowGoogleSheetsBrowser } = useAppStore();
+  const {
+    setView, setPillar, setSettingsTab,
+    setIsAdmin, setAdminUser,
+    googleSession, setShowGoogleSheetsBrowser,
+    dataSources, setActiveDataSourceId,
+  } = useAppStore();
   const [stats, setStats] = useState<{
     datasources: number;
     sections: number;
@@ -59,7 +66,6 @@ export function AdminDashboard({ admin }: AdminDashboardProps) {
     const fetchStats = async () => {
       setStatsLoading(true);
       try {
-        // Fetch datasources first to get row counts
         const dsRes = await fetch('/api/datasources');
         let datasources = 0;
         let totalRows = 0;
@@ -69,10 +75,8 @@ export function AdminDashboard({ admin }: AdminDashboardProps) {
           const dsList = dsJson.data || [];
           datasources = dsList.length;
 
-          // Sum rowCount from all datasources
           totalRows = dsList.reduce((sum: number, ds: { rowCount?: number }) => sum + (ds.rowCount || 0), 0);
 
-          // If rowCount is 0 from the list, fetch actual counts from individual datasources
           if (totalRows === 0 && dsList.length > 0) {
             const rowCounts = await Promise.all(
               dsList.map(async (ds: { id: string }) => {
@@ -90,7 +94,6 @@ export function AdminDashboard({ admin }: AdminDashboardProps) {
           }
         }
 
-        // Fetch catalog sections and admins in parallel
         const [catRes, adminsRes] = await Promise.all([
           fetch('/api/catalog'),
           fetch('/api/auth/admins'),
@@ -120,20 +123,18 @@ export function AdminDashboard({ admin }: AdminDashboardProps) {
   }, []);
 
   // ── Smart navigation ──
-  // When Dashboard is rendered inside HomeContent (/), Zustand state changes work instantly.
-  // When Dashboard is on /admin (separate page), we need URL navigation.
   const isOnAdminPage = typeof window !== 'undefined' && window.location.pathname === '/admin';
 
-  const navigateTo = (view: AppView, pillar?: Pillar) => {
+  const navigateTo = (view: AppView, opts?: { pillar?: Pillar; settingsTab?: SettingsTab }) => {
     if (isOnAdminPage) {
-      // On /admin — must navigate via URL so HomeContent reads the params
       const params = new URLSearchParams({ view });
-      if (pillar) params.set('pillar', pillar);
+      if (opts?.pillar) params.set('pillar', opts.pillar);
+      if (opts?.settingsTab) params.set('settingsTab', opts.settingsTab);
       window.location.href = `/?${params.toString()}`;
     } else {
-      // Inside HomeContent — use Zustand for instant switching
       setView(view);
-      if (pillar) setPillar(pillar);
+      if (opts?.pillar) setPillar(opts.pillar);
+      if (opts?.settingsTab) setSettingsTab(opts.settingsTab);
     }
   };
 
@@ -149,14 +150,31 @@ export function AdminDashboard({ admin }: AdminDashboardProps) {
     } catch { /* ignore */ }
   };
 
-  const handleGoogleSheets = () => {
-    if (isOnAdminPage) {
-      // Navigate to builder data pillar via URL
-      navigateTo('builder', 'data');
-    } else {
-      // Inside HomeContent — show the Google Sheets browser directly
-      setShowGoogleSheetsBrowser(true);
+  // ── Éditer: opens the data editing interface directly ──
+  // Selects the first data source automatically so the DataTable is visible
+  const handleEdit = () => {
+    // Auto-select first data source if none is selected
+    if (!useAppStore.getState().activeDataSourceId && dataSources.length > 0) {
+      setActiveDataSourceId(dataSources[0].id);
     }
+    navigateTo('builder', { pillar: 'data' });
+  };
+
+  // ── Google Sheets: connection/configuration only ──
+  // If not connected → OAuth flow
+  // If connected → navigate to Settings > Admin tab to manage Google OAuth credentials
+  const handleGoogleSheets = () => {
+    if (!googleSession) {
+      handleConnectGoogle();
+    } else {
+      // Navigate to Settings > Admin tab where Google OAuth config lives
+      navigateTo('builder', { pillar: 'settings', settingsTab: 'admin' });
+    }
+  };
+
+  // ── Gestion des administrateurs: directly to Settings > Admin tab ──
+  const handleAdminManagement = () => {
+    navigateTo('builder', { pillar: 'settings', settingsTab: 'admin' });
   };
 
   // ── Quick access cards ──
@@ -165,29 +183,29 @@ export function AdminDashboard({ admin }: AdminDashboardProps) {
       title: 'Données',
       description: 'Sources de données, colonnes, import Google Sheets',
       icon: Database,
-      action: () => navigateTo('builder', 'data'),
+      action: () => navigateTo('builder', { pillar: 'data' }),
       color: BRAND.vertFonce,
     },
     {
       title: 'Mise en page',
       description: 'Sections, configuration du catalogue, organisation visuelle',
       icon: Layout,
-      action: () => navigateTo('builder', 'layout'),
+      action: () => navigateTo('builder', { pillar: 'layout' }),
       color: BRAND.dore,
     },
     {
       title: 'Paramètres',
-      description: 'Couleurs, WhatsApp, réseaux sociaux, administration',
+      description: 'Couleurs, WhatsApp, réseaux sociaux',
       icon: Settings,
-      action: () => navigateTo('builder', 'settings'),
+      action: () => navigateTo('builder', { pillar: 'settings', settingsTab: 'general' }),
       color: '#8B4513',
     },
     {
       title: 'Éditer',
-      description: 'Mode édition complet du catalogue avec tous les outils',
-      icon: Pen,
-      action: () => navigateTo('builder'),
-      color: BRAND.noir,
+      description: 'Édition directe des données du catalogue',
+      icon: Pencil,
+      action: handleEdit,
+      color: BRAND.vertFonce,
     },
     {
       title: 'Aperçu',
@@ -199,10 +217,10 @@ export function AdminDashboard({ admin }: AdminDashboardProps) {
     {
       title: googleSession ? 'Google Sheets' : 'Connexion Google',
       description: googleSession
-        ? `Connecté : ${googleSession.email}`
+        ? 'Gérer la connexion Google Drive/Sheets'
         : 'Lier votre compte Google pour importer des feuilles',
-      icon: Sheet,
-      action: googleSession ? handleGoogleSheets : handleConnectGoogle,
+      icon: googleSession ? Sheet : Unplug,
+      action: handleGoogleSheets,
       color: googleSession ? '#16a34a' : '#4285F4',
     },
   ];
@@ -296,7 +314,7 @@ export function AdminDashboard({ admin }: AdminDashboardProps) {
           <div className="mb-8">
             <h2 className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">Administration</h2>
             <button
-              onClick={() => navigateTo('builder', 'settings')}
+              onClick={handleAdminManagement}
               className="w-full bg-white rounded-xl p-4 sm:p-5 border text-left hover:shadow-md transition-all duration-200 flex items-center gap-4 cursor-pointer"
               style={{ borderColor: 'rgba(0,0,0,0.05)' }}
             >

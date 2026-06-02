@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { useAppStore } from '@/lib/store';
-import type { CatalogSettings } from '@/types';
+import type { CatalogSettings, SettingsTab } from '@/types';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -19,7 +19,7 @@ import {
 import { toast } from 'sonner';
 
 export function SettingsPillar() {
-  const { settings, setSettings, adminUser } = useAppStore();
+  const { settings, setSettings, adminUser, settingsTab, setSettingsTab } = useAppStore();
   const [local, setLocal] = useState<CatalogSettings | null>(null);
   const [saving, setSaving] = useState(false);
   const [copied, setCopied] = useState(false);
@@ -170,7 +170,7 @@ export function SettingsPillar() {
           </Button>
         </div>
 
-        <Tabs defaultValue="general" className="space-y-4">
+        <Tabs value={settingsTab} onValueChange={(v) => setSettingsTab(v as SettingsTab)} className="space-y-4">
           <TabsList className="grid w-full grid-cols-5">
             <TabsTrigger value="general" className="text-xs gap-1"><Globe className="w-3 h-3" /> Général</TabsTrigger>
             <TabsTrigger value="appearance" className="text-xs gap-1"><Palette className="w-3 h-3" /> Style</TabsTrigger>

@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import type { DataSource, Column, Row, Catalog, Section, CatalogSettings, Pillar, AppView, Relation, GoogleSession, GoogleSheetInfo, SyncStatus } from '@/types';
+import type { DataSource, Column, Row, Catalog, Section, CatalogSettings, Pillar, AppView, SettingsTab, Relation, GoogleSession, GoogleSheetInfo, SyncStatus } from '@/types';
 
 interface AppState {
   // ── Navigation ──
@@ -7,6 +7,8 @@ interface AppState {
   setView: (view: AppView) => void;
   pillar: Pillar;
   setPillar: (pillar: Pillar) => void;
+  settingsTab: SettingsTab;
+  setSettingsTab: (tab: SettingsTab) => void;
 
   // ── Auth ──
   isAdmin: boolean;
@@ -78,6 +80,8 @@ export const useAppStore = create<AppState>((set, get) => ({
   setView: (view) => set({ view }),
   pillar: 'data',
   setPillar: (pillar) => set({ pillar }),
+  settingsTab: 'general',
+  setSettingsTab: (settingsTab) => set({ settingsTab }),
 
   // ── Auth ──
   isAdmin: false,
