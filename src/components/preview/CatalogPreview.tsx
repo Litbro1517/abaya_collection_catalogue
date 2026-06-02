@@ -604,7 +604,7 @@ export function CatalogPreview({ onAdminLogin }: CatalogPreviewProps) {
         <div className="detail-layout">
           {/* LEFT COLUMN: Carousel */}
           <div>
-            {/* ── Glide Carousel: 3/4 portrait, object-contain for consistent sizing ── */}
+            {/* ── Glide Carousel: 3/4 portrait, object-cover for uniform fill ── */}
             {carouselImages.length > 0 && (
               <section
                 className="glide-carousel"

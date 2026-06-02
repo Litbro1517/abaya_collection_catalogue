@@ -382,9 +382,16 @@
 /* ── Product Detail: Layout ── */
 .detail-layout {
   display: grid;
-  grid-template-columns: 1fr 420px;
+  grid-template-columns: 1fr 400px;
   gap: 40px;
   align-items: start;
+}
+
+@media (min-width: 1280px) {
+  .detail-layout {
+    grid-template-columns: 1fr 420px;
+    gap: 56px;
+  }
 }
 
 @media (max-width: 900px) {
@@ -398,6 +405,14 @@
 .detail-info {
   position: sticky;
   top: 80px;
+  padding-top: 8px;
+}
+
+@media (max-width: 900px) {
+  .detail-info {
+    position: static;
+    padding-top: 0;
+  }
 }
 
 /* ── Product Detail: Hero (inside right column on desktop) ── */
@@ -406,6 +421,8 @@
   flex-direction: column;
   gap: 4px;
   margin: 0 0 20px;
+  padding-bottom: 20px;
+  border-bottom: 1px solid #f0ece5;
 }
 
 .product-hero-thumb {
@@ -548,31 +565,27 @@
   }
 }
 
-/* ── Glide Carousel (consistent sizing with contain) ── */
+/* ── Glide Carousel (uniform fill with cover) ── */
 .glide-carousel {
   position: relative;
   width: 100%;
-  max-height: 680px;
   aspect-ratio: 3 / 4;
   overflow: hidden;
   border-radius: var(--radius-glide);
   background: #f8f6f2;
-  display: flex;
-  align-items: center;
-  justify-content: center;
 }
 
 .glide-carousel img {
   width: 100%;
   height: 100%;
-  object-fit: contain;
+  object-fit: cover;
   object-position: center;
+  display: block;
 }
 
 @media (max-width: 900px) {
   .glide-carousel {
     aspect-ratio: 3 / 4;
-    max-height: none;
   }
 }
 
@@ -585,25 +598,33 @@
 .carousel-arrow {
   position: absolute;
   top: 50%;
-  width: 44px;
-  height: 56px;
+  width: 40px;
+  height: 40px;
   transform: translateY(-50%);
   border: 0;
-  border-radius: 12px;
-  background: rgba(0, 0, 0, 0.16);
-  color: white;
-  font-size: 34px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.75);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  color: #1F1F1F;
+  font-size: 24px;
   line-height: 1;
   cursor: pointer;
   z-index: 2;
   display: flex;
   align-items: center;
   justify-content: center;
-  transition: background 0.2s;
+  transition: background 0.2s, transform 0.15s;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
 }
 
 .carousel-arrow:hover {
-  background: rgba(0, 0, 0, 0.3);
+  background: rgba(255, 255, 255, 0.95);
+  transform: translateY(-50%) scale(1.08);
+}
+
+.carousel-arrow:active {
+  transform: translateY(-50%) scale(0.95);
 }
 
 .carousel-arrow.left {
@@ -612,6 +633,20 @@
 
 .carousel-arrow.right {
   right: 12px;
+}
+
+@media (max-width: 640px) {
+  .carousel-arrow {
+    width: 34px;
+    height: 34px;
+    font-size: 20px;
+  }
+  .carousel-arrow.left {
+    left: 8px;
+  }
+  .carousel-arrow.right {
+    right: 8px;
+  }
 }
 
 .carousel-dots {
@@ -625,6 +660,11 @@
   flex-wrap: wrap;
   justify-content: center;
   max-width: 90%;
+  padding: 6px 12px;
+  border-radius: 999px;
+  background: rgba(0, 0, 0, 0.15);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
 }
 
 .carousel-dots button {
@@ -635,11 +675,12 @@
   border-radius: 999px;
   background: rgba(255, 255, 255, 0.55);
   cursor: pointer;
-  transition: background 0.2s;
+  transition: all 0.2s;
 }
 
 .carousel-dots button.active {
   background: white;
+  width: 18px;
 }
 
 /* ── WhatsApp CTA ── */
