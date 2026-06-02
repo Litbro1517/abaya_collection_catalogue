@@ -224,7 +224,10 @@ interface CatalogPreviewProps {
 }
 
 export function CatalogPreview({ onAdminLogin }: CatalogPreviewProps) {
-  const { catalog, settings, isAdmin, setView } = useAppStore();
+  const { catalog, settings, isAdmin, adminUser, setView } = useAppStore();
+
+  // Only owner/admin can access the builder — editors and public users cannot
+  const canAccessBuilder = isAdmin && adminUser && (adminUser.role === 'owner' || adminUser.role === 'admin');
   const [sections, setSections] = useState<{ section: Section; columns: Column[]; rows: Row[] }[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedProduct, setSelectedProduct] = useState<{ row: Row; columns: Column[]; section: Section } | null>(null);
@@ -530,15 +533,19 @@ export function CatalogPreview({ onAdminLogin }: CatalogPreviewProps) {
           </h1>
         </div>
 
-        {/* Admin gear icon */}
-        <button
-          onClick={isAdmin ? () => setView('builder') : onAdminLogin}
-          className="flex items-center justify-center w-9 h-9 rounded-full hover:bg-gray-100 transition-colors shrink-0"
-          title={isAdmin ? 'Retour au builder' : 'Accès administrateur'}
-          aria-label="Admin"
-        >
-          <Settings className="w-4 h-4" style={{ color: BRAND.grisMoyen }} />
-        </button>
+        {/* Admin gear icon — only visible for owner/admin roles */}
+        {canAccessBuilder ? (
+          <button
+            onClick={() => setView('builder')}
+            className="flex items-center justify-center w-9 h-9 rounded-full hover:bg-gray-100 transition-colors shrink-0"
+            title="Retour au builder"
+            aria-label="Admin"
+          >
+            <Settings className="w-4 h-4" style={{ color: BRAND.grisMoyen }} />
+          </button>
+        ) : (
+          <div className="w-9 h-9 shrink-0" />
+        )}
       </div>
     </header>
   );

@@ -52,6 +52,7 @@ function HomeContent() {
   const {
     view,
     isAdmin,
+    adminUser,
     setIsAdmin,
     setAdminUser,
     setDataSources,
@@ -214,8 +215,9 @@ function HomeContent() {
     );
   }
 
-  // Admin builder mode — only for authenticated admins
-  if (isAdmin && view === 'builder') {
+  // Admin builder mode — only for authenticated admins with owner/admin role
+  const canAccessBuilder = isAdmin && adminUser && (adminUser.role === 'owner' || adminUser.role === 'admin');
+  if (canAccessBuilder && view === 'builder') {
     return <BuilderShell />;
   }
 
