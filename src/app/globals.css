@@ -187,27 +187,27 @@
   }
 }
 
-/* ── Catalog Breadcrumb (scrolls with content) ── */
+/* ── Catalog Breadcrumb (inside product container, above hero) ── */
 .catalog-breadcrumb {
-  background: #FFFFFF;
+  /* No background — inherits from detail-container */
 }
 
 .catalog-breadcrumb-inner {
-  max-width: 1270px;
-  margin: 0 auto;
-  padding: 8px 32px;
   display: flex;
   align-items: center;
   gap: 8px;
   font-size: 13px;
   overflow-x: auto;
+  padding: 4px 0 10px;
+  border-bottom: 1px solid #f0ece5;
+  margin-bottom: 4px;
 }
 
 @media (max-width: 640px) {
   .catalog-breadcrumb-inner {
-    padding: 8px 16px;
     font-size: 12px;
     gap: 6px;
+    padding: 2px 0 8px;
   }
 }
 

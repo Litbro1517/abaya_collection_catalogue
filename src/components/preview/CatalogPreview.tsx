@@ -495,7 +495,7 @@ export function CatalogPreview({ onAdminLogin }: CatalogPreviewProps) {
     const sectionTitle = section.title || 'Collection';
 
     return (
-      <nav className="catalog-breadcrumb border-b" style={{ borderColor: `${BRAND.dore}10` }}>
+      <nav className="catalog-breadcrumb">
         <div className="catalog-breadcrumb-inner">
           {/* Small back arrow for redundancy */}
           <button
@@ -597,6 +597,9 @@ export function CatalogPreview({ onAdminLogin }: CatalogPreviewProps) {
 
     return (
       <main className="detail-container flex-1 pb-24 sm:pb-8">
+        {/* ── Breadcrumb: inside product container, above hero ── */}
+        {renderBreadcrumbs()}
+
         {/* ── Product Hero: cover thumbnail + title + description (NO Edit button) ── */}
         <section className="product-hero">
           {coverImage ? (
@@ -904,9 +907,6 @@ export function CatalogPreview({ onAdminLogin }: CatalogPreviewProps) {
     <div className="min-h-screen flex flex-col" style={{ backgroundColor: bgColor }}>
       {/* Persistent Header — always visible */}
       {renderHeader()}
-
-      {/* Dynamic Breadcrumbs — only on detail view, scrolls with content */}
-      {renderBreadcrumbs()}
 
       {/* Conditional: Grid or Detail */}
       {isDetailView ? renderDetailView() : renderGridView()}
