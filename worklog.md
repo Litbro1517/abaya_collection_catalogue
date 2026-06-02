@@ -33,3 +33,49 @@ Stage Summary:
 - Complete Glide-like redesign implemented
 - Key changes: 4/3 catalog grid, no hover, square carousel, no thumbnails, product hero with fields, professional look
 - All 5 audit anomalies addressed: no thumbnails, no CompactDots, proper carousel, no hover, clean image display
+
+---
+Task ID: 2
+Agent: main
+Task: Update admin email from abaya.chic.collection@gmail.com to gotonewjamail@gmail.com
+
+Work Log:
+- Queried admin_users table in Supabase PostgreSQL via pg client
+- Found existing record: abaya.chic.collection@gmail.com, role: owner, status: active
+- Updated email to gotonewjamail@gmail.com, name to "Admin"
+- Verified update was successful
+
+Stage Summary:
+- Admin email changed from abaya.chic.collection@gmail.com → gotonewjamail@gmail.com
+- Role remains owner, status remains active
+
+---
+Task ID: 3
+Agent: main
+Task: Create Admin User Management UI and fix password change form
+
+Work Log:
+- Explored codebase: found backend API fully implemented (GET/POST/DELETE /api/auth/admins, POST /api/auth/change-password) but NO frontend UI
+- SettingsPillar.tsx Admin tab only had Google OAuth config and a stub password change form
+- Added PATCH endpoint to /api/auth/admins for updating admin role/status (with safety checks)
+- Created AdminUserManager component with full CRUD:
+  - Admin list with avatars, role badges, status badges
+  - Add admin dialog (email, name, role, optional password)
+  - Edit role dialog (owner/admin/editor)
+  - Toggle status (active/suspended) with session kill on suspend
+  - Delete admin with confirmation dialog
+  - Owner-only restrictions enforced in UI
+- Fixed password change form to actually call /api/auth/change-password API
+  - Added controlled state for currentPassword, newPassword, confirmPassword
+  - Added validation (min 8 chars, match confirmation)
+  - Added loading state and error handling
+- Added session info card showing current admin email/name
+- Reorganized Admin tab: User Management → Google OAuth → Password → Session
+- Reverted agent's SQLite schema changes back to PostgreSQL (for production)
+- Lint passes clean, pushed to GitHub
+
+Stage Summary:
+- New file: src/components/settings/AdminUserManager.tsx (full CRUD component)
+- Modified: src/app/api/auth/admins/route.ts (added PATCH handler)
+- Modified: src/components/settings/SettingsPillar.tsx (integrated AdminUserManager, fixed password form)
+- All changes deployed via git push → Vercel auto-deploy
