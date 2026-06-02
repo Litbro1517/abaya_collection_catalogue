@@ -11,14 +11,15 @@ import { Switch } from '@/components/ui/switch';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
+import { AdminUserManager } from '@/components/settings/AdminUserManager';
 import {
   Globe, Palette, Share2, Monitor, Shield, Save, Loader2,
-  MessageCircle, ExternalLink, Mail, Instagram, Copy, Check, Sheet, Key
+  MessageCircle, ExternalLink, Mail, Instagram, Copy, Check, Key
 } from 'lucide-react';
 import { toast } from 'sonner';
 
 export function SettingsPillar() {
-  const { settings, setSettings } = useAppStore();
+  const { settings, setSettings, adminUser } = useAppStore();
   const [local, setLocal] = useState<CatalogSettings | null>(null);
   const [saving, setSaving] = useState(false);
   const [copied, setCopied] = useState(false);
@@ -26,6 +27,12 @@ export function SettingsPillar() {
   const [googleClientSecret, setGoogleClientSecret] = useState('');
   const [googleCredsLoaded, setGoogleCredsLoaded] = useState(false);
   const [googleCredsSaving, setGoogleCredsSaving] = useState(false);
+
+  // Password change state
+  const [currentPassword, setCurrentPassword] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [passwordSaving, setPasswordSaving] = useState(false);
 
   useEffect(() => {
     if (settings) setLocal(settings);
@@ -97,6 +104,42 @@ export function SettingsPillar() {
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
     toast.success('Lien copié !');
+  };
+
+  const handleChangePassword = async () => {
+    if (!currentPassword || !newPassword || !confirmPassword) {
+      toast.error('Veuillez remplir tous les champs');
+      return;
+    }
+    if (newPassword.length < 8) {
+      toast.error('Le nouveau mot de passe doit contenir au moins 8 caractères');
+      return;
+    }
+    if (newPassword !== confirmPassword) {
+      toast.error('Les mots de passe ne correspondent pas');
+      return;
+    }
+    setPasswordSaving(true);
+    try {
+      const res = await fetch('/api/auth/change-password', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ currentPassword, newPassword }),
+      });
+      if (res.ok) {
+        toast.success('Mot de passe modifié avec succès');
+        setCurrentPassword('');
+        setNewPassword('');
+        setConfirmPassword('');
+      } else {
+        const json = await res.json();
+        toast.error(json.error || 'Erreur lors du changement de mot de passe');
+      }
+    } catch {
+      toast.error('Erreur de connexion');
+    } finally {
+      setPasswordSaving(false);
+    }
   };
 
   if (!local) {
@@ -322,6 +365,21 @@ export function SettingsPillar() {
           {/* Admin */}
           <TabsContent value="admin">
             <div className="space-y-4">
+
+              {/* User Management Card */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-sm flex items-center gap-2">
+                    <Shield className="w-4 h-4" />
+                    Gestion des accès
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <AdminUserManager />
+                </CardContent>
+              </Card>
+
+              {/* Google OAuth Card */}
               <Card>
                 <CardHeader><CardTitle className="text-sm flex items-center gap-2"><Key className="w-4 h-4" /> Google OAuth</CardTitle></CardHeader>
                 <CardContent className="space-y-4">
@@ -381,24 +439,80 @@ export function SettingsPillar() {
                 </CardContent>
               </Card>
 
+              {/* Password Change Card */}
               <Card>
-                <CardHeader><CardTitle className="text-sm">Mot de passe Administrateur</CardTitle></CardHeader>
+                <CardHeader>
+                  <CardTitle className="text-sm flex items-center gap-2">
+                    <Key className="w-4 h-4" />
+                    Mon mot de passe
+                  </CardTitle>
+                </CardHeader>
                 <CardContent className="space-y-4">
+                  <p className="text-xs text-muted-foreground">
+                    Modifiez votre mot de passe personnel. Si vous vous connectez uniquement via Google, cette section ne s&apos;applique pas.
+                  </p>
                   <div>
                     <Label className="text-xs">Mot de passe actuel</Label>
-                    <Input type="password" className="h-9" placeholder="••••••••" />
+                    <Input
+                      type="password"
+                      value={currentPassword}
+                      onChange={e => setCurrentPassword(e.target.value)}
+                      className="h-9 text-xs"
+                      placeholder="••••••••"
+                    />
                   </div>
                   <div>
                     <Label className="text-xs">Nouveau mot de passe</Label>
-                    <Input type="password" className="h-9" placeholder="••••••••" />
+                    <Input
+                      type="password"
+                      value={newPassword}
+                      onChange={e => setNewPassword(e.target.value)}
+                      className="h-9 text-xs"
+                      placeholder="Min. 8 caractères"
+                    />
                   </div>
                   <div>
                     <Label className="text-xs">Confirmer le mot de passe</Label>
-                    <Input type="password" className="h-9" placeholder="••••••••" />
+                    <Input
+                      type="password"
+                      value={confirmPassword}
+                      onChange={e => setConfirmPassword(e.target.value)}
+                      className="h-9 text-xs"
+                      placeholder="Retapez le nouveau mot de passe"
+                      onKeyDown={e => { if (e.key === 'Enter') handleChangePassword(); }}
+                    />
                   </div>
-                  <Button size="sm" onClick={() => toast.info('Fonctionnalité à venir')}>Changer le mot de passe</Button>
+                  <Button
+                    size="sm"
+                    className="gap-1.5"
+                    onClick={handleChangePassword}
+                    disabled={passwordSaving || !currentPassword || !newPassword || !confirmPassword}
+                  >
+                    {passwordSaving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Key className="w-3.5 h-3.5" />}
+                    Changer le mot de passe
+                  </Button>
                 </CardContent>
               </Card>
+
+              {/* Current session info */}
+              {adminUser && (
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="text-sm">Session actuelle</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="flex items-center gap-3">
+                      <div className="w-8 h-8 rounded-full bg-gold/10 flex items-center justify-center text-gold text-xs font-medium">
+                        {(adminUser.name || adminUser.email)[0].toUpperCase()}
+                      </div>
+                      <div>
+                        <p className="text-sm font-medium">{adminUser.name || adminUser.email.split('@')[0]}</p>
+                        <p className="text-xs text-muted-foreground">{adminUser.email}</p>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
             </div>
           </TabsContent>
         </Tabs>

@@ -134,6 +134,88 @@ export async function POST(req: NextRequest) {
 }
 
 /**
+ * PATCH — Update an admin's role or status (requires owner role)
+ */
+export async function PATCH(req: NextRequest) {
+  try {
+    const admin = await getCurrentAdmin();
+
+    if (!admin) {
+      return NextResponse.json({ error: 'Non authentifié' }, { status: 401 });
+    }
+
+    if (admin.role !== 'owner') {
+      return NextResponse.json({ error: 'Seul le propriétaire peut modifier les administrateurs' }, { status: 403 });
+    }
+
+    const body = await req.json();
+    const { adminId, role, status } = body;
+
+    if (!adminId) {
+      return NextResponse.json({ error: 'ID de l\'administrateur requis' }, { status: 400 });
+    }
+
+    // Cannot modify yourself
+    if (adminId === admin.id) {
+      return NextResponse.json({ error: 'Vous ne pouvez pas modifier votre propre rôle ou statut' }, { status: 400 });
+    }
+
+    const targetAdmin = await db.adminUser.findUnique({ where: { id: adminId } });
+    if (!targetAdmin) {
+      return NextResponse.json({ error: 'Administrateur introuvable' }, { status: 404 });
+    }
+
+    // If demoting an owner, check they're not the last one
+    if (targetAdmin.role === 'owner' && role && role !== 'owner') {
+      const ownerCount = await db.adminUser.count({ where: { role: 'owner' } });
+      if (ownerCount <= 1) {
+        return NextResponse.json({ error: 'Impossible de modifier le dernier propriétaire' }, { status: 400 });
+      }
+    }
+
+    // Validate role if provided
+    const validRoles = ['owner', 'admin', 'editor'];
+    const validStatuses = ['active', 'suspended'];
+
+    const updateData: Record<string, string> = {};
+    if (role && validRoles.includes(role)) updateData.role = role;
+    if (status && validStatuses.includes(status)) updateData.status = status;
+
+    if (Object.keys(updateData).length === 0) {
+      return NextResponse.json({ error: 'Aucune modification valide' }, { status: 400 });
+    }
+
+    // If suspending, kill all their sessions
+    if (status === 'suspended') {
+      await db.adminSession.deleteMany({ where: { adminId } });
+    }
+
+    const updatedAdmin = await db.adminUser.update({
+      where: { id: adminId },
+      data: updateData,
+      select: {
+        id: true,
+        email: true,
+        name: true,
+        picture: true,
+        role: true,
+        status: true,
+        createdAt: true,
+        updatedAt: true,
+      },
+    });
+
+    // Audit log
+    const ip = req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ?? undefined;
+    await auditLog(admin.id, 'update', 'admin', adminId, { ...updateData, targetEmail: targetAdmin.email }, ip);
+
+    return NextResponse.json({ data: updatedAdmin });
+  } catch {
+    return NextResponse.json({ error: 'Erreur lors de la modification de l\'administrateur' }, { status: 500 });
+  }
+}
+
+/**
  * DELETE — Remove an admin (requires owner role)
  */
 export async function DELETE(req: NextRequest) {
