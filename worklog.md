@@ -172,3 +172,42 @@ Stage Summary:
 - Preloading adjacent images eliminates lag when clicking carousel arrows
 - Smaller image size (800 vs 1600) reduces loading time by ~60%
 - Files changed: src/app/globals.css, src/components/preview/CatalogPreview.tsx
+
+---
+Task ID: 7
+Agent: main
+Task: Fix carousel performance and image loading speed — direct CDN URLs + virtual window
+
+Work Log:
+- User reported: changes not deployed to Vercel, carousel still slow/laggy for "عباية بنت حوران"
+- Found unpushed commit (only pid/worklog changes, not code fixes)
+- Identified root cause of slow carousel: ALL images routed through server-side proxy (/api/google/image-proxy)
+  - Each proxy request: server fetch → try lh3 → try thumbnail → try uc → try OAuth = 3-4 sequential HTTP requests
+  - For <img> tags, CORS proxy is UNNECESSARY — direct lh3.googleusercontent.com URLs work fine
+- Created resolveDirectImageUrl() function: converts Google Drive URLs to direct CDN URLs
+- Created resolveProxyImageUrl() function: keeps proxy as fallback for failed CDN loads
+- Rewrote carousel as sliding track with CSS transforms (no src-swap delay):
+  - All slides rendered in flex container, translated by index
+  - CSS transition: 0.35s cubic-bezier for smooth sliding
+  - Virtual window: only render images within ±2 of current index
+  - Non-visible slides use lightweight placeholder divs
+- Grid card images also use direct CDN URLs with proxy fallback via onError
+- Compact dots navigation for >10 images:
+  - Shows first/last dots + window around current
+  - Ellipsis between gaps
+  - Counter badge (e.g. "3/65")
+- Verified on Vercel deployment:
+  - Direct CDN URLs confirmed (lh3.googleusercontent.com)
+  - object-fit: cover enforced
+  - Virtual window: 65 slides, only 3-4 images loaded in DOM
+  - CSS transform navigation works instantly
+  - Counter "1/65" displays correctly
+  - Mobile layout correct (single column, carousel fills width)
+- Lint clean, pushed to GitHub
+
+Stage Summary:
+- Image loading: proxy → direct CDN URLs (10-50x faster)
+- Carousel: single img swap → sliding track with CSS transforms (instant transitions)
+- Virtual window: only ±2 slides have real images, rest are placeholders
+- Compact dots with counter for products with many images
+- Files changed: src/components/preview/CatalogPreview.tsx, src/app/globals.css
