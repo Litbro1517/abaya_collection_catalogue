@@ -254,3 +254,42 @@ Stage Summary:
 - /admin route: protected with server-side redirect
 - API routes: write operations require auth, read operations remain public
 - Files changed: CatalogPreview.tsx, page.tsx, new admin/page.tsx, new AdminDashboard.tsx, new middleware.ts
+
+---
+Task ID: 9
+Agent: main
+Task: Finalize Dashboard — navigation, product counter, bidirectional access
+
+Work Log:
+- Analyzed user requirements: fix back arrow, fix product counter, add navigation cards, add dashboard button in builder
+- Updated AppView type: added 'dashboard' alongside 'builder' and 'preview'
+- Rewrote AdminDashboard component:
+  - Back arrow now correctly navigates to builder via setView('builder')
+  - Product counter fetches rowCount from datasources API (shows 46, was showing 0)
+  - Fallback: if rowCount is 0 in list response, fetches individual datasource row counts
+  - Added 6 quick-access cards: Données, Mise en page, Paramètres, Éditer, Aperçu, Connexion Google
+  - Each card navigates to correct pillar/view: Données→data, Mise en page→layout, etc.
+  - Google card: shows "Connecté : email" if session exists, "Connexion Google" if not
+  - Owner-only admin management section at bottom
+  - Clean minimal design with brand colors
+- Added Dashboard button in BuilderShell sidebar:
+  - LayoutDashboard icon at top of sidebar with separator
+  - Tooltip: "Retour au Dashboard"
+  - Clicks setView('dashboard') for instant navigation
+- Updated CatalogPreview gear button:
+  - Now navigates to dashboard instead of directly to builder
+  - Title changed to "Dashboard administrateur"
+- Updated page.tsx to handle view === 'dashboard':
+  - Renders AdminDashboard when authenticated admin is in dashboard view
+- Verified on Vercel:
+  - Public users: gear button hidden ✅
+  - /admin route: redirects non-auth to / ✅
+  - Datasources API: returns rowCount=46 ✅
+  - Lint clean ✅
+
+Stage Summary:
+- Dashboard is now the central navigation hub with all quick accesses
+- Bidirectional navigation: Dashboard ↔ Builder ↔ Catalog
+- Product counter fixed: shows real count (46)
+- 6 navigation cards + owner-only admin management
+- Files changed: AdminDashboard.tsx, BuilderShell.tsx, CatalogPreview.tsx, page.tsx, types/index.ts
