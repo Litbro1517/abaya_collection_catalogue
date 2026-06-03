@@ -163,3 +163,67 @@ Stage Summary:
 - 1 new file: ColumnVisibilityDropdown.tsx
 - Priority 1 (Visualisation & Navigation) prototype complete
 - Awaiting user validation before Priority 2 (ColumnEditorDialog)
+
+---
+Task ID: 4
+Agent: Redesign Agent
+Task: Priority 1 Redesign - Toolbar, ColumnVisibilityDropdown, Confirmation Dialogs, Filter & Sort
+
+Work Log:
+- Read previous agent work (Task 6) that created initial toolbar with disabled Filter/Sort buttons
+- Implemented functional Filter dropdown in DataPillar.tsx:
+  - Popover with column list (type icons, names)
+  - Click column to expand text input for filtering by that column's values
+  - Applied filters shown as gold badges in toolbar with X dismiss
+  - "Effacer tout" button to clear all filters
+  - Gold accent (#C9A84C) on Filter button when filters active + count badge
+  - Filter state: filters array of {columnSlug, columnName, value}
+  - Row filtering logic: text search + per-column value matching
+- Implemented functional Sort dropdown in DataPillar.tsx:
+  - Popover with column list for sorting
+  - Click cycle: ascending (↑) → descending (↓) → remove sort
+  - Sort badge in toolbar (↑/↓ icon + column name) when sort active
+  - "Effacer le tri" button in popover
+  - Gold accent on Sort button when sort active + direction indicator
+  - Sort state: sortConfig {columnSlug, columnName, direction}
+  - Row sorting: numeric-aware (numbers sorted numerically) + locale-aware string sort
+- Enhanced toolbar visual grouping:
+  - Search input with X clear button (gold focus ring)
+  - Filter button + Sort button with active state gold styling
+  - Separator (w-px divider)
+  - ColumnVisibilityDropdown + Add Column button
+  - Right side: filter badges, sort badge, search result count
+  - flex-wrap for responsive behavior
+- Improved ColumnVisibilityDropdown.tsx:
+  - Added "Hide All" (Tout masquer) button alongside "Show All"
+  - Added GripVertical drag handle icon for future reorder (visual only, no DnD)
+  - Added "Toutes visibles" empty state with Eye icon when all columns visible
+  - Grouped sections: visible columns on top, hidden columns below with separator
+  - Section headers: "Visibles (N)" and "Masquées (N)" with uppercase tracking
+  - onHideAll prop added to interface
+- Enhanced DataTable.tsx:
+  - Added sortConfig and onSortChange props
+  - Sort arrow indicators on column headers (↑/↓ with gold #C9A84C color)
+  - Clickable sort arrows: visible on hover, gold when active
+  - Column type label area shows sort direction ("↑ A-Z" / "↓ Z-A")
+  - Column name turns gold when sorted
+  - Passed sortConfig + cycleSort from DataPillar
+- Added type change warning in ColumnEditorDialog.tsx:
+  - Tracks originalType when editing existing column
+  - Inline warning banner (amber AlertTriangle) when type changes from original
+  - AlertDialog confirmation before saving with type change
+  - Shows old type → new type with compatibility warning
+  - handleSaveClick checks for type changes before calling handleSave
+- Verified existing delete confirmation dialogs work (column + row + bulk)
+- Cleaned up unused imports (Columns3, Eye, googleSession)
+- Lint passes cleanly (eslint .)
+- Dev server compiles successfully
+
+Stage Summary:
+- 4 files modified: DataPillar.tsx, ColumnVisibilityDropdown.tsx, DataTable.tsx, ColumnEditorDialog.tsx
+- Functional Filter: column-based filtering with gold badges and clear all
+- Functional Sort: ascending/descending cycle with arrow indicators on headers
+- ColumnVisibilityDropdown: Hide All, drag handles, grouped sections, empty state
+- Type change warning: inline banner + AlertDialog confirmation
+- All brand colors respected (Gold #C9A84C, Deep Green #1A3C34, etc.)
+- Lint clean, dev server compiling successfully

@@ -2,6 +2,7 @@
 
 import { useState, useCallback, useRef } from 'react';
 import type { Column, Row, ColumnType } from '@/types';
+import type { SortConfig } from './DataPillar';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -35,7 +36,7 @@ import {
   Check, X, Pencil,
   Type, Hash, Banknote, Images,
   ListChecks, Layers, ToggleRight, ExternalLink, Link2, SquareStack,
-  MoveRight,
+  MoveRight, ArrowUpDown,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
@@ -76,9 +77,11 @@ interface Props {
   dataSourceId: string;
   loading: boolean;
   onRefresh: () => void;
+  sortConfig?: SortConfig | null;
+  onSortChange?: (col: Column) => void;
 }
 
-export function DataTable({ columns, rows, dataSourceId, loading, onRefresh }: Props) {
+export function DataTable({ columns, rows, dataSourceId, loading, onRefresh, sortConfig, onSortChange }: Props) {
   const [editingCell, setEditingCell] = useState<string | null>(null); // `${rowId}-${colSlug}`
   const [editValue, setEditValue] = useState('');
   const [showColumnEditor, setShowColumnEditor] = useState(false);
@@ -529,89 +532,125 @@ export function DataTable({ columns, rows, dataSourceId, loading, onRefresh }: P
                   #
                 </th>
                 {/* Data columns */}
-                {visibleColumns.map(col => (
-                  <th key={col.id} className="px-0 py-0 text-left text-xs font-medium text-muted-foreground border-b border-border min-w-[140px]">
-                    <div className="flex items-center gap-0.5 px-2 py-1.5 group/col">
-                      {/* Column type icon */}
-                      <div className="flex items-center justify-center w-5 h-5 rounded bg-primary/10 text-primary shrink-0">
-                        {COLUMN_TYPE_ICON[col.type]}
-                      </div>
+                {visibleColumns.map(col => {
+                  const isSorted = sortConfig?.columnSlug === col.slug;
+                  return (
+                    <th key={col.id} className="px-0 py-0 text-left text-xs font-medium text-muted-foreground border-b border-border min-w-[140px]">
+                      <div className="flex items-center gap-0.5 px-2 py-1.5 group/col">
+                        {/* Column type icon */}
+                        <div className="flex items-center justify-center w-5 h-5 rounded bg-primary/10 text-primary shrink-0">
+                          {COLUMN_TYPE_ICON[col.type]}
+                        </div>
 
-                      {/* Column name — inline rename or display */}
-                      <div className="flex-1 min-w-0">
-                        {renamingColId === col.id ? (
-                          <Input
-                            ref={renameInputRef}
-                            value={renameValue}
-                            onChange={e => setRenameValue(e.target.value)}
-                            onBlur={() => renameColumn(col.id)}
-                            onKeyDown={e => {
-                              if (e.key === 'Enter') renameColumn(col.id);
-                              if (e.key === 'Escape') setRenamingColId(null);
-                            }}
-                            className="h-5 text-xs w-[90px] px-1"
-                            autoFocus
-                            onClick={e => e.stopPropagation()}
-                          />
-                        ) : (
-                          <span
-                            className="truncate cursor-pointer hover:text-foreground transition-colors text-[11px] font-medium block"
-                            onDoubleClick={() => {
-                              setRenamingColId(col.id);
-                              setRenameValue(col.name);
-                            }}
-                            title="Double-cliquer pour renommer"
+                        {/* Column name — inline rename or display */}
+                        <div className="flex-1 min-w-0">
+                          {renamingColId === col.id ? (
+                            <Input
+                              ref={renameInputRef}
+                              value={renameValue}
+                              onChange={e => setRenameValue(e.target.value)}
+                              onBlur={() => renameColumn(col.id)}
+                              onKeyDown={e => {
+                                if (e.key === 'Enter') renameColumn(col.id);
+                                if (e.key === 'Escape') setRenamingColId(null);
+                              }}
+                              className="h-5 text-xs w-[90px] px-1"
+                              autoFocus
+                              onClick={e => e.stopPropagation()}
+                            />
+                          ) : (
+                            <span
+                              className={cn(
+                                "truncate cursor-pointer hover:text-foreground transition-colors text-[11px] font-medium block",
+                                isSorted && "text-[#C9A84C]"
+                              )}
+                              onDoubleClick={() => {
+                                setRenamingColId(col.id);
+                                setRenameValue(col.name);
+                              }}
+                              title="Double-cliquer pour renommer"
+                            >
+                              {col.name}
+                            </span>
+                          )}
+                        </div>
+
+                        {/* Sort indicator — clickable to sort */}
+                        {onSortChange && (
+                          <button
+                            className={cn(
+                              "p-0.5 rounded transition-colors shrink-0",
+                              isSorted
+                                ? "text-[#C9A84C] hover:bg-[#C9A84C]/10"
+                                : "text-muted-foreground/30 hover:text-muted-foreground opacity-0 group-hover/col:opacity-100"
+                            )}
+                            onClick={() => onSortChange(col)}
+                            title={isSorted
+                              ? sortConfig!.direction === 'asc' ? 'Tri croissant — cliquer pour décroissant' : 'Tri décroissant — cliquer pour annuler'
+                              : 'Trier par cette colonne'
+                            }
                           >
-                            {col.name}
+                            {isSorted ? (
+                              sortConfig!.direction === 'asc'
+                                ? <ArrowUp className="w-3.5 h-3.5" />
+                                : <ArrowDown className="w-3.5 h-3.5" />
+                            ) : (
+                              <ArrowUpDown className="w-3 h-3" />
+                            )}
+                          </button>
+                        )}
+
+                        {/* ── Single context arrow (▾) ── */}
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <button className="p-1 rounded hover:bg-secondary text-muted-foreground hover:text-foreground transition-colors shrink-0 opacity-0 group-hover/col:opacity-100 data-[state=open]:opacity-100">
+                              <ChevronDown className="w-3.5 h-3.5" />
+                            </button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="start" className="w-52">
+                            <DropdownMenuItem onClick={() => openColumnEditor(col)}>
+                              <Pencil className="w-3.5 h-3.5 mr-2" /> Éditer
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => duplicateColumn(col)}>
+                              <Copy className="w-3.5 h-3.5 mr-2" /> Dupliquer
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => addColumnToRight(col)}>
+                              <MoveRight className="w-3.5 h-3.5 mr-2" /> Ajouter à droite
+                            </DropdownMenuItem>
+                            <DropdownMenuSeparator />
+                            <DropdownMenuItem onClick={() => toggleColumnVisibility(col)}>
+                              {col.visible
+                                ? <><EyeOff className="w-3.5 h-3.5 mr-2" /> Masquer</>
+                                : <><Eye className="w-3.5 h-3.5 mr-2" /> Afficher</>
+                              }
+                            </DropdownMenuItem>
+                            <DropdownMenuSeparator />
+                            <DropdownMenuItem className="text-destructive focus:text-destructive" onClick={() => setDeleteTarget({ type: 'column', id: col.id, name: col.name })}>
+                              <Trash2 className="w-3.5 h-3.5 mr-2" /> Supprimer
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      </div>
+                      {/* Column type label + sort indicator */}
+                      <div className="px-2 pb-1 flex items-center gap-1.5">
+                        <span className="text-[9px] text-muted-foreground/60 uppercase tracking-wider">
+                          {COLUMN_TYPE_LABEL[col.type]}
+                        </span>
+                        {isSorted && (
+                          <span className="text-[9px] text-[#C9A84C] font-medium">
+                            {sortConfig!.direction === 'asc' ? '↑ A-Z' : '↓ Z-A'}
                           </span>
                         )}
                       </div>
-
-                      {/* ── Single context arrow (▾) ── replaces pencil + 3-dots ── */}
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <button className="p-1 rounded hover:bg-secondary text-muted-foreground hover:text-foreground transition-colors shrink-0 opacity-0 group-hover/col:opacity-100 data-[state=open]:opacity-100">
-                            <ChevronDown className="w-3.5 h-3.5" />
-                          </button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="start" className="w-52">
-                          <DropdownMenuItem onClick={() => openColumnEditor(col)}>
-                            <Pencil className="w-3.5 h-3.5 mr-2" /> Éditer
-                          </DropdownMenuItem>
-                          <DropdownMenuItem onClick={() => duplicateColumn(col)}>
-                            <Copy className="w-3.5 h-3.5 mr-2" /> Dupliquer
-                          </DropdownMenuItem>
-                          <DropdownMenuItem onClick={() => addColumnToRight(col)}>
-                            <MoveRight className="w-3.5 h-3.5 mr-2" /> Ajouter à droite
-                          </DropdownMenuItem>
-                          <DropdownMenuSeparator />
-                          <DropdownMenuItem onClick={() => toggleColumnVisibility(col)}>
-                            {col.visible
-                              ? <><EyeOff className="w-3.5 h-3.5 mr-2" /> Masquer</>
-                              : <><Eye className="w-3.5 h-3.5 mr-2" /> Afficher</>
-                            }
-                          </DropdownMenuItem>
-                          <DropdownMenuSeparator />
-                          <DropdownMenuItem className="text-destructive focus:text-destructive" onClick={() => setDeleteTarget({ type: 'column', id: col.id, name: col.name })}>
-                            <Trash2 className="w-3.5 h-3.5 mr-2" /> Supprimer
-                          </DropdownMenuItem>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
-                    </div>
-                    {/* Column type label */}
-                    <div className="px-2 pb-1">
-                      <span className="text-[9px] text-muted-foreground/60 uppercase tracking-wider">
-                        {COLUMN_TYPE_LABEL[col.type]}
-                      </span>
-                    </div>
-                  </th>
-                ))}
+                    </th>
+                  );
+                })}
                 {/* ── Add column button — persistent at right ── */}
                 <th className="px-2 py-2 w-10 border-b border-border sticky right-0 bg-muted/90 z-20">
                   <Tooltip>
                     <TooltipTrigger asChild>
                       <button
-                        className="w-7 h-7 rounded-md border border-dashed border-border hover:border-gold hover:bg-gold/5 text-muted-foreground hover:text-gold transition-colors flex items-center justify-center"
+                        className="w-7 h-7 rounded-md border border-dashed border-border hover:border-[#C9A84C] hover:bg-[#C9A84C]/5 text-muted-foreground hover:text-[#C9A84C] transition-colors flex items-center justify-center"
                         onClick={() => { setEditingColumn(null); setShowColumnEditor(true); }}
                       >
                         <Plus className="w-3.5 h-3.5" />
@@ -725,7 +764,7 @@ export function DataTable({ columns, rows, dataSourceId, loading, onRefresh }: P
 
         {/* ── Footer: pagination + add row ── */}
         <div className="h-10 border-t border-border bg-card flex items-center px-3 gap-3 shrink-0">
-          <Button variant="ghost" size="sm" className="h-7 text-xs gap-1 text-gold hover:text-gold hover:bg-gold/5" onClick={addRow}>
+          <Button variant="ghost" size="sm" className="h-7 text-xs gap-1 text-[#C9A84C] hover:text-[#C9A84C] hover:bg-[#C9A84C]/5" onClick={addRow}>
             <Plus className="w-3 h-3" /> Nouvelle ligne
           </Button>
           <div className="flex-1" />

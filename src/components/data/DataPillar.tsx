@@ -13,6 +13,10 @@ import { ColumnVisibilityDropdown } from './ColumnVisibilityDropdown';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
+import { Separator } from '@/components/ui/separator';
+import {
+  Popover, PopoverContent, PopoverTrigger,
+} from '@/components/ui/popover';
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
 } from '@/components/ui/dialog';
@@ -26,10 +30,41 @@ import {
   DropdownMenuSeparator, DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import {
-  Plus, Upload, Download, Columns3, Link2, Sheet, RefreshCw, HardDrive,
-  Trash2, Pencil, MoreVertical, Search, Filter, ArrowUpDown, Eye,
+  Plus, Upload, Download, Link2, Sheet, RefreshCw, HardDrive,
+  Trash2, Pencil, MoreVertical, Search, Filter, ArrowUpDown,
+  ArrowUp, ArrowDown, X, Type, Hash, Banknote, Image as ImageIcon, Images,
+  ChevronDown, ListChecks, Layers, ToggleRight, ExternalLink, Link2 as LinkIcon,
 } from 'lucide-react';
 import { toast } from 'sonner';
+import { cn } from '@/lib/utils';
+
+// Column type icon mapping for filter/sort popovers
+const COL_TYPE_ICON: Record<string, React.ReactNode> = {
+  TEXT: <Type className="w-3 h-3" />,
+  NUMBER: <Hash className="w-3 h-3" />,
+  CURRENCY: <Banknote className="w-3 h-3" />,
+  IMAGE: <ImageIcon className="w-3 h-3" />,
+  IMAGE_ARRAY: <Images className="w-3 h-3" />,
+  SELECT: <ChevronDown className="w-3 h-3" />,
+  MULTI_SELECT: <ListChecks className="w-3 h-3" />,
+  RELATION: <LinkIcon className="w-3 h-3" />,
+  ARRAY: <Layers className="w-3 h-3" />,
+  BOOLEAN: <ToggleRight className="w-3 h-3" />,
+  URL: <ExternalLink className="w-3 h-3" />,
+};
+
+// ── Filter / Sort types ────────────────────────────────────────────────────
+export interface FilterConfig {
+  columnSlug: string;
+  columnName: string;
+  value: string;
+}
+
+export interface SortConfig {
+  columnSlug: string;
+  columnName: string;
+  direction: 'asc' | 'desc';
+}
 
 export function DataPillar() {
   const {
@@ -47,7 +82,6 @@ export function DataPillar() {
     setShowColumnModal,
     showGoogleSheetsBrowser,
     setShowGoogleSheetsBrowser,
-    googleSession,
     setSyncStatus,
     setSyncMessage,
   } = useAppStore();
@@ -65,8 +99,17 @@ export function DataPillar() {
   const [renameValue, setRenameValue] = useState('');
   const [showDeleteTableDialog, setShowDeleteTableDialog] = useState(false);
 
-  // New toolbar states
+  // Toolbar states
   const [searchQuery, setSearchQuery] = useState('');
+  const [filters, setFilters] = useState<FilterConfig[]>([]);
+  const [sortConfig, setSortConfig] = useState<SortConfig | null>(null);
+
+  // Popover open states
+  const [filterPopoverOpen, setFilterPopoverOpen] = useState(false);
+  const [sortPopoverOpen, setSortPopoverOpen] = useState(false);
+
+  // Active filter column being edited
+  const [activeFilterCol, setActiveFilterCol] = useState<string | null>(null);
 
   const colors = ['#C9A84C', '#1A1A1A', '#D32F2F', '#2E7D32', '#1565C0', '#8B4513', '#F48FB1', '#483C32'];
 
@@ -74,18 +117,110 @@ export function DataPillar() {
   const activeDs = dataSources.find(d => d.id === activeDataSourceId);
   const hasGoogleSheet = !!activeDs?.sheetId;
 
-  // Filtered rows based on search query
+  // Filtered + sorted rows
   const filteredRows = useMemo(() => {
-    if (!searchQuery.trim()) return rows;
-    const q = searchQuery.toLowerCase();
-    return rows.filter(row => {
-      const data = row.data as Record<string, unknown>;
-      return Object.values(data).some(val => {
-        if (val === null || val === undefined) return false;
-        return String(val).toLowerCase().includes(q);
+    let result = rows;
+
+    // Text search
+    if (searchQuery.trim()) {
+      const q = searchQuery.toLowerCase();
+      result = result.filter(row => {
+        const data = row.data as Record<string, unknown>;
+        return Object.values(data).some(val => {
+          if (val === null || val === undefined) return false;
+          return String(val).toLowerCase().includes(q);
+        });
       });
+    }
+
+    // Column filters
+    if (filters.length > 0) {
+      result = result.filter(row => {
+        const data = row.data as Record<string, unknown>;
+        return filters.every(f => {
+          const val = data[f.columnSlug];
+          if (val === null || val === undefined) return false;
+          return String(val).toLowerCase().includes(f.value.toLowerCase());
+        });
+      });
+    }
+
+    // Sort
+    if (sortConfig) {
+      result = [...result].sort((a, b) => {
+        const aData = a.data as Record<string, unknown>;
+        const bData = b.data as Record<string, unknown>;
+        const aVal = aData[sortConfig.columnSlug];
+        const bVal = bData[sortConfig.columnSlug];
+
+        if (aVal === null || aVal === undefined) return 1;
+        if (bVal === null || bVal === undefined) return -1;
+
+        const aStr = String(aVal);
+        const bStr = String(bVal);
+
+        // Try numeric comparison
+        const aNum = Number(aVal);
+        const bNum = Number(bVal);
+        if (!isNaN(aNum) && !isNaN(bNum)) {
+          return sortConfig.direction === 'asc' ? aNum - bNum : bNum - aNum;
+        }
+
+        return sortConfig.direction === 'asc'
+          ? aStr.localeCompare(bStr)
+          : bStr.localeCompare(aStr);
+      });
+    }
+
+    return result;
+  }, [rows, searchQuery, filters, sortConfig]);
+
+  // ── Filter helpers ──────────────────────────────────────────────────────────
+
+  const addOrUpdateFilter = (col: Column, value: string) => {
+    if (!value.trim()) {
+      // Remove filter if value is empty
+      setFilters(prev => prev.filter(f => f.columnSlug !== col.slug));
+      return;
+    }
+    setFilters(prev => {
+      const existing = prev.findIndex(f => f.columnSlug === col.slug);
+      if (existing >= 0) {
+        const next = [...prev];
+        next[existing] = { columnSlug: col.slug, columnName: col.name, value };
+        return next;
+      }
+      return [...prev, { columnSlug: col.slug, columnName: col.name, value }];
     });
-  }, [rows, searchQuery]);
+  };
+
+  const removeFilter = (columnSlug: string) => {
+    setFilters(prev => prev.filter(f => f.columnSlug !== columnSlug));
+  };
+
+  const clearAllFilters = () => {
+    setFilters([]);
+    setActiveFilterCol(null);
+  };
+
+  // ── Sort helpers ────────────────────────────────────────────────────────────
+
+  const cycleSort = (col: Column) => {
+    setSortConfig(prev => {
+      if (!prev || prev.columnSlug !== col.slug) {
+        return { columnSlug: col.slug, columnName: col.name, direction: 'asc' };
+      }
+      if (prev.direction === 'asc') {
+        return { columnSlug: col.slug, columnName: col.name, direction: 'desc' };
+      }
+      // Third click: remove sort
+      return null;
+    });
+  };
+
+  const clearSort = () => {
+    setSortConfig(null);
+  };
 
   // Load data sources
   const loadDataSources = useCallback(async () => {
@@ -109,7 +244,6 @@ export function DataPillar() {
     if (!activeDataSourceId) return;
     setLoading(true);
     try {
-      // First load columns via meta mode (lightweight, no rows)
       const metaRes = await fetch(`/api/datasources/${activeDataSourceId}?mode=meta`);
       if (metaRes.ok) {
         const metaJson = await metaRes.json();
@@ -117,7 +251,6 @@ export function DataPillar() {
           setColumns(metaJson.data.columns || []);
         }
       }
-      // Then load rows via the rows endpoint (paginated, max 50 to prevent OOM)
       const rowsRes = await fetch(`/api/datasources/${activeDataSourceId}/rows?limit=50`);
       if (rowsRes.ok) {
         const rowsJson = await rowsRes.json();
@@ -314,6 +447,25 @@ export function DataPillar() {
     }
   };
 
+  const handleHideAllColumns = async () => {
+    const visibleCols = columns.filter(c => c.visible);
+    try {
+      await Promise.all(
+        visibleCols.map(col =>
+          fetch(`/api/datasources/${activeDataSourceId}/columns/${col.id}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ visible: false }),
+          })
+        )
+      );
+      loadDataSourceData();
+      toast.success(`${visibleCols.length} colonne(s) masquée(s)`);
+    } catch {
+      toast.error('Erreur');
+    }
+  };
+
   return (
     <div className="flex h-full">
       {/* Left: Data source list */}
@@ -408,7 +560,7 @@ export function DataPillar() {
       <div className="flex-1 flex flex-col overflow-hidden">
         {activeDataSourceId && activeDs && (
           <>
-            {/* ── Table name row ── Clean title, separated from actions ── */}
+            {/* ── Table name row ── */}
             <div className="h-10 border-b border-border bg-card shrink-0 px-4 flex items-center gap-2.5">
               <div
                 className="w-3 h-3 rounded-full shrink-0"
@@ -425,7 +577,7 @@ export function DataPillar() {
               <span className="text-[10px] text-muted-foreground mr-1">
                 {rows.length} lignes · {columns.filter(c => c.visible).length}/{columns.length} colonnes
               </span>
-              {/* Table management dropdown — includes secondary actions */}
+              {/* Table management dropdown */}
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <Button variant="ghost" size="icon" className="h-7 w-7 hover:bg-secondary">
@@ -433,12 +585,10 @@ export function DataPillar() {
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end" className="w-56">
-                  {/* Primary table actions */}
                   <DropdownMenuItem onClick={() => { setRenameValue(activeDs.name); setShowRenameDialog(true); }}>
                     <Pencil className="w-3.5 h-3.5 mr-2" /> Renommer la table
                   </DropdownMenuItem>
                   <DropdownMenuSeparator />
-                  {/* Import / Source actions */}
                   <DropdownMenuItem onClick={() => setShowImportModal(true)}>
                     <Upload className="w-3.5 h-3.5 mr-2" /> Importer CSV
                   </DropdownMenuItem>
@@ -466,35 +616,226 @@ export function DataPillar() {
             </div>
 
             {/* ── Toolbar row ── Search + Filter + Sort + Hide + Add column ── */}
-            <div className="h-10 border-b border-border/60 bg-card/80 shrink-0 px-3 flex items-center gap-2">
+            <div className="border-b border-border/60 bg-card/80 shrink-0 px-3 py-1.5 flex items-center gap-2 flex-wrap">
               {/* Search */}
-              <div className="relative max-w-[220px] flex-1">
+              <div className="relative max-w-[220px] flex-1 min-w-[140px]">
                 <Search className="absolute left-2 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
                 <Input
                   value={searchQuery}
                   onChange={e => setSearchQuery(e.target.value)}
                   placeholder="Rechercher dans les données..."
-                  className="h-7 text-xs pl-7 bg-muted/30 border-border/40 focus:border-gold/50 focus:ring-gold/20"
+                  className="h-7 text-xs pl-7 pr-7 bg-muted/30 border-border/40 focus:border-[#C9A84C]/50 focus:ring-[#C9A84C]/20"
                 />
                 {searchQuery && (
                   <button
-                    className="absolute right-1.5 top-1/2 -translate-y-1/2 w-4 h-4 rounded-full bg-muted-foreground/20 hover:bg-muted-foreground/40 flex items-center justify-center"
+                    className="absolute right-1.5 top-1/2 -translate-y-1/2 w-4 h-4 rounded-full bg-muted-foreground/20 hover:bg-muted-foreground/40 flex items-center justify-center transition-colors"
                     onClick={() => setSearchQuery('')}
                   >
-                    <span className="text-[8px] text-muted-foreground">×</span>
+                    <X className="w-2.5 h-2.5 text-muted-foreground" />
                   </button>
                 )}
               </div>
 
-              {/* Filter & Sort — UI buttons (will be functional in next phase) */}
-              <Button variant="outline" size="sm" className="h-7 text-xs gap-1.5" disabled>
-                <Filter className="w-3.5 h-3.5" />
-                <span className="hidden sm:inline">Filtrer</span>
-              </Button>
-              <Button variant="outline" size="sm" className="h-7 text-xs gap-1.5" disabled>
-                <ArrowUpDown className="w-3.5 h-3.5" />
-                <span className="hidden sm:inline">Trier</span>
-              </Button>
+              {/* ── Filter Popover ── */}
+              <Popover open={filterPopoverOpen} onOpenChange={setFilterPopoverOpen}>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className={cn(
+                      "h-7 text-xs gap-1.5 transition-colors",
+                      filters.length > 0
+                        ? "border-[#C9A84C]/40 bg-[#C9A84C]/5 text-[#C9A84C] hover:bg-[#C9A84C]/10"
+                        : "hover:bg-muted"
+                    )}
+                  >
+                    <Filter className="w-3.5 h-3.5" />
+                    <span className="hidden sm:inline">Filtrer</span>
+                    {filters.length > 0 && (
+                      <span className="ml-0.5 w-4 h-4 rounded-full bg-[#C9A84C]/20 text-[#C9A84C] text-[9px] font-bold flex items-center justify-center">
+                        {filters.length}
+                      </span>
+                    )}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent align="start" className="w-80 p-0 shadow-lg border-border/60" sideOffset={4}>
+                  {/* Filter header */}
+                  <div className="px-3 pt-3 pb-2">
+                    <div className="flex items-center justify-between mb-1">
+                      <span className="text-xs font-semibold text-foreground tracking-wide">
+                        Filtrer par colonne
+                      </span>
+                      {filters.length > 0 && (
+                        <button
+                          className="text-[10px] text-[#C9A84C] hover:text-[#C9A84C]/80 font-medium transition-colors"
+                          onClick={() => { clearAllFilters(); }}
+                        >
+                          Effacer tout
+                        </button>
+                      )}
+                    </div>
+                    <p className="text-[10px] text-muted-foreground">
+                      Sélectionnez une colonne puis saisissez une valeur à filtrer.
+                    </p>
+                  </div>
+                  <Separator className="bg-border/40" />
+                  {/* Column list */}
+                  <div className="max-h-52 overflow-y-auto py-1 custom-scrollbar">
+                    {columns.filter(c => c.visible).map(col => {
+                      const existingFilter = filters.find(f => f.columnSlug === col.slug);
+                      const isActive = activeFilterCol === col.slug || existingFilter;
+
+                      return (
+                        <div key={col.id}>
+                          <button
+                            className={cn(
+                              "w-full flex items-center gap-2 px-3 py-1.5 text-left transition-colors",
+                              "hover:bg-secondary/60",
+                              isActive && "bg-[#C9A84C]/5"
+                            )}
+                            onClick={() => {
+                              if (activeFilterCol === col.slug) {
+                                setActiveFilterCol(null);
+                              } else {
+                                setActiveFilterCol(col.slug);
+                              }
+                            }}
+                          >
+                            <div className="w-5 h-5 rounded bg-primary/10 text-primary flex items-center justify-center shrink-0">
+                              {COL_TYPE_ICON[col.type] || <Type className="w-3 h-3" />}
+                            </div>
+                            <span className={cn(
+                              "text-xs truncate flex-1",
+                              existingFilter ? "text-foreground font-medium" : "text-foreground"
+                            )}>
+                              {col.name}
+                            </span>
+                            {existingFilter && (
+                              <Badge className="text-[9px] bg-[#C9A84C]/15 text-[#C9A84C] border-[#C9A84C]/30 hover:bg-[#C9A84C]/25">
+                                {existingFilter.value}
+                              </Badge>
+                            )}
+                            {existingFilter && (
+                              <button
+                                className="w-4 h-4 rounded-full hover:bg-destructive/10 flex items-center justify-center shrink-0"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  removeFilter(col.slug);
+                                }}
+                              >
+                                <X className="w-2.5 h-2.5 text-muted-foreground hover:text-destructive" />
+                              </button>
+                            )}
+                          </button>
+                          {/* Filter input for active column */}
+                          {activeFilterCol === col.slug && (
+                            <div className="px-3 pb-2">
+                              <div className="relative">
+                                <Search className="absolute left-2 top-1/2 -translate-y-1/2 w-3 h-3 text-muted-foreground" />
+                                <Input
+                                  value={existingFilter?.value || ''}
+                                  onChange={e => addOrUpdateFilter(col, e.target.value)}
+                                  placeholder={`Filtrer ${col.name}...`}
+                                  className="h-7 text-xs pl-7 bg-muted/30 border-[#C9A84C]/30 focus:border-[#C9A84C]/50 focus:ring-[#C9A84C]/20"
+                                  autoFocus
+                                />
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+                    {columns.filter(c => c.visible).length === 0 && (
+                      <div className="px-3 py-4 text-center text-xs text-muted-foreground">
+                        Aucune colonne visible
+                      </div>
+                    )}
+                  </div>
+                </PopoverContent>
+              </Popover>
+
+              {/* ── Sort Popover ── */}
+              <Popover open={sortPopoverOpen} onOpenChange={setSortPopoverOpen}>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className={cn(
+                      "h-7 text-xs gap-1.5 transition-colors",
+                      sortConfig
+                        ? "border-[#C9A84C]/40 bg-[#C9A84C]/5 text-[#C9A84C] hover:bg-[#C9A84C]/10"
+                        : "hover:bg-muted"
+                    )}
+                  >
+                    <ArrowUpDown className="w-3.5 h-3.5" />
+                    <span className="hidden sm:inline">Trier</span>
+                    {sortConfig && (
+                      <span className="ml-0.5 text-[9px] font-bold">
+                        {sortConfig.direction === 'asc' ? '↑' : '↓'}
+                      </span>
+                    )}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent align="start" className="w-72 p-0 shadow-lg border-border/60" sideOffset={4}>
+                  {/* Sort header */}
+                  <div className="px-3 pt-3 pb-2">
+                    <div className="flex items-center justify-between mb-1">
+                      <span className="text-xs font-semibold text-foreground tracking-wide">
+                        Trier par colonne
+                      </span>
+                      {sortConfig && (
+                        <button
+                          className="text-[10px] text-[#C9A84C] hover:text-[#C9A84C]/80 font-medium transition-colors"
+                          onClick={() => { clearSort(); }}
+                        >
+                          Effacer le tri
+                        </button>
+                      )}
+                    </div>
+                    <p className="text-[10px] text-muted-foreground">
+                      Cliquez pour trier : ↑ croissant → ↓ décroissant → annuler
+                    </p>
+                  </div>
+                  <Separator className="bg-border/40" />
+                  {/* Column list */}
+                  <div className="max-h-52 overflow-y-auto py-1 custom-scrollbar">
+                    {columns.filter(c => c.visible).map(col => {
+                      const isSorted = sortConfig?.columnSlug === col.slug;
+                      return (
+                        <button
+                          key={col.id}
+                          className={cn(
+                            "w-full flex items-center gap-2 px-3 py-1.5 text-left transition-colors",
+                            "hover:bg-secondary/60",
+                            isSorted && "bg-[#C9A84C]/5"
+                          )}
+                          onClick={() => cycleSort(col)}
+                        >
+                          <div className="w-5 h-5 rounded bg-primary/10 text-primary flex items-center justify-center shrink-0">
+                            {COL_TYPE_ICON[col.type] || <Type className="w-3 h-3" />}
+                          </div>
+                          <span className={cn(
+                            "text-xs truncate flex-1",
+                            isSorted ? "text-foreground font-medium" : "text-foreground"
+                          )}>
+                            {col.name}
+                          </span>
+                          {isSorted && (
+                            <span className="text-[#C9A84C] text-xs font-bold shrink-0">
+                              {sortConfig!.direction === 'asc' ? '↑' : '↓'}
+                            </span>
+                          )}
+                        </button>
+                      );
+                    })}
+                    {columns.filter(c => c.visible).length === 0 && (
+                      <div className="px-3 py-4 text-center text-xs text-muted-foreground">
+                        Aucune colonne visible
+                      </div>
+                    )}
+                  </div>
+                </PopoverContent>
+              </Popover>
 
               {/* Separator */}
               <div className="w-px h-5 bg-border/40 mx-0.5" />
@@ -504,6 +845,7 @@ export function DataPillar() {
                 columns={columns}
                 onToggleVisibility={handleToggleColumnVisibility}
                 onShowAll={handleShowAllColumns}
+                onHideAll={handleHideAllColumns}
               />
 
               {/* Add column button */}
@@ -517,6 +859,40 @@ export function DataPillar() {
               </Button>
 
               <div className="flex-1" />
+
+              {/* Active filter badges */}
+              {filters.length > 0 && (
+                <div className="flex items-center gap-1 flex-wrap">
+                  {filters.map(f => (
+                    <Badge
+                      key={f.columnSlug}
+                      className="text-[9px] gap-1 bg-[#C9A84C]/10 text-[#C9A84C] border-[#C9A84C]/30 hover:bg-[#C9A84C]/20 pr-0.5"
+                    >
+                      {f.columnName}: {f.value}
+                      <button
+                        className="w-3.5 h-3.5 rounded-full hover:bg-[#C9A84C]/30 flex items-center justify-center"
+                        onClick={() => removeFilter(f.columnSlug)}
+                      >
+                        <X className="w-2 h-2" />
+                      </button>
+                    </Badge>
+                  ))}
+                  <button
+                    className="text-[9px] text-muted-foreground hover:text-foreground transition-colors ml-1"
+                    onClick={clearAllFilters}
+                  >
+                    Tout effacer
+                  </button>
+                </div>
+              )}
+
+              {/* Sort badge */}
+              {sortConfig && filters.length === 0 && (
+                <Badge className="text-[9px] gap-1 bg-[#C9A84C]/10 text-[#C9A84C] border-[#C9A84C]/30">
+                  {sortConfig.direction === 'asc' ? <ArrowUp className="w-2.5 h-2.5" /> : <ArrowDown className="w-2.5 h-2.5" />}
+                  {sortConfig.columnName}
+                </Badge>
+              )}
 
               {/* Search results count */}
               {searchQuery && (
@@ -537,6 +913,8 @@ export function DataPillar() {
               dataSourceId={activeDataSourceId}
               loading={loading}
               onRefresh={loadDataSourceData}
+              sortConfig={sortConfig}
+              onSortChange={cycleSort}
             />
           ) : (
             <div className="flex flex-col items-center justify-center h-full text-muted-foreground">
