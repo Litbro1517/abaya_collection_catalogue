@@ -612,7 +612,7 @@ export function AdminDashboard({ admin }: AdminDashboardProps) {
         {admin.role === 'owner' && (
           <div className="mb-8">
             <h2 className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">Administration</h2>
-            <button
+            <div
               onClick={handleAdminManagement}
               className="w-full bg-white rounded-xl p-4 sm:p-5 border text-left hover:shadow-md transition-all duration-200 flex items-center gap-4 cursor-pointer"
               style={{ borderColor: 'rgba(0,0,0,0.05)' }}
@@ -632,7 +632,7 @@ export function AdminDashboard({ admin }: AdminDashboardProps) {
                 <UserPlus className="w-3.5 h-3.5" />
                 Ajouter
               </button>
-            </button>
+            </div>
           </div>
         )}
 
