@@ -22,10 +22,23 @@ import {
   User,
   UserPlus,
   Settings2,
+  Mail,
+  Key,
 } from 'lucide-react';
 
 import type { AppView, Pillar, SettingsTab } from '@/types';
 import { toast } from 'sonner';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
 
 // ── Brand Constants ──
 const BRAND = {
@@ -65,6 +78,9 @@ export function AdminDashboard({ admin }: AdminDashboardProps) {
   const [googleDisconnecting, setGoogleDisconnecting] = useState(false);
   const [showGooglePanel, setShowGooglePanel] = useState(false);
   const [showUserMenu, setShowUserMenu] = useState(false);
+  const [addAdminDialogOpen, setAddAdminDialogOpen] = useState(false);
+  const [addAdminForm, setAddAdminForm] = useState({ email: '', name: '', role: 'admin', password: '' });
+  const [addAdminLoading, setAddAdminLoading] = useState(false);
 
   useEffect(() => {
     setIsAdmin(true);
@@ -226,6 +242,45 @@ export function AdminDashboard({ admin }: AdminDashboardProps) {
   // Navigates to builder > settings > admin tab where AdminUserManager lives
   const handleAdminManagement = () => {
     navigateTo('builder', { pillar: 'settings', settingsTab: 'admin' });
+  };
+
+  // ── Add Admin: directly open the add admin modal ──
+  const handleAddAdmin = async () => {
+    if (!addAdminForm.email.trim()) {
+      toast.error('L\'email est requis');
+      return;
+    }
+    setAddAdminLoading(true);
+    try {
+      const res = await fetch('/api/auth/admins', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          email: addAdminForm.email.trim(),
+          name: addAdminForm.name.trim() || undefined,
+          role: addAdminForm.role,
+          password: addAdminForm.password || undefined,
+        }),
+      });
+      if (res.ok) {
+        toast.success('Administrateur ajouté avec succès');
+        setAddAdminForm({ email: '', name: '', role: 'admin', password: '' });
+        setAddAdminDialogOpen(false);
+        // Refresh stats
+        setStatsLoading(true);
+        fetch('/api/auth/admins').then(r => r.ok ? r.json() : null).then(json => {
+          if (json?.data) setStats(prev => prev ? { ...prev, admins: json.data.length } : null);
+          setStatsLoading(false);
+        });
+      } else {
+        const json = await res.json();
+        toast.error(json.error || 'Erreur lors de l\'ajout');
+      }
+    } catch {
+      toast.error('Erreur de connexion');
+    } finally {
+      setAddAdminLoading(false);
+    }
   };
 
   // ── Logout ──
@@ -565,13 +620,102 @@ export function AdminDashboard({ admin }: AdminDashboardProps) {
               <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0" style={{ backgroundColor: `${BRAND.bordeaux}10` }}>
                 <Shield className="w-5 h-5" style={{ color: BRAND.bordeaux }} />
               </div>
-              <div className="min-w-0">
+              <div className="min-w-0 flex-1">
                 <h3 className="font-semibold text-sm" style={{ color: BRAND.noir }}>Gestion des administrateurs</h3>
                 <p className="text-[11px] text-gray-500">{stats?.admins ?? 0} administrateur(s) · Ajouter, modifier, supprimer</p>
               </div>
+              <button
+                onClick={(e) => { e.stopPropagation(); setAddAdminDialogOpen(true); }}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-white transition-colors shrink-0"
+                style={{ backgroundColor: BRAND.vertFonce }}
+              >
+                <UserPlus className="w-3.5 h-3.5" />
+                Ajouter
+              </button>
             </button>
           </div>
         )}
+
+        {/* ── Add Admin Dialog ── */}
+        <Dialog open={addAdminDialogOpen} onOpenChange={setAddAdminDialogOpen}>
+          <DialogContent className="sm:max-w-md">
+            <DialogHeader>
+              <DialogTitle>Ajouter un administrateur</DialogTitle>
+              <DialogDescription>
+                Créez un nouvel accès administrateur. L&apos;utilisateur pourra se connecter avec son email et le mot de passe défini ci-dessous, ou via Google OAuth si son email correspond.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="space-y-4 py-2">
+              <div>
+                <Label className="text-xs">Email *</Label>
+                <div className="relative mt-1">
+                  <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                  <Input
+                    type="email"
+                    value={addAdminForm.email}
+                    onChange={e => setAddAdminForm(f => ({ ...f, email: e.target.value }))}
+                    placeholder="admin@exemple.com"
+                    className="h-9 pl-10 text-xs"
+                  />
+                </div>
+              </div>
+              <div>
+                <Label className="text-xs">Nom (optionnel)</Label>
+                <Input
+                  value={addAdminForm.name}
+                  onChange={e => setAddAdminForm(f => ({ ...f, name: e.target.value }))}
+                  placeholder="Prénom Nom"
+                  className="h-9 text-xs mt-1"
+                />
+              </div>
+              <div>
+                <Label className="text-xs">Rôle</Label>
+                <Select value={addAdminForm.role} onValueChange={v => setAddAdminForm(f => ({ ...f, role: v }))}>
+                  <SelectTrigger className="h-9 text-xs mt-1">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="admin">Admin — Gestion complète</SelectItem>
+                    <SelectItem value="editor">Éditeur — Modification du contenu uniquement</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <Label className="text-xs">Mot de passe (optionnel)</Label>
+                <div className="relative mt-1">
+                  <Key className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                  <Input
+                    type="password"
+                    value={addAdminForm.password}
+                    onChange={e => setAddAdminForm(f => ({ ...f, password: e.target.value }))}
+                    placeholder="Min. 8 caractères"
+                    className="h-9 pl-10 text-xs"
+                  />
+                </div>
+                <p className="text-[10px] text-muted-foreground mt-1">
+                  Si aucun mot de passe n&apos;est défini, l&apos;utilisateur devra se connecter via Google OAuth.
+                </p>
+              </div>
+            </div>
+            <DialogFooter>
+              <button
+                onClick={() => setAddAdminDialogOpen(false)}
+                className="px-4 py-2 text-sm rounded-md border hover:bg-gray-50 transition-colors"
+              >
+                Annuler
+              </button>
+              <button
+                onClick={handleAddAdmin}
+                disabled={addAdminLoading || !addAdminForm.email.trim()}
+                className="flex items-center gap-1.5 px-4 py-2 text-sm rounded-md text-white transition-colors disabled:opacity-50"
+                style={{ backgroundColor: BRAND.vertFonce }}
+              >
+                {addAdminLoading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <UserPlus className="w-3.5 h-3.5" />}
+                Ajouter
+              </button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
 
         {/* ── Security Notice ── */}
         <div className="p-4 rounded-xl border" style={{ backgroundColor: 'rgba(26, 60, 52, 0.03)', borderColor: 'rgba(26, 60, 52, 0.08)' }}>
