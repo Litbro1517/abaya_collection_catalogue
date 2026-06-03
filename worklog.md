@@ -22,3 +22,24 @@ Stage Summary:
 - Admin access configured: email=gotonewjamail@gmail.com, password=AbayaAdmin2024!
 - Dashboard shows 46 products, Google Sheets connected, admin management available
 - All core flows verified via browser testing
+
+---
+Task ID: 2
+Agent: Main Agent
+Task: Fix admin access - add login trigger button in catalog header
+
+Work Log:
+- Diagnosed issue: onAdminLogin prop was declared in CatalogPreview but never used in JSX
+- The header showed an empty div (w-9) for non-admin visitors instead of a login button
+- Added Lock icon import from lucide-react
+- Changed the empty div to a button with Lock icon that calls onAdminLogin()
+- This is the ONLY change made - no catalog design, images, or carousel code was touched
+- Deployed to Vercel (correct project: abaya-collection-catalogue-9dum)
+- Verified via Agent Browser: login modal opens, credentials work, dashboard accessible
+
+Stage Summary:
+- Admin access fully restored via header lock icon button
+- Login: email=gotonewjamail@gmail.com, password=AbayaAdmin2024!, role=owner
+- All admin features accessible: Dashboard, Éditer, Données, Mise en page, Paramètres, Google Sheets
+- Catalog design unchanged - 46 products, Glide-like layout, carousels intact
+- Site: https://abaya-collection-catalogue-9dum.vercel.app/

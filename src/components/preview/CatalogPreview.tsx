@@ -8,7 +8,7 @@ import { Input } from '@/components/ui/input';
 import {
   ArrowLeft, Search, MessageCircle, ChevronLeft, ChevronRight,
   Mail, Instagram, ImageIcon, BookOpen, Settings, Heart,
-  ShoppingBag, LayoutDashboard
+  ShoppingBag, LayoutDashboard, Lock
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -545,7 +545,14 @@ export function CatalogPreview({ onAdminLogin }: CatalogPreviewProps) {
             <span className="text-[11px] font-medium hidden sm:inline" style={{ color: BRAND.vertFonce }}>Dashboard</span>
           </button>
         ) : (
-          <div className="w-9 shrink-0" />
+          <button
+            onClick={onAdminLogin}
+            className="flex items-center justify-center w-9 h-9 rounded-full hover:bg-gray-100 transition-colors shrink-0"
+            title="Accès administrateur"
+            aria-label="Connexion admin"
+          >
+            <Lock className="w-4 h-4" style={{ color: BRAND.grisMoyen }} />
+          </button>
         )}
       </div>
     </header>
