@@ -18,17 +18,41 @@ import {
   LayoutDashboard,
   Settings2,
   UserPlus,
+  Mail,
+  Key,
+  Loader2,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { Separator } from '@/components/ui/separator';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
 import { useToast } from '@/hooks/use-toast';
+import { toast as sonnerToast } from 'sonner';
+
+// ── Brand Constants ──
+const BRAND = {
+  vertFonce: '#1A3C34',
+  noir: '#1F1F1F',
+} as const;
 
 export function BuilderShell() {
   const { pillar, setPillar, view, setView, catalog, sidebarCollapsed, setSidebarCollapsed, setIsAdmin, setAdminUser, adminUser, googleSession, setShowGoogleSheetsBrowser, setSettingsTab, setActiveDataSourceId, dataSources } = useAppStore();
   const { toast } = useToast();
   const [showUserMenu, setShowUserMenu] = useState(false);
+  const [addAdminDialogOpen, setAddAdminDialogOpen] = useState(false);
+  const [addAdminForm, setAddAdminForm] = useState({ email: '', name: '', role: 'admin', password: '' });
+  const [addAdminLoading, setAddAdminLoading] = useState(false);
 
   const handleLogout = async () => {
     await fetch('/api/auth', { method: 'DELETE' });
@@ -42,7 +66,6 @@ export function BuilderShell() {
       const res = await fetch('/api/google/auth');
       if (res.ok) {
         const json = await res.json();
-        // API returns { data: { authUrl, state } }
         if (json.data?.authUrl) {
           window.location.href = json.data.authUrl;
         }
@@ -56,16 +79,47 @@ export function BuilderShell() {
 
   // ── Éditer: navigate to data pillar and open Google Sheets browser ──
   const handleEdit = () => {
-    // Auto-select first data source if none is selected
     const state = useAppStore.getState();
     if (!state.activeDataSourceId && state.dataSources.length > 0) {
       setActiveDataSourceId(state.dataSources[0].id);
     }
     setPillar('data');
-    // Open Google Sheets browser after a short delay to ensure DataPillar has mounted
     setTimeout(() => {
       useAppStore.getState().setShowGoogleSheetsBrowser(true);
     }, 300);
+  };
+
+  // ── Add Admin: directly open the add admin modal ──
+  const handleAddAdmin = async () => {
+    if (!addAdminForm.email.trim()) {
+      sonnerToast.error('L\'email est requis');
+      return;
+    }
+    setAddAdminLoading(true);
+    try {
+      const res = await fetch('/api/auth/admins', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          email: addAdminForm.email.trim(),
+          name: addAdminForm.name.trim() || undefined,
+          role: addAdminForm.role,
+          password: addAdminForm.password || undefined,
+        }),
+      });
+      if (res.ok) {
+        sonnerToast.success('Administrateur ajouté avec succès');
+        setAddAdminForm({ email: '', name: '', role: 'admin', password: '' });
+        setAddAdminDialogOpen(false);
+      } else {
+        const json = await res.json();
+        sonnerToast.error(json.error || 'Erreur lors de l\'ajout');
+      }
+    } catch {
+      sonnerToast.error('Erreur de connexion');
+    } finally {
+      setAddAdminLoading(false);
+    }
   };
 
   const pillars = [
@@ -136,12 +190,12 @@ export function BuilderShell() {
                           referrerPolicy="no-referrer"
                         />
                       ) : (
-                        <div className="w-10 h-10 rounded-full flex items-center justify-center text-sm font-bold text-white" style={{ backgroundColor: '#1A3C34' }}>
+                        <div className="w-10 h-10 rounded-full flex items-center justify-center text-sm font-bold text-white" style={{ backgroundColor: BRAND.vertFonce }}>
                           {displayName.charAt(0).toUpperCase()}
                         </div>
                       )}
                       <div className="min-w-0 flex-1">
-                        <p className="text-sm font-semibold truncate" style={{ color: '#1F1F1F' }}>
+                        <p className="text-sm font-semibold truncate" style={{ color: BRAND.noir }}>
                           Bonjour {displayName} !
                         </p>
                         <p className="text-[11px] text-gray-500 truncate">{displayEmail}</p>
@@ -158,7 +212,7 @@ export function BuilderShell() {
                         setSettingsTab('admin');
                       }}
                       className="w-full flex items-center gap-3 px-4 py-2.5 text-sm hover:bg-gray-50 transition-colors text-left"
-                      style={{ color: '#1F1F1F' }}
+                      style={{ color: BRAND.noir }}
                     >
                       <Settings2 className="w-4 h-4 text-gray-400" />
                       Gérer votre compte
@@ -166,10 +220,10 @@ export function BuilderShell() {
                     <button
                       onClick={() => {
                         setShowUserMenu(false);
-                        handleConnectGoogle();
+                        setAddAdminDialogOpen(true);
                       }}
                       className="w-full flex items-center gap-3 px-4 py-2.5 text-sm hover:bg-gray-50 transition-colors text-left"
-                      style={{ color: '#1F1F1F' }}
+                      style={{ color: BRAND.noir }}
                     >
                       <UserPlus className="w-4 h-4 text-gray-400" />
                       Ajouter un compte
@@ -302,6 +356,87 @@ export function BuilderShell() {
           {pillar === 'settings' && <SettingsPillar />}
         </main>
       </div>
+
+      {/* ── Add Admin Dialog ── */}
+      <Dialog open={addAdminDialogOpen} onOpenChange={setAddAdminDialogOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Ajouter un administrateur</DialogTitle>
+            <DialogDescription>
+              Créez un nouvel accès administrateur. L&apos;utilisateur pourra se connecter avec son email et le mot de passe défini ci-dessous, ou via Google OAuth si son email correspond.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <div>
+              <Label className="text-xs">Email *</Label>
+              <div className="relative mt-1">
+                <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                <Input
+                  type="email"
+                  value={addAdminForm.email}
+                  onChange={e => setAddAdminForm(f => ({ ...f, email: e.target.value }))}
+                  placeholder="admin@exemple.com"
+                  className="h-9 pl-10 text-xs"
+                />
+              </div>
+            </div>
+            <div>
+              <Label className="text-xs">Nom (optionnel)</Label>
+              <Input
+                value={addAdminForm.name}
+                onChange={e => setAddAdminForm(f => ({ ...f, name: e.target.value }))}
+                placeholder="Prénom Nom"
+                className="h-9 text-xs mt-1"
+              />
+            </div>
+            <div>
+              <Label className="text-xs">Rôle</Label>
+              <Select value={addAdminForm.role} onValueChange={v => setAddAdminForm(f => ({ ...f, role: v }))}>
+                <SelectTrigger className="h-9 text-xs mt-1">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="admin">Admin — Gestion complète</SelectItem>
+                  <SelectItem value="editor">Éditeur — Modification du contenu uniquement</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label className="text-xs">Mot de passe (optionnel)</Label>
+              <div className="relative mt-1">
+                <Key className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                <Input
+                  type="password"
+                  value={addAdminForm.password}
+                  onChange={e => setAddAdminForm(f => ({ ...f, password: e.target.value }))}
+                  placeholder="Min. 8 caractères"
+                  className="h-9 pl-10 text-xs"
+                />
+              </div>
+              <p className="text-[10px] text-muted-foreground mt-1">
+                Si aucun mot de passe n&apos;est défini, l&apos;utilisateur devra se connecter via Google OAuth.
+              </p>
+            </div>
+          </div>
+          <DialogFooter>
+            <button
+              onClick={() => setAddAdminDialogOpen(false)}
+              className="px-4 py-2 text-sm rounded-md border hover:bg-gray-50 transition-colors"
+            >
+              Annuler
+            </button>
+            <button
+              onClick={handleAddAdmin}
+              disabled={addAdminLoading || !addAdminForm.email.trim()}
+              className="flex items-center gap-1.5 px-4 py-2 text-sm rounded-md text-white transition-colors disabled:opacity-50"
+              style={{ backgroundColor: BRAND.vertFonce }}
+            >
+              {addAdminLoading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <UserPlus className="w-3.5 h-3.5" />}
+              Ajouter
+            </button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
