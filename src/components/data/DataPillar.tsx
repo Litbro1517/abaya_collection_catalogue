@@ -1,14 +1,15 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useAppStore } from '@/lib/store';
-import type { DataSource } from '@/types';
+import type { DataSource, Column } from '@/types';
 import { DataTable } from './DataTable';
 import { ImportCSVDialog } from './ImportCSVDialog';
 import { ColumnEditorDialog } from './ColumnEditorDialog';
 import { GoogleSheetsBrowser } from './GoogleSheetsBrowser';
 import { GoogleConnectPanel } from './GoogleConnectPanel';
 import { SyncStatusIndicator } from './SyncStatusIndicator';
+import { ColumnVisibilityDropdown } from './ColumnVisibilityDropdown';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
@@ -26,7 +27,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import {
   Plus, Upload, Download, Columns3, Link2, Sheet, RefreshCw, HardDrive,
-  Trash2, Pencil, MoreVertical,
+  Trash2, Pencil, MoreVertical, Search, Filter, ArrowUpDown, Eye,
 } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -64,11 +65,27 @@ export function DataPillar() {
   const [renameValue, setRenameValue] = useState('');
   const [showDeleteTableDialog, setShowDeleteTableDialog] = useState(false);
 
+  // New toolbar states
+  const [searchQuery, setSearchQuery] = useState('');
+
   const colors = ['#C9A84C', '#1A1A1A', '#D32F2F', '#2E7D32', '#1565C0', '#8B4513', '#F48FB1', '#483C32'];
 
   // Active data source
   const activeDs = dataSources.find(d => d.id === activeDataSourceId);
   const hasGoogleSheet = !!activeDs?.sheetId;
+
+  // Filtered rows based on search query
+  const filteredRows = useMemo(() => {
+    if (!searchQuery.trim()) return rows;
+    const q = searchQuery.toLowerCase();
+    return rows.filter(row => {
+      const data = row.data as Record<string, unknown>;
+      return Object.values(data).some(val => {
+        if (val === null || val === undefined) return false;
+        return String(val).toLowerCase().includes(q);
+      });
+    });
+  }, [rows, searchQuery]);
 
   // Load data sources
   const loadDataSources = useCallback(async () => {
@@ -263,6 +280,40 @@ export function DataPillar() {
     }
   };
 
+  // Column visibility toggle
+  const handleToggleColumnVisibility = async (col: Column) => {
+    try {
+      await fetch(`/api/datasources/${activeDataSourceId}/columns/${col.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ visible: !col.visible }),
+      });
+      loadDataSourceData();
+      toast.success(col.visible ? 'Colonne masquée' : 'Colonne affichée');
+    } catch {
+      toast.error('Erreur');
+    }
+  };
+
+  const handleShowAllColumns = async () => {
+    const hiddenCols = columns.filter(c => !c.visible);
+    try {
+      await Promise.all(
+        hiddenCols.map(col =>
+          fetch(`/api/datasources/${activeDataSourceId}/columns/${col.id}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ visible: true }),
+          })
+        )
+      );
+      loadDataSourceData();
+      toast.success(`${hiddenCols.length} colonne(s) affichée(s)`);
+    } catch {
+      toast.error('Erreur');
+    }
+  };
+
   return (
     <div className="flex h-full">
       {/* Left: Data source list */}
@@ -355,33 +406,57 @@ export function DataPillar() {
 
       {/* Right: Data table + toolbar */}
       <div className="flex-1 flex flex-col overflow-hidden">
-        {/* Table header with name + management */}
         {activeDataSourceId && activeDs && (
-          <div className="border-b border-border bg-card shrink-0">
-            {/* Table name row */}
-            <div className="h-9 px-3 flex items-center gap-2">
+          <>
+            {/* ── Table name row ── Clean title, separated from actions ── */}
+            <div className="h-10 border-b border-border bg-card shrink-0 px-4 flex items-center gap-2.5">
               <div
-                className="w-2.5 h-2.5 rounded-full shrink-0"
+                className="w-3 h-3 rounded-full shrink-0"
                 style={{ backgroundColor: activeDs.color }}
               />
               <span className="text-sm font-semibold truncate">{activeDs.name}</span>
               {activeDs.sheetId && (
-                <Badge variant="outline" className="text-[9px] gap-1 py-0">
+                <Badge variant="outline" className="text-[9px] gap-1 py-0 border-green-300 text-green-700">
                   <Sheet className="w-2.5 h-2.5" /> Google
                 </Badge>
               )}
+              <SyncStatusIndicator />
               <div className="flex-1" />
-              {/* Table management dropdown */}
+              <span className="text-[10px] text-muted-foreground mr-1">
+                {rows.length} lignes · {columns.filter(c => c.visible).length}/{columns.length} colonnes
+              </span>
+              {/* Table management dropdown — includes secondary actions */}
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <Button variant="ghost" size="icon" className="h-7 w-7">
+                  <Button variant="ghost" size="icon" className="h-7 w-7 hover:bg-secondary">
                     <MoreVertical className="w-3.5 h-3.5" />
                   </Button>
                 </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="w-52">
+                <DropdownMenuContent align="end" className="w-56">
+                  {/* Primary table actions */}
                   <DropdownMenuItem onClick={() => { setRenameValue(activeDs.name); setShowRenameDialog(true); }}>
                     <Pencil className="w-3.5 h-3.5 mr-2" /> Renommer la table
                   </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                  {/* Import / Source actions */}
+                  <DropdownMenuItem onClick={() => setShowImportModal(true)}>
+                    <Upload className="w-3.5 h-3.5 mr-2" /> Importer CSV
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => setShowGoogleSheetsBrowser(true)}>
+                    <Sheet className="w-3.5 h-3.5 mr-2" /> Google Sheets
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => setShowUrlDialog(true)}>
+                    <Link2 className="w-3.5 h-3.5 mr-2" /> Importer par URL
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem onClick={handleExport}>
+                    <Download className="w-3.5 h-3.5 mr-2" /> Exporter CSV
+                  </DropdownMenuItem>
+                  {hasGoogleSheet && (
+                    <DropdownMenuItem onClick={handleSyncGoogleSheet}>
+                      <RefreshCw className="w-3.5 h-3.5 mr-2" /> Synchroniser
+                    </DropdownMenuItem>
+                  )}
                   <DropdownMenuSeparator />
                   <DropdownMenuItem className="text-destructive focus:text-destructive" onClick={() => setShowDeleteTableDialog(true)}>
                     <Trash2 className="w-3.5 h-3.5 mr-2" /> Supprimer la table
@@ -390,39 +465,67 @@ export function DataPillar() {
               </DropdownMenu>
             </div>
 
-            {/* Toolbar row */}
-            <div className="h-10 border-t border-border/50 flex items-center px-3 gap-1.5">
-              <Button size="sm" variant="outline" className="h-7 text-xs gap-1" onClick={() => setShowImportModal(true)}>
-                <Upload className="w-3.5 h-3.5" />
-                <span className="hidden sm:inline">Importer</span>
+            {/* ── Toolbar row ── Search + Filter + Sort + Hide + Add column ── */}
+            <div className="h-10 border-b border-border/60 bg-card/80 shrink-0 px-3 flex items-center gap-2">
+              {/* Search */}
+              <div className="relative max-w-[220px] flex-1">
+                <Search className="absolute left-2 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
+                <Input
+                  value={searchQuery}
+                  onChange={e => setSearchQuery(e.target.value)}
+                  placeholder="Rechercher dans les données..."
+                  className="h-7 text-xs pl-7 bg-muted/30 border-border/40 focus:border-gold/50 focus:ring-gold/20"
+                />
+                {searchQuery && (
+                  <button
+                    className="absolute right-1.5 top-1/2 -translate-y-1/2 w-4 h-4 rounded-full bg-muted-foreground/20 hover:bg-muted-foreground/40 flex items-center justify-center"
+                    onClick={() => setSearchQuery('')}
+                  >
+                    <span className="text-[8px] text-muted-foreground">×</span>
+                  </button>
+                )}
+              </div>
+
+              {/* Filter & Sort — UI buttons (will be functional in next phase) */}
+              <Button variant="outline" size="sm" className="h-7 text-xs gap-1.5" disabled>
+                <Filter className="w-3.5 h-3.5" />
+                <span className="hidden sm:inline">Filtrer</span>
               </Button>
-              <Button size="sm" variant="outline" className="h-7 text-xs gap-1" onClick={() => setShowGoogleSheetsBrowser(true)}>
-                <Sheet className="w-3.5 h-3.5" />
-                <span className="hidden sm:inline">Google</span>
+              <Button variant="outline" size="sm" className="h-7 text-xs gap-1.5" disabled>
+                <ArrowUpDown className="w-3.5 h-3.5" />
+                <span className="hidden sm:inline">Trier</span>
               </Button>
-              <Button size="sm" variant="outline" className="h-7 text-xs gap-1" onClick={() => setShowUrlDialog(true)}>
-                <Link2 className="w-3.5 h-3.5" />
-                <span className="hidden sm:inline">URL</span>
-              </Button>
-              <Button size="sm" variant="outline" className="h-7 text-xs gap-1" onClick={handleExport}>
-                <Download className="w-3.5 h-3.5" />
-                <span className="hidden sm:inline">Exporter</span>
-              </Button>
-              <Button size="sm" variant="outline" className="h-7 text-xs gap-1" onClick={() => setShowColumnModal(true)}>
-                <Columns3 className="w-3.5 h-3.5" />
+
+              {/* Separator */}
+              <div className="w-px h-5 bg-border/40 mx-0.5" />
+
+              {/* Column visibility (eye) */}
+              <ColumnVisibilityDropdown
+                columns={columns}
+                onToggleVisibility={handleToggleColumnVisibility}
+                onShowAll={handleShowAllColumns}
+              />
+
+              {/* Add column button */}
+              <Button
+                size="sm"
+                className="h-7 text-xs gap-1.5 bg-primary hover:bg-primary/90 text-primary-foreground"
+                onClick={() => setShowColumnModal(true)}
+              >
+                <Plus className="w-3.5 h-3.5" />
                 <span className="hidden sm:inline">Colonne</span>
               </Button>
-              {hasGoogleSheet && (
-                <Button size="sm" variant="outline" className="h-7 text-xs gap-1" onClick={handleSyncGoogleSheet}>
-                  <RefreshCw className="w-3.5 h-3.5" />
-                  <span className="hidden sm:inline">Sync</span>
-                </Button>
-              )}
+
               <div className="flex-1" />
-              <SyncStatusIndicator />
-              <span className="text-[10px] text-muted-foreground">{rows.length} lignes · {columns.filter(c => c.visible).length}/{columns.length} colonnes</span>
+
+              {/* Search results count */}
+              {searchQuery && (
+                <span className="text-[10px] text-muted-foreground whitespace-nowrap">
+                  {filteredRows.length} résultat{filteredRows.length !== 1 ? 's' : ''}
+                </span>
+              )}
             </div>
-          </div>
+          </>
         )}
 
         {/* Table */}
@@ -430,7 +533,7 @@ export function DataPillar() {
           {activeDataSourceId ? (
             <DataTable
               columns={columns}
-              rows={rows}
+              rows={filteredRows}
               dataSourceId={activeDataSourceId}
               loading={loading}
               onRefresh={loadDataSourceData}
@@ -590,5 +693,3 @@ function Database2Icon({ className }: { className?: string }) {
     </svg>
   );
 }
-
-

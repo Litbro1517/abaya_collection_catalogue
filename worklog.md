@@ -129,3 +129,37 @@ Stage Summary:
 - Behavior consistent across Dashboard and Mon Catalogue
 - GitHub commit: 31594b3
 - Vercel deployed from GitHub
+
+---
+Task ID: 6
+Agent: Main Agent
+Task: Refonte UX/UI Priorité 1 - Toolbar, Menu Œil, Navigation table (section Données)
+
+Work Log:
+- Analyzed 5 reference screenshots via VLM (Glide interface: context menu, visibility checklist, type selector, table with frozen indices, column arrow menu)
+- Analyzed brand identity: Gold #C9A84C, Deep Green #1A3C34, Cream #FAF8F5, Warm Sand #F5F0E8, Burgundy #800020
+- Explored complete data section architecture: DataTable.tsx, DataPillar.tsx, ColumnEditorDialog.tsx, all API routes
+- Created ColumnVisibilityDropdown.tsx: New component with Eye icon + Popover checklist for column visibility
+  - Search filter, per-column toggle with type icon, "Tout afficher" button, gold accent for hidden count badge
+- Refactored DataPillar.tsx toolbar:
+  - Replaced 6-button toolbar with clean layout: Search input + Filter + Sort + Hide (eye) + Add Column
+  - Moved Import/Google/URL/Export/Sync to table management dropdown (⋮)
+  - Added search functionality (filters rows by text matching any column value)
+  - Added handleToggleColumnVisibility and handleShowAllColumns handlers
+- Refactored DataTable.tsx:
+  - Sticky left columns: Checkbox (left:0) + Row # (left:9) with bg-card z-10
+  - Replaced pencil + 3-dots buttons with single ChevronDown (▾) arrow per column
+  - Column context menu: Éditer, Dupliquer, Ajouter à droite, Masquer, Supprimer
+  - Added duplicateColumn and addColumnToRight functions
+  - Persistent "+" column button at far right (sticky right, gold accent on hover)
+  - Removed hidden columns bar (replaced by ColumnVisibilityDropdown)
+  - Footer: simplified to "Nouvelle ligne" + pagination + stats
+- Lint passes cleanly (eslint .)
+- TypeScript: no new errors from changes (pre-existing errors in unrelated files)
+- Dev server compiles successfully (GET / 200)
+
+Stage Summary:
+- 3 files modified: DataTable.tsx, DataPillar.tsx
+- 1 new file: ColumnVisibilityDropdown.tsx
+- Priority 1 (Visualisation & Navigation) prototype complete
+- Awaiting user validation before Priority 2 (ColumnEditorDialog)

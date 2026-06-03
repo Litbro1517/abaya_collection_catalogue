@@ -31,11 +31,11 @@ import {
 } from '@/components/ui/tooltip';
 import {
   MoreVertical, Plus, Eye, EyeOff, Trash2, Edit2, ArrowUp, ArrowDown,
-  Loader2, Image as ImageIcon, Copy, GripVertical, Columns3,
-  MoveLeft, MoveRight, Check, X, Pencil, RotateCcw,
-  Type, Hash, Banknote, Images, ChevronDown, ListChecks,
-  Layers, ToggleRight, ExternalLink, Link2, SquareStack,
-  MousePointer2, TableProperties,
+  Loader2, Image as ImageIcon, Copy, ChevronDown,
+  Check, X, Pencil,
+  Type, Hash, Banknote, Images,
+  ListChecks, Layers, ToggleRight, ExternalLink, Link2, SquareStack,
+  MoveRight,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
@@ -96,14 +96,12 @@ export function DataTable({ columns, rows, dataSourceId, loading, onRefresh }: P
   const [showBulkDeleteDialog, setShowBulkDeleteDialog] = useState(false);
 
   // Cell selection mode
-  const [selectedCells, setSelectedCells] = useState<Set<string>>(new Set()); // `${rowId}-${colSlug}`
-  const [cellSelectionMode, setCellSelectionMode] = useState(false);
+  const [selectedCells, setSelectedCells] = useState<Set<string>>(new Set());
 
   // Delete confirmation
   const [deleteTarget, setDeleteTarget] = useState<{ type: 'row' | 'column'; id: string; name?: string } | null>(null);
 
   const visibleColumns = columns.filter(c => c.visible);
-  const hiddenColumns = columns.filter(c => !c.visible);
   const paginatedRows = rows.slice(page * pageSize, (page + 1) * pageSize);
   const allVisibleSelected = paginatedRows.length > 0 && paginatedRows.every(r => selectedRows.has(r.id));
 
@@ -111,7 +109,6 @@ export function DataTable({ columns, rows, dataSourceId, loading, onRefresh }: P
 
   const startEditing = (rowId: string, colSlug: string, value: unknown) => {
     setEditingCell(`${rowId}-${colSlug}`);
-    // Convert native arrays/objects to string for editing
     let strVal = '';
     if (typeof value === 'string') strVal = value;
     else if (Array.isArray(value)) strVal = JSON.stringify(value);
@@ -125,7 +122,6 @@ export function DataTable({ columns, rows, dataSourceId, loading, onRefresh }: P
     if (!row) return;
 
     const data = { ...(row.data as Record<string, unknown>) };
-    // Try to parse JSON values (arrays, objects), otherwise keep as string
     try {
       data[colSlug] = JSON.parse(editValue);
     } catch {
@@ -264,33 +260,53 @@ export function DataTable({ columns, rows, dataSourceId, loading, onRefresh }: P
     }
   };
 
-  const moveColumn = async (colId: string, direction: 'left' | 'right') => {
+  const addColumnToRight = async (afterCol: Column) => {
     const sortedCols = [...columns].sort((a, b) => a.order - b.order);
-    const idx = sortedCols.findIndex(c => c.id === colId);
-    if (idx < 0) return;
-    if (direction === 'left' && idx === 0) return;
-    if (direction === 'right' && idx === sortedCols.length - 1) return;
-
-    const swapIdx = direction === 'left' ? idx - 1 : idx + 1;
-    const currentCol = sortedCols[idx];
-    const swapCol = sortedCols[swapIdx];
+    const idx = sortedCols.findIndex(c => c.id === afterCol.id);
+    const newOrder = idx >= 0 && idx < sortedCols.length - 1
+      ? (sortedCols[idx].order + sortedCols[idx + 1].order) / 2
+      : sortedCols[sortedCols.length - 1].order + 1;
 
     try {
-      await Promise.all([
-        fetch(`/api/datasources/${dataSourceId}/columns/${currentCol.id}`, {
-          method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ order: swapCol.order }),
-        }),
-        fetch(`/api/datasources/${dataSourceId}/columns/${swapCol.id}`, {
-          method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ order: currentCol.order }),
-        }),
-      ]);
-      onRefresh();
+      const res = await fetch(`/api/datasources/${dataSourceId}/columns`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: 'Nouvelle colonne', type: 'TEXT', order: newOrder }),
+      });
+      if (res.ok) {
+        onRefresh();
+        toast.success('Colonne ajoutée à droite');
+      }
     } catch {
-      toast.error('Erreur de déplacement');
+      toast.error('Erreur');
+    }
+  };
+
+  const duplicateColumn = async (col: Column) => {
+    const sortedCols = [...columns].sort((a, b) => a.order - b.order);
+    const idx = sortedCols.findIndex(c => c.id === col.id);
+    const newOrder = idx >= 0 && idx < sortedCols.length - 1
+      ? (sortedCols[idx].order + sortedCols[idx + 1].order) / 2
+      : sortedCols[sortedCols.length - 1].order + 1;
+
+    try {
+      const res = await fetch(`/api/datasources/${dataSourceId}/columns`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: `${col.name} (copie)`,
+          type: col.type,
+          order: newOrder,
+          config: col.config,
+          visible: col.visible,
+        }),
+      });
+      if (res.ok) {
+        onRefresh();
+        toast.success('Colonne dupliquée');
+      }
+    } catch {
+      toast.error('Erreur de duplication');
     }
   };
 
@@ -337,10 +353,8 @@ export function DataTable({ columns, rows, dataSourceId, loading, onRefresh }: P
 
   const deleteSelectedCellsContent = async () => {
     const updates = Array.from(selectedCells).map(cellKey => {
-      const [rowId, colSlug] = cellKey.split('-');
-      // Find actual rowId with full cuid format
       const row = rows.find(r => cellKey.startsWith(r.id));
-      return { row, colSlug: cellKey.substring(row?.id?.length ? row.id.length + 1 : 0) };
+      return { row, colSlug: row ? cellKey.substring(row.id.length + 1) : '' };
     }).filter(u => u.row);
 
     try {
@@ -389,7 +403,6 @@ export function DataTable({ columns, rows, dataSourceId, loading, onRefresh }: P
     const value = (row.data as Record<string, unknown>)[col.slug];
     if (value === undefined || value === null || value === '') return <span className="text-muted-foreground/40">—</span>;
 
-    // Native array (from PostgreSQL Json type)
     if (Array.isArray(value)) {
       if (col.type === 'IMAGE' || col.type === 'IMAGE_ARRAY') {
         return (
@@ -498,42 +511,26 @@ export function DataTable({ columns, rows, dataSourceId, loading, onRefresh }: P
           </div>
         )}
 
-        {/* Hidden columns bar */}
-        {hiddenColumns.length > 0 && (
-          <div className="border-b border-border bg-muted/30 px-3 py-1.5 flex items-center gap-2 shrink-0 overflow-x-auto">
-            <EyeOff className="w-3 h-3 text-muted-foreground shrink-0" />
-            <span className="text-[10px] text-muted-foreground shrink-0">Masquées :</span>
-            {hiddenColumns.map(col => (
-              <Badge
-                key={col.id}
-                variant="outline"
-                className="text-[10px] gap-1 cursor-pointer hover:bg-muted transition-colors"
-                onClick={() => toggleColumnVisibility(col)}
-              >
-                {col.name}
-                <Eye className="w-2.5 h-2.5" />
-              </Badge>
-            ))}
-          </div>
-        )}
-
-        {/* Table */}
+        {/* ── Table with sticky row indices ── */}
         <div className="flex-1 overflow-auto">
           <table className="w-full text-sm border-collapse">
             <thead className="sticky top-0 z-10">
               <tr className="bg-muted/80 backdrop-blur-sm">
-                {/* Select all checkbox */}
-                <th className="px-2 py-2 w-9 border-b border-border">
+                {/* Checkbox column — sticky */}
+                <th className="px-2 py-2 w-9 border-b border-border sticky left-0 bg-muted/90 z-20">
                   <Checkbox
                     checked={allVisibleSelected}
                     onCheckedChange={toggleAllVisible}
                     className="h-3.5 w-3.5"
                   />
                 </th>
-                <th className="px-2 py-2 text-left text-xs font-medium text-muted-foreground w-10 border-b border-border">#</th>
+                {/* Row # column — sticky */}
+                <th className="px-2 py-2 text-left text-xs font-medium text-muted-foreground w-10 border-b border-r border-border sticky left-9 bg-muted/90 z-20">
+                  #
+                </th>
+                {/* Data columns */}
                 {visibleColumns.map(col => (
-                  <th key={col.id} className="px-0 py-0 text-left text-xs font-medium text-muted-foreground border-l border-b border-border min-w-[140px]">
-                    {/* Column header cell - redesigned for visibility */}
+                  <th key={col.id} className="px-0 py-0 text-left text-xs font-medium text-muted-foreground border-b border-border min-w-[140px]">
                     <div className="flex items-center gap-0.5 px-2 py-1.5 group/col">
                       {/* Column type icon */}
                       <div className="flex items-center justify-center w-5 h-5 rounded bg-primary/10 text-primary shrink-0">
@@ -570,49 +567,33 @@ export function DataTable({ columns, rows, dataSourceId, loading, onRefresh }: P
                         )}
                       </div>
 
-                      {/* Edit column button - ALWAYS VISIBLE */}
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <button
-                            className="p-1 rounded hover:bg-primary/10 text-primary/70 hover:text-primary transition-colors shrink-0"
-                            onClick={() => openColumnEditor(col)}
-                          >
-                            <Pencil className="w-3 h-3" />
-                          </button>
-                        </TooltipTrigger>
-                        <TooltipContent side="bottom" className="text-[10px]">
-                          Modifier les propriétés
-                        </TooltipContent>
-                      </Tooltip>
-
-                      {/* Column dropdown menu - ALWAYS VISIBLE */}
+                      {/* ── Single context arrow (▾) ── replaces pencil + 3-dots ── */}
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>
-                          <button className="p-1 rounded hover:bg-muted text-muted-foreground hover:text-foreground transition-colors shrink-0">
-                            <MoreVertical className="w-3 h-3" />
+                          <button className="p-1 rounded hover:bg-secondary text-muted-foreground hover:text-foreground transition-colors shrink-0 opacity-0 group-hover/col:opacity-100 data-[state=open]:opacity-100">
+                            <ChevronDown className="w-3.5 h-3.5" />
                           </button>
                         </DropdownMenuTrigger>
-                        <DropdownMenuContent align="start" className="w-56">
-                          <DropdownMenuItem onClick={() => { setRenamingColId(col.id); setRenameValue(col.name); }}>
-                            <Pencil className="w-3.5 h-3.5 mr-2" /> Renommer
-                          </DropdownMenuItem>
+                        <DropdownMenuContent align="start" className="w-52">
                           <DropdownMenuItem onClick={() => openColumnEditor(col)}>
-                            <Edit2 className="w-3.5 h-3.5 mr-2" /> Modifier le type & propriétés
+                            <Pencil className="w-3.5 h-3.5 mr-2" /> Éditer
                           </DropdownMenuItem>
-                          <DropdownMenuSeparator />
-                          <DropdownMenuItem onClick={() => moveColumn(col.id, 'left')} disabled={col.order === Math.min(...visibleColumns.map(c => c.order))}>
-                            <MoveLeft className="w-3.5 h-3.5 mr-2" /> Déplacer à gauche
+                          <DropdownMenuItem onClick={() => duplicateColumn(col)}>
+                            <Copy className="w-3.5 h-3.5 mr-2" /> Dupliquer
                           </DropdownMenuItem>
-                          <DropdownMenuItem onClick={() => moveColumn(col.id, 'right')} disabled={col.order === Math.max(...visibleColumns.map(c => c.order))}>
-                            <MoveRight className="w-3.5 h-3.5 mr-2" /> Déplacer à droite
+                          <DropdownMenuItem onClick={() => addColumnToRight(col)}>
+                            <MoveRight className="w-3.5 h-3.5 mr-2" /> Ajouter à droite
                           </DropdownMenuItem>
                           <DropdownMenuSeparator />
                           <DropdownMenuItem onClick={() => toggleColumnVisibility(col)}>
-                            {col.visible ? <><EyeOff className="w-3.5 h-3.5 mr-2" /> Masquer la colonne</> : <><Eye className="w-3.5 h-3.5 mr-2" /> Afficher la colonne</>}
+                            {col.visible
+                              ? <><EyeOff className="w-3.5 h-3.5 mr-2" /> Masquer</>
+                              : <><Eye className="w-3.5 h-3.5 mr-2" /> Afficher</>
+                            }
                           </DropdownMenuItem>
                           <DropdownMenuSeparator />
                           <DropdownMenuItem className="text-destructive focus:text-destructive" onClick={() => setDeleteTarget({ type: 'column', id: col.id, name: col.name })}>
-                            <Trash2 className="w-3.5 h-3.5 mr-2" /> Supprimer la colonne
+                            <Trash2 className="w-3.5 h-3.5 mr-2" /> Supprimer
                           </DropdownMenuItem>
                         </DropdownMenuContent>
                       </DropdownMenu>
@@ -625,7 +606,22 @@ export function DataTable({ columns, rows, dataSourceId, loading, onRefresh }: P
                     </div>
                   </th>
                 ))}
-                <th className="px-2 py-2 w-10 border-b border-border" />
+                {/* ── Add column button — persistent at right ── */}
+                <th className="px-2 py-2 w-10 border-b border-border sticky right-0 bg-muted/90 z-20">
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <button
+                        className="w-7 h-7 rounded-md border border-dashed border-border hover:border-gold hover:bg-gold/5 text-muted-foreground hover:text-gold transition-colors flex items-center justify-center"
+                        onClick={() => { setEditingColumn(null); setShowColumnEditor(true); }}
+                      >
+                        <Plus className="w-3.5 h-3.5" />
+                      </button>
+                    </TooltipTrigger>
+                    <TooltipContent side="left" className="text-[10px]">
+                      Ajouter une colonne
+                    </TooltipContent>
+                  </Tooltip>
+                </th>
               </tr>
             </thead>
             <tbody>
@@ -638,15 +634,19 @@ export function DataTable({ columns, rows, dataSourceId, loading, onRefresh }: P
                     'border-b border-border/50 group hover:bg-muted/30 transition-colors',
                     isSelected && 'bg-amber-50/50 dark:bg-amber-950/10 hover:bg-amber-50/70'
                   )}>
-                    {/* Row checkbox */}
-                    <td className="px-2 py-1.5 border-l-2 border-transparent" style={{ borderLeftColor: isSelected ? '#C9A84C' : 'transparent' }}>
+                    {/* Row checkbox — sticky */}
+                    <td className="px-2 py-1.5 sticky left-0 bg-card z-10 border-r-2" style={{ borderRightColor: isSelected ? '#C9A84C' : 'transparent' }}>
                       <Checkbox
                         checked={isSelected}
                         onCheckedChange={() => toggleRowSelect(row.id)}
                         className="h-3.5 w-3.5"
                       />
                     </td>
-                    <td className="px-2 py-1.5 text-xs text-muted-foreground">{rowNum}</td>
+                    {/* Row number — sticky */}
+                    <td className="px-2 py-1.5 text-xs text-muted-foreground sticky left-9 bg-card z-10 border-r border-border/30 font-medium">
+                      {rowNum}
+                    </td>
+                    {/* Data cells */}
                     {visibleColumns.map(col => {
                       const cellKey = `${row.id}-${col.slug}`;
                       const isEditing = editingCell === cellKey;
@@ -681,29 +681,14 @@ export function DataTable({ columns, rows, dataSourceId, loading, onRefresh }: P
                               }}
                               title="Double-cliquer pour modifier · Shift+Clic pour sélectionner"
                             >
-                              {/* Mini checkbox for cell selection (visible on hover) */}
-                              <button
-                                className={cn(
-                                  "w-3.5 h-3.5 rounded-sm border shrink-0 transition-all",
-                                  isCellSelected
-                                    ? "bg-blue-500 border-blue-500 flex items-center justify-center"
-                                    : "border-border/40 opacity-0 group-hover:opacity-60 hover:opacity-100 hover:border-blue-400"
-                                )}
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  toggleCellSelect(row.id, col.slug, true);
-                                }}
-                              >
-                                {isCellSelected && <Check className="w-2 h-2 text-white" />}
-                              </button>
                               {renderCellValue(row, col)}
                             </div>
                           )}
                         </td>
                       );
                     })}
-                    {/* Row actions dropdown */}
-                    <td className="px-1">
+                    {/* Row actions — sticky right */}
+                    <td className="px-1 sticky right-0 bg-card z-10">
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>
                           <Button variant="ghost" size="icon" className="h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity">
@@ -738,13 +723,10 @@ export function DataTable({ columns, rows, dataSourceId, loading, onRefresh }: P
           </table>
         </div>
 
-        {/* Footer: pagination + add row */}
+        {/* ── Footer: pagination + add row ── */}
         <div className="h-10 border-t border-border bg-card flex items-center px-3 gap-3 shrink-0">
-          <Button variant="ghost" size="sm" className="h-7 text-xs gap-1" onClick={addRow}>
-            <Plus className="w-3 h-3" /> Ligne
-          </Button>
-          <Button variant="ghost" size="sm" className="h-7 text-xs gap-1" onClick={() => { setEditingColumn(null); setShowColumnEditor(true); }}>
-            <Plus className="w-3 h-3" /> Colonne
+          <Button variant="ghost" size="sm" className="h-7 text-xs gap-1 text-gold hover:text-gold hover:bg-gold/5" onClick={addRow}>
+            <Plus className="w-3 h-3" /> Nouvelle ligne
           </Button>
           <div className="flex-1" />
           {rows.length > pageSize && (
