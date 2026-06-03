@@ -104,3 +104,28 @@ Stage Summary:
 - GitHub commits: 39cd073 (feat), 0662bc6 (fix)
 - Vercel deployed from GitHub
 - No catalog/design code was modified
+
+---
+Task ID: 5
+Agent: Main Agent
+Task: Correction redirection bouton 'Ajouter un compte'
+
+Work Log:
+- User reported: "Ajouter un compte" in user dropdown menu redirects to Google OAuth instead of opening admin add form
+- Fixed AdminDashboard.tsx: changed onClick from handleConnectGoogle() to setAddAdminDialogOpen(true)
+- Fixed BuilderShell.tsx: added complete add admin dialog (state, form, handler, Dialog component)
+  - Changed "Ajouter un compte" onClick from handleConnectGoogle() to setAddAdminDialogOpen(true)
+  - Added imports: Mail, Key, Loader2, Input, Label, Select, Dialog components, sonnerToast
+  - Added state: addAdminDialogOpen, addAdminForm, addAdminLoading
+  - Added handler: handleAddAdmin() calling /api/auth/admins POST
+  - Added Dialog component identical to Dashboard version
+- Lint passed, committed and pushed: 31594b3
+- Vercel auto-deploy: READY
+- Verified via Agent Browser on both Dashboard and Mon Catalogue pages
+
+Stage Summary:
+- "Ajouter un compte" now opens "Ajouter un administrateur" modal on both pages
+- No more Google OAuth redirect from user menu
+- Behavior consistent across Dashboard and Mon Catalogue
+- GitHub commit: 31594b3
+- Vercel deployed from GitHub
