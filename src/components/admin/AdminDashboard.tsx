@@ -19,8 +19,11 @@ import {
   Unplug,
   LogOut,
   Cable,
+  User,
+  UserPlus,
+  Settings2,
 } from 'lucide-react';
-import Link from 'next/link';
+
 import type { AppView, Pillar, SettingsTab } from '@/types';
 import { toast } from 'sonner';
 
@@ -61,6 +64,7 @@ export function AdminDashboard({ admin }: AdminDashboardProps) {
   const [googleConnecting, setGoogleConnecting] = useState(false);
   const [googleDisconnecting, setGoogleDisconnecting] = useState(false);
   const [showGooglePanel, setShowGooglePanel] = useState(false);
+  const [showUserMenu, setShowUserMenu] = useState(false);
 
   useEffect(() => {
     setIsAdmin(true);
@@ -312,25 +316,128 @@ export function AdminDashboard({ admin }: AdminDashboardProps) {
             </div>
           </div>
 
-          {/* Quick links */}
+          {/* Quick links + User menu */}
           <div className="flex items-center gap-1">
-            <Link
-              href="/?view=preview"
+            <button
+              onClick={() => navigateTo('preview')}
               className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium hover:bg-gray-100 transition-colors"
               style={{ color: BRAND.vertFonce }}
+              title="Voir le catalogue"
             >
               <ExternalLink className="w-3.5 h-3.5" />
               <span className="hidden sm:inline">Catalogue</span>
-            </Link>
-
-            <button
-              onClick={handleLogout}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium hover:bg-gray-100 transition-colors text-gray-500"
-              title="Déconnexion"
-            >
-              <LogOut className="w-3.5 h-3.5" />
-              <span className="hidden sm:inline">Déconnexion</span>
             </button>
+
+            {/* User avatar button → opens Google-style menu */}
+            <div className="relative">
+              <button
+                onClick={() => setShowUserMenu(prev => !prev)}
+                className="flex items-center gap-2 px-2 py-1 rounded-lg hover:bg-gray-100 transition-colors"
+                title="Menu utilisateur"
+              >
+                {admin.picture ? (
+                  <img
+                    src={admin.picture}
+                    alt={admin.name || admin.email}
+                    className="w-7 h-7 rounded-full object-cover"
+                    referrerPolicy="no-referrer"
+                  />
+                ) : (
+                  <div className="w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold text-white" style={{ backgroundColor: BRAND.vertFonce }}>
+                    {(admin.name || admin.email).charAt(0).toUpperCase()}
+                  </div>
+                )}
+                <span className="text-xs font-medium truncate max-w-[100px] hidden sm:inline" style={{ color: BRAND.noir }}>
+                  {admin.name || admin.email.split('@')[0]}
+                </span>
+              </button>
+
+              {/* Google-style dropdown menu */}
+              {showUserMenu && (
+                <>
+                  {/* Backdrop to close menu */}
+                  <div
+                    className="fixed inset-0 z-40"
+                    onClick={() => setShowUserMenu(false)}
+                  />
+                  <div
+                    className="absolute right-0 top-full mt-1 w-72 bg-white rounded-xl shadow-xl border z-50 overflow-hidden"
+                    style={{ borderColor: 'rgba(0,0,0,0.08)' }}
+                  >
+                    {/* User info */}
+                    <div className="px-4 py-3 border-b" style={{ borderColor: 'rgba(0,0,0,0.06)' }}>
+                      <div className="flex items-center gap-3">
+                        {admin.picture ? (
+                          <img
+                            src={admin.picture}
+                            alt={admin.name || admin.email}
+                            className="w-10 h-10 rounded-full object-cover"
+                            referrerPolicy="no-referrer"
+                          />
+                        ) : (
+                          <div className="w-10 h-10 rounded-full flex items-center justify-center text-sm font-bold text-white" style={{ backgroundColor: BRAND.vertFonce }}>
+                            {(admin.name || admin.email).charAt(0).toUpperCase()}
+                          </div>
+                        )}
+                        <div className="min-w-0 flex-1">
+                          <p className="text-sm font-semibold truncate" style={{ color: BRAND.noir }}>
+                            Bonjour {admin.name || admin.email.split('@')[0]} !
+                          </p>
+                          <p className="text-[11px] text-gray-500 truncate">{admin.email}</p>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Menu actions */}
+                    <div className="py-1">
+                      <button
+                        onClick={() => {
+                          setShowUserMenu(false);
+                          navigateTo('builder', { pillar: 'settings', settingsTab: 'admin' });
+                        }}
+                        className="w-full flex items-center gap-3 px-4 py-2.5 text-sm hover:bg-gray-50 transition-colors text-left"
+                        style={{ color: BRAND.noir }}
+                      >
+                        <Settings2 className="w-4 h-4 text-gray-400" />
+                        Gérer votre compte
+                      </button>
+                      <button
+                        onClick={() => {
+                          setShowUserMenu(false);
+                          handleConnectGoogle();
+                        }}
+                        className="w-full flex items-center gap-3 px-4 py-2.5 text-sm hover:bg-gray-50 transition-colors text-left"
+                        style={{ color: BRAND.noir }}
+                      >
+                        <UserPlus className="w-4 h-4 text-gray-400" />
+                        Ajouter un compte
+                      </button>
+                    </div>
+
+                    {/* Divider + Sign out */}
+                    <div className="border-t py-1" style={{ borderColor: 'rgba(0,0,0,0.06)' }}>
+                      <button
+                        onClick={() => {
+                          setShowUserMenu(false);
+                          handleLogout();
+                        }}
+                        className="w-full flex items-center gap-3 px-4 py-2.5 text-sm hover:bg-gray-50 transition-colors text-left text-red-600"
+                      >
+                        <LogOut className="w-4 h-4" />
+                        Se déconnecter
+                      </button>
+                    </div>
+
+                    {/* Footer links */}
+                    <div className="border-t px-4 py-2 flex items-center gap-2 text-[10px] text-gray-400" style={{ borderColor: 'rgba(0,0,0,0.06)' }}>
+                      <span>Règles de confidentialité</span>
+                      <span>·</span>
+                      <span>Conditions d&apos;utilisation</span>
+                    </div>
+                  </div>
+                </>
+              )}
+            </div>
           </div>
         </div>
       </header>
