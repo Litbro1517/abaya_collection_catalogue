@@ -68,3 +68,39 @@ Stage Summary:
 - GitHub commit: aa4b4f8 "feat: Dashboard - lien Catalogue fonctionnel + menu utilisateur Google-style"
 - Vercel deployed from GitHub (not CLI)
 - No catalog/design code was touched
+
+---
+Task ID: 4
+Agent: Main Agent
+Task: Rectifications finales - Navigation directe et uniformisation des accès
+
+Work Log:
+- Analyzed screenshots via VLM to understand exact UI expectations
+- Read and understood current codebase: AdminDashboard.tsx, BuilderShell.tsx, CatalogPreview.tsx
+- Change 1: "Ajouter un administrateur" button on Dashboard
+  - Added green "Ajouter" button inside the "Gestion des administrateurs" card
+  - Added full modal dialog (Dialog) with form fields: Email, Nom, Rôle, Mot de passe
+  - Added handleAddAdmin() function that calls /api/auth/admins POST endpoint
+  - Fixed HTML nesting issue: changed outer element from <button> to <div> to avoid invalid nested buttons
+  - e.stopPropagation() prevents parent card click from navigating to Settings
+- Change 2: Uniformized user menu on "Mon Catalogue" (BuilderShell) page
+  - Replaced Tooltip-wrapped avatar button with Google-style dropdown menu
+  - Menu includes: "Bonjour {name} !", email, "Gérer votre compte", "Ajouter un compte", "Se déconnecter" (red)
+  - Footer: "Règles de confidentialité · Conditions d'utilisation"
+  - Click outside to close (backdrop)
+  - Uses adminUser data (with googleSession fallback) for name/email/picture
+- Change 3: "Éditer" button on "Mon Catalogue" (BuilderShell) page
+  - Changed onClick from setView('builder') to handleEdit()
+  - handleEdit() navigates to data pillar, auto-selects first data source, and opens Google Sheets browser
+- Committed and pushed to GitHub: 39cd073, then fix 0662bc6
+- Vercel auto-deploy completed (READY) for both commits
+- All 3 changes verified via Agent Browser
+
+Stage Summary:
+- All 3 rectifications completed and verified on live site
+- "Ajouter" button opens modal directly on Dashboard (one click)
+- User menu identical on Dashboard and Mon Catalogue pages (Google-style dropdown)
+- "Éditer" button redirects to Données tab + opens Google Sheets selector
+- GitHub commits: 39cd073 (feat), 0662bc6 (fix)
+- Vercel deployed from GitHub
+- No catalog/design code was modified
