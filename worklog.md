@@ -43,3 +43,28 @@ Stage Summary:
 - All admin features accessible: Dashboard, Éditer, Données, Mise en page, Paramètres, Google Sheets
 - Catalog design unchanged - 46 products, Glide-like layout, carousels intact
 - Site: https://abaya-collection-catalogue-9dum.vercel.app/
+
+---
+Task ID: 3
+Agent: Main Agent
+Task: Finalisation interface Dashboard - Catalogue link + User menu + Éditer check
+
+Work Log:
+- Fixed Catalogue link: replaced `<Link href="/?view=preview">` with `navigateTo('preview')` for proper SPA navigation
+- Added Google-style user menu dropdown triggered by avatar/name button click:
+  - "Bonjour {name} !" + email display
+  - "Gérer votre compte" → navigates to Settings > Admin
+  - "Ajouter un compte" → triggers Google OAuth flow
+  - "Se déconnecter" → logout (red text)
+  - Footer: "Règles de confidentialité · Conditions d'utilisation"
+  - Backdrop click to close menu
+- Verified Éditer button already works correctly (handleEdit → builder > data pillar)
+- Committed with clear message, pushed to GitHub
+- Vercel auto-deploy triggered (source: git) → READY
+- All 3 features verified via Agent Browser
+
+Stage Summary:
+- All 3 adjustments completed and verified on live site
+- GitHub commit: aa4b4f8 "feat: Dashboard - lien Catalogue fonctionnel + menu utilisateur Google-style"
+- Vercel deployed from GitHub (not CLI)
+- No catalog/design code was touched
