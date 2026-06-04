@@ -282,7 +282,7 @@ export function ColumnEditorDialog({ open, onOpenChange, dataSourceId, columns, 
                       </p>
                       <p className="text-[11px] text-amber-700 dark:text-amber-300 mt-0.5">
                         Vous passez de <strong>{COLUMN_TYPES.find(ct => ct.value === originalType)?.label}</strong> à <strong>{COLUMN_TYPES.find(ct => ct.value === type)?.label}</strong>.
-                        Les données existantes pourraient ne pas être compatibles avec le nouveau type. Certaines valeurs peuvent être perdues ou affichées incorrectement.
+                        Changer le type peut convertir ou perdre des données existantes.
                       </p>
                     </div>
                   </div>

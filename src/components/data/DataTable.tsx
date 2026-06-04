@@ -36,7 +36,7 @@ import {
   Check, X, Pencil,
   Type, Hash, Banknote, Images,
   ListChecks, Layers, ToggleRight, ExternalLink, Link2, SquareStack,
-  MoveRight, ArrowUpDown,
+  MoveRight,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
@@ -313,6 +313,7 @@ export function DataTable({ columns, rows, dataSourceId, loading, onRefresh, sor
     }
   };
 
+  // Column rename — ONLY updates name, does NOT touch slug (data integrity)
   const renameColumn = async (colId: string) => {
     if (!renameValue.trim()) {
       setRenamingColId(null);
@@ -438,7 +439,7 @@ export function DataTable({ columns, rows, dataSourceId, loading, onRefresh, sor
             <div className="w-6 h-6 rounded bg-muted flex items-center justify-center shrink-0">
               <ImageIcon className="w-3 h-3 text-muted-foreground" />
             </div>
-            <span className="truncate text-xs text-blue-600 max-w-[100px]">Image</span>
+            <span className="truncate text-xs text-emerald-700 max-w-[100px]">Image</span>
           </div>
         );
       }
@@ -457,7 +458,7 @@ export function DataTable({ columns, rows, dataSourceId, loading, onRefresh, sor
     }
 
     if (col.type === 'URL' && strVal.startsWith('http')) {
-      return <a href={strVal} target="_blank" rel="noopener noreferrer" className="text-xs text-blue-600 truncate max-w-[150px] block hover:underline">Lien ↗</a>;
+      return <a href={strVal} target="_blank" rel="noopener noreferrer" className="text-xs text-emerald-700 truncate max-w-[150px] block hover:underline">Lien ↗</a>;
     }
 
     if (col.type === 'SELECT' || col.type === 'MULTI_SELECT') {
@@ -501,8 +502,8 @@ export function DataTable({ columns, rows, dataSourceId, loading, onRefresh, sor
 
         {/* Cell selection action bar */}
         {selectedCells.size > 0 && (
-          <div className="h-9 border-b border-border bg-blue-50 dark:bg-blue-950/20 flex items-center px-3 gap-3 shrink-0">
-            <SquareStack className="w-3.5 h-3.5 text-blue-600" />
+          <div className="h-9 border-b border-border bg-amber-50/50 dark:bg-amber-950/10 flex items-center px-3 gap-3 shrink-0">
+            <SquareStack className="w-3.5 h-3.5 text-amber-600" />
             <span className="text-xs font-medium">{selectedCells.size} cellule(s) sélectionnée(s)</span>
             <Button variant="ghost" size="sm" className="h-6 text-xs" onClick={() => setSelectedCells(new Set())}>
               <X className="w-3 h-3 mr-1" /> Désélectionner
@@ -542,7 +543,7 @@ export function DataTable({ columns, rows, dataSourceId, loading, onRefresh, sor
                           {COLUMN_TYPE_ICON[col.type]}
                         </div>
 
-                        {/* Column name — inline rename or display */}
+                        {/* Column name — inline rename or display. Clicking triggers sort. */}
                         <div className="flex-1 min-w-0">
                           {renamingColId === col.id ? (
                             <Input
@@ -561,42 +562,35 @@ export function DataTable({ columns, rows, dataSourceId, loading, onRefresh, sor
                           ) : (
                             <span
                               className={cn(
-                                "truncate cursor-pointer hover:text-foreground transition-colors text-[11px] font-medium block",
+                                "truncate cursor-pointer hover:text-foreground transition-colors text-[11px] font-medium block select-none",
                                 isSorted && "text-[#C9A84C]"
                               )}
-                              onDoubleClick={() => {
+                              onClick={() => {
+                                if (onSortChange) onSortChange(col);
+                              }}
+                              onDoubleClick={(e) => {
+                                e.stopPropagation();
                                 setRenamingColId(col.id);
                                 setRenameValue(col.name);
                               }}
-                              title="Double-cliquer pour renommer"
+                              title="Cliquer pour trier · Double-cliquer pour renommer"
                             >
                               {col.name}
                             </span>
                           )}
                         </div>
 
-                        {/* Sort indicator — clickable to sort */}
-                        {onSortChange && (
+                        {/* Sort indicator arrow on column — only when sorted */}
+                        {isSorted && onSortChange && (
                           <button
-                            className={cn(
-                              "p-0.5 rounded transition-colors shrink-0",
-                              isSorted
-                                ? "text-[#C9A84C] hover:bg-[#C9A84C]/10"
-                                : "text-muted-foreground/30 hover:text-muted-foreground opacity-0 group-hover/col:opacity-100"
-                            )}
+                            className="p-0.5 rounded transition-colors shrink-0 text-[#C9A84C] hover:bg-[#C9A84C]/10"
                             onClick={() => onSortChange(col)}
-                            title={isSorted
-                              ? sortConfig!.direction === 'asc' ? 'Tri croissant — cliquer pour décroissant' : 'Tri décroissant — cliquer pour annuler'
-                              : 'Trier par cette colonne'
-                            }
+                            title={sortConfig!.direction === 'asc' ? 'Tri croissant — cliquer pour décroissant' : 'Tri décroissant — cliquer pour annuler'}
                           >
-                            {isSorted ? (
-                              sortConfig!.direction === 'asc'
-                                ? <ArrowUp className="w-3.5 h-3.5" />
-                                : <ArrowDown className="w-3.5 h-3.5" />
-                            ) : (
-                              <ArrowUpDown className="w-3 h-3" />
-                            )}
+                            {sortConfig!.direction === 'asc'
+                              ? <ArrowUp className="w-3.5 h-3.5" />
+                              : <ArrowDown className="w-3.5 h-3.5" />
+                            }
                           </button>
                         )}
 
@@ -645,12 +639,12 @@ export function DataTable({ columns, rows, dataSourceId, loading, onRefresh, sor
                     </th>
                   );
                 })}
-                {/* ── Add column button — persistent at right ── */}
+                {/* ── Add column button — sticky at right ── */}
                 <th className="px-2 py-2 w-10 border-b border-border sticky right-0 bg-muted/90 z-20">
                   <Tooltip>
                     <TooltipTrigger asChild>
                       <button
-                        className="w-7 h-7 rounded-md border border-dashed border-border hover:border-[#C9A84C] hover:bg-[#C9A84C]/5 text-muted-foreground hover:text-[#C9A84C] transition-colors flex items-center justify-center"
+                        className="w-7 h-7 rounded-full border border-dashed border-border hover:border-[#C9A84C] hover:bg-[#C9A84C]/5 text-muted-foreground hover:text-[#C9A84C] transition-colors flex items-center justify-center"
                         onClick={() => { setEditingColumn(null); setShowColumnEditor(true); }}
                       >
                         <Plus className="w-3.5 h-3.5" />
@@ -694,7 +688,7 @@ export function DataTable({ columns, rows, dataSourceId, loading, onRefresh, sor
                       return (
                         <td key={col.slug} className={cn(
                           "px-3 py-1.5 border-l border-border/30 relative",
-                          isCellSelected && "bg-blue-50 dark:bg-blue-950/20 ring-1 ring-blue-300 dark:ring-blue-700 ring-inset"
+                          isCellSelected && "bg-amber-50 dark:bg-amber-950/20 ring-1 ring-[#C9A84C]/40 dark:ring-[#C9A84C]/30 ring-inset"
                         )}>
                           {isEditing ? (
                             <Input

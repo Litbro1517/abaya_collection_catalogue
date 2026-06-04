@@ -227,3 +227,64 @@ Stage Summary:
 - Type change warning: inline banner + AlertDialog confirmation
 - All brand colors respected (Gold #C9A84C, Deep Green #1A3C34, etc.)
 - Lint clean, dev server compiling successfully
+
+---
+Task ID: 2
+Agent: Data Section Redesign Agent
+Task: Complete Data Section Redesign — Dynamic Filter/Sort, Column Rename Safety, UI Ergonomics
+
+Work Log:
+- Read previous agent work (Task IDs 1-6 + Redesign Agent) — understood existing toolbar, filter, sort, visibility components
+- Fixed CRITICAL data integrity bug in API route `/api/datasources/[id]/columns/[columnId]/route.ts`:
+  - Previously: renaming a column would auto-update the slug, orphaning all row data
+  - Now: slug only updates when `updateSlug: true` flag is explicitly passed
+  - Column rename in DataTable.tsx only sends `{ name }`, preserving slug and data
+- Redesigned DataPillar.tsx — Complete toolbar overhaul:
+  - FilterConfig type updated with `columnType` and `operator` fields
+  - Dynamic filter popover with contextual operators by column type:
+    * TEXT: equals, doesn't equal, contains, doesn't contain, is empty, is not empty
+    * NUMBER/CURRENCY: equals, doesn't equal, less than, greater than, less or equal, greater or equal, is empty, is not empty
+    * BOOLEAN: is true, is false, is empty, is not empty
+    * SELECT/MULTI_SELECT: equals, doesn't equal, contains, is empty, is not empty
+    * IMAGE/IMAGE_ARRAY/URL/RELATION: is empty, is not empty, contains
+  - Operator dropdown (Select component) + conditional value input
+  - ChevronRight indicator for expandable columns
+  - Filter logic uses `applyFilter()` function implementing all operators
+  - Sort popover redesigned with "Nouveau" (creation desc) and "Courant" (creation asc) quick options
+  - Sort search input for finding columns
+  - "Par colonne" section with direction toggle (arrow buttons)
+  - Active filter badges show operator + value
+  - Added Select component import from shadcn/ui
+  - Added Clock, Calendar, ChevronRight, Minus icons
+- Updated ColumnVisibilityDropdown.tsx:
+  - Removed GripVertical drag handles (too cluttered per spec)
+  - Compact vertical list format maintained
+  - Visible/Masquées sections with counts
+  - Search input for columns
+  - "Tout afficher" / "Tout masquer" buttons
+- Updated DataTable.tsx:
+  - Removed separate sort arrow button from column headers
+  - Column name is now clickable to trigger sort cycling (↑ → ↓ → remove)
+  - Sort arrow only shown when column is actively sorted (gold #C9A84C)
+  - Title changed to "Cliquer pour trier · Double-cliquer pour renommer"
+  - Sticky '+' button at right: rounded-full border-dashed circle with gold hover
+  - Removed ArrowUpDown import (no longer needed in column headers)
+  - Replaced blue colors with brand-appropriate emerald/gold
+  - Cell selection uses gold ring (#C9A84C) instead of blue
+- Updated ColumnEditorDialog.tsx:
+  - Warning text updated to "Changer le type peut convertir ou perdre des données existantes"
+  - AlertDialog confirmation for type change already working (verified)
+  - Delete column confirmation already working (verified)
+- Lint passes cleanly (eslint .)
+- Dev server compiles successfully
+
+Stage Summary:
+- 5 files modified: DataPillar.tsx, ColumnVisibilityDropdown.tsx, DataTable.tsx, ColumnEditorDialog.tsx, API column route
+- Dynamic filter with contextual operators by column type
+- Sort popover with quick sort (Nouveau/Courant) + column-level direction
+- Column rename safety: slug never changes on rename (data integrity preserved)
+- Removed all "plaque" style menus — everything is compact vertical lists
+- Removed GripVertical drag handles from ColumnVisibilityDropdown
+- Column name clickable for sort, removed separate sort button
+- Gold (#C9A84C) accent throughout, no indigo/blue colors
+- Lint clean, dev server compiling successfully

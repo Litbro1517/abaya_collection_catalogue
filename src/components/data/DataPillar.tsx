@@ -30,10 +30,14 @@ import {
   DropdownMenuSeparator, DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import {
+  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
+} from '@/components/ui/select';
+import {
   Plus, Upload, Download, Link2, Sheet, RefreshCw, HardDrive,
   Trash2, Pencil, MoreVertical, Search, Filter, ArrowUpDown,
   ArrowUp, ArrowDown, X, Type, Hash, Banknote, Image as ImageIcon, Images,
   ChevronDown, ListChecks, Layers, ToggleRight, ExternalLink, Link2 as LinkIcon,
+  Clock, Calendar, ChevronRight, Minus,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
@@ -53,10 +57,99 @@ const COL_TYPE_ICON: Record<string, React.ReactNode> = {
   URL: <ExternalLink className="w-3 h-3" />,
 };
 
+// ── Operator definitions by column type ────────────────────────────────────
+interface OperatorDef {
+  value: string;
+  label: string;
+  needsValue: boolean;
+}
+
+const OPERATORS_BY_TYPE: Record<string, OperatorDef[]> = {
+  TEXT: [
+    { value: 'equals', label: 'Égal à', needsValue: true },
+    { value: 'doesn\'t_equal', label: 'N\'est pas égal à', needsValue: true },
+    { value: 'contains', label: 'Contient', needsValue: true },
+    { value: 'doesn\'t_contain', label: 'Ne contient pas', needsValue: true },
+    { value: 'is_empty', label: 'Est vide', needsValue: false },
+    { value: 'is_not_empty', label: 'N\'est pas vide', needsValue: false },
+  ],
+  NUMBER: [
+    { value: 'equals', label: 'Égal à', needsValue: true },
+    { value: 'doesn\'t_equal', label: 'N\'est pas égal à', needsValue: true },
+    { value: 'is_less_than', label: 'Inférieur à', needsValue: true },
+    { value: 'is_greater_than', label: 'Supérieur à', needsValue: true },
+    { value: 'is_less_or_equal', label: 'Inférieur ou égal à', needsValue: true },
+    { value: 'is_greater_or_equal', label: 'Supérieur ou égal à', needsValue: true },
+    { value: 'is_empty', label: 'Est vide', needsValue: false },
+    { value: 'is_not_empty', label: 'N\'est pas vide', needsValue: false },
+  ],
+  CURRENCY: [
+    { value: 'equals', label: 'Égal à', needsValue: true },
+    { value: 'doesn\'t_equal', label: 'N\'est pas égal à', needsValue: true },
+    { value: 'is_less_than', label: 'Inférieur à', needsValue: true },
+    { value: 'is_greater_than', label: 'Supérieur à', needsValue: true },
+    { value: 'is_less_or_equal', label: 'Inférieur ou égal à', needsValue: true },
+    { value: 'is_greater_or_equal', label: 'Supérieur ou égal à', needsValue: true },
+    { value: 'is_empty', label: 'Est vide', needsValue: false },
+    { value: 'is_not_empty', label: 'N\'est pas vide', needsValue: false },
+  ],
+  BOOLEAN: [
+    { value: 'is_true', label: 'Est vrai', needsValue: false },
+    { value: 'is_false', label: 'Est faux', needsValue: false },
+    { value: 'is_empty', label: 'Est vide', needsValue: false },
+    { value: 'is_not_empty', label: 'N\'est pas vide', needsValue: false },
+  ],
+  SELECT: [
+    { value: 'equals', label: 'Égal à', needsValue: true },
+    { value: 'doesn\'t_equal', label: 'N\'est pas égal à', needsValue: true },
+    { value: 'contains', label: 'Contient', needsValue: true },
+    { value: 'is_empty', label: 'Est vide', needsValue: false },
+    { value: 'is_not_empty', label: 'N\'est pas vide', needsValue: false },
+  ],
+  MULTI_SELECT: [
+    { value: 'equals', label: 'Égal à', needsValue: true },
+    { value: 'doesn\'t_equal', label: 'N\'est pas égal à', needsValue: true },
+    { value: 'contains', label: 'Contient', needsValue: true },
+    { value: 'is_empty', label: 'Est vide', needsValue: false },
+    { value: 'is_not_empty', label: 'N\'est pas vide', needsValue: false },
+  ],
+  IMAGE: [
+    { value: 'is_empty', label: 'Est vide', needsValue: false },
+    { value: 'is_not_empty', label: 'N\'est pas vide', needsValue: false },
+    { value: 'contains', label: 'Contient', needsValue: true },
+  ],
+  IMAGE_ARRAY: [
+    { value: 'is_empty', label: 'Est vide', needsValue: false },
+    { value: 'is_not_empty', label: 'N\'est pas vide', needsValue: false },
+    { value: 'contains', label: 'Contient', needsValue: true },
+  ],
+  URL: [
+    { value: 'is_empty', label: 'Est vide', needsValue: false },
+    { value: 'is_not_empty', label: 'N\'est pas vide', needsValue: false },
+    { value: 'contains', label: 'Contient', needsValue: true },
+  ],
+  RELATION: [
+    { value: 'is_empty', label: 'Est vide', needsValue: false },
+    { value: 'is_not_empty', label: 'N\'est pas vide', needsValue: false },
+    { value: 'contains', label: 'Contient', needsValue: true },
+  ],
+  ARRAY: [
+    { value: 'is_empty', label: 'Est vide', needsValue: false },
+    { value: 'is_not_empty', label: 'N\'est pas vide', needsValue: false },
+    { value: 'contains', label: 'Contient', needsValue: true },
+  ],
+};
+
+function getOperatorsForType(colType: string): OperatorDef[] {
+  return OPERATORS_BY_TYPE[colType] || OPERATORS_BY_TYPE.TEXT;
+}
+
 // ── Filter / Sort types ────────────────────────────────────────────────────
 export interface FilterConfig {
   columnSlug: string;
   columnName: string;
+  columnType: string;
+  operator: string;
   value: string;
 }
 
@@ -64,6 +157,39 @@ export interface SortConfig {
   columnSlug: string;
   columnName: string;
   direction: 'asc' | 'desc';
+}
+
+// ── Filter logic ───────────────────────────────────────────────────────────
+function applyFilter(val: unknown, filter: FilterConfig): boolean {
+  const { operator, value: filterValue } = filter;
+  switch (operator) {
+    case 'equals':
+      return String(val ?? '').toLowerCase() === filterValue.toLowerCase();
+    case 'doesn\'t_equal':
+      return String(val ?? '').toLowerCase() !== filterValue.toLowerCase();
+    case 'contains':
+      return String(val ?? '').toLowerCase().includes(filterValue.toLowerCase());
+    case 'doesn\'t_contain':
+      return !String(val ?? '').toLowerCase().includes(filterValue.toLowerCase());
+    case 'is_empty':
+      return val === null || val === undefined || val === '';
+    case 'is_not_empty':
+      return val !== null && val !== undefined && val !== '';
+    case 'is_less_than':
+      return Number(val) < Number(filterValue);
+    case 'is_greater_than':
+      return Number(val) > Number(filterValue);
+    case 'is_less_or_equal':
+      return Number(val) <= Number(filterValue);
+    case 'is_greater_or_equal':
+      return Number(val) >= Number(filterValue);
+    case 'is_true':
+      return val === true || val === 'true';
+    case 'is_false':
+      return val === false || val === 'false';
+    default:
+      return true;
+  }
 }
 
 export function DataPillar() {
@@ -108,8 +234,12 @@ export function DataPillar() {
   const [filterPopoverOpen, setFilterPopoverOpen] = useState(false);
   const [sortPopoverOpen, setSortPopoverOpen] = useState(false);
 
-  // Active filter column being edited
-  const [activeFilterCol, setActiveFilterCol] = useState<string | null>(null);
+  // Filter popover internal state
+  const [filterSearch, setFilterSearch] = useState('');
+  const [activeFilterColSlug, setActiveFilterColSlug] = useState<string | null>(null);
+
+  // Sort popover internal state
+  const [sortSearch, setSortSearch] = useState('');
 
   const colors = ['#C9A84C', '#1A1A1A', '#D32F2F', '#2E7D32', '#1565C0', '#8B4513', '#F48FB1', '#483C32'];
 
@@ -117,7 +247,7 @@ export function DataPillar() {
   const activeDs = dataSources.find(d => d.id === activeDataSourceId);
   const hasGoogleSheet = !!activeDs?.sheetId;
 
-  // Filtered + sorted rows
+  // ── Filtered + sorted rows ──────────────────────────────────────────────
   const filteredRows = useMemo(() => {
     let result = rows;
 
@@ -133,14 +263,13 @@ export function DataPillar() {
       });
     }
 
-    // Column filters
+    // Column filters with operators
     if (filters.length > 0) {
       result = result.filter(row => {
         const data = row.data as Record<string, unknown>;
         return filters.every(f => {
           const val = data[f.columnSlug];
-          if (val === null || val === undefined) return false;
-          return String(val).toLowerCase().includes(f.value.toLowerCase());
+          return applyFilter(val, f);
         });
       });
     }
@@ -175,35 +304,52 @@ export function DataPillar() {
     return result;
   }, [rows, searchQuery, filters, sortConfig]);
 
-  // ── Filter helpers ──────────────────────────────────────────────────────────
+  // ── Filter helpers ──────────────────────────────────────────────────────
 
-  const addOrUpdateFilter = (col: Column, value: string) => {
-    if (!value.trim()) {
-      // Remove filter if value is empty
+  const addOrUpdateFilter = (col: Column, operator: string, value: string) => {
+    // Remove filter if operator doesn't need value and no meaningful value
+    const opDef = getOperatorsForType(col.type).find(o => o.value === operator);
+    if (!opDef) return;
+
+    if (!opDef.needsValue && !value.trim()) {
+      // Still add the filter for no-value operators
+    } else if (opDef.needsValue && !value.trim()) {
+      // Remove filter if value is empty for value-needing operators
       setFilters(prev => prev.filter(f => f.columnSlug !== col.slug));
       return;
     }
+
     setFilters(prev => {
       const existing = prev.findIndex(f => f.columnSlug === col.slug);
+      const newFilter: FilterConfig = {
+        columnSlug: col.slug,
+        columnName: col.name,
+        columnType: col.type,
+        operator,
+        value,
+      };
       if (existing >= 0) {
         const next = [...prev];
-        next[existing] = { columnSlug: col.slug, columnName: col.name, value };
+        next[existing] = newFilter;
         return next;
       }
-      return [...prev, { columnSlug: col.slug, columnName: col.name, value }];
+      return [...prev, newFilter];
     });
   };
 
   const removeFilter = (columnSlug: string) => {
     setFilters(prev => prev.filter(f => f.columnSlug !== columnSlug));
+    if (activeFilterColSlug === columnSlug) {
+      setActiveFilterColSlug(null);
+    }
   };
 
   const clearAllFilters = () => {
     setFilters([]);
-    setActiveFilterCol(null);
+    setActiveFilterColSlug(null);
   };
 
-  // ── Sort helpers ────────────────────────────────────────────────────────────
+  // ── Sort helpers ────────────────────────────────────────────────────────
 
   const cycleSort = (col: Column) => {
     setSortConfig(prev => {
@@ -220,6 +366,33 @@ export function DataPillar() {
 
   const clearSort = () => {
     setSortConfig(null);
+  };
+
+  // ── Filtered columns for popovers ───────────────────────────────────────
+
+  const visibleColumns = useMemo(() => columns.filter(c => c.visible), [columns]);
+
+  const filteredColumnsForFilter = useMemo(() => {
+    if (!filterSearch.trim()) return visibleColumns;
+    const q = filterSearch.toLowerCase();
+    return visibleColumns.filter(c => c.name.toLowerCase().includes(q) || c.type.toLowerCase().includes(q));
+  }, [visibleColumns, filterSearch]);
+
+  const filteredColumnsForSort = useMemo(() => {
+    if (!sortSearch.trim()) return visibleColumns;
+    const q = sortSearch.toLowerCase();
+    return visibleColumns.filter(c => c.name.toLowerCase().includes(q) || c.type.toLowerCase().includes(q));
+  }, [visibleColumns, sortSearch]);
+
+  // ── Get current filter for a column ─────────────────────────────────────
+  const getFilterForColumn = (colSlug: string): FilterConfig | undefined => {
+    return filters.find(f => f.columnSlug === colSlug);
+  };
+
+  // ── Operator label for display ──────────────────────────────────────────
+  const getOperatorLabel = (colType: string, operator: string): string => {
+    const ops = getOperatorsForType(colType);
+    return ops.find(o => o.value === operator)?.label || operator;
   };
 
   // Load data sources
@@ -637,7 +810,13 @@ export function DataPillar() {
               </div>
 
               {/* ── Filter Popover ── */}
-              <Popover open={filterPopoverOpen} onOpenChange={setFilterPopoverOpen}>
+              <Popover open={filterPopoverOpen} onOpenChange={(open) => {
+                setFilterPopoverOpen(open);
+                if (!open) {
+                  setFilterSearch('');
+                  setActiveFilterColSlug(null);
+                }
+              }}>
                 <PopoverTrigger asChild>
                   <Button
                     variant="outline"
@@ -661,29 +840,36 @@ export function DataPillar() {
                 <PopoverContent align="start" className="w-80 p-0 shadow-lg border-border/60" sideOffset={4}>
                   {/* Filter header */}
                   <div className="px-3 pt-3 pb-2">
-                    <div className="flex items-center justify-between mb-1">
+                    <div className="flex items-center justify-between mb-2">
                       <span className="text-xs font-semibold text-foreground tracking-wide">
-                        Filtrer par colonne
+                        Filtrer
                       </span>
                       {filters.length > 0 && (
                         <button
                           className="text-[10px] text-[#C9A84C] hover:text-[#C9A84C]/80 font-medium transition-colors"
-                          onClick={() => { clearAllFilters(); }}
+                          onClick={clearAllFilters}
                         >
                           Effacer tout
                         </button>
                       )}
                     </div>
-                    <p className="text-[10px] text-muted-foreground">
-                      Sélectionnez une colonne puis saisissez une valeur à filtrer.
-                    </p>
+                    {/* Search columns */}
+                    <div className="relative">
+                      <Search className="absolute left-2 top-1/2 -translate-y-1/2 w-3 h-3 text-muted-foreground" />
+                      <Input
+                        value={filterSearch}
+                        onChange={e => setFilterSearch(e.target.value)}
+                        placeholder="Rechercher une colonne..."
+                        className="h-7 text-xs pl-7 bg-muted/30 border-border/40 focus:border-[#C9A84C]/50 focus:ring-[#C9A84C]/20"
+                      />
+                    </div>
                   </div>
                   <Separator className="bg-border/40" />
-                  {/* Column list */}
-                  <div className="max-h-52 overflow-y-auto py-1 custom-scrollbar">
-                    {columns.filter(c => c.visible).map(col => {
-                      const existingFilter = filters.find(f => f.columnSlug === col.slug);
-                      const isActive = activeFilterCol === col.slug || existingFilter;
+                  {/* Column list — vertical compact */}
+                  <div className="max-h-64 overflow-y-auto py-1 custom-scrollbar">
+                    {filteredColumnsForFilter.map(col => {
+                      const existingFilter = getFilterForColumn(col.slug);
+                      const isActive = activeFilterColSlug === col.slug;
 
                       return (
                         <div key={col.id}>
@@ -691,13 +877,13 @@ export function DataPillar() {
                             className={cn(
                               "w-full flex items-center gap-2 px-3 py-1.5 text-left transition-colors",
                               "hover:bg-secondary/60",
-                              isActive && "bg-[#C9A84C]/5"
+                              (isActive || existingFilter) && "bg-[#C9A84C]/5"
                             )}
                             onClick={() => {
-                              if (activeFilterCol === col.slug) {
-                                setActiveFilterCol(null);
+                              if (activeFilterColSlug === col.slug) {
+                                setActiveFilterColSlug(null);
                               } else {
-                                setActiveFilterCol(col.slug);
+                                setActiveFilterColSlug(col.slug);
                               }
                             }}
                           >
@@ -712,42 +898,82 @@ export function DataPillar() {
                             </span>
                             {existingFilter && (
                               <Badge className="text-[9px] bg-[#C9A84C]/15 text-[#C9A84C] border-[#C9A84C]/30 hover:bg-[#C9A84C]/25">
-                                {existingFilter.value}
+                                {getOperatorLabel(col.type, existingFilter.operator)}
+                                {existingFilter.value ? ` ${existingFilter.value}` : ''}
                               </Badge>
                             )}
-                            {existingFilter && (
-                              <button
-                                className="w-4 h-4 rounded-full hover:bg-destructive/10 flex items-center justify-center shrink-0"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  removeFilter(col.slug);
-                                }}
-                              >
-                                <X className="w-2.5 h-2.5 text-muted-foreground hover:text-destructive" />
-                              </button>
-                            )}
+                            <ChevronRight className={cn(
+                              "w-3 h-3 text-muted-foreground shrink-0 transition-transform",
+                              isActive && "rotate-90"
+                            )} />
                           </button>
-                          {/* Filter input for active column */}
-                          {activeFilterCol === col.slug && (
-                            <div className="px-3 pb-2">
-                              <div className="relative">
-                                <Search className="absolute left-2 top-1/2 -translate-y-1/2 w-3 h-3 text-muted-foreground" />
-                                <Input
-                                  value={existingFilter?.value || ''}
-                                  onChange={e => addOrUpdateFilter(col, e.target.value)}
-                                  placeholder={`Filtrer ${col.name}...`}
-                                  className="h-7 text-xs pl-7 bg-muted/30 border-[#C9A84C]/30 focus:border-[#C9A84C]/50 focus:ring-[#C9A84C]/20"
-                                  autoFocus
-                                />
+
+                          {/* Expanded filter section for this column */}
+                          {isActive && (
+                            <div className="px-3 pb-2 ml-5 border-l-2 border-[#C9A84C]/20">
+                              {/* Operator selector */}
+                              <div className="mt-1 mb-1.5">
+                                <Select
+                                  value={existingFilter?.operator || getOperatorsForType(col.type)[0]?.value || 'contains'}
+                                  onValueChange={(op) => {
+                                    const opDef = getOperatorsForType(col.type).find(o => o.value === op);
+                                    const currentVal = existingFilter?.value || '';
+                                    if (opDef && !opDef.needsValue) {
+                                      addOrUpdateFilter(col, op, '');
+                                    } else if (currentVal) {
+                                      addOrUpdateFilter(col, op, currentVal);
+                                    }
+                                  }}
+                                >
+                                  <SelectTrigger className="h-7 text-xs bg-muted/30 border-border/40">
+                                    <SelectValue placeholder="Opérateur" />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    {getOperatorsForType(col.type).map(op => (
+                                      <SelectItem key={op.value} value={op.value} className="text-xs">
+                                        {op.label}
+                                      </SelectItem>
+                                    ))}
+                                  </SelectContent>
+                                </Select>
                               </div>
+
+                              {/* Value input — only if operator needs a value */}
+                              {(() => {
+                                const currentOp = existingFilter?.operator || getOperatorsForType(col.type)[0]?.value || 'contains';
+                                const opDef = getOperatorsForType(col.type).find(o => o.value === currentOp);
+                                if (!opDef?.needsValue) return null;
+                                return (
+                                  <div className="relative">
+                                    <Search className="absolute left-2 top-1/2 -translate-y-1/2 w-3 h-3 text-muted-foreground" />
+                                    <Input
+                                      value={existingFilter?.value || ''}
+                                      onChange={e => addOrUpdateFilter(col, currentOp, e.target.value)}
+                                      placeholder={`Valeur pour ${col.name}...`}
+                                      className="h-7 text-xs pl-7 bg-muted/30 border-[#C9A84C]/30 focus:border-[#C9A84C]/50 focus:ring-[#C9A84C]/20"
+                                      autoFocus
+                                    />
+                                  </div>
+                                );
+                              })()}
+
+                              {/* Active filter remove button */}
+                              {existingFilter && (
+                                <button
+                                  className="mt-1.5 text-[10px] text-muted-foreground hover:text-destructive transition-colors flex items-center gap-1"
+                                  onClick={() => removeFilter(col.slug)}
+                                >
+                                  <X className="w-2.5 h-2.5" /> Retirer ce filtre
+                                </button>
+                              )}
                             </div>
                           )}
                         </div>
                       );
                     })}
-                    {columns.filter(c => c.visible).length === 0 && (
+                    {filteredColumnsForFilter.length === 0 && (
                       <div className="px-3 py-4 text-center text-xs text-muted-foreground">
-                        Aucune colonne visible
+                        Aucune colonne trouvée
                       </div>
                     )}
                   </div>
@@ -755,7 +981,10 @@ export function DataPillar() {
               </Popover>
 
               {/* ── Sort Popover ── */}
-              <Popover open={sortPopoverOpen} onOpenChange={setSortPopoverOpen}>
+              <Popover open={sortPopoverOpen} onOpenChange={(open) => {
+                setSortPopoverOpen(open);
+                if (!open) setSortSearch('');
+              }}>
                 <PopoverTrigger asChild>
                   <Button
                     variant="outline"
@@ -779,27 +1008,86 @@ export function DataPillar() {
                 <PopoverContent align="start" className="w-72 p-0 shadow-lg border-border/60" sideOffset={4}>
                   {/* Sort header */}
                   <div className="px-3 pt-3 pb-2">
-                    <div className="flex items-center justify-between mb-1">
+                    <div className="flex items-center justify-between mb-2">
                       <span className="text-xs font-semibold text-foreground tracking-wide">
-                        Trier par colonne
+                        Trier
                       </span>
                       {sortConfig && (
                         <button
                           className="text-[10px] text-[#C9A84C] hover:text-[#C9A84C]/80 font-medium transition-colors"
-                          onClick={() => { clearSort(); }}
+                          onClick={clearSort}
                         >
-                          Effacer le tri
+                          Effacer
                         </button>
                       )}
                     </div>
-                    <p className="text-[10px] text-muted-foreground">
-                      Cliquez pour trier : ↑ croissant → ↓ décroissant → annuler
-                    </p>
+                    {/* Search columns */}
+                    <div className="relative">
+                      <Search className="absolute left-2 top-1/2 -translate-y-1/2 w-3 h-3 text-muted-foreground" />
+                      <Input
+                        value={sortSearch}
+                        onChange={e => setSortSearch(e.target.value)}
+                        placeholder="Rechercher une colonne..."
+                        className="h-7 text-xs pl-7 bg-muted/30 border-border/40 focus:border-[#C9A84C]/50 focus:ring-[#C9A84C]/20"
+                      />
+                    </div>
                   </div>
                   <Separator className="bg-border/40" />
-                  {/* Column list */}
+
+                  {/* Quick sort options */}
+                  {!sortSearch.trim() && (
+                    <div className="py-1">
+                      <button
+                        className={cn(
+                          "w-full flex items-center gap-2 px-3 py-1.5 text-left transition-colors hover:bg-secondary/60",
+                          sortConfig?.columnSlug === '__created_desc__' && "bg-[#C9A84C]/5"
+                        )}
+                        onClick={() => setSortConfig({ columnSlug: '__created_desc__', columnName: 'Nouveau', direction: 'desc' })}
+                      >
+                        <Clock className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
+                        <span className={cn(
+                          "text-xs flex-1",
+                          sortConfig?.columnSlug === '__created_desc__' ? "text-[#C9A84C] font-medium" : "text-foreground"
+                        )}>
+                          Nouveau
+                        </span>
+                        {sortConfig?.columnSlug === '__created_desc__' && (
+                          <ArrowDown className="w-3 h-3 text-[#C9A84C]" />
+                        )}
+                      </button>
+                      <button
+                        className={cn(
+                          "w-full flex items-center gap-2 px-3 py-1.5 text-left transition-colors hover:bg-secondary/60",
+                          sortConfig?.columnSlug === '__created_asc__' && "bg-[#C9A84C]/5"
+                        )}
+                        onClick={() => setSortConfig({ columnSlug: '__created_asc__', columnName: 'Courant', direction: 'asc' })}
+                      >
+                        <Calendar className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
+                        <span className={cn(
+                          "text-xs flex-1",
+                          sortConfig?.columnSlug === '__created_asc__' ? "text-[#C9A84C] font-medium" : "text-foreground"
+                        )}>
+                          Courant
+                        </span>
+                        {sortConfig?.columnSlug === '__created_asc__' && (
+                          <ArrowUp className="w-3 h-3 text-[#C9A84C]" />
+                        )}
+                      </button>
+                    </div>
+                  )}
+
+                  {!sortSearch.trim() && <Separator className="bg-border/40" />}
+
+                  {/* Column list with sort */}
                   <div className="max-h-52 overflow-y-auto py-1 custom-scrollbar">
-                    {columns.filter(c => c.visible).map(col => {
+                    {!sortSearch.trim() && (
+                      <div className="px-3 py-1">
+                        <span className="text-[9px] font-medium text-muted-foreground uppercase tracking-wider">
+                          Par colonne
+                        </span>
+                      </div>
+                    )}
+                    {filteredColumnsForSort.map(col => {
                       const isSorted = sortConfig?.columnSlug === col.slug;
                       return (
                         <button
@@ -816,21 +1104,37 @@ export function DataPillar() {
                           </div>
                           <span className={cn(
                             "text-xs truncate flex-1",
-                            isSorted ? "text-foreground font-medium" : "text-foreground"
+                            isSorted ? "text-[#C9A84C] font-medium" : "text-foreground"
                           )}>
                             {col.name}
                           </span>
-                          {isSorted && (
-                            <span className="text-[#C9A84C] text-xs font-bold shrink-0">
-                              {sortConfig!.direction === 'asc' ? '↑' : '↓'}
-                            </span>
-                          )}
+                          {/* Direction toggle */}
+                          <button
+                            className={cn(
+                              "p-0.5 rounded transition-colors shrink-0",
+                              isSorted
+                                ? "text-[#C9A84C] hover:bg-[#C9A84C]/10"
+                                : "text-muted-foreground/30 hover:text-muted-foreground"
+                            )}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              cycleSort(col);
+                            }}
+                          >
+                            {isSorted ? (
+                              sortConfig!.direction === 'asc'
+                                ? <ArrowUp className="w-3.5 h-3.5" />
+                                : <ArrowDown className="w-3.5 h-3.5" />
+                            ) : (
+                              <Minus className="w-3 h-3" />
+                            )}
+                          </button>
                         </button>
                       );
                     })}
-                    {columns.filter(c => c.visible).length === 0 && (
+                    {filteredColumnsForSort.length === 0 && sortSearch.trim() && (
                       <div className="px-3 py-4 text-center text-xs text-muted-foreground">
-                        Aucune colonne visible
+                        Aucune colonne trouvée
                       </div>
                     )}
                   </div>
@@ -868,7 +1172,7 @@ export function DataPillar() {
                       key={f.columnSlug}
                       className="text-[9px] gap-1 bg-[#C9A84C]/10 text-[#C9A84C] border-[#C9A84C]/30 hover:bg-[#C9A84C]/20 pr-0.5"
                     >
-                      {f.columnName}: {f.value}
+                      {f.columnName} {getOperatorLabel(f.columnType, f.operator)} {f.value}
                       <button
                         className="w-3.5 h-3.5 rounded-full hover:bg-[#C9A84C]/30 flex items-center justify-center"
                         onClick={() => removeFilter(f.columnSlug)}
@@ -918,7 +1222,7 @@ export function DataPillar() {
             />
           ) : (
             <div className="flex flex-col items-center justify-center h-full text-muted-foreground">
-              <Database2Icon className="w-12 h-12 mb-4 opacity-30" />
+              <HardDrive className="w-12 h-12 mb-4 opacity-30" />
               <p className="text-sm">Sélectionnez ou créez une table de données</p>
               <p className="text-xs mt-1">Importez un CSV ou connectez Google Sheets</p>
             </div>
@@ -989,85 +1293,96 @@ export function DataPillar() {
           <AlertDialogHeader>
             <AlertDialogTitle>Supprimer « {activeDs?.name} » ?</AlertDialogTitle>
             <AlertDialogDescription>
-              Cette action supprimera définitivement la table et toutes ses données ({rows.length} lignes, {columns.length} colonnes). Cette action est irréversible.
+              Cette action supprimera la table et toutes ses données (colonnes et lignes). Cette action est irréversible.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Annuler</AlertDialogCancel>
             <AlertDialogAction className="bg-destructive text-white hover:bg-destructive/90" onClick={handleDeleteTable}>
-              Supprimer la table
+              Supprimer
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
 
-      {/* Manual Google Sheet URL Dialog */}
-      <Dialog open={showUrlDialog} onOpenChange={setShowUrlDialog}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle>Saisir l&apos;URL Google Sheet</DialogTitle>
-          </DialogHeader>
-          <div className="space-y-3 mt-2">
-            <p className="text-sm text-muted-foreground">
-              Collez l&apos;URL d&apos;une Google Sheet publique pour l&apos;importer directement.
-            </p>
-            <Input
-              value={manualUrl}
-              onChange={e => setManualUrl(e.target.value)}
-              placeholder="https://docs.google.com/spreadsheets/d/..."
-            />
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => { setShowUrlDialog(false); setManualUrl(''); }}>Annuler</Button>
-            <Button onClick={handleManualUrlImport} disabled={!manualUrl.trim()}>Importer</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      {/* Import Dialog */}
-      {activeDataSourceId && (
-        <ImportCSVDialog
-          open={showImportModal}
-          onOpenChange={setShowImportModal}
-          dataSourceId={activeDataSourceId}
-          onImported={() => {
-            loadDataSourceData();
-            loadDataSources();
-          }}
-        />
-      )}
+      {/* Import CSV Dialog */}
+      <ImportCSVDialog
+        open={showImportModal}
+        onOpenChange={setShowImportModal}
+        dataSourceId={activeDataSourceId}
+        onImported={() => { loadDataSourceData(); loadDataSources(); }}
+      />
 
       {/* Column Editor Dialog */}
-      {activeDataSourceId && (
-        <ColumnEditorDialog
-          open={showColumnModal}
-          onOpenChange={setShowColumnModal}
-          dataSourceId={activeDataSourceId}
-          columns={columns}
-          rows={rows}
-          onSaved={() => loadDataSourceData()}
-        />
-      )}
+      <ColumnEditorDialog
+        open={showColumnModal}
+        onOpenChange={setShowColumnModal}
+        dataSourceId={activeDataSourceId || ''}
+        columns={columns}
+        rows={rows}
+        editingColumn={null}
+        onSaved={() => { loadDataSourceData(); setShowColumnModal(false); }}
+      />
 
       {/* Google Sheets Browser */}
       <GoogleSheetsBrowser
         open={showGoogleSheetsBrowser}
         onOpenChange={setShowGoogleSheetsBrowser}
-        onImported={() => {
-          loadDataSourceData();
-          loadDataSources();
+        onSelect={async (sheetId, name) => {
+          setSyncStatus('syncing');
+          setSyncMessage('Importation en cours...');
+          try {
+            const res = await fetch('/api/google/sync', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ sheetId, dataSourceName: name }),
+            });
+            if (res.ok) {
+              setSyncStatus('success');
+              setSyncMessage('Données importées');
+              toast.success('Google Sheet importé avec succès');
+              setShowGoogleSheetsBrowser(false);
+              loadDataSources();
+              setTimeout(() => setSyncStatus('idle'), 3000);
+            } else {
+              const json = await res.json();
+              setSyncStatus('error');
+              setSyncMessage(json.error || 'Erreur d\'importation');
+              toast.error(json.error || 'Erreur d\'importation');
+              setTimeout(() => setSyncStatus('idle'), 5000);
+            }
+          } catch {
+            setSyncStatus('error');
+            setSyncMessage('Erreur de connexion');
+            toast.error('Erreur de connexion');
+            setTimeout(() => setSyncStatus('idle'), 5000);
+          }
         }}
       />
-    </div>
-  );
-}
 
-function Database2Icon({ className }: { className?: string }) {
-  return (
-    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
-      <ellipse cx="12" cy="5" rx="9" ry="3" />
-      <path d="M3 5V19A9 3 0 0 0 21 19V5" />
-      <path d="M3 12A9 3 0 0 0 21 12" />
-    </svg>
+      {/* Manual URL Import Dialog */}
+      <Dialog open={showUrlDialog} onOpenChange={setShowUrlDialog}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Importer par URL Google Sheets</DialogTitle>
+          </DialogHeader>
+          <div className="mt-2">
+            <Input
+              value={manualUrl}
+              onChange={e => setManualUrl(e.target.value)}
+              placeholder="https://docs.google.com/spreadsheets/d/..."
+              onKeyDown={e => { if (e.key === 'Enter') handleManualUrlImport(); }}
+            />
+            <p className="text-[11px] text-muted-foreground mt-2">
+              Collez l&apos;URL d&apos;un Google Sheet public pour importer ses données.
+            </p>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowUrlDialog(false)}>Annuler</Button>
+            <Button onClick={handleManualUrlImport} disabled={!manualUrl.trim()}>Importer</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </div>
   );
 }

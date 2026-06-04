@@ -12,7 +12,7 @@ import { Separator } from '@/components/ui/separator';
 import { Input } from '@/components/ui/input';
 import type { Column } from '@/types';
 import {
-  Eye, EyeOff, Search, Check, GripVertical,
+  Eye, EyeOff, Search, Check,
   Type, Hash, Banknote, Image as ImageIcon, Images,
   ChevronDown, ListChecks, Link2, Layers, ToggleRight, ExternalLink,
 } from 'lucide-react';
@@ -111,8 +111,8 @@ export function ColumnVisibilityDropdown({ columns, onToggleVisibility, onShowAl
 
         <Separator className="bg-border/40" />
 
-        {/* Column list — grouped: visible first, then hidden */}
-        <div className="max-h-72 overflow-y-auto py-1 custom-scrollbar">
+        {/* Column list — grouped: visible first, then hidden — compact vertical list */}
+        <div className="max-h-64 overflow-y-auto py-1 custom-scrollbar">
           {/* All visible empty state */}
           {allVisible && !search.trim() && (
             <div className="px-3 py-4 text-center">
@@ -145,7 +145,6 @@ export function ColumnVisibilityDropdown({ columns, onToggleVisibility, onShowAl
                   )}
                   onClick={() => onToggleVisibility(col)}
                 >
-                  <GripVertical className="w-3 h-3 text-muted-foreground/30 shrink-0 cursor-grab" />
                   <Checkbox
                     checked={col.visible}
                     className="h-3.5 w-3.5 data-[state=checked]:bg-[#C9A84C] data-[state=checked]:border-[#C9A84C]"
@@ -185,7 +184,6 @@ export function ColumnVisibilityDropdown({ columns, onToggleVisibility, onShowAl
                   )}
                   onClick={() => onToggleVisibility(col)}
                 >
-                  <GripVertical className="w-3 h-3 text-muted-foreground/20 shrink-0 cursor-grab" />
                   <Checkbox
                     checked={col.visible}
                     className="h-3.5 w-3.5"
