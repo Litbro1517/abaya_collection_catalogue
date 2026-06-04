@@ -33,11 +33,14 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/ui/select';
 import {
+  Tooltip, TooltipContent, TooltipProvider, TooltipTrigger,
+} from '@/components/ui/tooltip';
+import {
   Plus, Upload, Download, Link2, Sheet, RefreshCw, HardDrive,
   Trash2, Pencil, MoreVertical, Search, Filter, ArrowUpDown,
   ArrowUp, ArrowDown, X, Type, Hash, Banknote, Image as ImageIcon, Images,
   ChevronDown, ListChecks, Layers, ToggleRight, ExternalLink, Link2 as LinkIcon,
-  Clock, Calendar, ChevronRight, Minus,
+  Clock, Calendar, ChevronRight, Minus, Activity, ArrowRightLeft,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
@@ -55,6 +58,7 @@ const COL_TYPE_ICON: Record<string, React.ReactNode> = {
   ARRAY: <Layers className="w-3 h-3" />,
   BOOLEAN: <ToggleRight className="w-3 h-3" />,
   URL: <ExternalLink className="w-3 h-3" />,
+  STATUS: <Activity className="w-3 h-3" />,
 };
 
 // ── Operator definitions by column type ────────────────────────────────────
@@ -137,6 +141,12 @@ const OPERATORS_BY_TYPE: Record<string, OperatorDef[]> = {
     { value: 'is_empty', label: 'Est vide', needsValue: false },
     { value: 'is_not_empty', label: 'N\'est pas vide', needsValue: false },
     { value: 'contains', label: 'Contient', needsValue: true },
+  ],
+  STATUS: [
+    { value: 'equals', label: 'Égal à', needsValue: true },
+    { value: 'doesn\'t_equal', label: 'N\'est pas égal à', needsValue: true },
+    { value: 'is_empty', label: 'Est vide', needsValue: false },
+    { value: 'is_not_empty', label: 'N\'est pas vide', needsValue: false },
   ],
 };
 
@@ -277,6 +287,23 @@ export function DataPillar() {
     // Sort
     if (sortConfig) {
       result = [...result].sort((a, b) => {
+        // Special sort: by creation date (Nouveau/Courant presets)
+        if (sortConfig.columnSlug === '__created_desc__') {
+          return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+        }
+        if (sortConfig.columnSlug === '__created_asc__') {
+          return new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
+        }
+
+        // Special sort: by Statut (Nouveau first, then Courant)
+        if (sortConfig.columnSlug === '__statut__') {
+          const aStatut = (a.data as Record<string, unknown>).__statut__ || 'Courant';
+          const bStatut = (b.data as Record<string, unknown>).__statut__ || 'Courant';
+          const cmp = aStatut === 'Nouveau' ? (bStatut === 'Nouveau' ? 0 : -1) : 1;
+          return sortConfig.direction === 'asc' ? cmp : -cmp;
+        }
+
+        // Regular column sort
         const aData = a.data as Record<string, unknown>;
         const bData = b.data as Record<string, unknown>;
         const aVal = aData[sortConfig.columnSlug];
@@ -1034,22 +1061,71 @@ export function DataPillar() {
                   </div>
                   <Separator className="bg-border/40" />
 
-                  {/* Quick sort options */}
+                  {/* Quick sort options — Statut / Date / Alphabetical */}
                   {!sortSearch.trim() && (
                     <div className="py-1">
+                      {/* ── Statut section ── */}
+                      <div className="px-3 py-1">
+                        <span className="text-[9px] font-medium text-muted-foreground uppercase tracking-wider">
+                          Statut
+                        </span>
+                      </div>
+                      <button
+                        className={cn(
+                          "w-full flex items-center gap-2 px-3 py-1.5 text-left transition-colors hover:bg-secondary/60",
+                          sortConfig?.columnSlug === '__statut__' && sortConfig?.direction === 'asc' && "bg-[#C9A84C]/5"
+                        )}
+                        onClick={() => setSortConfig({ columnSlug: '__statut__', columnName: 'Statut (Nouveau)', direction: 'asc' })}
+                      >
+                        <span className="w-3.5 h-3.5 shrink-0 flex items-center justify-center text-emerald-500 text-[10px]">🟢</span>
+                        <span className={cn(
+                          "text-xs flex-1",
+                          sortConfig?.columnSlug === '__statut__' && sortConfig?.direction === 'asc' ? "text-[#C9A84C] font-medium" : "text-foreground"
+                        )}>
+                          Nouveau
+                        </span>
+                        {sortConfig?.columnSlug === '__statut__' && sortConfig?.direction === 'asc' && (
+                          <ArrowUp className="w-3 h-3 text-[#C9A84C]" />
+                        )}
+                      </button>
+                      <button
+                        className={cn(
+                          "w-full flex items-center gap-2 px-3 py-1.5 text-left transition-colors hover:bg-secondary/60",
+                          sortConfig?.columnSlug === '__statut__' && sortConfig?.direction === 'desc' && "bg-[#C9A84C]/5"
+                        )}
+                        onClick={() => setSortConfig({ columnSlug: '__statut__', columnName: 'Statut (Courant)', direction: 'desc' })}
+                      >
+                        <span className="w-3.5 h-3.5 shrink-0 flex items-center justify-center text-gray-400 text-[10px]">🔵</span>
+                        <span className={cn(
+                          "text-xs flex-1",
+                          sortConfig?.columnSlug === '__statut__' && sortConfig?.direction === 'desc' ? "text-[#C9A84C] font-medium" : "text-foreground"
+                        )}>
+                          Courant
+                        </span>
+                        {sortConfig?.columnSlug === '__statut__' && sortConfig?.direction === 'desc' && (
+                          <ArrowDown className="w-3 h-3 text-[#C9A84C]" />
+                        )}
+                      </button>
+
+                      {/* ── Date section ── */}
+                      <div className="px-3 py-1 mt-1">
+                        <span className="text-[9px] font-medium text-muted-foreground uppercase tracking-wider">
+                          Date
+                        </span>
+                      </div>
                       <button
                         className={cn(
                           "w-full flex items-center gap-2 px-3 py-1.5 text-left transition-colors hover:bg-secondary/60",
                           sortConfig?.columnSlug === '__created_desc__' && "bg-[#C9A84C]/5"
                         )}
-                        onClick={() => setSortConfig({ columnSlug: '__created_desc__', columnName: 'Nouveau', direction: 'desc' })}
+                        onClick={() => setSortConfig({ columnSlug: '__created_desc__', columnName: 'Plus récent', direction: 'desc' })}
                       >
                         <Clock className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
                         <span className={cn(
                           "text-xs flex-1",
                           sortConfig?.columnSlug === '__created_desc__' ? "text-[#C9A84C] font-medium" : "text-foreground"
                         )}>
-                          Nouveau
+                          Plus récent
                         </span>
                         {sortConfig?.columnSlug === '__created_desc__' && (
                           <ArrowDown className="w-3 h-3 text-[#C9A84C]" />
@@ -1060,19 +1136,70 @@ export function DataPillar() {
                           "w-full flex items-center gap-2 px-3 py-1.5 text-left transition-colors hover:bg-secondary/60",
                           sortConfig?.columnSlug === '__created_asc__' && "bg-[#C9A84C]/5"
                         )}
-                        onClick={() => setSortConfig({ columnSlug: '__created_asc__', columnName: 'Courant', direction: 'asc' })}
+                        onClick={() => setSortConfig({ columnSlug: '__created_asc__', columnName: 'Plus ancien', direction: 'asc' })}
                       >
                         <Calendar className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
                         <span className={cn(
                           "text-xs flex-1",
                           sortConfig?.columnSlug === '__created_asc__' ? "text-[#C9A84C] font-medium" : "text-foreground"
                         )}>
-                          Courant
+                          Plus ancien
                         </span>
                         {sortConfig?.columnSlug === '__created_asc__' && (
                           <ArrowUp className="w-3 h-3 text-[#C9A84C]" />
                         )}
                       </button>
+
+                      {/* ── Alphabetical section ── */}
+                      {(() => {
+                        const firstTextCol = visibleColumns.find(c => c.type === 'TEXT');
+                        if (!firstTextCol) return null;
+                        return (
+                          <>
+                            <div className="px-3 py-1 mt-1">
+                              <span className="text-[9px] font-medium text-muted-foreground uppercase tracking-wider">
+                                Alphabétique
+                              </span>
+                            </div>
+                            <button
+                              className={cn(
+                                "w-full flex items-center gap-2 px-3 py-1.5 text-left transition-colors hover:bg-secondary/60",
+                                sortConfig?.columnSlug === firstTextCol.slug && sortConfig?.direction === 'asc' && sortConfig?.columnName === 'A→Z' && "bg-[#C9A84C]/5"
+                              )}
+                              onClick={() => setSortConfig({ columnSlug: firstTextCol.slug, columnName: 'A→Z', direction: 'asc' })}
+                            >
+                              <ArrowRightLeft className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
+                              <span className={cn(
+                                "text-xs flex-1",
+                                sortConfig?.columnSlug === firstTextCol.slug && sortConfig?.direction === 'asc' && sortConfig?.columnName === 'A→Z' ? "text-[#C9A84C] font-medium" : "text-foreground"
+                              )}>
+                                A → Z
+                              </span>
+                              {sortConfig?.columnSlug === firstTextCol.slug && sortConfig?.direction === 'asc' && sortConfig?.columnName === 'A→Z' && (
+                                <ArrowUp className="w-3 h-3 text-[#C9A84C]" />
+                              )}
+                            </button>
+                            <button
+                              className={cn(
+                                "w-full flex items-center gap-2 px-3 py-1.5 text-left transition-colors hover:bg-secondary/60",
+                                sortConfig?.columnSlug === firstTextCol.slug && sortConfig?.direction === 'desc' && sortConfig?.columnName === 'Z→A' && "bg-[#C9A84C]/5"
+                              )}
+                              onClick={() => setSortConfig({ columnSlug: firstTextCol.slug, columnName: 'Z→A', direction: 'desc' })}
+                            >
+                              <ArrowRightLeft className="w-3.5 h-3.5 text-muted-foreground shrink-0 rotate-180" />
+                              <span className={cn(
+                                "text-xs flex-1",
+                                sortConfig?.columnSlug === firstTextCol.slug && sortConfig?.direction === 'desc' && sortConfig?.columnName === 'Z→A' ? "text-[#C9A84C] font-medium" : "text-foreground"
+                              )}>
+                                Z → A
+                              </span>
+                              {sortConfig?.columnSlug === firstTextCol.slug && sortConfig?.direction === 'desc' && sortConfig?.columnName === 'Z→A' && (
+                                <ArrowDown className="w-3 h-3 text-[#C9A84C]" />
+                              )}
+                            </button>
+                          </>
+                        );
+                      })()}
                     </div>
                   )}
 
@@ -1161,6 +1288,37 @@ export function DataPillar() {
                 <Plus className="w-3.5 h-3.5" />
                 <span className="hidden sm:inline">Colonne</span>
               </Button>
+
+              {/* Sync Status button */}
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-7 w-7 hover:bg-secondary"
+                    onClick={async () => {
+                      if (!activeDataSourceId) return;
+                      try {
+                        const res = await fetch(`/api/datasources/${activeDataSourceId}/status`, { method: 'POST' });
+                        if (res.ok) {
+                          const json = await res.json();
+                          toast.success(`Statuts synchronisés (${json.data?.updatesCount ?? 0} mis à jour)`);
+                          loadDataSourceData();
+                        } else {
+                          toast.error('Erreur de synchronisation des statuts');
+                        }
+                      } catch {
+                        toast.error('Erreur de connexion');
+                      }
+                    }}
+                  >
+                    <Activity className="w-3.5 h-3.5" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent side="bottom" className="text-[10px]">
+                  Synchroniser les statuts
+                </TooltipContent>
+              </Tooltip>
 
               <div className="flex-1" />
 

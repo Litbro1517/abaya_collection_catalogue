@@ -485,10 +485,24 @@ export function CatalogPreview({ onAdminLogin }: CatalogPreviewProps) {
     });
   };
 
-  const allProducts = sections.flatMap(({ section, columns, rows }) => {
-    const config = section.config as SectionConfig;
-    return filterRows(rows, config).map(row => ({ row, columns, section, config }));
-  });
+  const allProducts = (() => {
+    const items = sections.flatMap(({ section, columns, rows }) => {
+      const config = section.config as SectionConfig;
+      return filterRows(rows, config).map(row => {
+        const rawData = row.data as Record<string, unknown>;
+        const statut = (rawData.__statut__ as 'Nouveau' | 'Courant') || 'Courant';
+        return { row, columns, section, config, statut };
+      });
+    });
+    // Composite sort: Nouveau first (by row order), then Courant (by row order)
+    items.sort((a, b) => {
+      const aIsNouveau = a.statut === 'Nouveau' ? 0 : 1;
+      const bIsNouveau = b.statut === 'Nouveau' ? 0 : 1;
+      if (aIsNouveau !== bIsNouveau) return aIsNouveau - bIsNouveau;
+      return a.row.order - b.row.order;
+    });
+    return items;
+  })();
 
   const totalPages = Math.ceil(allProducts.length / ITEMS_PER_PAGE);
   const paginatedProducts = allProducts.slice(
@@ -928,7 +942,7 @@ export function CatalogPreview({ onAdminLogin }: CatalogPreviewProps) {
 
         {/* Glide-like grid */}
         <div className="catalog-grid">
-          {paginatedProducts.map(({ row, columns, section, config }) => {
+          {paginatedProducts.map(({ row, columns, section, config, statut }) => {
             const rawData = row.data as Record<string, unknown>;
             const coverRawVal = config.coverColumn ? rawData[config.coverColumn] : null;
             let coverUrl = '';
@@ -997,6 +1011,13 @@ export function CatalogPreview({ onAdminLogin }: CatalogPreviewProps) {
                   >
                     <Heart className={isLiked ? 'fill-current' : ''} style={{ width: 14, height: 14, color: isLiked ? '#EF4444' : '#808080' }} />
                   </button>
+
+                  {/* Nouveau badge */}
+                  {statut === 'Nouveau' && (
+                    <span className="absolute left-2 top-2 z-10 rounded-md px-2 py-0.5 text-[10px] font-semibold text-white shadow-sm" style={{ backgroundColor: BRAND.vertFonce }}>
+                      Nouveau
+                    </span>
+                  )}
 
                   {/* Image count badge */}
                   {imageCount > 1 && (

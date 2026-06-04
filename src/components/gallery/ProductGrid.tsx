@@ -20,7 +20,25 @@ function SkeletonCard() {
 }
 
 export default function ProductGrid() {
-  const { products, loading, page, totalPages, setPage } = useAppStore();
+  const { products, loading, page, totalPages, setPage, rows } = useAppStore();
+
+  // Composite sort: Nouveau first (by row order), then Courant (by row order)
+  const getStatut = (productId: string): 'Nouveau' | 'Courant' => {
+    const row = rows.find(r => r.id === productId);
+    if (!row) return 'Courant';
+    const data = row.data as Record<string, unknown>;
+    return (data.__statut__ as 'Nouveau' | 'Courant') || 'Courant';
+  };
+
+  const sortedProducts = [...products].sort((a, b) => {
+    const aStatut = getStatut(a.id);
+    const bStatut = getStatut(b.id);
+    const aIsNouveau = aStatut === 'Nouveau' ? 0 : 1;
+    const bIsNouveau = bStatut === 'Nouveau' ? 0 : 1;
+    if (aIsNouveau !== bIsNouveau) return aIsNouveau - bIsNouveau;
+    // Fallback to original order
+    return 0;
+  });
 
   if (loading && products.length === 0) {
     return (
@@ -53,8 +71,8 @@ export default function ProductGrid() {
   return (
     <div className="flex flex-col gap-6">
       <div className="grid grid-cols-2 gap-3 sm:gap-4 md:grid-cols-3 lg:grid-cols-4 lg:gap-6">
-        {products.map((product) => (
-          <ProductCard key={product.id} product={product} />
+        {sortedProducts.map((product) => (
+          <ProductCard key={product.id} product={product} statut={getStatut(product.id)} />
         ))}
       </div>
 

@@ -36,7 +36,7 @@ import {
   Check, X, Pencil,
   Type, Hash, Banknote, Images,
   ListChecks, Layers, ToggleRight, ExternalLink, Link2, SquareStack,
-  MoveRight,
+  MoveRight, Activity, Lock, Unlock,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
@@ -55,6 +55,7 @@ const COLUMN_TYPE_ICON: Record<ColumnType, React.ReactNode> = {
   ARRAY: <Layers className="w-3 h-3" />,
   BOOLEAN: <ToggleRight className="w-3 h-3" />,
   URL: <ExternalLink className="w-3 h-3" />,
+  STATUS: <Activity className="w-3 h-3" />,
 };
 
 const COLUMN_TYPE_LABEL: Record<ColumnType, string> = {
@@ -69,6 +70,7 @@ const COLUMN_TYPE_LABEL: Record<ColumnType, string> = {
   ARRAY: 'Groupe',
   BOOLEAN: 'Oui/Non',
   URL: 'Lien',
+  STATUS: 'Statut',
 };
 
 interface Props {
@@ -100,6 +102,9 @@ export function DataTable({ columns, rows, dataSourceId, loading, onRefresh, sor
 
   // Cell selection mode
   const [selectedCells, setSelectedCells] = useState<Set<string>>(new Set());
+
+  // STATUS cell editing state
+  const [editingStatusCell, setEditingStatusCell] = useState<string | null>(null); // `${rowId}-${colSlug}`
 
   // Delete confirmation
   const [deleteTarget, setDeleteTarget] = useState<{ type: 'row' | 'column'; id: string; name?: string } | null>(null);
@@ -403,7 +408,100 @@ export function DataTable({ columns, rows, dataSourceId, loading, onRefresh, sor
 
   // ── Cell rendering ────────────────────────────────────────────────────────
 
+  // STATUS cell: change status via API and refresh
+  const handleStatusChange = async (rowId: string, newStatut: string) => {
+    setEditingStatusCell(null);
+    try {
+      const res = await fetch(`/api/datasources/${dataSourceId}/status`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ rowId, statut: newStatut }),
+      });
+      if (res.ok) {
+        onRefresh();
+        toast.success('Statut mis à jour');
+      } else {
+        toast.error('Erreur de mise à jour du statut');
+      }
+    } catch {
+      toast.error('Erreur de connexion');
+    }
+  };
+
+  // STATUS cell: unlock (remove __statut_locked__)
+  const handleStatusUnlock = async (rowId: string) => {
+    const row = rows.find(r => r.id === rowId);
+    if (!row) return;
+    const data = { ...(row.data as Record<string, unknown>), __statut_locked__: false };
+    try {
+      const res = await fetch(`/api/datasources/${dataSourceId}/rows/${rowId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ data }),
+      });
+      if (res.ok) {
+        onRefresh();
+        toast.success('Statut déverrouillé');
+      }
+    } catch {
+      toast.error('Erreur');
+    }
+  };
+
   const renderCellValue = (row: Row, col: Column) => {
+    // STATUS column: special rendering with colored badge + lock icon
+    if (col.type === 'STATUS' || col.slug === '__statut__') {
+      const statutValue = (row.data as Record<string, unknown>).__statut__ || col.slug === '__statut__' ? (row.data as Record<string, unknown>).__statut__ : (row.data as Record<string, unknown>)[col.slug];
+      const strStatut = String(statutValue || '');
+      const isLocked = !!(row.data as Record<string, unknown>).__statut_locked__;
+      const cellKey = `${row.id}-${col.slug}`;
+      const isEditingStatus = editingStatusCell === cellKey;
+
+      if (isEditingStatus) {
+        return (
+          <select
+            className="h-6 text-xs bg-background border border-border rounded px-1 focus:border-[#C9A84C] focus:ring-1 focus:ring-[#C9A84C]/20 outline-none"
+            value={strStatut || 'Courant'}
+            onChange={(e) => handleStatusChange(row.id, e.target.value)}
+            onBlur={() => setEditingStatusCell(null)}
+            autoFocus
+          >
+            <option value="Nouveau">🟢 Nouveau</option>
+            <option value="Courant">🔵 Courant</option>
+          </select>
+        );
+      }
+
+      return (
+        <div className="flex items-center gap-1">
+          {strStatut === 'Nouveau' ? (
+            <Badge className="bg-emerald-100 text-emerald-700 border-emerald-200 text-[10px]">Nouveau</Badge>
+          ) : strStatut === 'Courant' ? (
+            <Badge className="bg-gray-100 text-gray-600 border-gray-200 text-[10px]">Courant</Badge>
+          ) : (
+            <span className="text-muted-foreground/40 text-[10px]">—</span>
+          )}
+          {isLocked ? (
+            <button
+              className="p-0.5 rounded hover:bg-secondary transition-colors text-muted-foreground hover:text-foreground"
+              onClick={(e) => { e.stopPropagation(); handleStatusUnlock(row.id); }}
+              title="Déverrouiller le statut"
+            >
+              <Lock className="w-3 h-3" />
+            </button>
+          ) : strStatut ? (
+            <button
+              className="p-0.5 rounded hover:bg-secondary transition-colors text-muted-foreground/40 hover:text-muted-foreground"
+              onClick={(e) => { e.stopPropagation(); handleStatusChange(row.id, strStatut); }}
+              title="Verrouiller le statut"
+            >
+              <Unlock className="w-3 h-3" />
+            </button>
+          ) : null}
+        </div>
+      );
+    }
+
     const value = (row.data as Record<string, unknown>)[col.slug];
     if (value === undefined || value === null || value === '') return <span className="text-muted-foreground/40">—</span>;
 
@@ -705,14 +803,21 @@ export function DataTable({ columns, rows, dataSourceId, loading, onRefresh, sor
                           ) : (
                             <div
                               className="cursor-pointer min-h-[24px] flex items-center gap-1"
-                              onDoubleClick={() => startEditing(row.id, col.slug, (row.data as Record<string, unknown>)[col.slug])}
+                              onDoubleClick={() => {
+                                // STATUS column: open inline select instead of text input
+                                if (col.type === 'STATUS' || col.slug === '__statut__') {
+                                  setEditingStatusCell(cellKey);
+                                } else {
+                                  startEditing(row.id, col.slug, (row.data as Record<string, unknown>)[col.slug]);
+                                }
+                              }}
                               onClick={(e) => {
                                 if (e.shiftKey || e.ctrlKey || e.metaKey) {
                                   e.preventDefault();
                                   toggleCellSelect(row.id, col.slug, e.shiftKey || e.ctrlKey || e.metaKey);
                                 }
                               }}
-                              title="Double-cliquer pour modifier · Shift+Clic pour sélectionner"
+                              title={(col.type === 'STATUS' || col.slug === '__statut__') ? "Double-cliquer pour changer le statut" : "Double-cliquer pour modifier · Shift+Clic pour sélectionner"}
                             >
                               {renderCellValue(row, col)}
                             </div>

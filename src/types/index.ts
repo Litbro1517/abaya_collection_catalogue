@@ -11,7 +11,8 @@ export type ColumnType =
   | 'RELATION'
   | 'ARRAY'
   | 'BOOLEAN'
-  | 'URL';
+  | 'URL'
+  | 'STATUS';
 
 export const COLUMN_TYPE_OPTIONS: { value: ColumnType; label: string; icon: string }[] = [
   { value: 'TEXT', label: 'Texte', icon: 'Type' },
@@ -25,6 +26,7 @@ export const COLUMN_TYPE_OPTIONS: { value: ColumnType; label: string; icon: stri
   { value: 'ARRAY', label: 'Groupe (Array)', icon: 'Layers' },
   { value: 'BOOLEAN', label: 'Oui/Non', icon: 'ToggleRight' },
   { value: 'URL', label: 'Lien', icon: 'ExternalLink' },
+  { value: 'STATUS', label: 'Statut', icon: 'Activity' },
 ];
 
 // ─── Data Source ──────────────────────────────────────────────────────────
@@ -79,6 +81,7 @@ export interface ColumnConfig {
   gallerySourceColumn?: string; // Slug of source column when gallerySource = 'column'
   gallerySeparator?: string;    // Separator for multi-image values (default: ',')
   galleryUrlPrefix?: string;    // URL prefix for gallery images
+  statusLocked?: boolean;        // For STATUS - tracks if a row's status was manually overridden
   [key: string]: unknown;
 }
 

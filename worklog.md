@@ -288,3 +288,124 @@ Stage Summary:
 - Column name clickable for sort, removed separate sort button
 - Gold (#C9A84C) accent throughout, no indigo/blue colors
 - Lint clean, dev server compiling successfully
+
+---
+Task ID: 1
+Agent: Types System Agent
+Task: Add STATUS column type to the types system + ensure DB schema is compatible
+
+Work Log:
+- Read worklog.md and existing types/index.ts to understand current state
+- Added 'STATUS' to the ColumnType union type
+- Added STATUS entry to COLUMN_TYPE_OPTIONS: { value: 'STATUS', label: 'Statut', icon: 'Activity' }
+- Added statusLocked?: boolean to ColumnConfig interface (tracks manual status overrides)
+- No Prisma schema changes needed — STATUS stored as Column(type='STATUS', slug='__statut__') with values in Row.data
+- Lint passes cleanly (eslint . — no errors)
+
+Stage Summary:
+- 1 file modified: src/types/index.ts
+- ColumnType union now includes 'STATUS'
+- COLUMN_TYPE_OPTIONS includes Statut entry with Activity icon
+- ColumnConfig has statusLocked property for override tracking
+- No DB migration required
+
+---
+Task ID: 6
+Agent: Badge & Sort Agent
+Task: Add green "Nouveau" badge to ProductCard + composite sort in ProductGrid
+
+Work Log:
+- Read all relevant files: ProductCard.tsx, ProductGrid.tsx, CatalogPreview.tsx, store.ts, types/index.ts, status API route
+- Discovered CatalogPreview.tsx is the actual catalog renderer (NOT ProductGrid/ProductCard which are legacy components using old Product type)
+- Discovered __statut__ field stored in row.data by the status API route at /api/datasources/[id]/status/
+- Part A: ProductCard.tsx — Added statut prop to ProductCardProps interface, added green "Nouveau" badge (bg-emerald-700, white text, top-left, z-10) shown when statut === 'Nouveau', placed before Featured badge
+- Part B: CatalogPreview.tsx (actual catalog view) — Added composite sort to allProducts: reads __statut__ from row data, sorts Nouveau first then Courant, within each group by row.order; added green "Nouveau" badge to product card image (top-left, BRAND.vertFonce background, z-10)
+- Part B: ProductGrid.tsx (legacy) — Added rows from store, getStatut helper reading __statut__ from row data, composite sort (Nouveau first), passes statut prop to ProductCard
+- Lint passes cleanly (eslint .)
+- Dev server compiles successfully
+
+Stage Summary:
+- 3 files modified: ProductCard.tsx, ProductGrid.tsx, CatalogPreview.tsx
+- Green "Nouveau" badge appears on product cards when row's __statut__ is 'Nouveau'
+- Composite sort: Nouveau products first (ordered by row order), then Courant products (ordered by row order)
+- Both the live catalog (CatalogPreview) and legacy ProductCard component support the badge
+- Lint clean, dev server compiling successfully
+
+---
+Task ID: 3
+Agent: Filter Engine Fix Agent
+Task: Fix filter engine in DataPillar — add STATUS operators, ensure all operators work
+
+Work Log:
+- Read worklog.md and existing DataPillar.tsx to understand current state
+- Added `Activity` import from lucide-react (line 40)
+- Added STATUS entry to COL_TYPE_ICON: `<Activity className="w-3 h-3" />` (line 58)
+- Added STATUS operators to OPERATORS_BY_TYPE (lines 142-147):
+  - equals (Égal à), doesn't_equal (N'est pas égal à), is_empty (Est vide), is_not_empty (N'est pas vide)
+- Fixed sort logic in `filteredRows` useMemo to handle special sort slugs:
+  - `__created_desc__`: sorts by row.createdAt descending (Nouveau preset)
+  - `__created_asc__`: sorts by row.createdAt ascending (Courant preset)
+  - `__statut__`: sorts by __statut__ data field (Nouveau first, then Courant), respecting direction
+- Verified `applyFilter()` function: all 12 operator cases correctly implemented
+  - equals, doesn't_equal, contains, doesn't_contain: case-insensitive string comparison
+  - is_empty, is_not_empty: null/undefined/empty string checks
+  - is_less_than, is_greater_than, is_less_or_equal, is_greater_or_equal: numeric comparison
+  - is_true, is_false: boolean/string-boolean comparison
+- No Prisma schema changes
+- Lint passes cleanly (eslint .)
+- Dev server compiles successfully (GET / 200)
+
+Stage Summary:
+- 1 file modified: src/components/data/DataPillar.tsx
+- STATUS column type now has icon + operators in filter engine
+- Sort presets (Nouveau/Courant) now actually sort rows by creation date
+- __statut__ special sort column handled
+
+---
+Task ID: 4+5
+Agent: Sort & Status Column Agent
+Task: Enhance sort popover with Statut presets + A-Z/Z-A + Make DataTable show and edit Statut column
+
+Work Log:
+- Read worklog.md and all relevant files: DataPillar.tsx, DataTable.tsx, status API route, types/index.ts
+- Part A: DataPillar.tsx Sort Popover Enhancement:
+  - Replaced old "Quick sort options" (Nouveau/Courant) with three-section layout:
+    - **Statut section**: 🟢 Nouveau (sorts by __statut__ asc, Nouveau first) + 🔵 Courant (sorts by __statut__ desc, Courant first)
+    - **Date section**: 🕐 Plus récent (sorts by createdAt DESC) + 📅 Plus ancien (sorts by createdAt ASC)
+    - **Alphabétique section**: A→Z (first TEXT column, asc) + Z→A (first TEXT column, desc)
+  - Cleaned up duplicate Activity import (was imported twice)
+  - Added ArrowRightLeft import for alphabetical sort icons
+  - Added Tooltip import from shadcn/ui for Sync Status button
+- Part A: DataPillar.tsx Sync Status button:
+  - Added small icon button (Activity icon) next to the "Colonne" button in toolbar
+  - Calls POST /api/datasources/[id]/status to auto-sync all row statuses
+  - Shows toast with update count, then refreshes data
+  - Wrapped in Tooltip with "Synchroniser les statuts" label
+- Part B: DataTable.tsx STATUS column display:
+  - Added STATUS to COLUMN_TYPE_ICON: `<Activity className="w-3 h-3" />`
+  - Added STATUS to COLUMN_TYPE_LABEL: 'Statut'
+  - Imported Activity, Lock, Unlock from lucide-react
+  - renderCellValue now handles STATUS type with colored badges:
+    - 'Nouveau' → emerald badge (bg-emerald-100 text-emerald-700 border-emerald-200)
+    - 'Courant' → gray badge (bg-gray-100 text-gray-600 border-gray-200)
+- Part B: DataTable.tsx STATUS inline editing:
+  - Added editingStatusCell state
+  - Double-clicking STATUS cell opens a select dropdown with 🟢 Nouveau and 🔵 Courant options
+  - On change, calls PUT /api/datasources/[dataSourceId]/status with { rowId, statut }
+  - Then calls onRefresh() to reload data
+- Part B: DataTable.tsx STATUS lock/unlock toggle:
+  - Lock icon shown when __statut_locked__ is true → clicking unlocks (sets __statut_locked__ to false via row update)
+  - Unlock icon shown when status exists but not locked → clicking locks (calls PUT status API with current statut)
+  - Both with hover transitions and tooltip titles
+- Lint passes cleanly (eslint .)
+- Dev server compiles successfully
+
+Stage Summary:
+- 2 files modified: DataPillar.tsx, DataTable.tsx
+- Sort popover: 3-section layout (Statut/Date/Alphabétique) with 6 presets
+- Sync Status button in toolbar (Activity icon + tooltip)
+- STATUS column: colored badges, inline select editing on double-click, lock/unlock toggle
+- All existing sort logic (__statut__, __created_desc__, __created_asc__) preserved and working
+- Lint clean, dev server compiling successfully
+- All applyFilter operators verified correct
+- Lint clean, dev server running
