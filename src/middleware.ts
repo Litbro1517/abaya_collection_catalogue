@@ -67,7 +67,9 @@ export async function middleware(req: NextRequest) {
 
   // ── 2. Protect auth-required API routes ──
   const isAuthRequired = AUTH_REQUIRED_ROUTES.some(r => pathname.startsWith(r));
-  if (isAuthRequired && !token) {
+  // Allow public_check=true queries to pass through without auth
+  const isPublicCheck = pathname.startsWith('/api/auth/admins') && req.nextUrl.searchParams.get('public_check') === 'true';
+  if (isAuthRequired && !token && !isPublicCheck) {
     return NextResponse.json(
       { error: 'Non authentifié' },
       { status: 401 }
