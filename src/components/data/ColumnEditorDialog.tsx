@@ -2,6 +2,10 @@
 
 import { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -18,7 +22,7 @@ import {
   X, Plus, Type, Hash, Banknote, Image as ImageIcon, Images,
   ChevronDown, ListChecks, Link2, Layers, ToggleRight, ExternalLink,
   Pencil, Trash2, Check, GripVertical, Database, Eye, EyeOff,
-  Upload, Globe, FileSpreadsheet,
+  Upload, Globe, FileSpreadsheet, AlertTriangle,
 } from 'lucide-react';
 
 // Visual column type config
@@ -57,6 +61,11 @@ export function ColumnEditorDialog({ open, onOpenChange, dataSourceId, columns, 
   const [saving, setSaving] = useState(false);
   const [activeTab, setActiveTab] = useState('properties');
 
+  // Track original type for compatibility warning
+  const [originalType, setOriginalType] = useState<ColumnType | null>(null);
+  const [showTypeChangeDialog, setShowTypeChangeDialog] = useState(false);
+  const typeChanged = originalType !== null && type !== originalType;
+
   // Gallery data source state
   const [gallerySource, setGallerySource] = useState<DataSourceType>(
     (editingColumn?.config as ColumnConfig)?.gallerySource as DataSourceType || 'manual'
@@ -81,6 +90,7 @@ export function ColumnEditorDialog({ open, onOpenChange, dataSourceId, columns, 
       if (editingColumn) {
         setName(editingColumn.name);
         setType(editingColumn.type);
+        setOriginalType(editingColumn.type);
         setVisible(editingColumn.visible);
         setRequired(editingColumn.required);
         setConfig(editingColumn.config);
@@ -91,6 +101,7 @@ export function ColumnEditorDialog({ open, onOpenChange, dataSourceId, columns, 
       } else {
         setName('');
         setType('TEXT');
+        setOriginalType(null);
         setVisible(true);
         setRequired(false);
         setConfig({});
@@ -102,8 +113,19 @@ export function ColumnEditorDialog({ open, onOpenChange, dataSourceId, columns, 
       setActiveTab('properties');
       setEditingCellValues({});
       setHasDataChanges(false);
+      setShowTypeChangeDialog(false);
     }
   }, [open, editingColumn]);
+
+  // Check if we should warn about type change before saving
+  const handleSaveClick = () => {
+    if (!name.trim()) return;
+    if (typeChanged) {
+      setShowTypeChangeDialog(true);
+    } else {
+      handleSave();
+    }
+  };
 
   const handleSave = async () => {
     if (!name.trim()) return;
@@ -250,6 +272,21 @@ export function ColumnEditorDialog({ open, onOpenChange, dataSourceId, columns, 
           <TabsContent value="properties" className="mt-4">
             <ScrollArea className="max-h-[55vh] pr-1">
               <div className="space-y-5">
+                {/* Type change compatibility warning */}
+                {typeChanged && editingColumn && (
+                  <div className="flex items-start gap-3 p-3 rounded-lg bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-800">
+                    <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
+                    <div>
+                      <p className="text-xs font-medium text-amber-800 dark:text-amber-200">
+                        Changement de type détecté
+                      </p>
+                      <p className="text-[11px] text-amber-700 dark:text-amber-300 mt-0.5">
+                        Vous passez de <strong>{COLUMN_TYPES.find(ct => ct.value === originalType)?.label}</strong> à <strong>{COLUMN_TYPES.find(ct => ct.value === type)?.label}</strong>.
+                        Changer le type peut convertir ou perdre des données existantes.
+                      </p>
+                    </div>
+                  </div>
+                )}
                 {/* Column Name */}
                 <div>
                   <Label className="mb-1.5 text-sm font-medium">Nom de la colonne</Label>
@@ -751,10 +788,41 @@ export function ColumnEditorDialog({ open, onOpenChange, dataSourceId, columns, 
               <Trash2 className="w-3.5 h-3.5 mr-1" /> Supprimer
             </Button>
           )}
-          <Button onClick={handleSave} disabled={!name.trim() || saving}>
+          <Button onClick={handleSaveClick} disabled={!name.trim() || saving}>
             {saving ? 'Sauvegarde...' : editingColumn ? 'Mettre à jour' : 'Créer'}
           </Button>
         </DialogFooter>
+
+        {/* Type change confirmation dialog */}
+        <AlertDialog open={showTypeChangeDialog} onOpenChange={setShowTypeChangeDialog}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle className="flex items-center gap-2">
+                <AlertTriangle className="w-4 h-4 text-amber-600" />
+                Confirmer le changement de type
+              </AlertDialogTitle>
+              <AlertDialogDescription>
+                Vous êtes sur le point de changer le type de la colonne de{' '}
+                <strong>{COLUMN_TYPES.find(ct => ct.value === originalType)?.label}</strong> vers{' '}
+                <strong>{COLUMN_TYPES.find(ct => ct.value === type)?.label}</strong>.
+                Les données existantes pourraient ne pas être compatibles avec le nouveau type.
+                Certaines valeurs peuvent être perdues ou affichées incorrectement.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Annuler</AlertDialogCancel>
+              <AlertDialogAction
+                className="bg-amber-600 text-white hover:bg-amber-700"
+                onClick={() => {
+                  setShowTypeChangeDialog(false);
+                  handleSave();
+                }}
+              >
+                Confirmer le changement
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       </DialogContent>
     </Dialog>
   );

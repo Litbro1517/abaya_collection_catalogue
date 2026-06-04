@@ -2,6 +2,7 @@
 
 import { useState, useCallback, useRef } from 'react';
 import type { Column, Row, ColumnType } from '@/types';
+import type { SortConfig } from './DataPillar';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -13,6 +14,11 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from '@/components/ui/popover';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -31,11 +37,11 @@ import {
 } from '@/components/ui/tooltip';
 import {
   MoreVertical, Plus, Eye, EyeOff, Trash2, Edit2, ArrowUp, ArrowDown,
-  Loader2, Image as ImageIcon, Copy, GripVertical, Columns3,
-  MoveLeft, MoveRight, Check, X, Pencil, RotateCcw,
-  Type, Hash, Banknote, Images, ChevronDown, ListChecks,
-  Layers, ToggleRight, ExternalLink, Link2, SquareStack,
-  MousePointer2, TableProperties,
+  Loader2, Image as ImageIcon, Copy, ChevronDown, ChevronRight,
+  Check, X, Pencil,
+  Type, Hash, Banknote, Images,
+  ListChecks, Layers, ToggleRight, ExternalLink, Link2, SquareStack,
+  MoveRight, Activity, Lock, Unlock, ArrowUpDown,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
@@ -54,6 +60,7 @@ const COLUMN_TYPE_ICON: Record<ColumnType, React.ReactNode> = {
   ARRAY: <Layers className="w-3 h-3" />,
   BOOLEAN: <ToggleRight className="w-3 h-3" />,
   URL: <ExternalLink className="w-3 h-3" />,
+  STATUS: <Activity className="w-3 h-3" />,
 };
 
 const COLUMN_TYPE_LABEL: Record<ColumnType, string> = {
@@ -68,6 +75,7 @@ const COLUMN_TYPE_LABEL: Record<ColumnType, string> = {
   ARRAY: 'Groupe',
   BOOLEAN: 'Oui/Non',
   URL: 'Lien',
+  STATUS: 'Statut',
 };
 
 interface Props {
@@ -76,9 +84,15 @@ interface Props {
   dataSourceId: string;
   loading: boolean;
   onRefresh: () => void;
+  sortConfig?: SortConfig | null;
+  onSortChange?: (col: Column) => void;
+  onLocalStatusChange?: (rowId: string, newStatut: string) => void;
+  onLocalLockToggle?: (rowId: string, currentLocked: boolean) => void;
+  pendingStatusChanges?: Record<string, { statut: string; locked: boolean }>;
+  onAddColumn?: () => void;
 }
 
-export function DataTable({ columns, rows, dataSourceId, loading, onRefresh }: Props) {
+export function DataTable({ columns, rows, dataSourceId, loading, onRefresh, sortConfig, onSortChange, onLocalStatusChange, onLocalLockToggle, pendingStatusChanges, onAddColumn }: Props) {
   const [editingCell, setEditingCell] = useState<string | null>(null); // `${rowId}-${colSlug}`
   const [editValue, setEditValue] = useState('');
   const [showColumnEditor, setShowColumnEditor] = useState(false);
@@ -96,14 +110,19 @@ export function DataTable({ columns, rows, dataSourceId, loading, onRefresh }: P
   const [showBulkDeleteDialog, setShowBulkDeleteDialog] = useState(false);
 
   // Cell selection mode
-  const [selectedCells, setSelectedCells] = useState<Set<string>>(new Set()); // `${rowId}-${colSlug}`
-  const [cellSelectionMode, setCellSelectionMode] = useState(false);
+  const [selectedCells, setSelectedCells] = useState<Set<string>>(new Set());
+
+  // STATUS cell editing state
+  const [editingStatusCell, setEditingStatusCell] = useState<string | null>(null); // `${rowId}-${colSlug}`
+
+  // Column options popover — track which col's popover is open and expanded sections
+  const [colOptionsOpen, setColOptionsOpen] = useState<string | null>(null); // col.id
+  const [colOptionsExpanded, setColOptionsExpanded] = useState<Set<string>>(new Set());
 
   // Delete confirmation
   const [deleteTarget, setDeleteTarget] = useState<{ type: 'row' | 'column'; id: string; name?: string } | null>(null);
 
   const visibleColumns = columns.filter(c => c.visible);
-  const hiddenColumns = columns.filter(c => !c.visible);
   const paginatedRows = rows.slice(page * pageSize, (page + 1) * pageSize);
   const allVisibleSelected = paginatedRows.length > 0 && paginatedRows.every(r => selectedRows.has(r.id));
 
@@ -111,7 +130,6 @@ export function DataTable({ columns, rows, dataSourceId, loading, onRefresh }: P
 
   const startEditing = (rowId: string, colSlug: string, value: unknown) => {
     setEditingCell(`${rowId}-${colSlug}`);
-    // Convert native arrays/objects to string for editing
     let strVal = '';
     if (typeof value === 'string') strVal = value;
     else if (Array.isArray(value)) strVal = JSON.stringify(value);
@@ -125,7 +143,6 @@ export function DataTable({ columns, rows, dataSourceId, loading, onRefresh }: P
     if (!row) return;
 
     const data = { ...(row.data as Record<string, unknown>) };
-    // Try to parse JSON values (arrays, objects), otherwise keep as string
     try {
       data[colSlug] = JSON.parse(editValue);
     } catch {
@@ -264,36 +281,57 @@ export function DataTable({ columns, rows, dataSourceId, loading, onRefresh }: P
     }
   };
 
-  const moveColumn = async (colId: string, direction: 'left' | 'right') => {
+  const addColumnToRight = async (afterCol: Column) => {
     const sortedCols = [...columns].sort((a, b) => a.order - b.order);
-    const idx = sortedCols.findIndex(c => c.id === colId);
-    if (idx < 0) return;
-    if (direction === 'left' && idx === 0) return;
-    if (direction === 'right' && idx === sortedCols.length - 1) return;
-
-    const swapIdx = direction === 'left' ? idx - 1 : idx + 1;
-    const currentCol = sortedCols[idx];
-    const swapCol = sortedCols[swapIdx];
+    const idx = sortedCols.findIndex(c => c.id === afterCol.id);
+    const newOrder = idx >= 0 && idx < sortedCols.length - 1
+      ? (sortedCols[idx].order + sortedCols[idx + 1].order) / 2
+      : sortedCols[sortedCols.length - 1].order + 1;
 
     try {
-      await Promise.all([
-        fetch(`/api/datasources/${dataSourceId}/columns/${currentCol.id}`, {
-          method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ order: swapCol.order }),
-        }),
-        fetch(`/api/datasources/${dataSourceId}/columns/${swapCol.id}`, {
-          method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ order: currentCol.order }),
-        }),
-      ]);
-      onRefresh();
+      const res = await fetch(`/api/datasources/${dataSourceId}/columns`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: 'Nouvelle colonne', type: 'TEXT', order: newOrder }),
+      });
+      if (res.ok) {
+        onRefresh();
+        toast.success('Colonne ajoutée à droite');
+      }
     } catch {
-      toast.error('Erreur de déplacement');
+      toast.error('Erreur');
     }
   };
 
+  const duplicateColumn = async (col: Column) => {
+    const sortedCols = [...columns].sort((a, b) => a.order - b.order);
+    const idx = sortedCols.findIndex(c => c.id === col.id);
+    const newOrder = idx >= 0 && idx < sortedCols.length - 1
+      ? (sortedCols[idx].order + sortedCols[idx + 1].order) / 2
+      : sortedCols[sortedCols.length - 1].order + 1;
+
+    try {
+      const res = await fetch(`/api/datasources/${dataSourceId}/columns`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: `${col.name} (copie)`,
+          type: col.type,
+          order: newOrder,
+          config: col.config,
+          visible: col.visible,
+        }),
+      });
+      if (res.ok) {
+        onRefresh();
+        toast.success('Colonne dupliquée');
+      }
+    } catch {
+      toast.error('Erreur de duplication');
+    }
+  };
+
+  // Column rename — ONLY updates name, does NOT touch slug (data integrity)
   const renameColumn = async (colId: string) => {
     if (!renameValue.trim()) {
       setRenamingColId(null);
@@ -318,6 +356,11 @@ export function DataTable({ columns, rows, dataSourceId, loading, onRefresh }: P
     setShowColumnEditor(true);
   };
 
+  // Both the "+" button in the header AND the green "Colonne" button in toolbar
+  // should open the same ColumnEditorDialog. When "+" is clicked, it opens
+  // the dialog in "new column" mode (editingColumn = null).
+  // This prop is passed from DataPillar via setShowColumnModal.
+
   // ── Cell selection ────────────────────────────────────────────────────────
 
   const toggleCellSelect = (rowId: string, colSlug: string, shiftKey: boolean) => {
@@ -337,10 +380,8 @@ export function DataTable({ columns, rows, dataSourceId, loading, onRefresh }: P
 
   const deleteSelectedCellsContent = async () => {
     const updates = Array.from(selectedCells).map(cellKey => {
-      const [rowId, colSlug] = cellKey.split('-');
-      // Find actual rowId with full cuid format
       const row = rows.find(r => cellKey.startsWith(r.id));
-      return { row, colSlug: cellKey.substring(row?.id?.length ? row.id.length + 1 : 0) };
+      return { row, colSlug: row ? cellKey.substring(row.id.length + 1) : '' };
     }).filter(u => u.row);
 
     try {
@@ -385,11 +426,111 @@ export function DataTable({ columns, rows, dataSourceId, loading, onRefresh }: P
 
   // ── Cell rendering ────────────────────────────────────────────────────────
 
+  // STATUS cell: local status change (no API call)
+  const handleLocalStatusChangeLocal = (rowId: string, newStatut: string) => {
+    setEditingStatusCell(null);
+    if (onLocalStatusChange) {
+      onLocalStatusChange(rowId, newStatut);
+      toast.success('Statut modifié (en attente de synchronisation)');
+    }
+  };
+
+  // STATUS cell: local lock toggle (no API call)
+  const handleLocalLockToggleLocal = (rowId: string, currentLocked: boolean) => {
+    if (onLocalLockToggle) {
+      onLocalLockToggle(rowId, currentLocked);
+      toast.success(currentLocked ? 'Statut déverrouillé' : 'Statut verrouillé');
+    }
+  };
+
   const renderCellValue = (row: Row, col: Column) => {
+    // STATUS column: special rendering with colored badge + lock toggle
+    if (col.type === 'STATUS' || col.slug === '__statut__') {
+      const rawData = row.data as Record<string, unknown>;
+      const storedStatut = String(rawData.__statut__ || '');
+      const storedLocked = !!rawData.__statut_locked__;
+
+      // Overlay pending changes — display the PENDING value if it exists
+      const pending = pendingStatusChanges?.[row.id];
+      const displayStatut = pending?.statut ?? storedStatut;
+      const isLocked = pending?.locked ?? storedLocked;
+
+      const cellKey = `${row.id}-${col.slug}`;
+      const isEditingStatus = editingStatusCell === cellKey;
+      const hasPendingChange = !!pending;
+
+      // When unlocked and editing, show dropdown
+      if (isEditingStatus && !isLocked) {
+        return (
+          <select
+            className="h-6 text-xs bg-background border border-[#C9A84C]/40 rounded px-1 focus:border-[#C9A84C] focus:ring-1 focus:ring-[#C9A84C]/20 outline-none"
+            value={displayStatut || 'Courant'}
+            onChange={(e) => handleLocalStatusChangeLocal(row.id, e.target.value)}
+            onBlur={() => setEditingStatusCell(null)}
+            autoFocus
+          >
+            <option value="Nouveau">🟢 Nouveau</option>
+            <option value="Courant">🔵 Courant</option>
+          </select>
+        );
+      }
+
+      return (
+        <div className="flex items-center gap-1.5">
+          {/* Status badge — NOT clickable; use double-click on cell instead */}
+          {displayStatut === 'Nouveau' ? (
+            <span
+              className={cn(
+                "inline-flex items-center rounded-md px-1.5 py-0.5 text-[10px] font-medium border transition-colors",
+                "bg-emerald-100 text-emerald-700 border-emerald-200",
+                isLocked && "opacity-70",
+                hasPendingChange && "ring-2 ring-[#C9A84C]/50 ring-offset-1"
+              )}
+              title={isLocked ? "Statut verrouillé 🔒 — double-cliquer impossible" : "Double-cliquer pour changer le statut"}
+            >
+              {hasPendingChange && <span className="mr-0.5 text-[8px]">⏳</span>}
+              Nouveau
+            </span>
+          ) : displayStatut === 'Courant' ? (
+            <span
+              className={cn(
+                "inline-flex items-center rounded-md px-1.5 py-0.5 text-[10px] font-medium border transition-colors",
+                "bg-gray-100 text-gray-600 border-gray-200",
+                isLocked && "opacity-70",
+                hasPendingChange && "ring-2 ring-[#C9A84C]/50 ring-offset-1"
+              )}
+              title={isLocked ? "Statut verrouillé 🔒 — double-cliquer impossible" : "Double-cliquer pour changer le statut"}
+            >
+              {hasPendingChange && <span className="mr-0.5 text-[8px]">⏳</span>}
+              Courant
+            </span>
+          ) : (
+            <span className="text-muted-foreground/40 text-[10px]">—</span>
+          )}
+
+          {/* Lock toggle icon — always clickable */}
+          <button
+            className={cn(
+              "p-0.5 rounded transition-colors shrink-0",
+              isLocked
+                ? "text-muted-foreground hover:text-foreground hover:bg-secondary"
+                : "text-[#C9A84C]/70 hover:text-[#C9A84C] hover:bg-[#C9A84C]/10"
+            )}
+            onClick={(e) => {
+              e.stopPropagation();
+              handleLocalLockToggleLocal(row.id, isLocked);
+            }}
+            title={isLocked ? "Déverrouiller 🔓 (permet le double-clic)" : "Verrouiller 🔒 (lecture seule)"}
+          >
+            {isLocked ? <Lock className="w-3 h-3" /> : <Unlock className="w-3 h-3" />}
+          </button>
+        </div>
+      );
+    }
+
     const value = (row.data as Record<string, unknown>)[col.slug];
     if (value === undefined || value === null || value === '') return <span className="text-muted-foreground/40">—</span>;
 
-    // Native array (from PostgreSQL Json type)
     if (Array.isArray(value)) {
       if (col.type === 'IMAGE' || col.type === 'IMAGE_ARRAY') {
         return (
@@ -422,7 +563,7 @@ export function DataTable({ columns, rows, dataSourceId, loading, onRefresh }: P
             <div className="w-6 h-6 rounded bg-muted flex items-center justify-center shrink-0">
               <ImageIcon className="w-3 h-3 text-muted-foreground" />
             </div>
-            <span className="truncate text-xs text-blue-600 max-w-[100px]">Image</span>
+            <span className="truncate text-xs text-emerald-700 max-w-[100px]">Image</span>
           </div>
         );
       }
@@ -441,7 +582,7 @@ export function DataTable({ columns, rows, dataSourceId, loading, onRefresh }: P
     }
 
     if (col.type === 'URL' && strVal.startsWith('http')) {
-      return <a href={strVal} target="_blank" rel="noopener noreferrer" className="text-xs text-blue-600 truncate max-w-[150px] block hover:underline">Lien ↗</a>;
+      return <a href={strVal} target="_blank" rel="noopener noreferrer" className="text-xs text-emerald-700 truncate max-w-[150px] block hover:underline">Lien ↗</a>;
     }
 
     if (col.type === 'SELECT' || col.type === 'MULTI_SELECT') {
@@ -485,8 +626,8 @@ export function DataTable({ columns, rows, dataSourceId, loading, onRefresh }: P
 
         {/* Cell selection action bar */}
         {selectedCells.size > 0 && (
-          <div className="h-9 border-b border-border bg-blue-50 dark:bg-blue-950/20 flex items-center px-3 gap-3 shrink-0">
-            <SquareStack className="w-3.5 h-3.5 text-blue-600" />
+          <div className="h-9 border-b border-border bg-amber-50/50 dark:bg-amber-950/10 flex items-center px-3 gap-3 shrink-0">
+            <SquareStack className="w-3.5 h-3.5 text-amber-600" />
             <span className="text-xs font-medium">{selectedCells.size} cellule(s) sélectionnée(s)</span>
             <Button variant="ghost" size="sm" className="h-6 text-xs" onClick={() => setSelectedCells(new Set())}>
               <X className="w-3 h-3 mr-1" /> Désélectionner
@@ -498,134 +639,246 @@ export function DataTable({ columns, rows, dataSourceId, loading, onRefresh }: P
           </div>
         )}
 
-        {/* Hidden columns bar */}
-        {hiddenColumns.length > 0 && (
-          <div className="border-b border-border bg-muted/30 px-3 py-1.5 flex items-center gap-2 shrink-0 overflow-x-auto">
-            <EyeOff className="w-3 h-3 text-muted-foreground shrink-0" />
-            <span className="text-[10px] text-muted-foreground shrink-0">Masquées :</span>
-            {hiddenColumns.map(col => (
-              <Badge
-                key={col.id}
-                variant="outline"
-                className="text-[10px] gap-1 cursor-pointer hover:bg-muted transition-colors"
-                onClick={() => toggleColumnVisibility(col)}
-              >
-                {col.name}
-                <Eye className="w-2.5 h-2.5" />
-              </Badge>
-            ))}
-          </div>
-        )}
-
-        {/* Table */}
+        {/* ── Table with sticky row indices ── */}
         <div className="flex-1 overflow-auto">
           <table className="w-full text-sm border-collapse">
             <thead className="sticky top-0 z-10">
               <tr className="bg-muted/80 backdrop-blur-sm">
-                {/* Select all checkbox */}
-                <th className="px-2 py-2 w-9 border-b border-border">
+                {/* Checkbox column — sticky */}
+                <th className="px-2 py-2 w-9 border-b border-border sticky left-0 bg-muted/90 z-20">
                   <Checkbox
                     checked={allVisibleSelected}
                     onCheckedChange={toggleAllVisible}
                     className="h-3.5 w-3.5"
                   />
                 </th>
-                <th className="px-2 py-2 text-left text-xs font-medium text-muted-foreground w-10 border-b border-border">#</th>
-                {visibleColumns.map(col => (
-                  <th key={col.id} className="px-0 py-0 text-left text-xs font-medium text-muted-foreground border-l border-b border-border min-w-[140px]">
-                    {/* Column header cell - redesigned for visibility */}
-                    <div className="flex items-center gap-0.5 px-2 py-1.5 group/col">
-                      {/* Column type icon */}
-                      <div className="flex items-center justify-center w-5 h-5 rounded bg-primary/10 text-primary shrink-0">
-                        {COLUMN_TYPE_ICON[col.type]}
-                      </div>
+                {/* Row # column — sticky */}
+                <th className="px-2 py-2 text-left text-xs font-medium text-muted-foreground w-10 border-b border-r border-border sticky left-9 bg-muted/90 z-20">
+                  #
+                </th>
+                {/* Data columns */}
+                {visibleColumns.map(col => {
+                  const isSorted = sortConfig?.columnSlug === col.slug;
+                  return (
+                    <th key={col.id} className="px-0 py-0 text-left text-xs font-medium text-muted-foreground border-b border-border min-w-[140px]">
+                      <div className="flex items-center gap-0.5 px-2 py-1.5 group/col">
+                        {/* Column type icon */}
+                        <div className="flex items-center justify-center w-5 h-5 rounded bg-primary/10 text-primary shrink-0">
+                          {COLUMN_TYPE_ICON[col.type]}
+                        </div>
 
-                      {/* Column name — inline rename or display */}
-                      <div className="flex-1 min-w-0">
-                        {renamingColId === col.id ? (
-                          <Input
-                            ref={renameInputRef}
-                            value={renameValue}
-                            onChange={e => setRenameValue(e.target.value)}
-                            onBlur={() => renameColumn(col.id)}
-                            onKeyDown={e => {
-                              if (e.key === 'Enter') renameColumn(col.id);
-                              if (e.key === 'Escape') setRenamingColId(null);
-                            }}
-                            className="h-5 text-xs w-[90px] px-1"
-                            autoFocus
-                            onClick={e => e.stopPropagation()}
-                          />
-                        ) : (
-                          <span
-                            className="truncate cursor-pointer hover:text-foreground transition-colors text-[11px] font-medium block"
-                            onDoubleClick={() => {
-                              setRenamingColId(col.id);
-                              setRenameValue(col.name);
-                            }}
-                            title="Double-cliquer pour renommer"
+                        {/* Column name — inline rename or display. Clicking triggers sort. */}
+                        <div className="flex-1 min-w-0">
+                          {renamingColId === col.id ? (
+                            <Input
+                              ref={renameInputRef}
+                              value={renameValue}
+                              onChange={e => setRenameValue(e.target.value)}
+                              onBlur={() => renameColumn(col.id)}
+                              onKeyDown={e => {
+                                if (e.key === 'Enter') renameColumn(col.id);
+                                if (e.key === 'Escape') setRenamingColId(null);
+                              }}
+                              className="h-5 text-xs w-[90px] px-1"
+                              autoFocus
+                              onClick={e => e.stopPropagation()}
+                            />
+                          ) : (
+                            <span
+                              className={cn(
+                                "truncate cursor-pointer hover:text-foreground transition-colors text-[11px] font-medium block select-none",
+                                isSorted && "text-[#C9A84C]"
+                              )}
+                              onClick={() => {
+                                if (onSortChange) onSortChange(col);
+                              }}
+                              onDoubleClick={(e) => {
+                                e.stopPropagation();
+                                setRenamingColId(col.id);
+                                setRenameValue(col.name);
+                              }}
+                              title="Cliquer pour trier · Double-cliquer pour renommer"
+                            >
+                              {col.name}
+                            </span>
+                          )}
+                        </div>
+
+                        {/* Sort indicator arrow on column — only when sorted */}
+                        {isSorted && onSortChange && (
+                          <button
+                            className="p-0.5 rounded transition-colors shrink-0 text-[#C9A84C] hover:bg-[#C9A84C]/10"
+                            onClick={() => onSortChange(col)}
+                            title={sortConfig!.direction === 'asc' ? 'Tri croissant — cliquer pour décroissant' : 'Tri décroissant — cliquer pour annuler'}
                           >
-                            {col.name}
+                            {sortConfig!.direction === 'asc'
+                              ? <ArrowUp className="w-3.5 h-3.5" />
+                              : <ArrowDown className="w-3.5 h-3.5" />
+                            }
+                          </button>
+                        )}
+
+                        {/* ── Column options — clean popover with expandable list ── */}
+                        <Popover open={colOptionsOpen === col.id} onOpenChange={(open) => { setColOptionsOpen(open ? col.id : null); setColOptionsExpanded(new Set()); }}>
+                          <PopoverTrigger asChild>
+                            <button className="p-1 rounded hover:bg-secondary text-muted-foreground hover:text-foreground transition-colors shrink-0 opacity-0 group-hover/col:opacity-100 data-[state=open]:opacity-100">
+                              <ChevronDown className="w-3.5 h-3.5" />
+                            </button>
+                          </PopoverTrigger>
+                          <PopoverContent align="start" className="w-56 p-0 shadow-lg border-border/60">
+                            {/* Column info header */}
+                            <div className="px-3 py-2 border-b border-border/40 bg-muted/30">
+                              <div className="flex items-center gap-2">
+                                <div className="w-5 h-5 rounded bg-primary/10 text-primary flex items-center justify-center shrink-0">
+                                  {COLUMN_TYPE_ICON[col.type]}
+                                </div>
+                                <div className="min-w-0">
+                                  <p className="text-xs font-medium truncate">{col.name}</p>
+                                  <p className="text-[9px] text-muted-foreground">{COLUMN_TYPE_LABEL[col.type]} · slug: {col.slug}</p>
+                                </div>
+                              </div>
+                            </div>
+
+                            {/* Options list with expandable arrows */}
+                            <div className="py-1">
+                              {/* Edit option */}
+                              <button
+                                className="w-full flex items-center gap-2 px-3 py-1.5 text-left text-xs hover:bg-secondary/60 transition-colors"
+                                onClick={() => { openColumnEditor(col); setColOptionsOpen(null); }}
+                              >
+                                <Pencil className="w-3.5 h-3.5 text-muted-foreground" />
+                                <span className="flex-1">Éditer</span>
+                              </button>
+
+                              {/* Sort option — expandable */}
+                              <button
+                                className="w-full flex items-center gap-2 px-3 py-1.5 text-left text-xs hover:bg-secondary/60 transition-colors"
+                                onClick={() => {
+                                  const next = new Set(colOptionsExpanded);
+                                  if (next.has('sort')) next.delete('sort'); else next.add('sort');
+                                  setColOptionsExpanded(next);
+                                }}
+                              >
+                                <ArrowUpDown className="w-3.5 h-3.5 text-muted-foreground" />
+                                <span className="flex-1">Trier</span>
+                                <ChevronRight className={cn("w-3 h-3 text-muted-foreground transition-transform", colOptionsExpanded.has('sort') && "rotate-90")} />
+                              </button>
+                              {colOptionsExpanded.has('sort') && (
+                                <div className="ml-7 border-l-2 border-[#C9A84C]/20 pl-2 py-0.5">
+                                  <button
+                                    className="w-full flex items-center gap-2 px-2 py-1 text-[10px] text-left hover:bg-secondary/60 rounded transition-colors"
+                                    onClick={() => { if (onSortChange) onSortChange(col); setColOptionsOpen(null); }}
+                                  >
+                                    <ArrowUp className="w-3 h-3" /> Croissant (A→Z)
+                                  </button>
+                                  <button
+                                    className="w-full flex items-center gap-2 px-2 py-1 text-[10px] text-left hover:bg-secondary/60 rounded transition-colors"
+                                    onClick={() => {
+                                      // Set sort to desc: first click on sortChange gives asc, second gives desc
+                                      if (onSortChange) { onSortChange(col); onSortChange(col); }
+                                      setColOptionsOpen(null);
+                                    }}
+                                  >
+                                    <ArrowDown className="w-3 h-3" /> Décroissant (Z→A)
+                                  </button>
+                                </div>
+                              )}
+
+                              {/* Duplicate option */}
+                              <button
+                                className="w-full flex items-center gap-2 px-3 py-1.5 text-left text-xs hover:bg-secondary/60 transition-colors"
+                                onClick={() => { duplicateColumn(col); setColOptionsOpen(null); }}
+                              >
+                                <Copy className="w-3.5 h-3.5 text-muted-foreground" />
+                                <span className="flex-1">Dupliquer</span>
+                              </button>
+
+                              {/* Add column to right */}
+                              <button
+                                className="w-full flex items-center gap-2 px-3 py-1.5 text-left text-xs hover:bg-secondary/60 transition-colors"
+                                onClick={() => { addColumnToRight(col); setColOptionsOpen(null); }}
+                              >
+                                <MoveRight className="w-3.5 h-3.5 text-muted-foreground" />
+                                <span className="flex-1">Ajouter à droite</span>
+                              </button>
+
+                              <div className="my-1 h-px bg-border/40" />
+
+                              {/* Visibility option — expandable */}
+                              <button
+                                className="w-full flex items-center gap-2 px-3 py-1.5 text-left text-xs hover:bg-secondary/60 transition-colors"
+                                onClick={() => {
+                                  const next = new Set(colOptionsExpanded);
+                                  if (next.has('visibility')) next.delete('visibility'); else next.add('visibility');
+                                  setColOptionsExpanded(next);
+                                }}
+                              >
+                                {col.visible ? <EyeOff className="w-3.5 h-3.5 text-muted-foreground" /> : <Eye className="w-3.5 h-3.5 text-muted-foreground" />}
+                                <span className="flex-1">Visibilité</span>
+                                <ChevronRight className={cn("w-3 h-3 text-muted-foreground transition-transform", colOptionsExpanded.has('visibility') && "rotate-90")} />
+                              </button>
+                              {colOptionsExpanded.has('visibility') && (
+                                <div className="ml-7 border-l-2 border-[#C9A84C]/20 pl-2 py-0.5">
+                                  <p className="text-[9px] text-muted-foreground px-2 py-0.5">
+                                    {col.visible ? 'Actuellement visible' : 'Actuellement masquée'}
+                                  </p>
+                                  <button
+                                    className="w-full flex items-center gap-2 px-2 py-1 text-[10px] text-left hover:bg-secondary/60 rounded transition-colors"
+                                    onClick={() => { toggleColumnVisibility(col); setColOptionsOpen(null); }}
+                                  >
+                                    {col.visible ? <><EyeOff className="w-3 h-3" /> Masquer</> : <><Eye className="w-3 h-3" /> Afficher</>}
+                                  </button>
+                                </div>
+                              )}
+
+                              <div className="my-1 h-px bg-border/40" />
+
+                              {/* Delete option */}
+                              <button
+                                className="w-full flex items-center gap-2 px-3 py-1.5 text-left text-xs hover:bg-destructive/10 text-destructive transition-colors"
+                                onClick={() => { setDeleteTarget({ type: 'column', id: col.id, name: col.name }); setColOptionsOpen(null); }}
+                              >
+                                <Trash2 className="w-3.5 h-3.5" />
+                                <span className="flex-1">Supprimer</span>
+                              </button>
+                            </div>
+                          </PopoverContent>
+                        </Popover>
+                      </div>
+                      {/* Column type label + sort indicator */}
+                      <div className="px-2 pb-1 flex items-center gap-1.5">
+                        <span className="text-[9px] text-muted-foreground/60 uppercase tracking-wider">
+                          {COLUMN_TYPE_LABEL[col.type]}
+                        </span>
+                        {isSorted && (
+                          <span className="text-[9px] text-[#C9A84C] font-medium">
+                            {sortConfig!.direction === 'asc' ? '↑ A-Z' : '↓ Z-A'}
                           </span>
                         )}
                       </div>
-
-                      {/* Edit column button - ALWAYS VISIBLE */}
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <button
-                            className="p-1 rounded hover:bg-primary/10 text-primary/70 hover:text-primary transition-colors shrink-0"
-                            onClick={() => openColumnEditor(col)}
-                          >
-                            <Pencil className="w-3 h-3" />
-                          </button>
-                        </TooltipTrigger>
-                        <TooltipContent side="bottom" className="text-[10px]">
-                          Modifier les propriétés
-                        </TooltipContent>
-                      </Tooltip>
-
-                      {/* Column dropdown menu - ALWAYS VISIBLE */}
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <button className="p-1 rounded hover:bg-muted text-muted-foreground hover:text-foreground transition-colors shrink-0">
-                            <MoreVertical className="w-3 h-3" />
-                          </button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="start" className="w-56">
-                          <DropdownMenuItem onClick={() => { setRenamingColId(col.id); setRenameValue(col.name); }}>
-                            <Pencil className="w-3.5 h-3.5 mr-2" /> Renommer
-                          </DropdownMenuItem>
-                          <DropdownMenuItem onClick={() => openColumnEditor(col)}>
-                            <Edit2 className="w-3.5 h-3.5 mr-2" /> Modifier le type & propriétés
-                          </DropdownMenuItem>
-                          <DropdownMenuSeparator />
-                          <DropdownMenuItem onClick={() => moveColumn(col.id, 'left')} disabled={col.order === Math.min(...visibleColumns.map(c => c.order))}>
-                            <MoveLeft className="w-3.5 h-3.5 mr-2" /> Déplacer à gauche
-                          </DropdownMenuItem>
-                          <DropdownMenuItem onClick={() => moveColumn(col.id, 'right')} disabled={col.order === Math.max(...visibleColumns.map(c => c.order))}>
-                            <MoveRight className="w-3.5 h-3.5 mr-2" /> Déplacer à droite
-                          </DropdownMenuItem>
-                          <DropdownMenuSeparator />
-                          <DropdownMenuItem onClick={() => toggleColumnVisibility(col)}>
-                            {col.visible ? <><EyeOff className="w-3.5 h-3.5 mr-2" /> Masquer la colonne</> : <><Eye className="w-3.5 h-3.5 mr-2" /> Afficher la colonne</>}
-                          </DropdownMenuItem>
-                          <DropdownMenuSeparator />
-                          <DropdownMenuItem className="text-destructive focus:text-destructive" onClick={() => setDeleteTarget({ type: 'column', id: col.id, name: col.name })}>
-                            <Trash2 className="w-3.5 h-3.5 mr-2" /> Supprimer la colonne
-                          </DropdownMenuItem>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
-                    </div>
-                    {/* Column type label */}
-                    <div className="px-2 pb-1">
-                      <span className="text-[9px] text-muted-foreground/60 uppercase tracking-wider">
-                        {COLUMN_TYPE_LABEL[col.type]}
-                      </span>
-                    </div>
-                  </th>
-                ))}
-                <th className="px-2 py-2 w-10 border-b border-border" />
+                    </th>
+                  );
+                })}
+                {/* ── Add column button — sticky at top-right ── */}
+                <th className="px-2 py-2 w-10 border-b border-border sticky right-0 bg-muted/95 z-30 top-0">
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <button
+                        className="w-7 h-7 rounded-full border border-dashed border-border hover:border-[#C9A84C] hover:bg-[#C9A84C]/5 text-muted-foreground hover:text-[#C9A84C] transition-colors flex items-center justify-center"
+                        onClick={() => {
+                          // Same action as the green "Colonne" button — both coexist
+                          if (onAddColumn) onAddColumn();
+                          else { setEditingColumn(null); setShowColumnEditor(true); }
+                        }}
+                      >
+                        <Plus className="w-3.5 h-3.5" />
+                      </button>
+                    </TooltipTrigger>
+                    <TooltipContent side="left" className="text-[10px]">
+                      Ajouter une colonne
+                    </TooltipContent>
+                  </Tooltip>
+                </th>
               </tr>
             </thead>
             <tbody>
@@ -638,15 +891,19 @@ export function DataTable({ columns, rows, dataSourceId, loading, onRefresh }: P
                     'border-b border-border/50 group hover:bg-muted/30 transition-colors',
                     isSelected && 'bg-amber-50/50 dark:bg-amber-950/10 hover:bg-amber-50/70'
                   )}>
-                    {/* Row checkbox */}
-                    <td className="px-2 py-1.5 border-l-2 border-transparent" style={{ borderLeftColor: isSelected ? '#C9A84C' : 'transparent' }}>
+                    {/* Row checkbox — sticky */}
+                    <td className="px-2 py-1.5 sticky left-0 bg-card z-10 border-r-2" style={{ borderRightColor: isSelected ? '#C9A84C' : 'transparent' }}>
                       <Checkbox
                         checked={isSelected}
                         onCheckedChange={() => toggleRowSelect(row.id)}
                         className="h-3.5 w-3.5"
                       />
                     </td>
-                    <td className="px-2 py-1.5 text-xs text-muted-foreground">{rowNum}</td>
+                    {/* Row number — sticky */}
+                    <td className="px-2 py-1.5 text-xs text-muted-foreground sticky left-9 bg-card z-10 border-r border-border/30 font-medium">
+                      {rowNum}
+                    </td>
+                    {/* Data cells */}
                     {visibleColumns.map(col => {
                       const cellKey = `${row.id}-${col.slug}`;
                       const isEditing = editingCell === cellKey;
@@ -655,7 +912,7 @@ export function DataTable({ columns, rows, dataSourceId, loading, onRefresh }: P
                       return (
                         <td key={col.slug} className={cn(
                           "px-3 py-1.5 border-l border-border/30 relative",
-                          isCellSelected && "bg-blue-50 dark:bg-blue-950/20 ring-1 ring-blue-300 dark:ring-blue-700 ring-inset"
+                          isCellSelected && "bg-amber-50 dark:bg-amber-950/20 ring-1 ring-[#C9A84C]/40 dark:ring-[#C9A84C]/30 ring-inset"
                         )}>
                           {isEditing ? (
                             <Input
@@ -671,39 +928,39 @@ export function DataTable({ columns, rows, dataSourceId, loading, onRefresh }: P
                             />
                           ) : (
                             <div
-                              className="cursor-pointer min-h-[24px] flex items-center gap-1"
-                              onDoubleClick={() => startEditing(row.id, col.slug, (row.data as Record<string, unknown>)[col.slug])}
+                              className={cn(
+                                "min-h-[24px] flex items-center gap-1",
+                                (col.type === 'STATUS' || col.slug === '__statut__')
+                                  ? (((pendingStatusChanges?.[row.id]?.locked ?? (row.data as Record<string, unknown>).__statut_locked__) ? "cursor-not-allowed" : "cursor-pointer"))
+                                  : "cursor-pointer"
+                              )}
+                              onDoubleClick={() => {
+                                // STATUS column: open inline select only if unlocked (double-click only!)
+                                if (col.type === 'STATUS' || col.slug === '__statut__') {
+                                  const effectiveLocked = pendingStatusChanges?.[row.id]?.locked ?? !!(row.data as Record<string, unknown>).__statut_locked__;
+                                  if (!effectiveLocked) {
+                                    setEditingStatusCell(cellKey);
+                                  }
+                                } else {
+                                  startEditing(row.id, col.slug, (row.data as Record<string, unknown>)[col.slug]);
+                                }
+                              }}
                               onClick={(e) => {
                                 if (e.shiftKey || e.ctrlKey || e.metaKey) {
                                   e.preventDefault();
                                   toggleCellSelect(row.id, col.slug, e.shiftKey || e.ctrlKey || e.metaKey);
                                 }
                               }}
-                              title="Double-cliquer pour modifier · Shift+Clic pour sélectionner"
+                              title={(col.type === 'STATUS' || col.slug === '__statut__') ? ((pendingStatusChanges?.[row.id]?.locked ?? (row.data as Record<string, unknown>).__statut_locked__) ? "Statut verrouillé 🔒 — déverrouillez d'abord" : "Double-cliquer pour changer le statut") : "Double-cliquer pour modifier · Shift+Clic pour sélectionner"}
                             >
-                              {/* Mini checkbox for cell selection (visible on hover) */}
-                              <button
-                                className={cn(
-                                  "w-3.5 h-3.5 rounded-sm border shrink-0 transition-all",
-                                  isCellSelected
-                                    ? "bg-blue-500 border-blue-500 flex items-center justify-center"
-                                    : "border-border/40 opacity-0 group-hover:opacity-60 hover:opacity-100 hover:border-blue-400"
-                                )}
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  toggleCellSelect(row.id, col.slug, true);
-                                }}
-                              >
-                                {isCellSelected && <Check className="w-2 h-2 text-white" />}
-                              </button>
                               {renderCellValue(row, col)}
                             </div>
                           )}
                         </td>
                       );
                     })}
-                    {/* Row actions dropdown */}
-                    <td className="px-1">
+                    {/* Row actions — sticky right */}
+                    <td className="px-1 sticky right-0 bg-card z-10">
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>
                           <Button variant="ghost" size="icon" className="h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity">
@@ -738,13 +995,10 @@ export function DataTable({ columns, rows, dataSourceId, loading, onRefresh }: P
           </table>
         </div>
 
-        {/* Footer: pagination + add row */}
+        {/* ── Footer: pagination + add row ── */}
         <div className="h-10 border-t border-border bg-card flex items-center px-3 gap-3 shrink-0">
-          <Button variant="ghost" size="sm" className="h-7 text-xs gap-1" onClick={addRow}>
-            <Plus className="w-3 h-3" /> Ligne
-          </Button>
-          <Button variant="ghost" size="sm" className="h-7 text-xs gap-1" onClick={() => { setEditingColumn(null); setShowColumnEditor(true); }}>
-            <Plus className="w-3 h-3" /> Colonne
+          <Button variant="ghost" size="sm" className="h-7 text-xs gap-1 text-[#C9A84C] hover:text-[#C9A84C] hover:bg-[#C9A84C]/5" onClick={addRow}>
+            <Plus className="w-3 h-3" /> Nouvelle ligne
           </Button>
           <div className="flex-1" />
           {rows.length > pageSize && (

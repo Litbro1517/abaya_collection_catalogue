@@ -8,6 +8,7 @@ import { Badge } from '@/components/ui/badge';
 
 interface ProductCardProps {
   product: Product;
+  statut?: 'Nouveau' | 'Courant';
 }
 
 const canalIcons: Record<Canal, React.ReactNode> = {
@@ -22,7 +23,7 @@ function getCanalColor(canal: Canal): string {
   return found?.color ?? '#C9A84C';
 }
 
-export default function ProductCard({ product }: ProductCardProps) {
+export default function ProductCard({ product, statut }: ProductCardProps) {
   const { setSelectedProduct, setShowProductDetail } = useAppStore();
 
   const handleClick = () => {
@@ -50,6 +51,13 @@ export default function ProductCard({ product }: ProductCardProps) {
           <div className="flex size-full items-center justify-center bg-secondary">
             <Shirt className="size-12 text-border" />
           </div>
+        )}
+
+        {/* Nouveau badge */}
+        {statut === 'Nouveau' && (
+          <Badge className="absolute left-2 top-2 gap-1 border-none bg-emerald-700 text-white text-[10px] font-semibold shadow-sm z-10">
+            Nouveau
+          </Badge>
         )}
 
         {/* Featured badge */}

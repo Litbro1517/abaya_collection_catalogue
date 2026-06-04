@@ -15,7 +15,10 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
     if (body.width !== undefined) updateData.width = body.width;
     if (body.config !== undefined) updateData.config = body.config;
 
-    if (body.name) {
+    // Only update slug if explicitly requested via updateSlug flag
+    // Renaming a column must NOT change the slug, as the slug is the key in row data
+    // Changing the slug would orphan all existing row data
+    if (body.updateSlug && body.name) {
       updateData.slug = body.name
         .toLowerCase()
         .replace(/[^a-z0-9\s]/g, '')

@@ -3,9 +3,8 @@ generator client {
 }
 
 datasource db {
-  provider  = "postgresql"
+  provider  = "sqlite"
   url       = env("DATABASE_URL")
-  directUrl = env("DIRECT_URL")
 }
 
 // ═══════════════════════════════════════════════════════════════
@@ -46,7 +45,7 @@ model Column {
   order        Int        @default(0)
   visible      Boolean    @default(true)
   required     Boolean    @default(false)
-  config       Json       @default("{}")
+  config       Json?
   width        Int        @default(150)
   createdAt    DateTime   @default(now()) @map("created_at")
   updatedAt    DateTime   @updatedAt @map("updated_at")
@@ -59,7 +58,7 @@ model Row {
   id           String     @id @default(cuid())
   dataSourceId String     @map("data_source_id")
   dataSource   DataSource @relation(fields: [dataSourceId], references: [id], onDelete: Cascade)
-  data         Json       @default("{}")
+  data         Json?
   order        Int        @default(0)
   createdAt    DateTime   @default(now()) @map("created_at")
   updatedAt    DateTime   @updatedAt @map("updated_at")
@@ -105,7 +104,7 @@ model Section {
   type         String   @default("collection")
   title        String?
   subtitle     String?
-  config       Json     @default("{}")
+  config       Json?
   order        Int      @default(0)
   visible      Boolean  @default(true)
   components   Component[]
@@ -120,7 +119,7 @@ model Component {
   sectionId   String   @map("section_id")
   section     Section  @relation(fields: [sectionId], references: [id], onDelete: Cascade)
   type        String   @default("card")
-  config      Json     @default("{}")
+  config      Json?
   order       Int      @default(0)
   visible     Boolean  @default(true)
   createdAt   DateTime @default(now()) @map("created_at")
@@ -203,7 +202,7 @@ model AuditLog {
   action    String // create, update, delete, login, logout, sync
   entity    String // datasource, section, catalog, settings, etc.
   entityId  String? @map("entity_id")
-  details   Json     @default("{}")
+  details   Json?
   ip        String?  @map("ip_address")
   createdAt DateTime @default(now()) @map("created_at")
 
