@@ -444,6 +444,43 @@ export function DataTable({ columns, rows, dataSourceId, loading, onRefresh, sor
     }
   };
 
+  // ── Bulk lock/unlock for selected rows ──
+  const hasStatusColumn = visibleColumns.some(c => c.type === 'STATUS' || c.slug === '__statut__');
+
+  const handleBulkLock = () => {
+    if (!onLocalLockToggle) return;
+    let count = 0;
+    selectedRows.forEach(rowId => {
+      const row = rows.find(r => r.id === rowId);
+      if (!row) return;
+      const rawData = row.data as Record<string, unknown>;
+      const currentLocked = pendingStatusChanges?.[rowId]?.locked ?? !!rawData.__statut_locked__;
+      if (!currentLocked) {
+        onLocalLockToggle(rowId, false); // false = current is unlocked → will lock
+        count++;
+      }
+    });
+    if (count > 0) toast.success(`${count} statut(s) verrouillé(s) 🔒`);
+    else toast.info('Tous les statuts sélectionnés sont déjà verrouillés');
+  };
+
+  const handleBulkUnlock = () => {
+    if (!onLocalLockToggle) return;
+    let count = 0;
+    selectedRows.forEach(rowId => {
+      const row = rows.find(r => r.id === rowId);
+      if (!row) return;
+      const rawData = row.data as Record<string, unknown>;
+      const currentLocked = pendingStatusChanges?.[rowId]?.locked ?? !!rawData.__statut_locked__;
+      if (currentLocked) {
+        onLocalLockToggle(rowId, true); // true = current is locked → will unlock
+        count++;
+      }
+    });
+    if (count > 0) toast.success(`${count} statut(s) déverrouillé(s) 🔓`);
+    else toast.info('Tous les statuts sélectionnés sont déjà déverrouillés');
+  };
+
   const renderCellValue = (row: Row, col: Column) => {
     // STATUS column: special rendering with colored badge + lock toggle
     if (col.type === 'STATUS' || col.slug === '__statut__') {
@@ -613,12 +650,35 @@ export function DataTable({ columns, rows, dataSourceId, loading, onRefresh, sor
       <div className="h-full flex flex-col">
         {/* Bulk action bar */}
         {selectedRows.size > 0 && (
-          <div className="h-10 border-b border-border bg-amber-50 dark:bg-amber-950/20 flex items-center px-3 gap-3 shrink-0">
+          <div className="h-10 border-b border-border bg-amber-50 dark:bg-amber-950/20 flex items-center px-3 gap-2 shrink-0">
             <Check className="w-3.5 h-3.5 text-amber-600" />
             <span className="text-xs font-medium">{selectedRows.size} ligne(s) sélectionnée(s)</span>
             <Button variant="ghost" size="sm" className="h-7 text-xs" onClick={() => setSelectedRows(new Set())}>
               <X className="w-3 h-3 mr-1" /> Désélectionner
             </Button>
+
+            {/* Bulk lock/unlock for Statut column — only shown when STATUS column exists */}
+            {hasStatusColumn && onLocalLockToggle && (
+              <div className="flex items-center gap-1 ml-1 pl-2 border-l border-amber-300/40">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="h-7 text-xs gap-1 border-red-200 text-red-600 hover:bg-red-50 hover:text-red-700"
+                  onClick={handleBulkLock}
+                >
+                  <Lock className="w-3 h-3" /> Verrouiller
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="h-7 text-xs gap-1 border-emerald-200 text-emerald-600 hover:bg-emerald-50 hover:text-emerald-700"
+                  onClick={handleBulkUnlock}
+                >
+                  <Unlock className="w-3 h-3" /> Déverrouiller
+                </Button>
+              </div>
+            )}
+
             <div className="flex-1" />
             <Button variant="destructive" size="sm" className="h-7 text-xs gap-1" onClick={() => setShowBulkDeleteDialog(true)}>
               <Trash2 className="w-3 h-3" /> Supprimer la sélection
