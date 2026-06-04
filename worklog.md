@@ -453,3 +453,75 @@ Stage Summary:
 - Status Lock: 🔒 = read-only (badge disabled, can't change), 🔓 = editable (badge clickable, opens dropdown). Lock icon toggles between states locally.
 - Sync Button: Shows gold highlight + count badge when pending changes exist. On click: pushes all pending changes to DB (PUT per change), auto-syncs non-locked rows (POST), reloads data, clears pending state.
 - API: PUT /api/datasources/[id]/status now accepts optional `locked` parameter (defaults to true for backward compatibility).
+
+---
+Task ID: 1
+Agent: main
+Task: Fix DataPillar.tsx - Sync button, Filter engine, Pending changes bar
+
+Work Log:
+- FIX 1: Sync Button — Made badge counter prominent and enforced batch/deferred model
+  - Replaced tiny badge (w-3.5 h-3.5, text-[8px]) with larger button (h-8) when pending changes exist
+  - Added "Sync (N)" text inside button showing pending count
+  - Added prominent pulsing animation (animate-pulse) when pending changes exist
+  - New count badge: w-5 h-5 rounded-full bg-white text-[#C9A84C] text-[10px] font-bold at top-right
+  - Button changes size from icon (h-7 w-7) to sm (h-8 with text) when pending changes exist
+  - onClick now ONLY pushes pending changes (no auto-POST sync). When no pending changes, POST recalc is used as fallback
+  - Toast messages updated: "N changement(s) synchronisé(s)" for pending push, "Statuts recalculés" for recalc
+- FIX 1: Added pending changes notification bar above DataTable
+  - Shows "⏳ N modification(s) en attente — Cliquez sur Synchroniser pour appliquer"
+  - Gold accent styling: border-b border-[#C9A84C]/30 bg-[#C9A84C]/5 text-[#C9A84C]
+  - Wraps DataTable and bar in a fragment inside the conditional render
+- FIX 3: Filter Engine — Fixed STATUS column filtering and pending changes consideration
+  - filteredRows useMemo: STATUS columns now read from data.__statut__ AND overlay pendingStatusChanges
+  - Added pendingStatusChanges and columns to useMemo dependency array
+  - addOrUpdateFilter: uses '__statut__' as effectiveSlug for STATUS type columns
+  - removeFilter: resolves effective slug for STATUS columns before filtering
+  - getFilterForColumn: checks both __statut__ and original slug for STATUS columns
+- Also fixed pre-existing syntax error in DataTable.tsx line 519 (missing closing brace for className prop)
+
+Stage Summary:
+- Sync button now prominently shows pending count with pulse animation
+- Batch/deferred model: changes are local until Sync is clicked, no auto-POST
+- Notification bar appears above table when unsynced changes exist
+- STATUS column filtering correctly reads __statut__ and considers pending overlay
+- All filter helpers (add, remove, get) properly handle STATUS → __statut__ slug mapping
+- Lint passes cleanly
+
+---
+Task ID: 2
+Agent: main
+Task: Fix DataTable.tsx - Lock/double-click, Add column sticky, Column options menu
+
+Work Log:
+- FIX 2 (Lock/Cadenas): Added toast error feedback when double-clicking a locked STATUS cell ("Statut verrouillé 🔒 — Déverrouillez d'abord le cadenas")
+- FIX 2: Added shake animation (animate-shake class) via data-cell-key attribute on the cell div for visual feedback
+- FIX 2: Added shake keyframes animation to globals.css
+- FIX 2: Changed locked icon color from text-muted-foreground to text-red-400 (with hover:text-red-500, hover:bg-red-50)
+- FIX 2: Unlocked icon stays text-[#C9A84C]/70
+- FIX 2: Added bg-red-50/30 to locked STATUS cells for subtle red background
+- FIX 2: Updated badge tooltips to "🔒 Verrouillé — Double-clic bloqué" / "🔓 Déverrouillé — Double-cliquer pour modifier"
+- FIX 4: Made "+" add column button truly sticky: changed from bg-muted/95 z-30 to bg-muted z-40, added border-l for visual separation, kept sticky right-0 top-0
+- FIX 5: Added onSetSortDirect prop to DataTable Props interface and component function signature
+- FIX 5: Added setSortDirect function in DataPillar.tsx that directly sets sort config with a specific direction
+- FIX 5: Wired onSetSortDirect={setSortDirect} in DataPillar's DataTable usage
+- FIX 5: Fixed "Décroissant" sort bug — now uses onSetSortDirect to directly set 'desc' instead of calling cycleSort twice
+- FIX 5: "Croissant" sort also uses onSetSortDirect for 'asc' (with fallback to onSortChange)
+- FIX 5: Added DB info text to all column menu options:
+  - Éditer: "PUT /columns/{id}"
+  - Renommer: "field: name"
+  - Trier expanded: "field: {col.slug}"
+  - Dupliquer: "POST /columns"
+  - Ajouter à droite: "POST /columns"
+  - Visibilité expanded: "field: visible = {value}"
+  - Supprimer: "DELETE + all cell data"
+- FIX 5: Added "Renommer" option to column options menu (using Type icon), triggers inline rename
+- All changes pass lint with no errors
+
+Stage Summary:
+- Locked STATUS cells now provide visual+textual feedback on double-click (shake animation + toast)
+- Lock icons are visually distinct: red for locked, gold for unlocked
+- "+" button stays visible during both horizontal and vertical scroll (z-40, solid bg)
+- Sort menu now correctly sets ascending/descending directly via onSetSortDirect prop
+- Column options menu shows DB relationship info for each option
+- New "Renommer" option in column menu for quick inline rename

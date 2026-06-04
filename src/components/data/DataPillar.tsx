@@ -291,10 +291,12 @@ export function DataPillar() {
       result = result.filter(row => {
         const data = row.data as Record<string, unknown>;
         return filters.every(f => {
-          // For STATUS columns (__statut__), read from data.__statut__
           let val = data[f.columnSlug];
-          if (f.columnSlug === '__statut__') {
-            val = data.__statut__;
+          // STATUS columns: always read from __statut__ and overlay pending
+          const filterCol = columns.find(c => c.slug === f.columnSlug);
+          if (filterCol?.type === 'STATUS' || f.columnSlug === '__statut__') {
+            const pending = pendingStatusChanges?.[row.id];
+            val = pending?.statut ?? data.__statut__;
           }
           return applyFilter(val, f);
         });
@@ -346,7 +348,7 @@ export function DataPillar() {
     }
 
     return result;
-  }, [rows, searchQuery, filters, sortConfig]);
+  }, [rows, searchQuery, filters, sortConfig, pendingStatusChanges, columns]);
 
   // ── Filter helpers ──────────────────────────────────────────────────────
 
@@ -358,10 +360,11 @@ export function DataPillar() {
     // but it won't actually filter rows until a value is provided
     // (applyFilter handles this by matching empty filter value against all rows)
 
+    const effectiveSlug = col.type === 'STATUS' ? '__statut__' : col.slug;
     setFilters(prev => {
-      const existing = prev.findIndex(f => f.columnSlug === col.slug);
+      const existing = prev.findIndex(f => f.columnSlug === effectiveSlug);
       const newFilter: FilterConfig = {
-        columnSlug: col.slug,
+        columnSlug: effectiveSlug,
         columnName: col.name,
         columnType: col.type,
         operator,
@@ -377,7 +380,9 @@ export function DataPillar() {
   };
 
   const removeFilter = (columnSlug: string) => {
-    setFilters(prev => prev.filter(f => f.columnSlug !== columnSlug));
+    const col = columns.find(c => c.slug === columnSlug);
+    const effectiveSlug = col?.type === 'STATUS' ? '__statut__' : columnSlug;
+    setFilters(prev => prev.filter(f => f.columnSlug !== effectiveSlug));
     if (activeFilterColSlug === columnSlug) {
       setActiveFilterColSlug(null);
     }
@@ -401,6 +406,10 @@ export function DataPillar() {
       // Third click: remove sort
       return null;
     });
+  };
+
+  const setSortDirect = (colSlug: string, colName: string, direction: 'asc' | 'desc') => {
+    setSortConfig({ columnSlug: colSlug, columnName: colName, direction });
   };
 
   const clearSort = () => {
@@ -449,6 +458,11 @@ export function DataPillar() {
 
   // ── Get current filter for a column ─────────────────────────────────────
   const getFilterForColumn = (colSlug: string): FilterConfig | undefined => {
+    // For STATUS columns, check both the original slug and __statut__
+    const col = columns.find(c => c.slug === colSlug);
+    if (col?.type === 'STATUS') {
+      return filters.find(f => f.columnSlug === '__statut__' || f.columnSlug === colSlug);
+    }
     return filters.find(f => f.columnSlug === colSlug);
   };
 
@@ -1339,17 +1353,16 @@ export function DataPillar() {
                 <TooltipTrigger asChild>
                   <Button
                     variant={Object.keys(pendingStatusChanges).length > 0 ? "default" : "ghost"}
-                    size="icon"
+                    size={Object.keys(pendingStatusChanges).length > 0 ? "sm" : "icon"}
                     className={cn(
-                      "h-7 w-7 transition-all relative",
+                      "transition-all relative",
                       Object.keys(pendingStatusChanges).length > 0
-                        ? "bg-[#C9A84C] hover:bg-[#C9A84C]/90 text-white"
-                        : "hover:bg-secondary"
+                        ? "h-8 bg-[#C9A84C] hover:bg-[#C9A84C]/90 text-white animate-pulse gap-1.5 px-2.5"
+                        : "h-7 w-7 hover:bg-secondary"
                     )}
                     onClick={async () => {
                       if (!activeDataSourceId) return;
                       try {
-                        // 1. Push all pending changes to DB
                         const pendingEntries = Object.entries(pendingStatusChanges);
                         if (pendingEntries.length > 0) {
                           await Promise.all(
@@ -1361,29 +1374,32 @@ export function DataPillar() {
                               })
                             )
                           );
-                        }
-
-                        // 2. Auto-sync non-locked rows
-                        const res = await fetch(`/api/datasources/${activeDataSourceId}/status`, { method: 'POST' });
-                        if (res.ok) {
-                          const json = await res.json();
-                          toast.success(`Statuts synchronisés (${json.data?.updatesCount ?? 0} mis à jour)`);
+                          toast.success(`${pendingEntries.length} changement(s) synchronisé(s)`);
                           setPendingStatusChanges({});
                           loadDataSourceData();
                         } else {
-                          toast.error('Erreur de synchronisation des statuts');
+                          // No pending changes: just refresh/recompute statuses
+                          const res = await fetch(`/api/datasources/${activeDataSourceId}/status`, { method: 'POST' });
+                          if (res.ok) {
+                            const json = await res.json();
+                            toast.success(`Statuts recalculés (${json.data?.updatesCount ?? 0} mis à jour)`);
+                            loadDataSourceData();
+                          }
                         }
                       } catch {
-                        toast.error('Erreur de connexion');
+                        toast.error('Erreur de synchronisation');
                       }
                     }}
                   >
                     <Activity className="w-3.5 h-3.5" />
-                    {Object.keys(pendingStatusChanges).length > 0 && (
-                      <span className="absolute -top-1 -right-1 w-3.5 h-3.5 rounded-full bg-[#C9A84C] text-white text-[8px] font-bold flex items-center justify-center border border-background">
-                        {Object.keys(pendingStatusChanges).length}
-                      </span>
-                    )}
+                    {Object.keys(pendingStatusChanges).length > 0 ? (
+                      <>
+                        <span className="text-[11px] font-semibold">Sync ({Object.keys(pendingStatusChanges).length})</span>
+                        <span className="absolute -top-1.5 -right-1.5 w-5 h-5 rounded-full bg-white text-[#C9A84C] text-[10px] font-bold flex items-center justify-center border border-[#C9A84C]/30 shadow-sm">
+                          {Object.keys(pendingStatusChanges).length}
+                        </span>
+                      </>
+                    ) : null}
                   </Button>
                 </TooltipTrigger>
                 <TooltipContent side="bottom" className="text-[10px]">
@@ -1440,9 +1456,17 @@ export function DataPillar() {
         )}
 
         {/* Table */}
-        <div className="flex-1 overflow-auto">
+        <div className="flex-1 overflow-auto flex flex-col">
           {activeDataSourceId ? (
-            <DataTable
+            <>
+              {Object.keys(pendingStatusChanges).length > 0 && (
+                <div className="h-8 border-b border-[#C9A84C]/30 bg-[#C9A84C]/5 flex items-center px-3 gap-2 shrink-0">
+                  <span className="text-[10px] font-medium text-[#C9A84C]">
+                    ⏳ {Object.keys(pendingStatusChanges).length} modification(s) en attente — Cliquez sur Synchroniser pour appliquer
+                  </span>
+                </div>
+              )}
+              <DataTable
               columns={columns}
               rows={filteredRows}
               dataSourceId={activeDataSourceId}
@@ -1450,11 +1474,13 @@ export function DataPillar() {
               onRefresh={loadDataSourceData}
               sortConfig={sortConfig}
               onSortChange={cycleSort}
+              onSetSortDirect={setSortDirect}
               onLocalStatusChange={handleLocalStatusChange}
               onLocalLockToggle={handleLocalLockToggle}
               pendingStatusChanges={pendingStatusChanges}
               onAddColumn={() => setShowColumnModal(true)}
             />
+            </>
           ) : (
             <div className="flex flex-col items-center justify-center h-full text-muted-foreground">
               <HardDrive className="w-12 h-12 mb-4 opacity-30" />

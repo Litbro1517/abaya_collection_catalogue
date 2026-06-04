@@ -86,13 +86,14 @@ interface Props {
   onRefresh: () => void;
   sortConfig?: SortConfig | null;
   onSortChange?: (col: Column) => void;
+  onSetSortDirect?: (colSlug: string, colName: string, direction: 'asc' | 'desc') => void;
   onLocalStatusChange?: (rowId: string, newStatut: string) => void;
   onLocalLockToggle?: (rowId: string, currentLocked: boolean) => void;
   pendingStatusChanges?: Record<string, { statut: string; locked: boolean }>;
   onAddColumn?: () => void;
 }
 
-export function DataTable({ columns, rows, dataSourceId, loading, onRefresh, sortConfig, onSortChange, onLocalStatusChange, onLocalLockToggle, pendingStatusChanges, onAddColumn }: Props) {
+export function DataTable({ columns, rows, dataSourceId, loading, onRefresh, sortConfig, onSortChange, onSetSortDirect, onLocalStatusChange, onLocalLockToggle, pendingStatusChanges, onAddColumn }: Props) {
   const [editingCell, setEditingCell] = useState<string | null>(null); // `${rowId}-${colSlug}`
   const [editValue, setEditValue] = useState('');
   const [showColumnEditor, setShowColumnEditor] = useState(false);
@@ -486,7 +487,7 @@ export function DataTable({ columns, rows, dataSourceId, loading, onRefresh, sor
                 isLocked && "opacity-70",
                 hasPendingChange && "ring-2 ring-[#C9A84C]/50 ring-offset-1"
               )}
-              title={isLocked ? "Statut verrouillé 🔒 — double-cliquer impossible" : "Double-cliquer pour changer le statut"}
+              title={isLocked ? "🔒 Verrouillé — Double-clic bloqué" : "🔓 Déverrouillé — Double-cliquer pour modifier"}
             >
               {hasPendingChange && <span className="mr-0.5 text-[8px]">⏳</span>}
               Nouveau
@@ -499,7 +500,7 @@ export function DataTable({ columns, rows, dataSourceId, loading, onRefresh, sor
                 isLocked && "opacity-70",
                 hasPendingChange && "ring-2 ring-[#C9A84C]/50 ring-offset-1"
               )}
-              title={isLocked ? "Statut verrouillé 🔒 — double-cliquer impossible" : "Double-cliquer pour changer le statut"}
+              title={isLocked ? "🔒 Verrouillé — Double-clic bloqué" : "🔓 Déverrouillé — Double-cliquer pour modifier"}
             >
               {hasPendingChange && <span className="mr-0.5 text-[8px]">⏳</span>}
               Courant
@@ -513,9 +514,10 @@ export function DataTable({ columns, rows, dataSourceId, loading, onRefresh, sor
             className={cn(
               "p-0.5 rounded transition-colors shrink-0",
               isLocked
-                ? "text-muted-foreground hover:text-foreground hover:bg-secondary"
+                ? "text-red-400 hover:text-red-500 hover:bg-red-50"
                 : "text-[#C9A84C]/70 hover:text-[#C9A84C] hover:bg-[#C9A84C]/10"
-            )}
+            )
+            }
             onClick={(e) => {
               e.stopPropagation();
               handleLocalLockToggleLocal(row.id, isLocked);
@@ -748,6 +750,17 @@ export function DataTable({ columns, rows, dataSourceId, loading, onRefresh, sor
                               >
                                 <Pencil className="w-3.5 h-3.5 text-muted-foreground" />
                                 <span className="flex-1">Éditer</span>
+                                <span className="text-[8px] text-muted-foreground/50">PUT /columns/{col.id.slice(0,6)}</span>
+                              </button>
+
+                              {/* Rename option */}
+                              <button
+                                className="w-full flex items-center gap-2 px-3 py-1.5 text-left text-xs hover:bg-secondary/60 transition-colors"
+                                onClick={() => { setRenamingColId(col.id); setRenameValue(col.name); setColOptionsOpen(null); }}
+                              >
+                                <Type className="w-3.5 h-3.5 text-muted-foreground" />
+                                <span className="flex-1">Renommer</span>
+                                <span className="text-[8px] text-muted-foreground/50">field: name</span>
                               </button>
 
                               {/* Sort option — expandable */}
@@ -765,17 +778,25 @@ export function DataTable({ columns, rows, dataSourceId, loading, onRefresh, sor
                               </button>
                               {colOptionsExpanded.has('sort') && (
                                 <div className="ml-7 border-l-2 border-[#C9A84C]/20 pl-2 py-0.5">
+                                  <p className="text-[8px] text-muted-foreground/50 px-2 py-0.5">field: {col.slug}</p>
                                   <button
                                     className="w-full flex items-center gap-2 px-2 py-1 text-[10px] text-left hover:bg-secondary/60 rounded transition-colors"
-                                    onClick={() => { if (onSortChange) onSortChange(col); setColOptionsOpen(null); }}
+                                    onClick={() => {
+                                      if (onSetSortDirect) onSetSortDirect(col.slug, col.name, 'asc');
+                                      else if (onSortChange) onSortChange(col);
+                                      setColOptionsOpen(null);
+                                    }}
                                   >
                                     <ArrowUp className="w-3 h-3" /> Croissant (A→Z)
                                   </button>
                                   <button
                                     className="w-full flex items-center gap-2 px-2 py-1 text-[10px] text-left hover:bg-secondary/60 rounded transition-colors"
                                     onClick={() => {
-                                      // Set sort to desc: first click on sortChange gives asc, second gives desc
-                                      if (onSortChange) { onSortChange(col); onSortChange(col); }
+                                      if (onSetSortDirect) {
+                                        onSetSortDirect(col.slug, col.name, 'desc');
+                                      } else if (onSortChange) {
+                                        onSortChange(col);
+                                      }
                                       setColOptionsOpen(null);
                                     }}
                                   >
@@ -791,6 +812,7 @@ export function DataTable({ columns, rows, dataSourceId, loading, onRefresh, sor
                               >
                                 <Copy className="w-3.5 h-3.5 text-muted-foreground" />
                                 <span className="flex-1">Dupliquer</span>
+                                <span className="text-[8px] text-muted-foreground/50">POST /columns</span>
                               </button>
 
                               {/* Add column to right */}
@@ -800,6 +822,7 @@ export function DataTable({ columns, rows, dataSourceId, loading, onRefresh, sor
                               >
                                 <MoveRight className="w-3.5 h-3.5 text-muted-foreground" />
                                 <span className="flex-1">Ajouter à droite</span>
+                                <span className="text-[8px] text-muted-foreground/50">POST /columns</span>
                               </button>
 
                               <div className="my-1 h-px bg-border/40" />
@@ -819,9 +842,7 @@ export function DataTable({ columns, rows, dataSourceId, loading, onRefresh, sor
                               </button>
                               {colOptionsExpanded.has('visibility') && (
                                 <div className="ml-7 border-l-2 border-[#C9A84C]/20 pl-2 py-0.5">
-                                  <p className="text-[9px] text-muted-foreground px-2 py-0.5">
-                                    {col.visible ? 'Actuellement visible' : 'Actuellement masquée'}
-                                  </p>
+                                  <p className="text-[8px] text-muted-foreground/50 px-2 py-0.5">field: visible = {String(!col.visible)}</p>
                                   <button
                                     className="w-full flex items-center gap-2 px-2 py-1 text-[10px] text-left hover:bg-secondary/60 rounded transition-colors"
                                     onClick={() => { toggleColumnVisibility(col); setColOptionsOpen(null); }}
@@ -840,6 +861,7 @@ export function DataTable({ columns, rows, dataSourceId, loading, onRefresh, sor
                               >
                                 <Trash2 className="w-3.5 h-3.5" />
                                 <span className="flex-1">Supprimer</span>
+                                <span className="text-[8px] text-destructive/50">DELETE + all cell data</span>
                               </button>
                             </div>
                           </PopoverContent>
@@ -860,7 +882,7 @@ export function DataTable({ columns, rows, dataSourceId, loading, onRefresh, sor
                   );
                 })}
                 {/* ── Add column button — sticky at top-right ── */}
-                <th className="px-2 py-2 w-10 border-b border-border sticky right-0 bg-muted/95 z-30 top-0">
+                <th className="px-2 py-2 w-10 border-b border-l border-border sticky right-0 top-0 bg-muted z-40">
                   <Tooltip>
                     <TooltipTrigger asChild>
                       <button
@@ -928,10 +950,11 @@ export function DataTable({ columns, rows, dataSourceId, loading, onRefresh, sor
                             />
                           ) : (
                             <div
+                              data-cell-key={cellKey}
                               className={cn(
                                 "min-h-[24px] flex items-center gap-1",
                                 (col.type === 'STATUS' || col.slug === '__statut__')
-                                  ? (((pendingStatusChanges?.[row.id]?.locked ?? (row.data as Record<string, unknown>).__statut_locked__) ? "cursor-not-allowed" : "cursor-pointer"))
+                                  ? (((pendingStatusChanges?.[row.id]?.locked ?? (row.data as Record<string, unknown>).__statut_locked__) ? "cursor-not-allowed bg-red-50/30" : "cursor-pointer"))
                                   : "cursor-pointer"
                               )}
                               onDoubleClick={() => {
@@ -940,6 +963,11 @@ export function DataTable({ columns, rows, dataSourceId, loading, onRefresh, sor
                                   const effectiveLocked = pendingStatusChanges?.[row.id]?.locked ?? !!(row.data as Record<string, unknown>).__statut_locked__;
                                   if (!effectiveLocked) {
                                     setEditingStatusCell(cellKey);
+                                  } else {
+                                    // Visual feedback: shake + toast
+                                    const el = document.querySelector(`[data-cell-key="${cellKey}"]`);
+                                    if (el) { el.classList.add('animate-shake'); setTimeout(() => el.classList.remove('animate-shake'), 500); }
+                                    toast.error('Statut verrouillé 🔒 — Déverrouillez d\'abord le cadenas');
                                   }
                                 } else {
                                   startEditing(row.id, col.slug, (row.data as Record<string, unknown>)[col.slug]);
