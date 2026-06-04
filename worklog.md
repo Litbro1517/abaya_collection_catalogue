@@ -48,3 +48,69 @@ Stage Summary:
 - Existing individual lock/unlock via cadenas click preserved
 - Both methods coexist: individual (per-row cadenas) + bulk (selection action bar)
 - Vercel deployed and verified working
+
+---
+Task ID: p2-p5
+Agent: UI Integration Agent
+Task: Integrate 4 UI improvements into existing production codebase (Points A, B, C, D)
+
+Work Log:
+- Read worklog.md for context from previous agents (Task 1: Prisma/PostgreSQL fix, Task 2: Bulk lock/unlock)
+- Read all 3 target files: ColumnEditorDialog.tsx (829→880 lines), DataTable.tsx (1174→1200 lines), BuilderShell.tsx (442→460 lines)
+- Read types/index.ts and store.ts for type definitions
+
+### Point C — Column Manager: DB type mapping + fluid category selector
+- Added DB_TYPE_MAP constant mapping all ColumnType values to their DB equivalents (VARCHAR, NUMERIC, DECIMAL(10,2), TEXT, JSONB, etc.)
+- Added STATUS type to COLUMN_TYPES (was missing from the visual selector)
+- Added dbType property to each COLUMN_TYPES entry
+- Created TYPE_CATEGORIES grouping: Texte (TEXT, URL), Numérique (NUMBER, CURRENCY), Média (IMAGE, IMAGE_ARRAY), Sélection (SELECT, MULTI_SELECT, BOOLEAN), Structure (RELATION, ARRAY, STATUS)
+- Replaced 2-column grid layout with collapsible category-based list with ChevronRight/ChevronDown arrows
+- Added current type badge at top with "Sélectionné" badge and toggle chevron
+- Type selector is collapsible — clicking the current type badge toggles the list
+- Selected type shows Check icon + "Sélectionné" badge
+- Added ChevronRight import to lucide-react icons
+- Added cn import from @/lib/utils for conditional classes
+- Added typeSelectorOpen and expandedCategories state variables
+- Reset these states when dialog opens
+
+### Point A — Floating sticky "+" button in DataTable
+- Added floating circular button at bottom-right of table area
+- Uses `absolute bottom-4 right-4 z-30` positioning within `relative` overflow container
+- Styled with `rounded-full shadow-lg bg-[#C9A84C]` (brand gold color)
+- Added `hover:scale-110` transition animation
+- Added `title="Ajouter une colonne"` for accessibility
+- Existing "+" button in table header preserved (they coexist)
+- Changed parent div from `overflow-auto` to `overflow-auto relative` for absolute positioning
+
+### Point B — Improve collapsible sidebar in BuilderShell
+- Changed aside transition from `duration-200` to `duration-300 ease-in-out`
+- Text labels on buttons now use `transition-opacity duration-200`
+- When collapsed: `opacity-0 w-0 overflow-hidden` on text spans
+- When expanded: `opacity-100` on text spans
+- Added "ABAYA" branding at bottom of sidebar with `transition-opacity duration-300`
+- ABAYA branding fades out when collapsed, fades in when expanded
+- Added `title` attributes on all sidebar buttons for tooltips when collapsed
+- Dashboard button: `title="Retour au Dashboard"`
+- Pillar buttons: `title={p.label}`
+- Added flex-1 spacer before ABAYA branding to push it to bottom
+
+### Point D — Disponible/Épuisé switch column in DataTable
+- BOOLEAN columns now render with Switch component + colored label text
+- Smart label logic: if column name contains "disponible" or "stock" → "Disponible" (green) / "Épuisé" (red), else "Oui" (green) / "Non" (red)
+- Created sortedVisibleColumns that sorts BOOLEAN columns to the far right
+- Both thead and tbody use sortedVisibleColumns instead of visibleColumns
+- Switch toggle calls PUT /api/datasources/:id/rows/:rowId to save to database
+- Added Switch import from @/components/ui/switch
+- Toast notifications on toggle with smart label text
+- All existing cell rendering logic for other types preserved
+
+### Verification
+- Ran `bun run lint` — clean, no errors
+- Dev server compiles successfully
+
+Stage Summary:
+- 3 files modified: ColumnEditorDialog.tsx, DataTable.tsx, BuilderShell.tsx
+- No new files created, no API changes, no Prisma schema changes
+- Cadenas/Lock, Statut, and Sync functionality preserved untouched
+- All 4 points (A, B, C, D) integrated successfully
+- Lint passes clean

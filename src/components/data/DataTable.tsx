@@ -43,6 +43,7 @@ import {
   ListChecks, Layers, ToggleRight, ExternalLink, Link2, SquareStack,
   MoveRight, Activity, Lock, Unlock, ArrowUpDown,
 } from 'lucide-react';
+import { Switch } from '@/components/ui/switch';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import { ColumnEditorDialog } from './ColumnEditorDialog';
@@ -124,6 +125,12 @@ export function DataTable({ columns, rows, dataSourceId, loading, onRefresh, sor
   const [deleteTarget, setDeleteTarget] = useState<{ type: 'row' | 'column'; id: string; name?: string } | null>(null);
 
   const visibleColumns = columns.filter(c => c.visible);
+  // Sort visible columns: BOOLEAN columns go to the far right
+  const sortedVisibleColumns = [...visibleColumns].sort((a, b) => {
+    const aIsBool = a.type === 'BOOLEAN' ? 1 : 0;
+    const bIsBool = b.type === 'BOOLEAN' ? 1 : 0;
+    return aIsBool - bIsBool;
+  });
   const paginatedRows = rows.slice(page * pageSize, (page + 1) * pageSize);
   const allVisibleSelected = paginatedRows.length > 0 && paginatedRows.every(r => selectedRows.has(r.id));
 
@@ -613,10 +620,43 @@ export function DataTable({ columns, rows, dataSourceId, loading, onRefresh, sor
     }
 
     if (col.type === 'BOOLEAN') {
+      const boolVal = strVal === 'true';
+      const colNameLower = col.name.toLowerCase();
+      const isDisponible = colNameLower.includes('disponible') || colNameLower.includes('stock');
+      const trueLabel = isDisponible ? 'Disponible' : 'Oui';
+      const falseLabel = isDisponible ? 'Épuisé' : 'Non';
       return (
-        <Badge variant={strVal === 'true' ? 'default' : 'secondary'} className="text-[10px]">
-          {strVal === 'true' ? '✓ Oui' : '✗ Non'}
-        </Badge>
+        <div className="flex items-center gap-2">
+          <Switch
+            checked={boolVal}
+            onCheckedChange={async (checked) => {
+              const row = rows.find(r => r.id === row.id);
+              if (!row) return;
+              const data = { ...(row.data as Record<string, unknown>) };
+              data[col.slug] = String(checked);
+              try {
+                const res = await fetch(`/api/datasources/${dataSourceId}/rows/${row.id}`, {
+                  method: 'PUT',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ data }),
+                });
+                if (res.ok) {
+                  onRefresh();
+                  toast.success(checked ? `${trueLabel}` : `${falseLabel}`);
+                }
+              } catch {
+                toast.error('Erreur de sauvegarde');
+              }
+            }}
+            className="scale-75"
+          />
+          <span className={cn(
+            "text-[10px] font-medium",
+            boolVal ? "text-emerald-600" : "text-red-500"
+          )}>
+            {boolVal ? trueLabel : falseLabel}
+          </span>
+        </div>
       );
     }
 
@@ -702,7 +742,7 @@ export function DataTable({ columns, rows, dataSourceId, loading, onRefresh, sor
         )}
 
         {/* ── Table with sticky row indices ── */}
-        <div className="flex-1 overflow-auto">
+        <div className="flex-1 overflow-auto relative">
           <table className="w-full text-sm border-collapse">
             <thead className="sticky top-0 z-10">
               <tr className="bg-muted/80 backdrop-blur-sm">
@@ -719,7 +759,7 @@ export function DataTable({ columns, rows, dataSourceId, loading, onRefresh, sor
                   #
                 </th>
                 {/* Data columns */}
-                {visibleColumns.map(col => {
+                {sortedVisibleColumns.map(col => {
                   const isSorted = sortConfig?.columnSlug === col.slug;
                   return (
                     <th key={col.id} className="px-0 py-0 text-left text-xs font-medium text-muted-foreground border-b border-border min-w-[140px]">
@@ -986,7 +1026,7 @@ export function DataTable({ columns, rows, dataSourceId, loading, onRefresh, sor
                       {rowNum}
                     </td>
                     {/* Data cells */}
-                    {visibleColumns.map(col => {
+                    {sortedVisibleColumns.map(col => {
                       const cellKey = `${row.id}-${col.slug}`;
                       const isEditing = editingCell === cellKey;
                       const isCellSelected = selectedCells.has(cellKey);
@@ -1081,6 +1121,18 @@ export function DataTable({ columns, rows, dataSourceId, loading, onRefresh, sor
               })}
             </tbody>
           </table>
+
+          {/* Floating "+" add column button — always visible during scroll */}
+          <button
+            className="absolute bottom-4 right-4 z-30 w-10 h-10 rounded-full shadow-lg bg-[#C9A84C] hover:bg-[#C9A84C]/90 text-white flex items-center justify-center transition-transform hover:scale-110"
+            onClick={() => {
+              if (onAddColumn) onAddColumn();
+              else { setEditingColumn(null); setShowColumnEditor(true); }
+            }}
+            title="Ajouter une colonne"
+          >
+            <Plus className="w-5 h-5" />
+          </button>
         </div>
 
         {/* ── Footer: pagination + add row ── */}

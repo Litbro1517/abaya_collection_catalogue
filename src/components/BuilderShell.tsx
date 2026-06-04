@@ -309,7 +309,7 @@ export function BuilderShell() {
       <div className="flex-1 flex overflow-hidden">
         {/* Left sidebar - Pillar selector */}
         <aside className={cn(
-          'border-r border-border bg-card flex flex-col items-center py-3 gap-1 shrink-0 transition-all duration-200',
+          'border-r border-border bg-card flex flex-col items-center py-3 gap-1 shrink-0 transition-all duration-300 ease-in-out',
           sidebarCollapsed ? 'w-14' : 'w-16'
         )}>
           {/* Dashboard button at top */}
@@ -317,10 +317,14 @@ export function BuilderShell() {
             <TooltipTrigger asChild>
               <button
                 onClick={() => setView('dashboard')}
+                title="Retour au Dashboard"
                 className="w-11 h-11 rounded-xl flex flex-col items-center justify-center gap-0.5 transition-all text-muted-foreground hover:bg-muted hover:text-foreground"
               >
                 <LayoutDashboard className="w-5 h-5" />
-                <span className="text-[9px] leading-none">Dashboard</span>
+                <span className={cn(
+                  "text-[9px] leading-none transition-opacity duration-200",
+                  sidebarCollapsed ? "opacity-0 w-0 overflow-hidden" : "opacity-100"
+                )}>Dashboard</span>
               </button>
             </TooltipTrigger>
             <TooltipContent side="right">Retour au Dashboard</TooltipContent>
@@ -333,6 +337,7 @@ export function BuilderShell() {
               <TooltipTrigger asChild>
                 <button
                   onClick={() => setPillar(p.id)}
+                  title={p.label}
                   className={cn(
                     'w-11 h-11 rounded-xl flex flex-col items-center justify-center gap-0.5 transition-all',
                     pillar === p.id
@@ -341,12 +346,26 @@ export function BuilderShell() {
                   )}
                 >
                   <p.icon className="w-5 h-5" />
-                  <span className="text-[9px] leading-none">{p.label}</span>
+                  <span className={cn(
+                    "text-[9px] leading-none transition-opacity duration-200",
+                    sidebarCollapsed ? "opacity-0 w-0 overflow-hidden" : "opacity-100"
+                  )}>{p.label}</span>
                 </button>
               </TooltipTrigger>
               <TooltipContent side="right">{p.label}</TooltipContent>
             </Tooltip>
           ))}
+
+          {/* Spacer */}
+          <div className="flex-1" />
+
+          {/* ABAYA branding at bottom */}
+          <div className={cn(
+            "text-[9px] font-bold tracking-[0.2em] text-muted-foreground/40 transition-opacity duration-300",
+            sidebarCollapsed ? "opacity-0" : "opacity-100"
+          )}>
+            ABAYA
+          </div>
         </aside>
 
         {/* Pillar content */}

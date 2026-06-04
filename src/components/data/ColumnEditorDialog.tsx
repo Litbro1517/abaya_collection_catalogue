@@ -17,27 +17,54 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
 import { COLUMN_TYPE_OPTIONS } from '@/types';
 import type { Column, ColumnType, ColumnConfig, Row } from '@/types';
+import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 import {
   X, Plus, Type, Hash, Banknote, Image as ImageIcon, Images,
-  ChevronDown, ListChecks, Link2, Layers, ToggleRight, ExternalLink,
+  ChevronDown, ChevronRight, ListChecks, Link2, Layers, ToggleRight, ExternalLink,
   Pencil, Trash2, Check, GripVertical, Database, Eye, EyeOff,
-  Upload, Globe, FileSpreadsheet, AlertTriangle,
+  Upload, Globe, FileSpreadsheet, AlertTriangle, Activity,
 } from 'lucide-react';
 
+// DB type mapping for each column type
+const DB_TYPE_MAP: Record<ColumnType, string> = {
+  TEXT: 'VARCHAR',
+  NUMBER: 'NUMERIC',
+  CURRENCY: 'DECIMAL(10,2)',
+  IMAGE: 'TEXT',
+  IMAGE_ARRAY: 'JSONB',
+  SELECT: 'VARCHAR + options',
+  MULTI_SELECT: 'JSONB + options',
+  RELATION: 'FOREIGN KEY',
+  ARRAY: 'JSONB',
+  BOOLEAN: 'BOOLEAN',
+  URL: 'TEXT',
+  STATUS: 'SPECIAL',
+};
+
 // Visual column type config
-const COLUMN_TYPES: { value: ColumnType; label: string; description: string; icon: React.ReactNode; color: string }[] = [
-  { value: 'TEXT', label: 'Texte', description: 'Texte simple, une ligne', icon: <Type className="w-4 h-4" />, color: 'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300' },
-  { value: 'NUMBER', label: 'Nombre', description: 'Valeur numérique', icon: <Hash className="w-4 h-4" />, color: 'bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300' },
-  { value: 'CURRENCY', label: 'Prix', description: 'Valeur monétaire', icon: <Banknote className="w-4 h-4" />, color: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900 dark:text-emerald-300' },
-  { value: 'IMAGE', label: 'Image', description: 'URL d\'une image', icon: <ImageIcon className="w-4 h-4" />, color: 'bg-purple-100 text-purple-700 dark:bg-purple-900 dark:text-purple-300' },
-  { value: 'IMAGE_ARRAY', label: 'Galerie', description: 'Plusieurs images (JSON ou URLs)', icon: <Images className="w-4 h-4" />, color: 'bg-pink-100 text-pink-700 dark:bg-pink-900 dark:text-pink-300' },
-  { value: 'SELECT', label: 'Sélection', description: 'Choix unique parmi des options', icon: <ChevronDown className="w-4 h-4" />, color: 'bg-amber-100 text-amber-700 dark:bg-amber-900 dark:text-amber-300' },
-  { value: 'MULTI_SELECT', label: 'Multi-sélection', description: 'Plusieurs choix possibles', icon: <ListChecks className="w-4 h-4" />, color: 'bg-orange-100 text-orange-700 dark:bg-orange-900 dark:text-orange-300' },
-  { value: 'RELATION', label: 'Relation', description: 'Lien vers une autre table', icon: <Link2 className="w-4 h-4" />, color: 'bg-cyan-100 text-cyan-700 dark:bg-cyan-900 dark:text-cyan-300' },
-  { value: 'ARRAY', label: 'Groupe', description: 'Regroupement de colonnes', icon: <Layers className="w-4 h-4" />, color: 'bg-indigo-100 text-indigo-700 dark:bg-indigo-900 dark:text-indigo-300' },
-  { value: 'BOOLEAN', label: 'Oui/Non', description: 'Valeur vrai ou faux', icon: <ToggleRight className="w-4 h-4" />, color: 'bg-teal-100 text-teal-700 dark:bg-teal-900 dark:text-teal-300' },
-  { value: 'URL', label: 'Lien', description: 'URL ou lien externe', icon: <ExternalLink className="w-4 h-4" />, color: 'bg-rose-100 text-rose-700 dark:bg-rose-900 dark:text-rose-300' },
+const COLUMN_TYPES: { value: ColumnType; label: string; description: string; icon: React.ReactNode; color: string; dbType: string }[] = [
+  { value: 'TEXT', label: 'Texte', description: 'Texte simple, une ligne', icon: <Type className="w-4 h-4" />, color: 'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300', dbType: DB_TYPE_MAP.TEXT },
+  { value: 'NUMBER', label: 'Nombre', description: 'Valeur numérique', icon: <Hash className="w-4 h-4" />, color: 'bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300', dbType: DB_TYPE_MAP.NUMBER },
+  { value: 'CURRENCY', label: 'Prix', description: 'Valeur monétaire', icon: <Banknote className="w-4 h-4" />, color: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900 dark:text-emerald-300', dbType: DB_TYPE_MAP.CURRENCY },
+  { value: 'IMAGE', label: 'Image', description: 'URL d\'une image', icon: <ImageIcon className="w-4 h-4" />, color: 'bg-purple-100 text-purple-700 dark:bg-purple-900 dark:text-purple-300', dbType: DB_TYPE_MAP.IMAGE },
+  { value: 'IMAGE_ARRAY', label: 'Galerie', description: 'Plusieurs images (JSON ou URLs)', icon: <Images className="w-4 h-4" />, color: 'bg-pink-100 text-pink-700 dark:bg-pink-900 dark:text-pink-300', dbType: DB_TYPE_MAP.IMAGE_ARRAY },
+  { value: 'SELECT', label: 'Sélection', description: 'Choix unique parmi des options', icon: <ChevronDown className="w-4 h-4" />, color: 'bg-amber-100 text-amber-700 dark:bg-amber-900 dark:text-amber-300', dbType: DB_TYPE_MAP.SELECT },
+  { value: 'MULTI_SELECT', label: 'Multi-sélection', description: 'Plusieurs choix possibles', icon: <ListChecks className="w-4 h-4" />, color: 'bg-orange-100 text-orange-700 dark:bg-orange-900 dark:text-orange-300', dbType: DB_TYPE_MAP.MULTI_SELECT },
+  { value: 'BOOLEAN', label: 'Oui/Non', description: 'Valeur vrai ou faux', icon: <ToggleRight className="w-4 h-4" />, color: 'bg-teal-100 text-teal-700 dark:bg-teal-900 dark:text-teal-300', dbType: DB_TYPE_MAP.BOOLEAN },
+  { value: 'RELATION', label: 'Relation', description: 'Lien vers une autre table', icon: <Link2 className="w-4 h-4" />, color: 'bg-cyan-100 text-cyan-700 dark:bg-cyan-900 dark:text-cyan-300', dbType: DB_TYPE_MAP.RELATION },
+  { value: 'ARRAY', label: 'Groupe', description: 'Regroupement de colonnes', icon: <Layers className="w-4 h-4" />, color: 'bg-indigo-100 text-indigo-700 dark:bg-indigo-900 dark:text-indigo-300', dbType: DB_TYPE_MAP.ARRAY },
+  { value: 'URL', label: 'Lien', description: 'URL ou lien externe', icon: <ExternalLink className="w-4 h-4" />, color: 'bg-rose-100 text-rose-700 dark:bg-rose-900 dark:text-rose-300', dbType: DB_TYPE_MAP.URL },
+  { value: 'STATUS', label: 'Statut', description: 'Statut avec verrouillage', icon: <Activity className="w-4 h-4" />, color: 'bg-amber-100 text-amber-700 dark:bg-amber-900 dark:text-amber-300', dbType: DB_TYPE_MAP.STATUS },
+];
+
+// Category grouping for the type selector
+const TYPE_CATEGORIES: { label: string; types: ColumnType[] }[] = [
+  { label: 'Texte', types: ['TEXT', 'URL'] },
+  { label: 'Numérique', types: ['NUMBER', 'CURRENCY'] },
+  { label: 'Média', types: ['IMAGE', 'IMAGE_ARRAY'] },
+  { label: 'Sélection', types: ['SELECT', 'MULTI_SELECT', 'BOOLEAN'] },
+  { label: 'Structure', types: ['RELATION', 'ARRAY', 'STATUS'] },
 ];
 
 type DataSourceType = 'manual' | 'googlesheet' | 'url' | 'column';
@@ -84,6 +111,10 @@ export function ColumnEditorDialog({ open, onOpenChange, dataSourceId, columns, 
   const [editingCellValues, setEditingCellValues] = useState<Record<string, string>>({});
   const [hasDataChanges, setHasDataChanges] = useState(false);
 
+  // Type selector expand/collapse state
+  const [typeSelectorOpen, setTypeSelectorOpen] = useState(true);
+  const [expandedCategories, setExpandedCategories] = useState<Set<string>>(new Set(['Texte', 'Numérique', 'Média', 'Sélection', 'Structure']));
+
   // Reset form when dialog opens
   useEffect(() => {
     if (open) {
@@ -114,6 +145,8 @@ export function ColumnEditorDialog({ open, onOpenChange, dataSourceId, columns, 
       setEditingCellValues({});
       setHasDataChanges(false);
       setShowTypeChangeDialog(false);
+      setTypeSelectorOpen(true);
+      setExpandedCategories(new Set(['Texte', 'Numérique', 'Média', 'Sélection', 'Structure']));
     }
   }, [open, editingColumn]);
 
@@ -303,33 +336,105 @@ export function ColumnEditorDialog({ open, onOpenChange, dataSourceId, columns, 
                   )}
                 </div>
 
-                {/* Column Type - Visual Selector */}
+                {/* Column Type - Category-based Selector with DB mapping */}
                 <div>
                   <Label className="mb-2 text-sm font-medium">Type de colonne</Label>
-                  <div className="grid grid-cols-2 gap-2">
-                    {COLUMN_TYPES.map(ct => (
-                      <button
-                        key={ct.value}
-                        type="button"
-                        className={`
-                          flex items-start gap-2.5 p-2.5 rounded-lg border-2 transition-all text-left
-                          ${type === ct.value
-                            ? 'border-primary bg-primary/5 shadow-sm'
-                            : 'border-border hover:border-primary/30 hover:bg-muted/50'
-                          }
-                        `}
-                        onClick={() => setType(ct.value)}
-                      >
-                        <div className={`w-7 h-7 rounded-md flex items-center justify-center shrink-0 ${ct.color}`}>
-                          {ct.icon}
-                        </div>
-                        <div className="min-w-0">
-                          <p className="text-xs font-medium leading-tight">{ct.label}</p>
-                          <p className="text-[10px] text-muted-foreground leading-tight mt-0.5">{ct.description}</p>
-                        </div>
-                      </button>
-                    ))}
-                  </div>
+                  {/* Current type badge — clickable to toggle the selector */}
+                  <button
+                    type="button"
+                    className="w-full flex items-center justify-between p-2.5 rounded-lg border-2 border-primary/30 bg-primary/5 hover:bg-primary/10 transition-colors mb-2"
+                    onClick={() => setTypeSelectorOpen(!typeSelectorOpen)}
+                  >
+                    <div className="flex items-center gap-2.5">
+                      {(() => {
+                        const ct = COLUMN_TYPES.find(c => c.value === type);
+                        return ct ? (
+                          <>
+                            <div className={`w-7 h-7 rounded-md flex items-center justify-center shrink-0 ${ct.color}`}>
+                              {ct.icon}
+                            </div>
+                            <div className="min-w-0 text-left">
+                              <p className="text-xs font-medium leading-tight">{ct.label}</p>
+                              <p className="text-[10px] text-muted-foreground leading-tight">→ {ct.dbType}</p>
+                            </div>
+                          </>
+                        ) : null;
+                      })()}
+                    </div>
+                    <div className="flex items-center gap-1.5">
+                      <Badge variant="secondary" className="text-[9px] gap-0.5">
+                        <Check className="w-2.5 h-2.5" /> Sélectionné
+                      </Badge>
+                      <ChevronRight className={cn("w-4 h-4 text-muted-foreground transition-transform duration-200", typeSelectorOpen && "rotate-90")} />
+                    </div>
+                  </button>
+                  {/* Category-based type list */}
+                  {typeSelectorOpen && (
+                    <div className="space-y-1 border rounded-lg p-1.5">
+                      {TYPE_CATEGORIES.map(cat => {
+                        const isExpanded = expandedCategories.has(cat.label);
+                        return (
+                          <div key={cat.label}>
+                            <button
+                              type="button"
+                              className="w-full flex items-center gap-2 px-2 py-1.5 rounded-md hover:bg-muted/60 transition-colors text-left"
+                              onClick={() => {
+                                const next = new Set(expandedCategories);
+                                if (next.has(cat.label)) next.delete(cat.label); else next.add(cat.label);
+                                setExpandedCategories(next);
+                              }}
+                            >
+                              {isExpanded ? (
+                                <ChevronDown className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
+                              ) : (
+                                <ChevronRight className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
+                              )}
+                              <span className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">{cat.label}</span>
+                            </button>
+                            {isExpanded && (
+                              <div className="ml-2 space-y-0.5 mt-0.5 mb-1">
+                                {cat.types.map(typeVal => {
+                                  const ct = COLUMN_TYPES.find(c => c.value === typeVal);
+                                  if (!ct) return null;
+                                  const isSelected = type === ct.value;
+                                  return (
+                                    <button
+                                      key={ct.value}
+                                      type="button"
+                                      className={`
+                                        w-full flex items-center gap-2.5 p-2 rounded-lg border-2 transition-all text-left
+                                        ${isSelected
+                                          ? 'border-primary bg-primary/5 shadow-sm'
+                                          : 'border-transparent hover:border-primary/20 hover:bg-muted/50'
+                                        }
+                                      `}
+                                      onClick={() => setType(ct.value)}
+                                    >
+                                      <div className={`w-6 h-6 rounded-md flex items-center justify-center shrink-0 ${ct.color}`}>
+                                        {ct.icon}
+                                      </div>
+                                      <div className="flex-1 min-w-0">
+                                        <div className="flex items-center gap-1.5">
+                                          <p className="text-xs font-medium leading-tight">{ct.label}</p>
+                                          <span className="text-[9px] text-muted-foreground/70 font-mono">→ {ct.dbType}</span>
+                                        </div>
+                                        <p className="text-[10px] text-muted-foreground leading-tight mt-0.5">{ct.description}</p>
+                                      </div>
+                                      {isSelected && (
+                                        <Badge variant="secondary" className="text-[8px] gap-0.5 shrink-0">
+                                          <Check className="w-2.5 h-2.5" /> Sélectionné
+                                        </Badge>
+                                      )}
+                                    </button>
+                                  );
+                                })}
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
                 </div>
 
                 <Separator />
