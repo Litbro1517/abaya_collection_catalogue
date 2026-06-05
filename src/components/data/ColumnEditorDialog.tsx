@@ -111,9 +111,22 @@ export function ColumnEditorDialog({ open, onOpenChange, dataSourceId, columns, 
   const [editingCellValues, setEditingCellValues] = useState<Record<string, string>>({});
   const [hasDataChanges, setHasDataChanges] = useState(false);
 
-  // Type selector expand/collapse state
-  const [typeSelectorOpen, setTypeSelectorOpen] = useState(true);
-  const [expandedCategories, setExpandedCategories] = useState<Set<string>>(new Set(['Texte', 'Numérique', 'Média', 'Sélection', 'Structure']));
+  // Type selector dropdown state
+  const [typeDropdownOpen, setTypeDropdownOpen] = useState(false);
+  const [expandedCategory, setExpandedCategory] = useState<string | null>(null);
+
+  // Close dropdown on outside click
+  useEffect(() => {
+    if (!typeDropdownOpen) return;
+    const handler = (e: MouseEvent) => {
+      const target = e.target as HTMLElement;
+      if (!target.closest('[data-type-dropdown]')) {
+        setTypeDropdownOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, [typeDropdownOpen]);
 
   // Reset form when dialog opens
   useEffect(() => {
@@ -145,8 +158,8 @@ export function ColumnEditorDialog({ open, onOpenChange, dataSourceId, columns, 
       setEditingCellValues({});
       setHasDataChanges(false);
       setShowTypeChangeDialog(false);
-      setTypeSelectorOpen(true);
-      setExpandedCategories(new Set(['Texte', 'Numérique', 'Média', 'Sélection', 'Structure']));
+      setTypeDropdownOpen(false);
+      setExpandedCategory(null);
     }
   }, [open, editingColumn]);
 
@@ -336,103 +349,88 @@ export function ColumnEditorDialog({ open, onOpenChange, dataSourceId, columns, 
                   )}
                 </div>
 
-                {/* Column Type - Category-based Selector with DB mapping */}
-                <div>
-                  <Label className="mb-2 text-sm font-medium">Type de colonne</Label>
-                  {/* Current type badge — clickable to toggle the selector */}
+                {/* Column Type — Clean dropdown selector with DB mapping */}
+                <div className="relative" data-type-dropdown>
+                  <Label className="mb-1.5 text-sm font-medium">Type de colonne</Label>
+                  {/* Dropdown trigger */}
                   <button
                     type="button"
-                    className="w-full flex items-center justify-between p-2.5 rounded-lg border-2 border-primary/30 bg-primary/5 hover:bg-primary/10 transition-colors mb-2"
-                    onClick={() => setTypeSelectorOpen(!typeSelectorOpen)}
+                    className="w-full flex items-center justify-between h-9 px-3 rounded-md border border-[#C9A84C]/40 bg-background text-sm hover:border-[#C9A84C]/70 focus:outline-none focus:ring-1 focus:ring-[#C9A84C]/50 transition-colors"
+                    onClick={() => setTypeDropdownOpen(!typeDropdownOpen)}
                   >
-                    <div className="flex items-center gap-2.5">
+                    <div className="flex items-center gap-2">
                       {(() => {
                         const ct = COLUMN_TYPES.find(c => c.value === type);
                         return ct ? (
                           <>
-                            <div className={`w-7 h-7 rounded-md flex items-center justify-center shrink-0 ${ct.color}`}>
-                              {ct.icon}
-                            </div>
-                            <div className="min-w-0 text-left">
-                              <p className="text-xs font-medium leading-tight">{ct.label}</p>
-                              <p className="text-[10px] text-muted-foreground leading-tight">→ {ct.dbType}</p>
-                            </div>
+                            <span className="text-[#C9A84C]">{ct.icon}</span>
+                            <span className="text-foreground">{ct.label}</span>
+                            <span className="text-muted-foreground text-xs">({ct.dbType})</span>
                           </>
                         ) : null;
                       })()}
                     </div>
-                    <div className="flex items-center gap-1.5">
-                      <Badge variant="secondary" className="text-[9px] gap-0.5">
-                        <Check className="w-2.5 h-2.5" /> Sélectionné
-                      </Badge>
-                      <ChevronRight className={cn("w-4 h-4 text-muted-foreground transition-transform duration-200", typeSelectorOpen && "rotate-90")} />
-                    </div>
+                    <ChevronDown className={cn("w-4 h-4 text-muted-foreground transition-transform duration-200", typeDropdownOpen && "rotate-180")} />
                   </button>
-                  {/* Category-based type list */}
-                  {typeSelectorOpen && (
-                    <div className="space-y-1 border rounded-lg p-1.5">
-                      {TYPE_CATEGORIES.map(cat => {
-                        const isExpanded = expandedCategories.has(cat.label);
-                        return (
-                          <div key={cat.label}>
+
+                  {/* Dropdown menu */}
+                  {typeDropdownOpen && (
+                    <div className="absolute z-50 mt-1 w-full rounded-md border border-[#C9A84C]/30 bg-popover shadow-md animate-in fade-in-0 zoom-in-95">
+                      {TYPE_CATEGORIES.map((cat, catIdx) => (
+                        <div key={cat.label}>
+                          {/* Category header with chevron */}
+                          <button
+                            type="button"
+                            className="w-full flex items-center justify-between px-3 py-1.5 text-[11px] font-semibold text-muted-foreground uppercase tracking-wider hover:bg-muted/50 transition-colors"
+                            onClick={() => setExpandedCategory(expandedCategory === cat.label ? null : cat.label)}
+                          >
+                            <span>{cat.label}</span>
+                            <ChevronRight className={cn("w-3 h-3 transition-transform duration-200", expandedCategory === cat.label && "rotate-90")} />
+                          </button>
+                          {/* Type items */}
+                          {(expandedCategory === cat.label ? cat.types : cat.types).map(typeVal => {
+                            const ct = COLUMN_TYPES.find(c => c.value === typeVal);
+                            if (!ct) return null;
+                            const isSelected = type === ct.value;
+                            const isHidden = expandedCategory !== cat.label && cat.types.length > 1;
+                            if (isHidden) return null;
+                            return (
+                              <button
+                                key={ct.value}
+                                type="button"
+                                className={cn(
+                                  "w-full flex items-center gap-2 px-3 py-1.5 text-sm transition-colors",
+                                  isSelected
+                                    ? "bg-[#1A3C34] text-white"
+                                    : "hover:bg-muted/60 text-foreground"
+                                )}
+                                onClick={() => {
+                                  setType(ct.value);
+                                  setTypeDropdownOpen(false);
+                                }}
+                              >
+                                <span className={isSelected ? "text-[#C9A84C]" : "text-[#C9A84C]/70"}>{ct.icon}</span>
+                                <span>{ct.label}</span>
+                                <span className={cn("text-xs ml-auto font-mono", isSelected ? "text-white/60" : "text-muted-foreground")}>({ct.value})</span>
+                              </button>
+                            );
+                          })}
+                          {/* When collapsed, show count indicator */}
+                          {expandedCategory !== cat.label && cat.types.length > 1 && (
                             <button
                               type="button"
-                              className="w-full flex items-center gap-2 px-2 py-1.5 rounded-md hover:bg-muted/60 transition-colors text-left"
-                              onClick={() => {
-                                const next = new Set(expandedCategories);
-                                if (next.has(cat.label)) next.delete(cat.label); else next.add(cat.label);
-                                setExpandedCategories(next);
-                              }}
+                              className="w-full flex items-center gap-2 px-3 py-1 text-xs text-muted-foreground hover:bg-muted/40 transition-colors"
+                              onClick={() => setExpandedCategory(cat.label)}
                             >
-                              {isExpanded ? (
-                                <ChevronDown className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
-                              ) : (
-                                <ChevronRight className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
-                              )}
-                              <span className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">{cat.label}</span>
+                              <ChevronRight className="w-3 h-3 text-[#C9A84C]/60" />
+                              <span>{cat.types.length} types…</span>
                             </button>
-                            {isExpanded && (
-                              <div className="ml-2 space-y-0.5 mt-0.5 mb-1">
-                                {cat.types.map(typeVal => {
-                                  const ct = COLUMN_TYPES.find(c => c.value === typeVal);
-                                  if (!ct) return null;
-                                  const isSelected = type === ct.value;
-                                  return (
-                                    <button
-                                      key={ct.value}
-                                      type="button"
-                                      className={`
-                                        w-full flex items-center gap-2.5 p-2 rounded-lg border-2 transition-all text-left
-                                        ${isSelected
-                                          ? 'border-primary bg-primary/5 shadow-sm'
-                                          : 'border-transparent hover:border-primary/20 hover:bg-muted/50'
-                                        }
-                                      `}
-                                      onClick={() => setType(ct.value)}
-                                    >
-                                      <div className={`w-6 h-6 rounded-md flex items-center justify-center shrink-0 ${ct.color}`}>
-                                        {ct.icon}
-                                      </div>
-                                      <div className="flex-1 min-w-0">
-                                        <div className="flex items-center gap-1.5">
-                                          <p className="text-xs font-medium leading-tight">{ct.label}</p>
-                                          <span className="text-[9px] text-muted-foreground/70 font-mono">→ {ct.dbType}</span>
-                                        </div>
-                                        <p className="text-[10px] text-muted-foreground leading-tight mt-0.5">{ct.description}</p>
-                                      </div>
-                                      {isSelected && (
-                                        <Badge variant="secondary" className="text-[8px] gap-0.5 shrink-0">
-                                          <Check className="w-2.5 h-2.5" /> Sélectionné
-                                        </Badge>
-                                      )}
-                                    </button>
-                                  );
-                                })}
-                              </div>
-                            )}
-                          </div>
-                        );
-                      })}
+                          )}
+                          {catIdx < TYPE_CATEGORIES.length - 1 && (
+                            <div className="mx-2 border-t border-border/50" />
+                          )}
+                        </div>
+                      ))}
                     </div>
                   )}
                 </div>
