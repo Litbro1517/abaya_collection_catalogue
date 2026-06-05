@@ -37,7 +37,7 @@ import {
   Trash2, Pencil, MoreVertical, Search, Filter, ArrowUpDown,
   ArrowUp, ArrowDown, X, Type, Hash, Banknote, Image as ImageIcon, Images,
   ChevronDown, ListChecks, Layers, ToggleRight, ExternalLink, Link2 as LinkIcon,
-  Clock, Calendar, ChevronRight, Minus, Activity, ArrowRightLeft,
+  Clock, Calendar, ChevronRight, Minus, Activity, ArrowRightLeft, Loader2,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
@@ -591,23 +591,20 @@ export function DataPillar() {
   };
 
   /**
-   * ━━━ DELTA SYNC — "Synchroniser" dropdown button handler ━━━
-   * Uses delta reconciliation: only inserts missing rows by "#" column
+   * ━━━ DELTA SYNC PER TABLE — RefreshCw button on each table ━━━
+   * Uses delta reconciliation: only inserts missing rows by "N ordre" column
    * Auto-initializes: Statut="Courant", Disponibilité=OFF, Visibilité=Visible
    * NEVER overwrites existing data
+   * STRICT ISOLATION: only syncs the specific table, never touches others
    */
-  const handleSyncGoogleSheet = async () => {
-    if (!activeDataSourceId) return;
-    const ds = dataSources.find(d => d.id === activeDataSourceId);
-    if (!ds?.sheetId) return;
-
+  const handleSyncTable = async (dsId: string, sheetId: string, dsName: string) => {
     setSyncStatus('syncing');
-    setSyncMessage('Synchronisation Delta en cours...');
+    setSyncMessage(`Sync Delta "${dsName}" en cours...`);
     try {
       const res = await fetch('/api/google/sync', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ sheetId: ds.sheetId, dataSourceId: ds.id, mode: 'delta' }),
+        body: JSON.stringify({ sheetId, dataSourceId: dsId, mode: 'delta' }),
       });
       if (res.ok) {
         const json = await res.json();
@@ -615,25 +612,28 @@ export function DataPillar() {
         setSyncStatus('success');
 
         if (data.rowsCreated > 0) {
-          setSyncMessage(`Delta: ${data.rowsCreated} nouveau(x) produit(s) ajouté(s), ${data.rowsSkipped} existant(s) préservé(s)`);
-          toast.success(`Synchronisation Delta: ${data.rowsCreated} nouveau(x) produit(s)`, {
+          setSyncMessage(`"${dsName}": ${data.rowsCreated} nouveau(x) produit(s) ajouté(s), ${data.rowsSkipped} existant(s) préservé(s)`);
+          toast.success(`"${dsName}": ${data.rowsCreated} nouveau(x) produit(s)`, {
             description: `Statut=Courant · Disponibilité=Épuisé · Visibilité=Visible 👁️`,
           });
         } else {
-          setSyncMessage('Catalogue à jour — aucun nouveau produit');
-          toast.info('Catalogue à jour', {
+          setSyncMessage(`"${dsName}": catalogue à jour`);
+          toast.info(`"${dsName}" à jour`, {
             description: 'Aucun nouveau produit à ajouter depuis Google Sheets',
           });
         }
 
-        loadDataSourceData();
+        // Reload data for the currently active table (only if it's the one we synced)
+        if (activeDataSourceId === dsId) {
+          loadDataSourceData();
+        }
         loadDataSources();
         setTimeout(() => setSyncStatus('idle'), 3000);
       } else {
         const json = await res.json();
         setSyncStatus('error');
         setSyncMessage(json.error || 'Erreur de synchronisation');
-        toast.error(json.error || 'Erreur de synchronisation Delta');
+        toast.error(`Erreur sync "${dsName}": ${json.error || 'Erreur'}`);
         setTimeout(() => setSyncStatus('idle'), 5000);
       }
     } catch {
@@ -642,6 +642,15 @@ export function DataPillar() {
       toast.error('Erreur de connexion');
       setTimeout(() => setSyncStatus('idle'), 5000);
     }
+  };
+
+  // Track which table is currently syncing (for per-table spinner)
+  const [syncingTableId, setSyncingTableId] = useState<string | null>(null);
+
+  const handleSyncTableClick = async (dsId: string, sheetId: string, dsName: string) => {
+    setSyncingTableId(dsId);
+    await handleSyncTable(dsId, sheetId, dsName);
+    setSyncingTableId(null);
   };
 
   const handleManualUrlImport = async () => {
@@ -787,6 +796,30 @@ export function DataPillar() {
                     {(ds as DataSource & { columnCount?: number; rowCount?: number }).rowCount ?? 0} lignes
                   </p>
                 </div>
+                {/* ━━━ Per-table DELTA SYNC button (RefreshCw) ━━━ */}
+                {ds.sheetId && (
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className={cn(
+                      "h-6 w-6 shrink-0 transition-all",
+                      syncingTableId === ds.id
+                        ? "opacity-100 text-[#C9A84C]"
+                        : "opacity-0 group-hover:opacity-100 text-[#C9A84C] hover:text-[#C9A84C]/80 hover:bg-[#C9A84C]/10"
+                    )}
+                    disabled={syncingTableId !== null}
+                    onClick={(e) => {
+                      e.stopPropagation(); // Don't select the table when clicking sync
+                      handleSyncTableClick(ds.id, ds.sheetId!, ds.name);
+                    }}
+                    title={`Synchronisation Delta — "${ds.name}" — Ajouter les nouveaux produits uniquement`}
+                  >
+                    {syncingTableId === ds.id
+                      ? <Loader2 className="w-3 h-3 animate-spin" />
+                      : <RefreshCw className="w-3 h-3" />
+                    }
+                  </Button>
+                )}
                 {/* Delete table button */}
                 <AlertDialog>
                   <AlertDialogTrigger asChild>
@@ -874,9 +907,12 @@ export function DataPillar() {
                   <DropdownMenuItem onClick={handleExport}>
                     <Download className="w-3.5 h-3.5 mr-2" /> Exporter CSV
                   </DropdownMenuItem>
-                  {hasGoogleSheet && (
-                    <DropdownMenuItem onClick={handleSyncGoogleSheet}>
-                      <RefreshCw className="w-3.5 h-3.5 mr-2" /> Synchroniser
+                  {hasGoogleSheet && activeDs.sheetId && (
+                    <DropdownMenuItem
+                      onClick={() => handleSyncTableClick(activeDs.id, activeDs.sheetId!, activeDs.name)}
+                      disabled={syncingTableId !== null}
+                    >
+                      <RefreshCw className="w-3.5 h-3.5 mr-2" /> Synchroniser (Delta)
                     </DropdownMenuItem>
                   )}
                   <DropdownMenuSeparator />
