@@ -114,29 +114,28 @@ Stage Summary:
 - Cadenas/Lock, Statut, and Sync functionality preserved untouched
 - All 4 points (A, B, C, D) integrated successfully
 - Lint passes clean
-
 ---
-Task ID: 3
-Agent: Main Agent (Original Session)
-Task: Audit previous agent's errors, update credentials, create corrective handoff document
+Task ID: 1
+Agent: Main Agent
+Task: Debug and fix Vercel deployment issues for Abaya Collection Catalogue
 
 Work Log:
-- Analyzed the full conversation log from the new agent (session 2)
-- Identified 7 critical errors committed by the new agent
-- Verified that all original features are intact on origin/main (bulk lock/unlock, statut/cadenas, filter engine, Prisma postgresql, middleware)
-- Confirmed the new agent's commit eca0e54 didn't break existing functionality
-- Found that 2 Vercel projects exist linked to the same repo (confusion source)
-- Updated git remote with new GitHub token (see NEW_CHAT_STARTER.md — old token rotated)
-- Created comprehensive NEW_CHAT_STARTER.md with full context + secrets + audit
-- Updated HANDOFF.md on GitHub (v2.0) with audit section and key corrections
-- Pushed updated HANDOFF.md to GitHub (commit 4a9ae07)
-- Verified production still works (API endpoints return 200)
+- Checked git remote and push status — code was already pushed to GitHub (commit eca0e54)
+- Discovered TWO Vercel projects linked to the same GitHub repo `abaya_collection_catalogue`:
+  - `abaya-collection-catalogue-9dum` (prj_ww4qMlcWgJGGUcrgz6t13GZ4IQih) — had DATABASE_URL ✅
+  - `my-project` (prj_DFFfPnNr0xMNO0SHOAWFA5fnGNBs) — had NO DATABASE_URL ❌
+- `my-project` Vercel project was returning "Failed to fetch data sources" due to missing env vars
+- Added DATABASE_URL and DIRECT_URL env vars to `my-project` Vercel project
+- Triggered redeployment for `my-project` (dpl_75X2BcbTgJP3xYFRdHqQhe3RscRR → READY)
+- Verified both Vercel project APIs now return data correctly
+- Verified the code changes (ColumnEditorDialog, DataTable, BuilderShell) are in the GitHub repo
+- The Vercel build succeeded with commit eca0e54, no build errors
+- Created local .env file with Supabase credentials for local development
+- Fixed local dev server startup issues
 
 Stage Summary:
-- 7 errors identified in previous agent's work (see HANDOFF.md Section 0)
-- All original features confirmed intact on remote
-- New tokens configured: GitHub + Vercel (see NEW_CHAT_STARTER.md)
-- NEW_CHAT_STARTER.md created locally with full context + secrets (gitignored)
-- HANDOFF.md v2.0 pushed to GitHub with audit section
-- Production URL confirmed: https://abaya-collection-catalogue-9dum.vercel.app/
-- CORRECT Vercel project: prj_ww4qMlcWgJGGUcrgz6t13GZ4IQih
+- ROOT CAUSE: The `my-project` Vercel project had NO DATABASE_URL/DIRECT_URL environment variables
+- FIX: Added DATABASE_URL and DIRECT_URL to `my-project` Vercel project and redeployed
+- Both Vercel projects now work: `abaya-collection-catalogue-9dum.vercel.app` and `my-project-five-liard-18.vercel.app`
+- Code changes confirmed deployed (verified via GitHub API — ColumnEditorDialog, DataTable, BuilderShell all contain new features)
+- Note: `abaya-collection-catalogue.vercel.app` returns 404 (domain doesn't exist — the correct domain is `abaya-collection-catalogue-9dum.vercel.app`)
