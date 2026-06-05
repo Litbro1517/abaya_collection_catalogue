@@ -590,22 +590,42 @@ export function DataPillar() {
     }
   };
 
+  /**
+   * ━━━ DELTA SYNC — "Synchroniser" dropdown button handler ━━━
+   * Uses delta reconciliation: only inserts missing rows by "#" column
+   * Auto-initializes: Statut="Courant", Disponibilité=OFF, Visibilité=Visible
+   * NEVER overwrites existing data
+   */
   const handleSyncGoogleSheet = async () => {
     if (!activeDataSourceId) return;
     const ds = dataSources.find(d => d.id === activeDataSourceId);
     if (!ds?.sheetId) return;
 
     setSyncStatus('syncing');
-    setSyncMessage('Synchronisation en cours...');
+    setSyncMessage('Synchronisation Delta en cours...');
     try {
       const res = await fetch('/api/google/sync', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ sheetId: ds.sheetId, dataSourceId: ds.id }),
+        body: JSON.stringify({ sheetId: ds.sheetId, dataSourceId: ds.id, mode: 'delta' }),
       });
       if (res.ok) {
+        const json = await res.json();
+        const data = json.data;
         setSyncStatus('success');
-        setSyncMessage('Données synchronisées');
+
+        if (data.rowsCreated > 0) {
+          setSyncMessage(`Delta: ${data.rowsCreated} nouveau(x) produit(s) ajouté(s), ${data.rowsSkipped} existant(s) préservé(s)`);
+          toast.success(`Synchronisation Delta: ${data.rowsCreated} nouveau(x) produit(s)`, {
+            description: `Statut=Courant · Disponibilité=Épuisé · Visibilité=Visible 👁️`,
+          });
+        } else {
+          setSyncMessage('Catalogue à jour — aucun nouveau produit');
+          toast.info('Catalogue à jour', {
+            description: 'Aucun nouveau produit à ajouter depuis Google Sheets',
+          });
+        }
+
         loadDataSourceData();
         loadDataSources();
         setTimeout(() => setSyncStatus('idle'), 3000);
@@ -613,11 +633,13 @@ export function DataPillar() {
         const json = await res.json();
         setSyncStatus('error');
         setSyncMessage(json.error || 'Erreur de synchronisation');
+        toast.error(json.error || 'Erreur de synchronisation Delta');
         setTimeout(() => setSyncStatus('idle'), 5000);
       }
     } catch {
       setSyncStatus('error');
       setSyncMessage('Erreur de connexion');
+      toast.error('Erreur de connexion');
       setTimeout(() => setSyncStatus('idle'), 5000);
     }
   };

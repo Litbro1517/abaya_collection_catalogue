@@ -1,26 +1,39 @@
 ---
-Task ID: 3
+Task ID: 1
 Agent: Main Agent
-Task: Cancel all restorations and revert to stable commit c5d6c8a
+Task: Implement Delta Synchronization Engine & Automatic Initialization for "Importer une feuille" button
 
 Work Log:
-- Received user instruction to immediately stop all restorations (wrong version was being restored)
-- Executed `git reset --hard c5d6c8a725aa38aa1dcc945f53ef08f2f5fb0931` locally
-- Verified commit 4ffa9a5 (the erroneous restoration) was removed from local history
-- Force pushed to GitHub — remote was already up-to-date (4ffa9a5 was only local)
-- Restored .env with correct Supabase PostgreSQL URLs (from .env.supabase.backup)
-- Fixed system environment variable issue: DATABASE_URL was overridden by system env (file:/home/z/my-project/db/custom.db from previous session)
-- Created daemon.js with explicit env vars to launch Next.js dev server with correct DATABASE_URL
-- Cleared .next cache and regenerated Prisma client
-- Pushed schema to Supabase with `prisma db push` (tables recreated after previous session's db:push --accept-data-loss)
-- Verified all API endpoints work: /api/catalog returns 200, /api/datasources returns 200
-- Verified page renders correctly in browser: "Mon Catalogue" header, search bar, "Aucun produit trouvé" message (expected - DB was wiped)
-- Cleaned up leftover files from previous session (custom.db, test route, etc.)
+- Audited current codebase: DataPillar.tsx, DataTable.tsx, GoogleConnectPanel.tsx, sync API route
+- Discovered the root cause: `/api/google/sync` was doing DESTRUCTIVE full replacement (delete all rows/columns, recreate) instead of delta sync
+- Found `button[title="Importer une feuille"]` in GoogleConnectPanel.tsx (line 100) with RefreshCw icon
+- Rewrote `/api/google/sync/route.ts` with dual-branch logic:
+  - Branch 1: FULL IMPORT (first-time, no dataSourceId) — keeps existing behavior
+  - Branch 2: DELTA SYNC ENGINE (re-sync, dataSourceId provided) — NEW logic
+- Delta sync engine implements:
+  - Finds "#" column (ID Métier) by name in existing DB columns
+  - Fallback: searches for "N°", "N Ordre", "ID Métier", "Référence" columns
+  - Builds Set of existing "#" values from current catalogue rows
+  - Compares with Google Sheet rows — only inserts MISSING entries
+  - NEVER overwrites or deletes existing data
+  - Auto-initializes new rows: __statut__="Courant", Disponibilité=OFF ("Épuisé"), __is_visible__=true
+  - Handles new columns in Google Sheet (adds them without touching existing data)
+  - Comprehensive diagnostic console.log before execution
+- Updated GoogleConnectPanel.tsx:
+  - "Importer une feuille" button now detects if active DataSource has sheetId
+  - If yes: triggers delta sync directly (no dialog needed)
+  - If no: opens GoogleSheetsBrowser for first import
+  - Visual indicator: gold color + "🔄 Delta sync disponible" text when linked
+- Updated DataPillar.tsx:
+  - handleSyncGoogleSheet() now passes mode: 'delta' to the API
+  - Shows informative toast messages (new products added / catalogue up to date)
+  - Never touches the Activity/status button
 
 Stage Summary:
-- Local repo: at commit c5d6c8a (clean working tree)
-- GitHub remote: at commit c5d6c8a (commits after c5d6c8a removed)
-- Supabase DB: schema restored (tables exist), data empty (needs re-seeding via admin panel)
-- Dev server: running on port 3000 with correct Supabase connection
-- App renders correctly: "Mon Catalogue" page with search bar, empty product list (expected)
-- System env var DATABASE_URL was overriding .env file — fixed via daemon.js with explicit env
+- Delta Sync Engine fully implemented in backend API
+- Frontend properly wired to use delta mode on both entry points
+- Auto-initialization defaults: Statut="Courant", Disponibilité=Épuisé (OFF), Visibilité=Visible 👁️
+- Diagnostic logging: product counts, ID Métier values, column structure comparison
+- Lint passes cleanly (zero errors)
+- API responds correctly (tested with curl, auth middleware blocks unauthorized as expected)
+- Note: Browser testing limited by sandbox resource constraints (server OOM/crashes)
