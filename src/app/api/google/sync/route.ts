@@ -167,7 +167,38 @@ export async function POST(req: NextRequest) {
       }
 
       // Full import: clear old data and recreate
+      // ━━━ PRESERVE native columns before deletion ━━━
+      // Native columns like __statut__ (STATUS), Disponibilité (BOOLEAN/Switch),
+      // Stock (NUMBER) must survive a re-import because they are NOT in the Google Sheet.
+      let nativeColumnsToPreserve: { name: string; slug: string; type: string; order: number; visible: boolean; required: boolean; config: unknown }[] = [];
+
       if (!isNewDataSource) {
+        // 1. Save native/special columns that are NOT from the Google Sheet
+        const existingCols = await db.column.findMany({ where: { dataSourceId: dsId } });
+        const sheetHeaderSet = new Set(headers.map(h => h.toLowerCase().trim()));
+
+        nativeColumnsToPreserve = existingCols
+          .filter(col => {
+            // Always preserve __statut__ STATUS column (native)
+            if (col.slug === '__statut__' || col.type === 'STATUS') return true;
+            // Preserve columns whose name doesn't match any sheet header
+            // (manually added or native columns like Stock, Disponibilité)
+            if (!sheetHeaderSet.has(col.name.toLowerCase().trim())) return true;
+            return false;
+          })
+          .map(col => ({
+            name: col.name,
+            slug: col.slug,
+            type: col.type,
+            order: col.order,
+            visible: col.visible,
+            required: col.required,
+            config: col.config,
+          }));
+
+        console.log(`📦 Preserving ${nativeColumnsToPreserve.length} native column(s) before re-import: [${nativeColumnsToPreserve.map(c => c.name).join(', ')}]`);
+
+        // 2. Delete all columns and rows
         await db.column.deleteMany({ where: { dataSourceId: dsId } });
         await db.row.deleteMany({ where: { dataSourceId: dsId } });
       }
@@ -235,6 +266,46 @@ export async function POST(req: NextRequest) {
       }
 
       await db.column.createMany({ data: columnsToCreate });
+
+      // ━━━ RESTORE native columns after sheet column creation ━━━
+      // Always ensure __statut__ STATUS column exists
+      await db.column.upsert({
+        where: { dataSourceId_slug: { dataSourceId: dsId, slug: '__statut__' } },
+        update: {},
+        create: {
+          name: 'Statut',
+          slug: '__statut__',
+          type: 'STATUS',
+          dataSourceId: dsId,
+          visible: true,
+          required: false,
+          config: { options: ['Nouveau', 'Courant'] },
+          order: -1,
+        },
+      });
+
+      // Restore other preserved native columns (Stock, Disponibilité, etc.)
+      for (const nc of nativeColumnsToPreserve) {
+        // Skip __statut__ since we already upserted it above
+        if (nc.slug === '__statut__') continue;
+
+        await db.column.upsert({
+          where: { dataSourceId_slug: { dataSourceId: dsId, slug: nc.slug } },
+          update: {},
+          create: {
+            name: nc.name,
+            slug: nc.slug,
+            type: nc.type,
+            dataSourceId: dsId,
+            visible: nc.visible,
+            required: nc.required,
+            config: nc.config as Record<string, unknown>,
+            order: nc.order,
+          },
+        });
+      }
+
+      console.log(`✅ Native columns restored: __statut__ (STATUS)${nativeColumnsToPreserve.filter(c => c.slug !== '__statut__').map(c => `, ${c.name} (${c.type})`).join('')}`);
 
       // Build row data with auto-initialization for first import
       const rowsToCreate: { dataSourceId: string; data: Record<string, unknown>; order: number }[] = [];
@@ -333,6 +404,31 @@ export async function POST(req: NextRequest) {
         { data: null, error: 'DataSource not found' },
         { status: 404 }
       );
+    }
+
+    // ━━━ ENSURE __statut__ COLUMN EXISTS ━━━━━━━━━━━━━━━━━━━━━━━━━━━
+    // The __statut__ column may have been lost during a previous full import.
+    // Always restore it before proceeding with delta sync.
+    const hasStatutColumn = existingDs.columns.some(c => c.slug === '__statut__' || c.type === 'STATUS');
+    if (!hasStatutColumn) {
+      await db.column.upsert({
+        where: { dataSourceId_slug: { dataSourceId: dsId, slug: '__statut__' } },
+        update: {},
+        create: {
+          name: 'Statut',
+          slug: '__statut__',
+          type: 'STATUS',
+          dataSourceId: dsId,
+          visible: true,
+          required: false,
+          config: { options: ['Nouveau', 'Courant'] },
+          order: -1,
+        },
+      });
+      // Reload columns to include the newly created __statut__
+      const refreshedCols = await db.column.findMany({ where: { dataSourceId: dsId } });
+      (existingDs as Record<string, unknown>).columns = refreshedCols;
+      console.log('🔧 Restored missing __statut__ STATUS column during delta sync');
     }
 
     // ━━━ DIAGNOSTIC: Load existing rows ━━━━━━━━━━━━━━━━━━━━━━━━━━━
