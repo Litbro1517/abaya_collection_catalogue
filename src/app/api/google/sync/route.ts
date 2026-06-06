@@ -268,7 +268,10 @@ export async function POST(req: NextRequest) {
       await db.column.createMany({ data: columnsToCreate });
 
       // ━━━ RESTORE native columns after sheet column creation ━━━
-      // Always ensure __statut__ STATUS column exists
+      // These 3 columns are ALWAYS guaranteed to exist — they are native to the app
+      // and NOT present in Google Sheets. They must survive every import/sync.
+
+      // 1. __statut__ — STATUS column (badge + lock)
       await db.column.upsert({
         where: { dataSourceId_slug: { dataSourceId: dsId, slug: '__statut__' } },
         update: {},
@@ -284,10 +287,55 @@ export async function POST(req: NextRequest) {
         },
       });
 
-      // Restore other preserved native columns (Stock, Disponibilité, etc.)
+      // 2. Disponibilité — BOOLEAN Switch column (Disponible/Épuisé)
+      // Check if the Google Sheet already has a "Disponibilité" column — if so, skip creation
+      const sheetHasDisponibilite = headers.some(h => {
+        const hl = h.toLowerCase().trim();
+        return hl === 'disponibilité' || hl === 'disponibilite' || hl === 'disponible';
+      });
+      if (!sheetHasDisponibilite) {
+        await db.column.upsert({
+          where: { dataSourceId_slug: { dataSourceId: dsId, slug: '__disponibilite__' } },
+          update: {},
+          create: {
+            name: 'Disponibilité',
+            slug: '__disponibilite__',
+            type: 'BOOLEAN',
+            dataSourceId: dsId,
+            visible: true,
+            required: false,
+            config: { labels: { true: 'Disponible', false: 'Épuisé' } },
+            order: -2,
+          },
+        });
+      }
+
+      // 3. Stock — NUMBER counter column
+      const sheetHasStock = headers.some(h => {
+        const hl = h.toLowerCase().trim();
+        return hl === 'stock' || hl === 'quantité' || hl === 'quantite';
+      });
+      if (!sheetHasStock) {
+        await db.column.upsert({
+          where: { dataSourceId_slug: { dataSourceId: dsId, slug: '__stock__' } },
+          update: {},
+          create: {
+            name: 'Stock',
+            slug: '__stock__',
+            type: 'NUMBER',
+            dataSourceId: dsId,
+            visible: true,
+            required: false,
+            config: { isCounter: true, min: 0 },
+            order: -3,
+          },
+        });
+      }
+
+      // Restore other preserved native columns from before the deletion
       for (const nc of nativeColumnsToPreserve) {
-        // Skip __statut__ since we already upserted it above
-        if (nc.slug === '__statut__') continue;
+        // Skip the 3 native columns we already upserted above
+        if (nc.slug === '__statut__' || nc.slug === '__disponibilite__' || nc.slug === '__stock__') continue;
 
         await db.column.upsert({
           where: { dataSourceId_slug: { dataSourceId: dsId, slug: nc.slug } },
@@ -305,7 +353,8 @@ export async function POST(req: NextRequest) {
         });
       }
 
-      console.log(`✅ Native columns restored: __statut__ (STATUS)${nativeColumnsToPreserve.filter(c => c.slug !== '__statut__').map(c => `, ${c.name} (${c.type})`).join('')}`);
+      const nativeColsCreated = ['__statut__(STATUS)', !sheetHasDisponibilite ? '__disponibilite__(BOOLEAN/Switch)' : null, !sheetHasStock ? '__stock__(NUMBER/Counter)' : null].filter(Boolean).join(', ');
+      console.log(`✅ Native columns guaranteed: ${nativeColsCreated}${nativeColumnsToPreserve.filter(c => c.slug !== '__statut__' && c.slug !== '__disponibilite__' && c.slug !== '__stock__').map(c => `, ${c.name} (${c.type})`).join('')}`);
 
       // Build row data with auto-initialization for first import
       const rowsToCreate: { dataSourceId: string; data: Record<string, unknown>; order: number }[] = [];
@@ -336,12 +385,23 @@ export async function POST(req: NextRequest) {
           }
         }
 
-        // Auto-initialization defaults for first import
+        // ━━━ Auto-initialization defaults for first import ━━━
+        // Statut = Courant (blue badge)
         rowData.__statut__ = 'Courant';
         rowData.__statut_locked__ = false;
+        // Visibility = Visible 👁️
         rowData.__is_visible__ = true;
 
-        // Find BOOLEAN "Disponibilité" column and set to false (Épuisé)
+        // Disponibilité = Switch OFF → "Épuisé" (only for native column, not sheet column)
+        if (!sheetHasDisponibilite) {
+          rowData.__disponibilite__ = 'false';
+        }
+        // Stock = 0 (counter default)
+        if (!sheetHasStock) {
+          rowData.__stock__ = 0;
+        }
+
+        // Also set sheet-based Disponibilité BOOLEAN column to false if present
         for (let c = 0; c < headers.length; c++) {
           const colName = headers[c].toLowerCase();
           if ((colName.includes('disponible') || colName.includes('disponibilite')) && columnTypes[c] === 'BOOLEAN') {
@@ -406,10 +466,24 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // ━━━ ENSURE __statut__ COLUMN EXISTS ━━━━━━━━━━━━━━━━━━━━━━━━━━━
-    // The __statut__ column may have been lost during a previous full import.
-    // Always restore it before proceeding with delta sync.
+    // ━━━ ENSURE ALL 3 NATIVE COLUMNS EXIST ━━━━━━━━━━━━━━━━━━━━━━━━━
+    // Native columns (__statut__, __disponibilite__, __stock__) may have been
+    // lost during a previous full import. Always restore them before delta sync.
     const hasStatutColumn = existingDs.columns.some(c => c.slug === '__statut__' || c.type === 'STATUS');
+    const hasDisponibiliteColumn = existingDs.columns.some(c => c.slug === '__disponibilite__');
+    const hasStockColumn = existingDs.columns.some(c => c.slug === '__stock__');
+
+    // Also check if the Google Sheet has these columns natively
+    const sheetHasDisponibiliteDelta = headers.some(h => {
+      const hl = h.toLowerCase().trim();
+      return hl === 'disponibilité' || hl === 'disponibilite' || hl === 'disponible';
+    });
+    const sheetHasStockDelta = headers.some(h => {
+      const hl = h.toLowerCase().trim();
+      return hl === 'stock' || hl === 'quantité' || hl === 'quantite';
+    });
+
+    // 1. __statut__ (STATUS)
     if (!hasStatutColumn) {
       await db.column.upsert({
         where: { dataSourceId_slug: { dataSourceId: dsId, slug: '__statut__' } },
@@ -425,11 +499,50 @@ export async function POST(req: NextRequest) {
           order: -1,
         },
       });
-      // Reload columns to include the newly created __statut__
-      const refreshedCols = await db.column.findMany({ where: { dataSourceId: dsId } });
-      (existingDs as Record<string, unknown>).columns = refreshedCols;
       console.log('🔧 Restored missing __statut__ STATUS column during delta sync');
     }
+
+    // 2. __disponibilite__ (BOOLEAN/Switch)
+    if (!hasDisponibiliteColumn && !sheetHasDisponibiliteDelta) {
+      await db.column.upsert({
+        where: { dataSourceId_slug: { dataSourceId: dsId, slug: '__disponibilite__' } },
+        update: {},
+        create: {
+          name: 'Disponibilité',
+          slug: '__disponibilite__',
+          type: 'BOOLEAN',
+          dataSourceId: dsId,
+          visible: true,
+          required: false,
+          config: { labels: { true: 'Disponible', false: 'Épuisé' } },
+          order: -2,
+        },
+      });
+      console.log('🔧 Restored missing __disponibilite__ BOOLEAN/Switch column during delta sync');
+    }
+
+    // 3. __stock__ (NUMBER/Counter)
+    if (!hasStockColumn && !sheetHasStockDelta) {
+      await db.column.upsert({
+        where: { dataSourceId_slug: { dataSourceId: dsId, slug: '__stock__' } },
+        update: {},
+        create: {
+          name: 'Stock',
+          slug: '__stock__',
+          type: 'NUMBER',
+          dataSourceId: dsId,
+          visible: true,
+          required: false,
+          config: { isCounter: true, min: 0 },
+          order: -3,
+        },
+      });
+      console.log('🔧 Restored missing __stock__ NUMBER/Counter column during delta sync');
+    }
+
+    // Reload columns to include any newly created ones
+    const refreshedCols = await db.column.findMany({ where: { dataSourceId: dsId } });
+    (existingDs as Record<string, unknown>).columns = refreshedCols;
 
     // ━━━ DIAGNOSTIC: Load existing rows ━━━━━━━━━━━━━━━━━━━━━━━━━━━
     const existingRows = await db.row.findMany({
@@ -722,16 +835,24 @@ export async function POST(req: NextRequest) {
       }
 
       // ━━━ AUTO-INITIALIZATION (Strict defaults) ━━━━━━━━━━━━━━━━━
-      // Statut = "Courant"
+      // Statut = "Courant" (blue badge)
       rowData.__statut__ = 'Courant';
       rowData.__statut_locked__ = false;
 
       // Visibilité = Visible (👁️)
       rowData.__is_visible__ = true;
 
-      // Disponibilité = Switch OFF → "Épuisé" (Stock 0 rule)
+      // Disponibilité = Switch OFF → "Épuisé"
+      // Use the native __disponibilite__ column if no sheet-based Disponibilité column exists
       if (dispoColSlug) {
         rowData[dispoColSlug] = 'false';
+      } else if (!sheetHasDisponibiliteDelta) {
+        rowData.__disponibilite__ = 'false';
+      }
+
+      // Stock = 0 (counter default)
+      if (!sheetHasStockDelta) {
+        rowData.__stock__ = 0;
       }
 
       rowsToCreate.push({
@@ -754,6 +875,46 @@ export async function POST(req: NextRequest) {
       console.log(`✅ INSERTED ${insertedCount} new row(s) with auto-initialization`);
     } else {
       console.log('ℹ️ No new rows to insert — catalogue is up to date');
+    }
+
+    // ━━━ BACKFILL: Ensure existing rows have native column values ━━━
+    // If __disponibilite__ or __stock__ columns were just created, existing rows
+    // won't have values for them. Backfill now.
+    let backfilledCount = 0;
+    for (const row of existingRows) {
+      const data = row.data as Record<string, unknown>;
+      let needsUpdate = false;
+      const updatedData = { ...data };
+
+      if (!sheetHasDisponibiliteDelta && data.__disponibilite__ === undefined) {
+        updatedData.__disponibilite__ = 'false';
+        needsUpdate = true;
+      }
+      if (!sheetHasStockDelta && data.__stock__ === undefined) {
+        updatedData.__stock__ = 0;
+        needsUpdate = true;
+      }
+      if (data.__statut__ === undefined) {
+        updatedData.__statut__ = 'Courant';
+        updatedData.__statut_locked__ = false;
+        needsUpdate = true;
+      }
+      if (data.__is_visible__ === undefined) {
+        updatedData.__is_visible__ = true;
+        needsUpdate = true;
+      }
+
+      if (needsUpdate) {
+        await db.row.update({
+          where: { id: row.id },
+          data: { data: updatedData },
+        });
+        backfilledCount++;
+      }
+    }
+
+    if (backfilledCount > 0) {
+      console.log(`✅ BACKFILLED ${backfilledCount} existing row(s) with native column defaults (Statut/Disponibilité/Stock)`);
     }
 
     // Update lastSyncedAt

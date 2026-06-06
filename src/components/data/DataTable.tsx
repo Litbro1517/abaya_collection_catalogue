@@ -619,10 +619,67 @@ export function DataTable({ columns, rows, dataSourceId, loading, onRefresh, sor
       return <span className="font-medium text-emerald-700">{strVal}</span>;
     }
 
+    // Stock counter: NUMBER column with __stock__ slug — render with +/- buttons
+    if (col.type === 'NUMBER' && col.slug === '__stock__') {
+      const numVal = parseInt(strVal) || 0;
+      const stockColor = numVal > 0 ? 'text-emerald-600' : numVal === 0 ? 'text-red-500' : 'text-muted-foreground';
+      return (
+        <div className="flex items-center gap-1">
+          <Button
+            variant="outline"
+            size="icon"
+            className="h-5 w-5 rounded-full p-0 text-[10px] hover:bg-red-50 hover:text-red-600 border-border/50"
+            onClick={async (e) => {
+              e.currentTarget.disabled = true;
+              const row = rows.find(r => r.id === row.id);
+              if (!row) return;
+              const data = { ...(row.data as Record<string, unknown>) };
+              data[col.slug] = String(Math.max(0, numVal - 1));
+              try {
+                const res = await fetch(`/api/datasources/${dataSourceId}/rows/${row.id}`, {
+                  method: 'PUT',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ data }),
+                });
+                if (res.ok) onRefresh();
+              } catch { /* silent */ }
+            }}
+          >
+            −
+          </Button>
+          <span className={cn("text-xs font-bold min-w-[20px] text-center", stockColor)}>
+            {numVal}
+          </span>
+          <Button
+            variant="outline"
+            size="icon"
+            className="h-5 w-5 rounded-full p-0 text-[10px] hover:bg-emerald-50 hover:text-emerald-600 border-border/50"
+            onClick={async (e) => {
+              e.currentTarget.disabled = true;
+              const row = rows.find(r => r.id === row.id);
+              if (!row) return;
+              const data = { ...(row.data as Record<string, unknown>) };
+              data[col.slug] = String(numVal + 1);
+              try {
+                const res = await fetch(`/api/datasources/${dataSourceId}/rows/${row.id}`, {
+                  method: 'PUT',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ data }),
+                });
+                if (res.ok) onRefresh();
+              } catch { /* silent */ }
+            }}
+          >
+            +
+          </Button>
+        </div>
+      );
+    }
+
     if (col.type === 'BOOLEAN') {
       const boolVal = strVal === 'true';
       const colNameLower = col.name.toLowerCase();
-      const isDisponible = colNameLower.includes('disponible') || colNameLower.includes('stock');
+      const isDisponible = colNameLower.includes('disponible') || colNameLower.includes('disponibilite') || colNameLower.includes('disponibilité') || col.slug === '__disponibilite__';
       const trueLabel = isDisponible ? 'Disponible' : 'Oui';
       const falseLabel = isDisponible ? 'Épuisé' : 'Non';
       return (
