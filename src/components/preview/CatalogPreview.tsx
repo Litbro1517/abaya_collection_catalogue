@@ -454,6 +454,9 @@ export function CatalogPreview({ onAdminLogin }: CatalogPreviewProps) {
   const filterRows = (rows: Row[], config: SectionConfig): Row[] => {
     let filtered = rows.filter(r => {
       const data = r.data as Record<string, unknown>;
+      // ── Visibility filter: hide products marked as not visible ──
+      const isVisible = data.__is_visible__ !== false;
+      if (!isVisible) return false;
       const hasTitle = config.titleColumn && data[config.titleColumn];
       const hasCover = config.coverColumn && data[config.coverColumn];
       const hasPrice = config.priceColumn && data[config.priceColumn];
@@ -491,13 +494,14 @@ export function CatalogPreview({ onAdminLogin }: CatalogPreviewProps) {
       return filterRows(rows, config).map(row => {
         const rawData = row.data as Record<string, unknown>;
         const statut = (rawData.__statut__ as 'Nouveau' | 'Courant') || 'Courant';
-        return { row, columns, section, config, statut };
+        const isEpuise = String(rawData.__disponibilite__) === 'false';
+        return { row, columns, section, config, statut, isEpuise };
       });
     });
     // Composite sort: Nouveau first (by row order), then Courant (by row order)
     items.sort((a, b) => {
-      const aIsNouveau = a.statut === 'Nouveau' ? 0 : 1;
-      const bIsNouveau = b.statut === 'Nouveau' ? 0 : 1;
+      const aIsNouveau = a.statut === 'Nouveau' && !a.isEpuise ? 0 : 1;
+      const bIsNouveau = b.statut === 'Nouveau' && !b.isEpuise ? 0 : 1;
       if (aIsNouveau !== bIsNouveau) return aIsNouveau - bIsNouveau;
       return a.row.order - b.row.order;
     });
@@ -852,19 +856,44 @@ export function CatalogPreview({ onAdminLogin }: CatalogPreviewProps) {
               </section>
             )}
 
+            {/* ── Disponibilité status indicator ── */}
+            {(() => {
+              const detailRawData = row.data as Record<string, unknown>;
+              const detailIsEpuise = String(detailRawData.__disponibilite__) === 'false';
+              return detailIsEpuise ? (
+                <div className="flex items-center gap-2 mb-3">
+                  <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium" style={{ backgroundColor: `${BRAND.noir}15`, color: BRAND.noir }}>
+                    <span className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: BRAND.noir }} />
+                    Produit épuisé
+                  </span>
+                </div>
+              ) : null;
+            })()}
+
             {/* ── WhatsApp CTA ── */}
-            <a
-              className="whatsapp-cta"
-              href={conversionLink}
-              target="_blank"
-              rel="noopener noreferrer"
-              style={{ backgroundColor: primaryColor, color: '#111' }}
-            >
-              {s?.conversionChannel === 'whatsapp' ? 'Commander via WhatsApp' :
-               s?.conversionChannel === 'messenger' ? 'Commander via Messenger' :
-               s?.conversionChannel === 'email' ? 'Commander par email' :
-               'Commander'}
-            </a>
+            {(() => {
+              const detailRawData = row.data as Record<string, unknown>;
+              const detailIsEpuise = String(detailRawData.__disponibilite__) === 'false';
+              return (
+                <a
+                  className={cn('whatsapp-cta', detailIsEpuise && 'opacity-50 pointer-events-none cursor-not-allowed')}
+                  href={detailIsEpuise ? undefined : conversionLink}
+                  target={detailIsEpuise ? undefined : '_blank'}
+                  rel={detailIsEpuise ? undefined : 'noopener noreferrer'}
+                  style={{
+                    backgroundColor: detailIsEpuise ? BRAND.grisClair : primaryColor,
+                    color: detailIsEpuise ? BRAND.grisMoyen : '#111',
+                  }}
+                  onClick={detailIsEpuise ? (e: React.MouseEvent) => e.preventDefault() : undefined}
+                >
+                  {detailIsEpuise ? 'Produit épuisé' :
+                   s?.conversionChannel === 'whatsapp' ? 'Commander via WhatsApp' :
+                   s?.conversionChannel === 'messenger' ? 'Commander via Messenger' :
+                   s?.conversionChannel === 'email' ? 'Commander par email' :
+                   'Commander'}
+                </a>
+              );
+            })()}
           </div>
         </div>
       </main>
@@ -942,7 +971,7 @@ export function CatalogPreview({ onAdminLogin }: CatalogPreviewProps) {
 
         {/* Glide-like grid */}
         <div className="catalog-grid">
-          {paginatedProducts.map(({ row, columns, section, config, statut }) => {
+          {paginatedProducts.map(({ row, columns, section, config, statut, isEpuise }) => {
             const rawData = row.data as Record<string, unknown>;
             const coverRawVal = config.coverColumn ? rawData[config.coverColumn] : null;
             let coverUrl = '';
@@ -1012,11 +1041,37 @@ export function CatalogPreview({ onAdminLogin }: CatalogPreviewProps) {
                     <Heart className={isLiked ? 'fill-current' : ''} style={{ width: 14, height: 14, color: isLiked ? '#EF4444' : '#808080' }} />
                   </button>
 
-                  {/* Nouveau badge */}
-                  {statut === 'Nouveau' && (
+                  {/* Nouveau badge — hidden when Épuisé */}
+                  {statut === 'Nouveau' && !isEpuise && (
                     <span className="absolute left-2 top-2 z-10 rounded-md px-2 py-0.5 text-[10px] font-semibold text-white shadow-sm" style={{ backgroundColor: BRAND.vertFonce }}>
                       Nouveau
                     </span>
+                  )}
+
+                  {/* Sold Out badge — shown when Disponibilité is OFF */}
+                  {isEpuise && (
+                    <span className="absolute right-2 top-2 z-10 rounded-md px-2 py-0.5 text-[10px] font-semibold text-white shadow-sm" style={{ backgroundColor: BRAND.noir }}>
+                      Épuisé
+                    </span>
+                  )}
+
+                  {/* Sold Out overlay — semi-transparent overlay on the image */}
+                  {isEpuise && (
+                    <div className="absolute inset-0 z-[5] flex items-center justify-center pointer-events-none">
+                      <div className="absolute inset-0 bg-black/20" />
+                      <span
+                        className="relative z-10 text-white font-bold text-sm tracking-widest uppercase opacity-70"
+                        style={{
+                          transform: 'rotate(-25deg)',
+                          textShadow: '0 1px 3px rgba(0,0,0,0.5)',
+                          border: '2px solid rgba(255,255,255,0.5)',
+                          padding: '4px 16px',
+                          borderRadius: '4px',
+                        }}
+                      >
+                        SOLD OUT
+                      </span>
+                    </div>
                   )}
 
                   {/* Image count badge */}

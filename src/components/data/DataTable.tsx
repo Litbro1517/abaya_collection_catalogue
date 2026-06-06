@@ -41,7 +41,7 @@ import {
   Check, X, Pencil,
   Type, Hash, Banknote, Images,
   ListChecks, Layers, ToggleRight, ExternalLink, Link2, SquareStack,
-  MoveRight, Activity, Lock, Unlock, ArrowUpDown,
+  MoveRight, Activity, Lock, Unlock, ArrowUpDown, Zap,
 } from 'lucide-react';
 import { Switch } from '@/components/ui/switch';
 import { toast } from 'sonner';
@@ -124,12 +124,19 @@ export function DataTable({ columns, rows, dataSourceId, loading, onRefresh, sor
   // Delete confirmation
   const [deleteTarget, setDeleteTarget] = useState<{ type: 'row' | 'column'; id: string; name?: string } | null>(null);
 
-  const visibleColumns = columns.filter(c => c.visible);
-  // Sort visible columns: BOOLEAN columns go to the far right
+  // Native system column slugs — non-deletable, ordered first
+  const NATIVE_COLUMN_SLUGS = ['__disponibilite__', '__stock__', '__statut__'];
+  const isNativeColumn = (slug: string) => NATIVE_COLUMN_SLUGS.includes(slug);
+
+  // Filter out __is_visible__ (handled by Eye icon in # column)
+  const visibleColumns = columns.filter(c => c.visible && c.slug !== '__is_visible__');
+  // Sort visible columns: native columns first in specified order, then regular columns
+  const NATIVE_ORDER: Record<string, number> = { '__disponibilite__': 0, '__stock__': 1, '__statut__': 2 };
   const sortedVisibleColumns = [...visibleColumns].sort((a, b) => {
-    const aIsBool = a.type === 'BOOLEAN' ? 1 : 0;
-    const bIsBool = b.type === 'BOOLEAN' ? 1 : 0;
-    return aIsBool - bIsBool;
+    const aNative = NATIVE_ORDER[a.slug] ?? 999;
+    const bNative = NATIVE_ORDER[b.slug] ?? 999;
+    if (aNative !== bNative) return aNative - bNative;
+    return 0;
   });
   const paginatedRows = rows.slice(page * pageSize, (page + 1) * pageSize);
   const allVisibleSelected = paginatedRows.length > 0 && paginatedRows.every(r => selectedRows.has(r.id));
@@ -619,7 +626,7 @@ export function DataTable({ columns, rows, dataSourceId, loading, onRefresh, sor
       return <span className="font-medium text-emerald-700">{strVal}</span>;
     }
 
-    // Stock counter: NUMBER column with __stock__ slug — render with +/- buttons
+    // Stock counter: NUMBER column with __stock__ slug — render with +/-/⚡ buttons
     if (col.type === 'NUMBER' && col.slug === '__stock__') {
       const numVal = parseInt(strVal) || 0;
       const stockColor = numVal > 0 ? 'text-emerald-600' : numVal === 0 ? 'text-red-500' : 'text-muted-foreground';
@@ -631,17 +638,25 @@ export function DataTable({ columns, rows, dataSourceId, loading, onRefresh, sor
             className="h-5 w-5 rounded-full p-0 text-[10px] hover:bg-red-50 hover:text-red-600 border-border/50"
             onClick={async (e) => {
               e.currentTarget.disabled = true;
-              const row = rows.find(r => r.id === row.id);
-              if (!row) return;
-              const data = { ...(row.data as Record<string, unknown>) };
-              data[col.slug] = String(Math.max(0, numVal - 1));
+              const freshRow = rows.find(r => r.id === row.id);
+              if (!freshRow) return;
+              const data = { ...(freshRow.data as Record<string, unknown>) };
+              const newStock = Math.max(0, numVal - 1);
+              data[col.slug] = String(newStock);
+              // Business rule: stock reaches 0 → auto-set __disponibilite__ to 'false'
+              if (newStock === 0) {
+                data.__disponibilite__ = 'false';
+              }
               try {
-                const res = await fetch(`/api/datasources/${dataSourceId}/rows/${row.id}`, {
+                const res = await fetch(`/api/datasources/${dataSourceId}/rows/${freshRow.id}`, {
                   method: 'PUT',
                   headers: { 'Content-Type': 'application/json' },
                   body: JSON.stringify({ data }),
                 });
-                if (res.ok) onRefresh();
+                if (res.ok) {
+                  onRefresh();
+                  if (newStock === 0) toast.info('Stock épuisé → Disponible désactivé');
+                }
               } catch { /* silent */ }
             }}
           >
@@ -656,12 +671,12 @@ export function DataTable({ columns, rows, dataSourceId, loading, onRefresh, sor
             className="h-5 w-5 rounded-full p-0 text-[10px] hover:bg-emerald-50 hover:text-emerald-600 border-border/50"
             onClick={async (e) => {
               e.currentTarget.disabled = true;
-              const row = rows.find(r => r.id === row.id);
-              if (!row) return;
-              const data = { ...(row.data as Record<string, unknown>) };
+              const freshRow = rows.find(r => r.id === row.id);
+              if (!freshRow) return;
+              const data = { ...(freshRow.data as Record<string, unknown>) };
               data[col.slug] = String(numVal + 1);
               try {
-                const res = await fetch(`/api/datasources/${dataSourceId}/rows/${row.id}`, {
+                const res = await fetch(`/api/datasources/${dataSourceId}/rows/${freshRow.id}`, {
                   method: 'PUT',
                   headers: { 'Content-Type': 'application/json' },
                   body: JSON.stringify({ data }),
@@ -671,6 +686,45 @@ export function DataTable({ columns, rows, dataSourceId, loading, onRefresh, sor
             }}
           >
             +
+          </Button>
+          {/* ⚡ Quick Sell button — decrement stock by 1, auto-disable disponible if stock=0 */}
+          <Button
+            variant="outline"
+            size="icon"
+            className={cn(
+              "h-5 w-5 rounded-full p-0 border-border/50",
+              numVal > 0
+                ? "text-amber-500 hover:bg-amber-50 hover:text-amber-600"
+                : "text-muted-foreground/30 cursor-not-allowed"
+            )}
+            disabled={numVal <= 0}
+            onClick={async (e) => {
+              e.currentTarget.disabled = true;
+              const freshRow = rows.find(r => r.id === row.id);
+              if (!freshRow) return;
+              const data = { ...(freshRow.data as Record<string, unknown>) };
+              const newStock = Math.max(0, numVal - 1);
+              data[col.slug] = String(newStock);
+              // Business rule: stock reaches 0 → auto-set __disponibilite__ to 'false'
+              if (newStock === 0) {
+                data.__disponibilite__ = 'false';
+              }
+              try {
+                const res = await fetch(`/api/datasources/${dataSourceId}/rows/${freshRow.id}`, {
+                  method: 'PUT',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ data }),
+                });
+                if (res.ok) {
+                  onRefresh();
+                  toast.success('⚡ Vente rapide enregistrée');
+                  if (newStock === 0) toast.info('Stock épuisé → Disponible désactivé');
+                }
+              } catch { /* silent */ }
+            }}
+            title="⚡ Vente rapide — décrémenter le stock"
+          >
+            <Zap className="w-3 h-3" />
           </Button>
         </div>
       );
@@ -812,8 +866,11 @@ export function DataTable({ columns, rows, dataSourceId, loading, onRefresh, sor
                   />
                 </th>
                 {/* Row # column — sticky */}
-                <th className="px-2 py-2 text-left text-xs font-medium text-muted-foreground w-10 border-b border-r border-border sticky left-9 bg-muted/90 z-20">
-                  #
+                <th className="px-2 py-2 text-left text-xs font-medium text-muted-foreground w-14 border-b border-r border-border sticky left-9 bg-muted/90 z-20">
+                  <div className="flex items-center gap-1">
+                    <span>#</span>
+                    <Eye className="w-3 h-3 text-muted-foreground/50" />
+                  </div>
                 </th>
                 {/* Data columns */}
                 {sortedVisibleColumns.map(col => {
@@ -859,6 +916,9 @@ export function DataTable({ columns, rows, dataSourceId, loading, onRefresh, sor
                               title="Cliquer pour trier · Double-cliquer pour renommer"
                             >
                               {col.name}
+                              {isNativeColumn(col.slug) && (
+                                <Badge variant="secondary" className="h-3 text-[7px] px-1 py-0 bg-amber-100 text-amber-700 border-amber-200 ml-1 shrink-0">Native</Badge>
+                              )}
                             </span>
                           )}
                         </div>
@@ -892,7 +952,12 @@ export function DataTable({ columns, rows, dataSourceId, loading, onRefresh, sor
                                   {COLUMN_TYPE_ICON[col.type]}
                                 </div>
                                 <div className="min-w-0">
-                                  <p className="text-xs font-medium truncate">{col.name}</p>
+                                  <p className="text-xs font-medium truncate flex items-center gap-1.5">
+                                    {col.name}
+                                    {isNativeColumn(col.slug) && (
+                                      <Badge variant="secondary" className="h-3.5 text-[8px] px-1 py-0 bg-amber-100 text-amber-700 border-amber-200 shrink-0">Native</Badge>
+                                    )}
+                                  </p>
                                   <p className="text-[9px] text-muted-foreground">{COLUMN_TYPE_LABEL[col.type]} · slug: {col.slug}</p>
                                 </div>
                               </div>
@@ -900,14 +965,21 @@ export function DataTable({ columns, rows, dataSourceId, loading, onRefresh, sor
 
                             {/* Options list with expandable arrows */}
                             <div className="py-1">
-                              {/* Edit option */}
+                              {/* Edit option — disabled for native columns (type change not allowed) */}
                               <button
-                                className="w-full flex items-center gap-2 px-3 py-1.5 text-left text-xs hover:bg-secondary/60 transition-colors"
-                                onClick={() => { openColumnEditor(col); setColOptionsOpen(null); }}
+                                className={cn(
+                                  "w-full flex items-center gap-2 px-3 py-1.5 text-left text-xs transition-colors",
+                                  isNativeColumn(col.slug) ? "opacity-40 cursor-not-allowed" : "hover:bg-secondary/60"
+                                )}
+                                disabled={isNativeColumn(col.slug)}
+                                onClick={() => { if (!isNativeColumn(col.slug)) { openColumnEditor(col); setColOptionsOpen(null); } }}
                               >
                                 <Pencil className="w-3.5 h-3.5 text-muted-foreground" />
                                 <span className="flex-1">Éditer</span>
-                                <span className="text-[8px] text-muted-foreground/50">PUT /columns/{col.id.slice(0,6)}</span>
+                                {isNativeColumn(col.slug)
+                                  ? <span className="text-[8px] text-amber-500">Type verrouillé</span>
+                                  : <span className="text-[8px] text-muted-foreground/50">PUT /columns/{col.id.slice(0,6)}</span>
+                                }
                               </button>
 
                               {/* Rename option */}
@@ -1011,15 +1083,22 @@ export function DataTable({ columns, rows, dataSourceId, loading, onRefresh, sor
 
                               <div className="my-1 h-px bg-border/40" />
 
-                              {/* Delete option */}
-                              <button
-                                className="w-full flex items-center gap-2 px-3 py-1.5 text-left text-xs hover:bg-destructive/10 text-destructive transition-colors"
-                                onClick={() => { setDeleteTarget({ type: 'column', id: col.id, name: col.name }); setColOptionsOpen(null); }}
-                              >
-                                <Trash2 className="w-3.5 h-3.5" />
-                                <span className="flex-1">Supprimer</span>
-                                <span className="text-[8px] text-destructive/50">DELETE + all cell data</span>
-                              </button>
+                              {/* Delete option — hidden for native columns */}
+                              {!isNativeColumn(col.slug) && (
+                                <button
+                                  className="w-full flex items-center gap-2 px-3 py-1.5 text-left text-xs hover:bg-destructive/10 text-destructive transition-colors"
+                                  onClick={() => { setDeleteTarget({ type: 'column', id: col.id, name: col.name }); setColOptionsOpen(null); }}
+                                >
+                                  <Trash2 className="w-3.5 h-3.5" />
+                                  <span className="flex-1">Supprimer</span>
+                                  <span className="text-[8px] text-destructive/50">DELETE + all cell data</span>
+                                </button>
+                              )}
+                              {isNativeColumn(col.slug) && (
+                                <div className="px-3 py-1.5 text-[10px] text-amber-600/70 italic">
+                                  Colonne système — suppression désactivée
+                                </div>
+                              )}
                             </div>
                           </PopoverContent>
                         </Popover>
@@ -1078,9 +1157,45 @@ export function DataTable({ columns, rows, dataSourceId, loading, onRefresh, sor
                         className="h-3.5 w-3.5"
                       />
                     </td>
-                    {/* Row number — sticky */}
+                    {/* Row number + visibility toggle — sticky */}
                     <td className="px-2 py-1.5 text-xs text-muted-foreground sticky left-9 bg-card z-10 border-r border-border/30 font-medium">
-                      {rowNum}
+                      <div className="flex items-center gap-1">
+                        <span>{rowNum}</span>
+                        <button
+                          className={cn(
+                            "p-0.5 rounded transition-colors shrink-0",
+                            (row.data as Record<string, unknown>).__is_visible__ !== false
+                              ? "text-emerald-500 hover:text-emerald-600 hover:bg-emerald-50"
+                              : "text-muted-foreground/40 hover:text-muted-foreground hover:bg-muted"
+                          )}
+                          onClick={async (e) => {
+                            e.stopPropagation();
+                            const currentVisible = (row.data as Record<string, unknown>).__is_visible__;
+                            const newVisible = currentVisible === false ? true : false;
+                            const data = { ...(row.data as Record<string, unknown>) };
+                            data.__is_visible__ = newVisible;
+                            try {
+                              const res = await fetch(`/api/datasources/${dataSourceId}/rows/${row.id}`, {
+                                method: 'PUT',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({ data }),
+                              });
+                              if (res.ok) {
+                                onRefresh();
+                                toast.success(newVisible ? 'Visible 👁️' : 'Masqué 👁️‍🗨️');
+                              }
+                            } catch {
+                              toast.error('Erreur de sauvegarde');
+                            }
+                          }}
+                          title={(row.data as Record<string, unknown>).__is_visible__ !== false ? "Visible — cliquer pour masquer" : "Masqué — cliquer pour afficher"}
+                        >
+                          {(row.data as Record<string, unknown>).__is_visible__ !== false
+                            ? <Eye className="w-3 h-3" />
+                            : <EyeOff className="w-3 h-3" />
+                          }
+                        </button>
+                      </div>
                     </td>
                     {/* Data cells */}
                     {sortedVisibleColumns.map(col => {
