@@ -488,21 +488,44 @@ export function CatalogPreview({ onAdminLogin }: CatalogPreviewProps) {
     });
   };
 
+  // ━━━ REACTIVE 3-DIMENSIONAL STATE ENGINE ━━━━━━━━━━━━━━━━━━━━━━━━━
+  // Scenario A: stock > 0 + switch ON → "En stock" (normal, buyable)
+  // Scenario B: stock == 0 + switch OFF → "Épuisé" (SOLD OUT, buy disabled)
+  // Scenario C: stock == 0 + switch ON → "Sur commande" (buyable, special badge)
+  type StockState = 'en_stock' | 'epuise' | 'sur_commande';
+
+  function computeStockState(rawData: Record<string, unknown>): StockState {
+    const isDisponible = String(rawData.__disponibilite__) !== 'false';
+    const stock = typeof rawData.__stock__ === 'number'
+      ? rawData.__stock__
+      : parseInt(String(rawData.__stock__)) || 0;
+
+    if (stock > 0 && isDisponible) return 'en_stock';       // Scenario A
+    if (stock === 0 && isDisponible) return 'sur_commande'; // Scenario C
+    return 'epuise';                                        // Scenario B
+  }
+
   const allProducts = (() => {
     const items = sections.flatMap(({ section, columns, rows }) => {
       const config = section.config as SectionConfig;
       return filterRows(rows, config).map(row => {
         const rawData = row.data as Record<string, unknown>;
         const statut = (rawData.__statut__ as 'Nouveau' | 'Courant') || 'Courant';
-        const isEpuise = String(rawData.__disponibilite__) === 'false';
-        return { row, columns, section, config, statut, isEpuise };
+        const stockState = computeStockState(rawData);
+        return { row, columns, section, config, statut, stockState };
       });
     });
-    // Composite sort: Nouveau first (by row order), then Courant (by row order)
+    // Composite sort: Nouveau+en_stock first, then by stock state, then by row order
     items.sort((a, b) => {
-      const aIsNouveau = a.statut === 'Nouveau' && !a.isEpuise ? 0 : 1;
-      const bIsNouveau = b.statut === 'Nouveau' && !b.isEpuise ? 0 : 1;
+      // Nouveau + en_stock products come first
+      const aIsNouveau = a.statut === 'Nouveau' && a.stockState === 'en_stock' ? 0 : 1;
+      const bIsNouveau = b.statut === 'Nouveau' && b.stockState === 'en_stock' ? 0 : 1;
       if (aIsNouveau !== bIsNouveau) return aIsNouveau - bIsNouveau;
+      // Then en_stock > sur_commande > epuise
+      const stateOrder: Record<StockState, number> = { en_stock: 0, sur_commande: 1, epuise: 2 };
+      const aState = stateOrder[a.stockState];
+      const bState = stateOrder[b.stockState];
+      if (aState !== bState) return aState - bState;
       return a.row.order - b.row.order;
     });
     return items;
@@ -856,37 +879,56 @@ export function CatalogPreview({ onAdminLogin }: CatalogPreviewProps) {
               </section>
             )}
 
-            {/* ── Disponibilité status indicator ── */}
+            {/* ━━━ REACTIVE STOCK STATE INDICATOR (Detail View) ━━━━━━━━━━ */}
             {(() => {
               const detailRawData = row.data as Record<string, unknown>;
-              const detailIsEpuise = String(detailRawData.__disponibilite__) === 'false';
-              return detailIsEpuise ? (
-                <div className="flex items-center gap-2 mb-3">
-                  <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium" style={{ backgroundColor: `${BRAND.noir}15`, color: BRAND.noir }}>
-                    <span className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: BRAND.noir }} />
-                    Produit épuisé
-                  </span>
-                </div>
-              ) : null;
+              const detailStockState = computeStockState(detailRawData);
+              // Scenario B: Épuisé — SOLD OUT badge (red)
+              if (detailStockState === 'epuise') {
+                return (
+                  <div className="flex items-center gap-2 mb-3">
+                    <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-rose-600 text-white shadow-sm">
+                      <span className="w-1.5 h-1.5 rounded-full bg-white" />
+                      Épuisé — SOLD OUT
+                    </span>
+                  </div>
+                );
+              }
+              // Scenario C: Sur commande — elegant gold badge
+              if (detailStockState === 'sur_commande') {
+                return (
+                  <div className="flex items-center gap-2 mb-3">
+                    <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold shadow-sm" style={{ backgroundColor: '#8B7355', color: '#FFF8E7' }}>
+                      <span className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: '#C9A84C' }} />
+                      Sur commande — Confection à la demande
+                    </span>
+                  </div>
+                );
+              }
+              // Scenario A: En stock — no badge needed (normal display)
+              return null;
             })()}
 
-            {/* ── WhatsApp CTA ── */}
+            {/* ━━━ REACTIVE CTA BUTTON (Detail View) ━━━━━━━━━━━━━━━━━━━━ */}
             {(() => {
               const detailRawData = row.data as Record<string, unknown>;
-              const detailIsEpuise = String(detailRawData.__disponibilite__) === 'false';
+              const detailStockState = computeStockState(detailRawData);
+              const isEpuise = detailStockState === 'epuise';
+              const isSurCommande = detailStockState === 'sur_commande';
               return (
                 <a
-                  className={cn('whatsapp-cta', detailIsEpuise && 'opacity-50 pointer-events-none cursor-not-allowed')}
-                  href={detailIsEpuise ? undefined : conversionLink}
-                  target={detailIsEpuise ? undefined : '_blank'}
-                  rel={detailIsEpuise ? undefined : 'noopener noreferrer'}
+                  className={cn('whatsapp-cta', isEpuise && 'opacity-50 pointer-events-none cursor-not-allowed')}
+                  href={isEpuise ? undefined : conversionLink}
+                  target={isEpuise ? undefined : '_blank'}
+                  rel={isEpuise ? undefined : 'noopener noreferrer'}
                   style={{
-                    backgroundColor: detailIsEpuise ? BRAND.grisClair : primaryColor,
-                    color: detailIsEpuise ? BRAND.grisMoyen : '#111',
+                    backgroundColor: isEpuise ? BRAND.grisClair : primaryColor,
+                    color: isEpuise ? BRAND.grisMoyen : '#111',
                   }}
-                  onClick={detailIsEpuise ? (e: React.MouseEvent) => e.preventDefault() : undefined}
+                  onClick={isEpuise ? (e: React.MouseEvent) => e.preventDefault() : undefined}
                 >
-                  {detailIsEpuise ? 'Produit épuisé' :
+                  {isEpuise ? 'Produit épuisé' :
+                   isSurCommande ? 'Commander (Atelier)' :
                    s?.conversionChannel === 'whatsapp' ? 'Commander via WhatsApp' :
                    s?.conversionChannel === 'messenger' ? 'Commander via Messenger' :
                    s?.conversionChannel === 'email' ? 'Commander par email' :
@@ -971,7 +1013,7 @@ export function CatalogPreview({ onAdminLogin }: CatalogPreviewProps) {
 
         {/* Glide-like grid */}
         <div className="catalog-grid">
-          {paginatedProducts.map(({ row, columns, section, config, statut, isEpuise }) => {
+          {paginatedProducts.map(({ row, columns, section, config, statut, stockState }) => {
             const rawData = row.data as Record<string, unknown>;
             const coverRawVal = config.coverColumn ? rawData[config.coverColumn] : null;
             let coverUrl = '';
@@ -1041,22 +1083,30 @@ export function CatalogPreview({ onAdminLogin }: CatalogPreviewProps) {
                     <Heart className={isLiked ? 'fill-current' : ''} style={{ width: 14, height: 14, color: isLiked ? '#EF4444' : '#808080' }} />
                   </button>
 
-                  {/* Nouveau badge — hidden when Épuisé */}
-                  {statut === 'Nouveau' && !isEpuise && (
+                  {/* ━━━ REACTIVE BADGE ENGINE ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */}
+                  {/* Nouveau badge — HIDDEN when Épuisé OR Sur commande (strict rule) */}
+                  {statut === 'Nouveau' && stockState === 'en_stock' && (
                     <span className="absolute left-2 top-2 z-10 rounded-md px-2 py-0.5 text-[10px] font-semibold text-white shadow-sm" style={{ backgroundColor: BRAND.vertFonce }}>
                       Nouveau
                     </span>
                   )}
 
-                  {/* Sold Out badge — shown when Disponibilité is OFF */}
-                  {isEpuise && (
-                    <span className="absolute right-2 top-2 z-10 rounded-md px-2 py-0.5 text-[10px] font-semibold text-white shadow-sm" style={{ backgroundColor: BRAND.noir }}>
+                  {/* Scenario B: SOLD OUT badge — red bg-rose-600, white text (NOT green!) */}
+                  {stockState === 'epuise' && (
+                    <span className="absolute right-2 top-2 z-10 rounded-md px-2 py-0.5 text-[10px] font-semibold text-white shadow-sm bg-rose-600">
                       Épuisé
                     </span>
                   )}
 
-                  {/* Sold Out overlay — semi-transparent overlay on the image */}
-                  {isEpuise && (
+                  {/* Scenario C: SUR COMMANDE badge — elegant gold/dark styling */}
+                  {stockState === 'sur_commande' && (
+                    <span className="absolute right-2 top-2 z-10 rounded-md px-2 py-0.5 text-[10px] font-semibold shadow-sm" style={{ backgroundColor: '#8B7355', color: '#FFF8E7' }}>
+                      Sur commande
+                    </span>
+                  )}
+
+                  {/* SOLD OUT overlay — only for Scenario B (Épuisé) */}
+                  {stockState === 'epuise' && (
                     <div className="absolute inset-0 z-[5] flex items-center justify-center pointer-events-none">
                       <div className="absolute inset-0 bg-black/20" />
                       <span
@@ -1064,9 +1114,10 @@ export function CatalogPreview({ onAdminLogin }: CatalogPreviewProps) {
                         style={{
                           transform: 'rotate(-25deg)',
                           textShadow: '0 1px 3px rgba(0,0,0,0.5)',
-                          border: '2px solid rgba(255,255,255,0.5)',
+                          border: '2px solid rgba(255,46,99,0.6)',
                           padding: '4px 16px',
                           borderRadius: '4px',
+                          backgroundColor: 'rgba(255,46,99,0.85)',
                         }}
                       >
                         SOLD OUT

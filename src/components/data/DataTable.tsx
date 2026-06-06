@@ -674,14 +674,25 @@ export function DataTable({ columns, rows, dataSourceId, loading, onRefresh, sor
               const freshRow = rows.find(r => r.id === row.id);
               if (!freshRow) return;
               const data = { ...(freshRow.data as Record<string, unknown>) };
-              data[col.slug] = String(numVal + 1);
+              const newStock = numVal + 1;
+              data[col.slug] = String(newStock);
+              // ━━━ Reactive Engine: Stock > 0 → auto-set __disponibilite__='true' ━━━
+              // Scenario A: Adding stock reintegrates product into normal flow.
+              // If product was in "Sur commande" forced mode (stock=0, switch=ON),
+              // adding stock clears that override and reverts to standard management.
+              if (newStock > 0) {
+                data.__disponibilite__ = 'true';
+              }
               try {
                 const res = await fetch(`/api/datasources/${dataSourceId}/rows/${freshRow.id}`, {
                   method: 'PUT',
                   headers: { 'Content-Type': 'application/json' },
                   body: JSON.stringify({ data }),
                 });
-                if (res.ok) onRefresh();
+                if (res.ok) {
+                  onRefresh();
+                  if (numVal === 0) toast.success('Stock ajouté → Disponible activé');
+                }
               } catch { /* silent */ }
             }}
           >
@@ -734,26 +745,39 @@ export function DataTable({ columns, rows, dataSourceId, loading, onRefresh, sor
       const boolVal = strVal === 'true';
       const colNameLower = col.name.toLowerCase();
       const isDisponible = colNameLower.includes('disponible') || colNameLower.includes('disponibilite') || colNameLower.includes('disponibilité') || col.slug === '__disponibilite__';
-      const trueLabel = isDisponible ? 'Disponible' : 'Oui';
+      // ━━━ Reactive Engine: Compute Sur commande state ━━━
+      // Sur commande = Switch ON + Stock = 0 (Scenario C — derogatory mode)
+      const rowData = row.data as Record<string, unknown>;
+      const currentStock = typeof rowData.__stock__ === 'number' ? rowData.__stock__ : parseInt(String(rowData.__stock__)) || 0;
+      const isSurCommande = isDisponible && boolVal && currentStock === 0;
+      const trueLabel = isSurCommande ? 'Sur commande' : (isDisponible ? 'Disponible' : 'Oui');
       const falseLabel = isDisponible ? 'Épuisé' : 'Non';
       return (
         <div className="flex items-center gap-2">
           <Switch
             checked={boolVal}
             onCheckedChange={async (checked) => {
-              const row = rows.find(r => r.id === row.id);
-              if (!row) return;
-              const data = { ...(row.data as Record<string, unknown>) };
+              const currentRow = rows.find(r => r.id === row.id);
+              if (!currentRow) return;
+              const data = { ...(currentRow.data as Record<string, unknown>) };
               data[col.slug] = String(checked);
+              // ━━━ Reactive Engine: Switch + Stock interconnection ━━━
+              // If Switch turned ON and stock > 0 → Scenario A (normal, handled automatically)
+              // If Switch turned ON and stock == 0 → Scenario C (Sur commande override)
+              // If Switch turned OFF → Scenario B (Épuisé), regardless of stock
               try {
-                const res = await fetch(`/api/datasources/${dataSourceId}/rows/${row.id}`, {
+                const res = await fetch(`/api/datasources/${dataSourceId}/rows/${currentRow.id}`, {
                   method: 'PUT',
                   headers: { 'Content-Type': 'application/json' },
                   body: JSON.stringify({ data }),
                 });
                 if (res.ok) {
                   onRefresh();
-                  toast.success(checked ? `${trueLabel}` : `${falseLabel}`);
+                  if (checked && currentStock === 0) {
+                    toast.success('🔍 Mode Sur commande activé — produit visible et achetable');
+                  } else {
+                    toast.success(checked ? `${trueLabel}` : `${falseLabel}`);
+                  }
                 }
               } catch {
                 toast.error('Erreur de sauvegarde');
@@ -763,10 +787,13 @@ export function DataTable({ columns, rows, dataSourceId, loading, onRefresh, sor
           />
           <span className={cn(
             "text-[10px] font-medium",
-            boolVal ? "text-emerald-600" : "text-red-500"
+            isSurCommande ? "text-amber-600" : boolVal ? "text-emerald-600" : "text-red-500"
           )}>
             {boolVal ? trueLabel : falseLabel}
           </span>
+          {isSurCommande && (
+            <span className="text-[8px] px-1 py-0.5 rounded bg-amber-100 text-amber-700 border border-amber-200 font-medium">SO</span>
+          )}
         </div>
       );
     }
