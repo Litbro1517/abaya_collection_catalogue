@@ -1,54 +1,27 @@
 ---
 Task ID: 1
 Agent: Main Agent
-Task: Implement reactive 3-dimensional stock state engine (Stock ↔️ Switch ↔️ Statut)
+Task: Implement Optimistic Updates + Background Sync + Rollback for DataTable
 
 Work Log:
-- Read DataTable.tsx, CatalogPreview.tsx, sync route.ts to understand current implementation
-- Identified core bug: + button did NOT auto-set __disponibilite__='true' when stock increased from 0
-- Identified badge issues: SOLD OUT had noir background (not red), no "Sur commande" state existed
-- Fixed DataTable.tsx: + button now auto-sets __disponibilite__='true' when newStock > 0
-- Fixed DataTable.tsx: Switch toggle shows "Sur commande" label when stock=0 + ON (Scenario C)
-- Implemented computeStockState() in CatalogPreview.tsx with 3 states: en_stock, epuise, sur_commande
-- Changed SOLD OUT badge from noir to bg-rose-600 (red) per user spec
-- Added SUR COMMANDE badge with elegant dark gold (#8B7355) styling
-- Nouveau badge now strictly HIDDEN when epuise OR sur_commande
-- Detail view: proper badges per scenario + CTA changes (epuise→disabled, sur_commande→"Commander (Atelier)")
-- Sorting: en_stock > sur_commande > epuise (epuise products sink to bottom)
-- Pushed to GitHub and deployed to Vercel successfully
+- Read DataTable.tsx, DataPillar.tsx, CatalogPreview.tsx, and API routes
+- Identified root cause: every Switch/Eye click calls `await fetch()` + `onRefresh()`, and `onRefresh()` triggers `loadDataSourceData()` which calls `setLoading(true)`, replacing the table with a loading spinner (white page freeze)
+- Added `onUpdateRow` prop to DataTable interface
+- Added `optimisticSwitch` and `optimisticVisibility` state maps in DataTable
+- Created `backgroundSave()` utility: instant optimistic update + async background API call + rollback on failure
+- Rewrote Switch (BOOLEAN) handler: instant `setOptimisticSwitch` + `backgroundSave()` (no await, no onRefresh)
+- Rewrote Eye (Visibility) handler: instant `setOptimisticVisibility` + `backgroundSave()` (no await, no onRefresh)
+- Updated Stock debounce timer: uses `onUpdateRow` instead of `onRefresh()` (no loading spinner)
+- Updated `saveCell()`: uses `onUpdateRow` instead of `onRefresh()`
+- Added `handleUpdateRow` in DataPillar: uses `useAppStore.getState().rows` for stale-closure safety
+- Passed `onUpdateRow={handleUpdateRow}` to DataTable in DataPillar
+- Fixed TypeScript error: `setRows` takes `Row[]` not a callback function
+- Added `isVisible` computed value using optimistic overlay in row rendering
+- Verified lint passes and app compiles with HTTP 200
 
 Stage Summary:
-- Key fix: Reactive state engine now properly links Stock, Switch, and Display state
-- 3 scenarios: A (en_stock), B (epuise/SOLD OUT), C (sur_commande/pre-order)
-- SOLD OUT badge is now red (bg-rose-600), not green/noir
-- Sur commande badge is elegant dark gold
-- Deployed to: https://abaya-collection-catalogue-9dum.vercel.app
-
----
-Task ID: 2
-Agent: Main Agent
-Task: Implement minimalist stock counter UI + optimistic update + debounce
-
-Work Log:
-- Analyzed both screenshots with VLM: initial design (clean number + ⚡) vs current (ugly circular +/- buttons)
-- Replaced ugly circular -/+ Button components with minimalist design:
-  - Stock number displayed as clean bold colored text (emerald/red)
-  - Small up/down chevron arrows appear ONLY on click (hidden by default)
-  - No browser number input arrows visible
-  - ⚡ Quick sell stays as discrete icon
-- Implemented optimistic update system:
-  - Local optimisticStock state maps rowId → value (instant 0ms UI update)
-  - Debounced API save: 1.5s after last click
-  - Pending changes shown with amber ring indicator
-  - Debounce timers cleaned up on unmount, pending flushed
-- Reactive engine preserved with debounce integration:
-  - Scenario A: Stock > 0 → auto ON
-  - Scenario B: Stock == 0 → auto OFF
-  - Scenario C: Manual ON at stock 0 → Sur commande
-  - Switch component reads optimistic stock for instant feedback
-
-Stage Summary:
-- Stock counter is now minimalist (no more ugly circular buttons)
-- Performance: no more per-click API calls + full refresh
-- Optimistic update: UI changes instantly, saves debounced at 1.5s
-- Deployed to: https://abaya-collection-catalogue-9dum.vercel.app
+- Three optimistic state layers: Stock (debounced 1.5s), Switch (instant), Visibility (instant)
+- All three use background API save with rollback on failure + toast notification
+- No more `onRefresh()` calls from these handlers → no loading spinner → no freeze
+- `handleUpdateRow` silently updates zustand store rows without full reload
+- App compiles and renders correctly

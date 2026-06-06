@@ -418,6 +418,18 @@ export function DataPillar() {
 
   // ── Pending status change helpers ──────────────────────────────────────
 
+  // ━━━ Silent row update (NO loading spinner, NO full reload) ━━━━━━━━━━
+  // Used by optimistic handlers: updates a single row in the zustand store
+  // without triggering loadDataSourceData() → no freeze
+  // Uses getState() to always read the freshest rows (avoids stale closures)
+  const handleUpdateRow = useCallback((rowId: string, newData: Record<string, unknown>) => {
+    const currentRows = useAppStore.getState().rows;
+    setRows(currentRows.map(r => {
+      if (r.id !== rowId) return r;
+      return { ...r, data: newData };
+    }));
+  }, [setRows]);
+
   const handleLocalStatusChange = (rowId: string, newStatut: string) => {
     // Do NOT update the store rows — changes are held in pending state only.
     // The store will be refreshed from DB only after sync button is clicked.
@@ -1538,6 +1550,7 @@ export function DataPillar() {
               dataSourceId={activeDataSourceId}
               loading={loading}
               onRefresh={loadDataSourceData}
+              onUpdateRow={handleUpdateRow}
               sortConfig={sortConfig}
               onSortChange={cycleSort}
               onSetSortDirect={setSortDirect}

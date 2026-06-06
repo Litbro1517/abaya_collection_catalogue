@@ -86,6 +86,7 @@ interface Props {
   dataSourceId: string;
   loading: boolean;
   onRefresh: () => void;
+  onUpdateRow: (rowId: string, newData: Record<string, unknown>) => void;
   sortConfig?: SortConfig | null;
   onSortChange?: (col: Column) => void;
   onSetSortDirect?: (colSlug: string, colName: string, direction: 'asc' | 'desc') => void;
@@ -95,7 +96,7 @@ interface Props {
   onAddColumn?: () => void;
 }
 
-export function DataTable({ columns, rows, dataSourceId, loading, onRefresh, sortConfig, onSortChange, onSetSortDirect, onLocalStatusChange, onLocalLockToggle, pendingStatusChanges, onAddColumn }: Props) {
+export function DataTable({ columns, rows, dataSourceId, loading, onRefresh, onUpdateRow, sortConfig, onSortChange, onSetSortDirect, onLocalStatusChange, onLocalLockToggle, pendingStatusChanges, onAddColumn }: Props) {
   const [editingCell, setEditingCell] = useState<string | null>(null); // `${rowId}-${colSlug}`
   const [editValue, setEditValue] = useState('');
   const [showColumnEditor, setShowColumnEditor] = useState(false);
@@ -125,15 +126,61 @@ export function DataTable({ columns, rows, dataSourceId, loading, onRefresh, sor
   // Delete confirmation
   const [deleteTarget, setDeleteTarget] = useState<{ type: 'row' | 'column'; id: string; name?: string } | null>(null);
 
-  // ━━━ Optimistic Stock State + Debounce ━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-  // Local override: maps rowId → optimistic stock value (instant UI update)
+  // ━━━ Optimistic State Layer (Stock, Switch, Visibility) ━━━━━━━━━━━━━
+  // All three use the same pattern: instant local state → async background save
+  // No onRefresh() calls → no loading spinner → no freeze
+
+  // Stock: optimistic value map
   const [optimisticStock, setOptimisticStock] = useState<Record<string, number>>({});
-  // Track which row's stock stepper is expanded (clicked)
   const [stockStepperOpen, setStockStepperOpen] = useState<string | null>(null);
-  // Debounce timers per row
   const stockDebounceRef = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
-  // Pending API payload per row (accumulated changes)
   const stockPendingRef = useRef<Record<string, { data: Record<string, unknown>; colSlug: string }>>({});
+
+  // Switch (Disponibilité): optimistic value map
+  const [optimisticSwitch, setOptimisticSwitch] = useState<Record<string, boolean>>({});
+
+  // Eye (Visibility): optimistic value map
+  const [optimisticVisibility, setOptimisticVisibility] = useState<Record<string, boolean>>({});
+
+  // ── Background API save with rollback on failure ─────────────────────
+  const backgroundSave = useCallback(async (
+    rowId: string,
+    data: Record<string, unknown>,
+    rollbackFn: () => void,
+    successMsg?: string
+  ) => {
+    try {
+      const res = await fetch(`/api/datasources/${dataSourceId}/rows/${rowId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ data }),
+      });
+      if (res.ok) {
+        // Silently update the row in the parent store (no loading spinner)
+        onUpdateRow(rowId, data);
+        // Clear optimistic overlays for this row (DB now matches)
+        setOptimisticSwitch(prev => {
+          const next = { ...prev };
+          delete next[rowId];
+          return next;
+        });
+        setOptimisticVisibility(prev => {
+          const next = { ...prev };
+          delete next[rowId];
+          return next;
+        });
+        if (successMsg) toast.success(successMsg);
+      } else {
+        // API returned error → rollback
+        rollbackFn();
+        toast.error('Erreur de sauvegarde — modification annulée');
+      }
+    } catch {
+      // Network error → rollback
+      rollbackFn();
+      toast.error('Erreur réseau — modification annulée');
+    }
+  }, [dataSourceId, onUpdateRow]);
 
   // Flush all pending stock changes immediately (e.g., on unmount)
   const flushStockChange = useCallback(async (rowId: string) => {
@@ -141,13 +188,16 @@ export function DataTable({ columns, rows, dataSourceId, loading, onRefresh, sor
     if (!pending) return;
     delete stockPendingRef.current[rowId];
     try {
-      await fetch(`/api/datasources/${dataSourceId}/rows/${rowId}`, {
+      const res = await fetch(`/api/datasources/${dataSourceId}/rows/${rowId}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ data: pending.data }),
       });
-    } catch { /* silent */ }
-  }, [dataSourceId]);
+      if (res.ok) {
+        onUpdateRow(rowId, pending.data);
+      }
+    } catch { /* silent on unmount */ }
+  }, [dataSourceId, onUpdateRow]);
 
   // Schedule a debounced stock save (1.5s after last click)
   const scheduleStockSave = useCallback((rowId: string, data: Record<string, unknown>, colSlug: string) => {
@@ -159,22 +209,48 @@ export function DataTable({ columns, rows, dataSourceId, loading, onRefresh, sor
     }
     // Set new timer — 1.5s debounce
     stockDebounceRef.current[rowId] = setTimeout(async () => {
-      await flushStockChange(rowId);
-      // After saving, clear optimistic state and refresh
+      const pending = stockPendingRef.current[rowId];
+      if (!pending) return;
+      delete stockPendingRef.current[rowId];
+      try {
+        const res = await fetch(`/api/datasources/${dataSourceId}/rows/${rowId}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ data: pending.data }),
+        });
+        if (res.ok) {
+          // Silently update row in parent store — NO onRefresh()
+          onUpdateRow(rowId, pending.data);
+        } else {
+          // Rollback on failure
+          setOptimisticStock(prev => {
+            const next = { ...prev };
+            delete next[rowId];
+            return next;
+          });
+          toast.error('Erreur de sauvegarde stock — modification annulée');
+        }
+      } catch {
+        setOptimisticStock(prev => {
+          const next = { ...prev };
+          delete next[rowId];
+          return next;
+        });
+        toast.error('Erreur réseau — modification stock annulée');
+      }
+      // Clear optimistic overlay (parent store now has the value)
       setOptimisticStock(prev => {
         const next = { ...prev };
         delete next[rowId];
         return next;
       });
-      onRefresh();
     }, 1500);
-  }, [flushStockChange, onRefresh]);
+  }, [dataSourceId, onUpdateRow]);
 
   // Cleanup debounce timers on unmount
   useEffect(() => {
     return () => {
       Object.values(stockDebounceRef.current).forEach(timer => clearTimeout(timer));
-      // Flush any remaining pending changes
       Object.keys(stockPendingRef.current).forEach(rowId => flushStockChange(rowId));
     };
   }, [flushStockChange]);
@@ -226,7 +302,8 @@ export function DataTable({ columns, rows, dataSourceId, loading, onRefresh, sor
         body: JSON.stringify({ data }),
       });
       if (res.ok) {
-        onRefresh();
+        // Silently update row in parent store — NO onRefresh()
+        onUpdateRow(rowId, data);
       }
     } catch {
       toast.error('Erreur de sauvegarde');
@@ -704,12 +781,18 @@ export function DataTable({ columns, rows, dataSourceId, loading, onRefresh, sor
         // Build full row data payload with reactive business rules
         const data = { ...(freshRow.data as Record<string, unknown>) };
         data[col.slug] = String(newStock);
+        // Also include any pending optimistic switch value
+        if (row.id in optimisticSwitch) {
+          data.__disponibilite__ = String(optimisticSwitch[row.id]);
+        }
 
         // ━━━ Reactive Engine: Stock > 0 → auto ON, Stock == 0 → auto OFF ━━━
         if (newStock > 0) {
           data.__disponibilite__ = 'true'; // Scenario A: re-integrate into normal flow
+          setOptimisticSwitch(prev => ({ ...prev, [row.id]: true })); // instant switch ON
         } else if (newStock === 0) {
           data.__disponibilite__ = 'false'; // Scenario B: auto-épuisé
+          setOptimisticSwitch(prev => ({ ...prev, [row.id]: false })); // instant switch OFF
         }
 
         // ━━━ Debounced API save (1.5s) ━━━
@@ -788,7 +871,9 @@ export function DataTable({ columns, rows, dataSourceId, loading, onRefresh, sor
     }
 
     if (col.type === 'BOOLEAN') {
-      const boolVal = strVal === 'true';
+      // ━━━ Optimistic Switch: read from optimistic overlay if available ━━━
+      const dbBoolVal = strVal === 'true';
+      const boolVal = row.id in optimisticSwitch ? optimisticSwitch[row.id] : dbBoolVal;
       const colNameLower = col.name.toLowerCase();
       const isDisponible = colNameLower.includes('disponible') || colNameLower.includes('disponibilite') || colNameLower.includes('disponibilité') || col.slug === '__disponibilite__';
       // ━━━ Reactive Engine: Compute Sur commande state ━━━
@@ -804,32 +889,34 @@ export function DataTable({ columns, rows, dataSourceId, loading, onRefresh, sor
         <div className="flex items-center gap-2">
           <Switch
             checked={boolVal}
-            onCheckedChange={async (checked) => {
+            onCheckedChange={(checked) => {
+              // ━━━ INSTANT optimistic update (0ms) ━━━
+              setOptimisticSwitch(prev => ({ ...prev, [row.id]: checked }));
+
+              // Build full row data payload with reactive rules
               const currentRow = rows.find(r => r.id === row.id);
               if (!currentRow) return;
               const data = { ...(currentRow.data as Record<string, unknown>) };
               data[col.slug] = String(checked);
-              // ━━━ Reactive Engine: Switch + Stock interconnection ━━━
-              // If Switch turned ON and stock > 0 → Scenario A (normal, handled automatically)
-              // If Switch turned ON and stock == 0 → Scenario C (Sur commande override)
-              // If Switch turned OFF → Scenario B (Épuisé), regardless of stock
-              try {
-                const res = await fetch(`/api/datasources/${dataSourceId}/rows/${currentRow.id}`, {
-                  method: 'PUT',
-                  headers: { 'Content-Type': 'application/json' },
-                  body: JSON.stringify({ data }),
-                });
-                if (res.ok) {
-                  onRefresh();
-                  if (checked && currentStock === 0) {
-                    toast.success('🔍 Mode Sur commande activé — produit visible et achetable');
-                  } else {
-                    toast.success(checked ? `${trueLabel}` : `${falseLabel}`);
-                  }
-                }
-              } catch {
-                toast.error('Erreur de sauvegarde');
+              // Also update optimistic stock/switch consistency
+              if (optimisticStock[row.id] !== undefined) {
+                data.__stock__ = String(optimisticStock[row.id]);
               }
+
+              // ━━━ Async background save (no await, no blocking) ━━━
+              const rollbackFn = () => {
+                setOptimisticSwitch(prev => {
+                  const next = { ...prev };
+                  delete next[row.id];
+                  return next;
+                });
+              };
+
+              const successMsg = checked && currentStock === 0
+                ? '🔍 Mode Sur commande activé'
+                : checked ? trueLabel : falseLabel;
+
+              backgroundSave(row.id, data, rollbackFn, successMsg);
             }}
             className="scale-75"
           />
@@ -1218,6 +1305,9 @@ export function DataTable({ columns, rows, dataSourceId, loading, onRefresh, sor
               {paginatedRows.map((row, idx) => {
                 const isSelected = selectedRows.has(row.id);
                 const rowNum = page * pageSize + idx + 1;
+                // ━━━ Optimistic visibility: overlay on DB value ━━━
+                const dbVisible = (row.data as Record<string, unknown>).__is_visible__ !== false;
+                const isVisible = row.id in optimisticVisibility ? optimisticVisibility[row.id] : dbVisible;
 
                 return (
                   <tr key={row.id} className={cn(
@@ -1239,33 +1329,41 @@ export function DataTable({ columns, rows, dataSourceId, loading, onRefresh, sor
                         <button
                           className={cn(
                             "p-0.5 rounded transition-colors shrink-0",
-                            (row.data as Record<string, unknown>).__is_visible__ !== false
+                            isVisible
                               ? "text-emerald-500 hover:text-emerald-600 hover:bg-emerald-50"
                               : "text-muted-foreground/40 hover:text-muted-foreground hover:bg-muted"
                           )}
-                          onClick={async (e) => {
+                          onClick={(e) => {
                             e.stopPropagation();
-                            const currentVisible = (row.data as Record<string, unknown>).__is_visible__;
-                            const newVisible = currentVisible === false ? true : false;
+                            // ━━━ INSTANT optimistic update (0ms) ━━━
+                            const newVisible = !isVisible;
+                            setOptimisticVisibility(prev => ({ ...prev, [row.id]: newVisible }));
+
+                            // Build full row data payload
                             const data = { ...(row.data as Record<string, unknown>) };
                             data.__is_visible__ = newVisible;
-                            try {
-                              const res = await fetch(`/api/datasources/${dataSourceId}/rows/${row.id}`, {
-                                method: 'PUT',
-                                headers: { 'Content-Type': 'application/json' },
-                                body: JSON.stringify({ data }),
-                              });
-                              if (res.ok) {
-                                onRefresh();
-                                toast.success(newVisible ? 'Visible 👁️' : 'Masqué 👁️‍🗨️');
-                              }
-                            } catch {
-                              toast.error('Erreur de sauvegarde');
+                            // Also include optimistic stock/switch if pending
+                            if (optimisticStock[row.id] !== undefined) {
+                              data.__stock__ = String(optimisticStock[row.id]);
                             }
+                            if (row.id in optimisticSwitch) {
+                              data.__disponibilite__ = String(optimisticSwitch[row.id]);
+                            }
+
+                            // ━━━ Async background save (no await, no blocking) ━━━
+                            const rollbackFn = () => {
+                              setOptimisticVisibility(prev => {
+                                const next = { ...prev };
+                                delete next[row.id];
+                                return next;
+                              });
+                            };
+
+                            backgroundSave(row.id, data, rollbackFn, newVisible ? 'Visible 👁️' : 'Masqué 👁️‍🗨️');
                           }}
-                          title={(row.data as Record<string, unknown>).__is_visible__ !== false ? "Visible — cliquer pour masquer" : "Masqué — cliquer pour afficher"}
+                          title={isVisible ? "Visible — cliquer pour masquer" : "Masqué — cliquer pour afficher"}
                         >
-                          {(row.data as Record<string, unknown>).__is_visible__ !== false
+                          {isVisible
                             ? <Eye className="w-3 h-3" />
                             : <EyeOff className="w-3 h-3" />
                           }
