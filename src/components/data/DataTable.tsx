@@ -1017,10 +1017,10 @@ export function DataTable({ columns, rows, dataSourceId, loading, onRefresh, onU
         {/* ── Table with sticky row indices ── */}
         <div className="flex-1 overflow-auto relative">
           <table className="w-full text-sm border-collapse">
-            <thead className="sticky top-0 z-10">
-              <tr className="bg-muted/80 backdrop-blur-sm">
+            <thead className="sticky top-0 z-30">
+              <tr className="bg-muted/95 backdrop-blur-sm">
                 {/* Checkbox column — sticky */}
-                <th className="px-2 py-2 w-9 border-b border-border sticky left-0 bg-muted/90 z-20">
+                <th className="px-2 py-2 w-9 border-b border-border sticky left-0 bg-muted/95 z-40">
                   <Checkbox
                     checked={allVisibleSelected}
                     onCheckedChange={toggleAllVisible}
@@ -1028,7 +1028,7 @@ export function DataTable({ columns, rows, dataSourceId, loading, onRefresh, onU
                   />
                 </th>
                 {/* Row # column — sticky */}
-                <th className="px-2 py-2 text-left text-xs font-medium text-muted-foreground w-14 border-b border-r border-border sticky left-9 bg-muted/90 z-20">
+                <th className="px-2 py-2 text-left text-xs font-medium text-muted-foreground w-14 border-b border-r border-border sticky left-9 bg-muted/95 z-40">
                   <div className="flex items-center gap-1">
                     <span>#</span>
                     <Eye className="w-3 h-3 text-muted-foreground/50" />
@@ -1038,7 +1038,7 @@ export function DataTable({ columns, rows, dataSourceId, loading, onRefresh, onU
                 {sortedVisibleColumns.map(col => {
                   const isSorted = sortConfig?.columnSlug === col.slug;
                   return (
-                    <th key={col.id} className="px-0 py-0 text-left text-xs font-medium text-muted-foreground border-b border-border min-w-[140px]">
+                    <th key={col.id} className="px-0 py-0 text-left text-xs font-medium text-muted-foreground border-b border-border min-w-[140px] bg-muted/95">
                       <div className="flex items-center gap-0.5 px-2 py-1.5 group/col">
                         {/* Column type icon */}
                         <div className="flex items-center justify-center w-5 h-5 rounded bg-primary/10 text-primary shrink-0">
@@ -1280,7 +1280,7 @@ export function DataTable({ columns, rows, dataSourceId, loading, onRefresh, onU
                   );
                 })}
                 {/* ── Add column button — sticky at top-right ── */}
-                <th className="px-2 py-2 w-10 border-b border-l border-border sticky right-0 top-0 bg-muted z-40">
+                <th className="px-2 py-2 w-10 border-b border-l border-border sticky right-0 top-0 bg-muted/95 z-40">
                   <Tooltip>
                     <TooltipTrigger asChild>
                       <button
@@ -1467,17 +1467,6 @@ export function DataTable({ columns, rows, dataSourceId, loading, onRefresh, onU
             </tbody>
           </table>
 
-          {/* Floating "+" add column button — always visible during scroll */}
-          <button
-            className="absolute bottom-4 right-4 z-30 w-10 h-10 rounded-full shadow-lg bg-[#C9A84C] hover:bg-[#C9A84C]/90 text-white flex items-center justify-center transition-transform hover:scale-110"
-            onClick={() => {
-              if (onAddColumn) onAddColumn();
-              else { setEditingColumn(null); setShowColumnEditor(true); }
-            }}
-            title="Ajouter une colonne"
-          >
-            <Plus className="w-5 h-5" />
-          </button>
         </div>
 
         {/* ── Footer: pagination + add row ── */}
