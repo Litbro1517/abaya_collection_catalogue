@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useCallback, useRef } from 'react';
+import { useState, useCallback, useRef, useEffect } from 'react';
 import type { Column, Row, ColumnType } from '@/types';
 import type { SortConfig } from './DataPillar';
 import { Input } from '@/components/ui/input';
@@ -42,6 +42,7 @@ import {
   Type, Hash, Banknote, Images,
   ListChecks, Layers, ToggleRight, ExternalLink, Link2, SquareStack,
   MoveRight, Activity, Lock, Unlock, ArrowUpDown, Zap,
+  ChevronUp, Minus,
 } from 'lucide-react';
 import { Switch } from '@/components/ui/switch';
 import { toast } from 'sonner';
@@ -123,6 +124,60 @@ export function DataTable({ columns, rows, dataSourceId, loading, onRefresh, sor
 
   // Delete confirmation
   const [deleteTarget, setDeleteTarget] = useState<{ type: 'row' | 'column'; id: string; name?: string } | null>(null);
+
+  // ━━━ Optimistic Stock State + Debounce ━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  // Local override: maps rowId → optimistic stock value (instant UI update)
+  const [optimisticStock, setOptimisticStock] = useState<Record<string, number>>({});
+  // Track which row's stock stepper is expanded (clicked)
+  const [stockStepperOpen, setStockStepperOpen] = useState<string | null>(null);
+  // Debounce timers per row
+  const stockDebounceRef = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
+  // Pending API payload per row (accumulated changes)
+  const stockPendingRef = useRef<Record<string, { data: Record<string, unknown>; colSlug: string }>>({});
+
+  // Flush all pending stock changes immediately (e.g., on unmount)
+  const flushStockChange = useCallback(async (rowId: string) => {
+    const pending = stockPendingRef.current[rowId];
+    if (!pending) return;
+    delete stockPendingRef.current[rowId];
+    try {
+      await fetch(`/api/datasources/${dataSourceId}/rows/${rowId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ data: pending.data }),
+      });
+    } catch { /* silent */ }
+  }, [dataSourceId]);
+
+  // Schedule a debounced stock save (1.5s after last click)
+  const scheduleStockSave = useCallback((rowId: string, data: Record<string, unknown>, colSlug: string) => {
+    // Store the pending payload
+    stockPendingRef.current[rowId] = { data, colSlug };
+    // Clear existing timer
+    if (stockDebounceRef.current[rowId]) {
+      clearTimeout(stockDebounceRef.current[rowId]);
+    }
+    // Set new timer — 1.5s debounce
+    stockDebounceRef.current[rowId] = setTimeout(async () => {
+      await flushStockChange(rowId);
+      // After saving, clear optimistic state and refresh
+      setOptimisticStock(prev => {
+        const next = { ...prev };
+        delete next[rowId];
+        return next;
+      });
+      onRefresh();
+    }, 1500);
+  }, [flushStockChange, onRefresh]);
+
+  // Cleanup debounce timers on unmount
+  useEffect(() => {
+    return () => {
+      Object.values(stockDebounceRef.current).forEach(timer => clearTimeout(timer));
+      // Flush any remaining pending changes
+      Object.keys(stockPendingRef.current).forEach(rowId => flushStockChange(rowId));
+    };
+  }, [flushStockChange]);
 
   // Native system column slugs — non-deletable, ordered first
   const NATIVE_COLUMN_SLUGS = ['__disponibilite__', '__stock__', '__statut__'];
@@ -626,117 +681,108 @@ export function DataTable({ columns, rows, dataSourceId, loading, onRefresh, sor
       return <span className="font-medium text-emerald-700">{strVal}</span>;
     }
 
-    // Stock counter: NUMBER column with __stock__ slug — render with +/-/⚡ buttons
+    // ━━━ Stock counter: Minimalist design with optimistic update + debounce ━━━
     if (col.type === 'NUMBER' && col.slug === '__stock__') {
-      const numVal = parseInt(strVal) || 0;
+      // Use optimistic value if available, otherwise fall back to DB value
+      const dbVal = parseInt(strVal) || 0;
+      const numVal = optimisticStock[row.id] ?? dbVal;
       const stockColor = numVal > 0 ? 'text-emerald-600' : numVal === 0 ? 'text-red-500' : 'text-muted-foreground';
+      const isOpen = stockStepperOpen === row.id;
+      const hasPending = optimisticStock[row.id] !== undefined;
+
+      // Optimistic stock change handler — updates local state instantly, debounces API save
+      const handleStockChange = (delta: number, isQuickSell = false) => {
+        const freshRow = rows.find(r => r.id === row.id);
+        if (!freshRow) return;
+        const currentOptimistic = optimisticStock[row.id] ?? dbVal;
+        const newStock = Math.max(0, currentOptimistic + delta);
+        if (newStock === currentOptimistic && delta <= 0) return; // can't go below 0
+
+        // ━━━ Instant optimistic UI update (0ms) ━━━
+        setOptimisticStock(prev => ({ ...prev, [row.id]: newStock }));
+
+        // Build full row data payload with reactive business rules
+        const data = { ...(freshRow.data as Record<string, unknown>) };
+        data[col.slug] = String(newStock);
+
+        // ━━━ Reactive Engine: Stock > 0 → auto ON, Stock == 0 → auto OFF ━━━
+        if (newStock > 0) {
+          data.__disponibilite__ = 'true'; // Scenario A: re-integrate into normal flow
+        } else if (newStock === 0) {
+          data.__disponibilite__ = 'false'; // Scenario B: auto-épuisé
+        }
+
+        // ━━━ Debounced API save (1.5s) ━━━
+        scheduleStockSave(row.id, data, col.slug);
+
+        // Toast feedback
+        if (isQuickSell) {
+          toast.success('⚡ Vente rapide');
+          if (newStock === 0) toast.info('Stock épuisé → Disponible désactivé');
+        } else if (delta > 0 && currentOptimistic === 0) {
+          toast.success('Stock ajouté → Disponible activé');
+        } else if (newStock === 0) {
+          toast.info('Stock épuisé → Disponible désactivé');
+        }
+      };
+
       return (
-        <div className="flex items-center gap-1">
-          <Button
-            variant="outline"
-            size="icon"
-            className="h-5 w-5 rounded-full p-0 text-[10px] hover:bg-red-50 hover:text-red-600 border-border/50"
-            onClick={async (e) => {
-              e.currentTarget.disabled = true;
-              const freshRow = rows.find(r => r.id === row.id);
-              if (!freshRow) return;
-              const data = { ...(freshRow.data as Record<string, unknown>) };
-              const newStock = Math.max(0, numVal - 1);
-              data[col.slug] = String(newStock);
-              // Business rule: stock reaches 0 → auto-set __disponibilite__ to 'false'
-              if (newStock === 0) {
-                data.__disponibilite__ = 'false';
-              }
-              try {
-                const res = await fetch(`/api/datasources/${dataSourceId}/rows/${freshRow.id}`, {
-                  method: 'PUT',
-                  headers: { 'Content-Type': 'application/json' },
-                  body: JSON.stringify({ data }),
-                });
-                if (res.ok) {
-                  onRefresh();
-                  if (newStock === 0) toast.info('Stock épuisé → Disponible désactivé');
-                }
-              } catch { /* silent */ }
-            }}
-          >
-            −
-          </Button>
-          <span className={cn("text-xs font-bold min-w-[20px] text-center", stockColor)}>
-            {numVal}
-          </span>
-          <Button
-            variant="outline"
-            size="icon"
-            className="h-5 w-5 rounded-full p-0 text-[10px] hover:bg-emerald-50 hover:text-emerald-600 border-border/50"
-            onClick={async (e) => {
-              e.currentTarget.disabled = true;
-              const freshRow = rows.find(r => r.id === row.id);
-              if (!freshRow) return;
-              const data = { ...(freshRow.data as Record<string, unknown>) };
-              const newStock = numVal + 1;
-              data[col.slug] = String(newStock);
-              // ━━━ Reactive Engine: Stock > 0 → auto-set __disponibilite__='true' ━━━
-              // Scenario A: Adding stock reintegrates product into normal flow.
-              // If product was in "Sur commande" forced mode (stock=0, switch=ON),
-              // adding stock clears that override and reverts to standard management.
-              if (newStock > 0) {
-                data.__disponibilite__ = 'true';
-              }
-              try {
-                const res = await fetch(`/api/datasources/${dataSourceId}/rows/${freshRow.id}`, {
-                  method: 'PUT',
-                  headers: { 'Content-Type': 'application/json' },
-                  body: JSON.stringify({ data }),
-                });
-                if (res.ok) {
-                  onRefresh();
-                  if (numVal === 0) toast.success('Stock ajouté → Disponible activé');
-                }
-              } catch { /* silent */ }
-            }}
-          >
-            +
-          </Button>
-          {/* ⚡ Quick Sell button — decrement stock by 1, auto-disable disponible if stock=0 */}
-          <Button
-            variant="outline"
-            size="icon"
+        <div className="flex items-center gap-0.5 select-none">
+          {/* ── Minimalist stock display: click to reveal stepper ── */}
+          <button
             className={cn(
-              "h-5 w-5 rounded-full p-0 border-border/50",
-              numVal > 0
-                ? "text-amber-500 hover:bg-amber-50 hover:text-amber-600"
-                : "text-muted-foreground/30 cursor-not-allowed"
+              "flex items-center gap-0.5 rounded px-1.5 py-0.5 transition-all duration-200 cursor-pointer",
+              "hover:bg-muted/60",
+              isOpen && "bg-muted/60 ring-1 ring-border/40",
+              hasPending && "ring-1 ring-amber-300/50"
             )}
-            disabled={numVal <= 0}
-            onClick={async (e) => {
-              e.currentTarget.disabled = true;
-              const freshRow = rows.find(r => r.id === row.id);
-              if (!freshRow) return;
-              const data = { ...(freshRow.data as Record<string, unknown>) };
-              const newStock = Math.max(0, numVal - 1);
-              data[col.slug] = String(newStock);
-              // Business rule: stock reaches 0 → auto-set __disponibilite__ to 'false'
-              if (newStock === 0) {
-                data.__disponibilite__ = 'false';
-              }
-              try {
-                const res = await fetch(`/api/datasources/${dataSourceId}/rows/${freshRow.id}`, {
-                  method: 'PUT',
-                  headers: { 'Content-Type': 'application/json' },
-                  body: JSON.stringify({ data }),
-                });
-                if (res.ok) {
-                  onRefresh();
-                  toast.success('⚡ Vente rapide enregistrée');
-                  if (newStock === 0) toast.info('Stock épuisé → Disponible désactivé');
-                }
-              } catch { /* silent */ }
-            }}
+            onClick={() => setStockStepperOpen(isOpen ? null : row.id)}
+            title={hasPending ? '⏳ Sauvegarde en cours…' : 'Cliquer pour modifier le stock'}
+          >
+            {/* Stock number — clean, bold, colored */}
+            <span className={cn("text-xs font-bold min-w-[18px] text-center tabular-nums", stockColor)}>
+              {numVal}
+            </span>
+          </button>
+
+          {/* ── Hidden stepper arrows — appear when stock cell is active ── */}
+          {isOpen && (
+            <div className="flex flex-col items-center gap-px ml-0.5 animate-in fade-in duration-150">
+              <button
+                className="p-0 rounded-sm text-muted-foreground hover:text-emerald-600 hover:bg-emerald-50 transition-colors leading-none"
+                onClick={(e) => { e.stopPropagation(); handleStockChange(1); }}
+                title="Ajouter 1 au stock"
+              >
+                <ChevronUp className="w-3 h-3" />
+              </button>
+              <button
+                className={cn(
+                  "p-0 rounded-sm transition-colors leading-none",
+                  numVal > 0
+                    ? "text-muted-foreground hover:text-red-500 hover:bg-red-50"
+                    : "text-muted-foreground/20 cursor-not-allowed"
+                )}
+                onClick={(e) => { e.stopPropagation(); if (numVal > 0) handleStockChange(-1); }}
+                title="Retirer 1 du stock"
+              >
+                <ChevronDown className="w-3 h-3" />
+              </button>
+            </div>
+          )}
+
+          {/* ── ⚡ Quick Sell button — always visible, minimalist ── */}
+          <button
+            className={cn(
+              "ml-0.5 p-0.5 rounded-sm transition-colors leading-none",
+              numVal > 0
+                ? "text-amber-500 hover:text-amber-600 hover:bg-amber-50"
+                : "text-muted-foreground/20 cursor-not-allowed"
+            )}
+            onClick={(e) => { e.stopPropagation(); if (numVal > 0) handleStockChange(-1, true); }}
             title="⚡ Vente rapide — décrémenter le stock"
           >
-            <Zap className="w-3 h-3" />
-          </Button>
+            <Zap className="w-3.5 h-3.5" />
+          </button>
         </div>
       );
     }
@@ -747,8 +793,10 @@ export function DataTable({ columns, rows, dataSourceId, loading, onRefresh, sor
       const isDisponible = colNameLower.includes('disponible') || colNameLower.includes('disponibilite') || colNameLower.includes('disponibilité') || col.slug === '__disponibilite__';
       // ━━━ Reactive Engine: Compute Sur commande state ━━━
       // Sur commande = Switch ON + Stock = 0 (Scenario C — derogatory mode)
+      // Use optimistic stock if available for instant feedback
       const rowData = row.data as Record<string, unknown>;
-      const currentStock = typeof rowData.__stock__ === 'number' ? rowData.__stock__ : parseInt(String(rowData.__stock__)) || 0;
+      const dbStock = typeof rowData.__stock__ === 'number' ? rowData.__stock__ : parseInt(String(rowData.__stock__)) || 0;
+      const currentStock = optimisticStock[row.id] ?? dbStock;
       const isSurCommande = isDisponible && boolVal && currentStock === 0;
       const trueLabel = isSurCommande ? 'Sur commande' : (isDisponible ? 'Disponible' : 'Oui');
       const falseLabel = isDisponible ? 'Épuisé' : 'Non';
