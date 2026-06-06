@@ -19,6 +19,8 @@ export async function GET() {
       color: ds.color,
       sourceType: ds.sourceType,
       sourceUrl: ds.sourceUrl,
+      sheetId: ds.sheetId,
+      sheetName: ds.sheetName,
       columnCount: ds._count.columns,
       rowCount: ds._count.rows,
       createdAt: ds.createdAt,

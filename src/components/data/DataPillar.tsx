@@ -796,29 +796,37 @@ export function DataPillar() {
                     {(ds as DataSource & { columnCount?: number; rowCount?: number }).rowCount ?? 0} lignes
                   </p>
                 </div>
-                {/* ━━━ Per-table DELTA SYNC button (RefreshCw) ━━━ */}
+                {/* ━━━ Per-table DELTA SYNC button (RefreshCw) — ALWAYS VISIBLE ━━━ */}
                 {ds.sheetId && (
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className={cn(
-                      "h-6 w-6 shrink-0 transition-all",
-                      syncingTableId === ds.id
-                        ? "opacity-100 text-[#C9A84C]"
-                        : "opacity-0 group-hover:opacity-100 text-[#C9A84C] hover:text-[#C9A84C]/80 hover:bg-[#C9A84C]/10"
-                    )}
-                    disabled={syncingTableId !== null}
-                    onClick={(e) => {
-                      e.stopPropagation(); // Don't select the table when clicking sync
-                      handleSyncTableClick(ds.id, ds.sheetId!, ds.name);
-                    }}
-                    title={`Synchronisation Delta — "${ds.name}" — Ajouter les nouveaux produits uniquement`}
-                  >
-                    {syncingTableId === ds.id
-                      ? <Loader2 className="w-3 h-3 animate-spin" />
-                      : <RefreshCw className="w-3 h-3" />
-                    }
-                  </Button>
+                  <TooltipProvider>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className={cn(
+                            "h-7 w-7 shrink-0 transition-all",
+                            syncingTableId === ds.id
+                              ? "text-[#C9A84C] bg-[#C9A84C]/10"
+                              : "text-[#C9A84C] hover:text-[#C9A84C]/80 hover:bg-[#C9A84C]/10"
+                          )}
+                          disabled={syncingTableId !== null}
+                          onClick={(e) => {
+                            e.stopPropagation(); // Don't select the table when clicking sync
+                            handleSyncTableClick(ds.id, ds.sheetId!, ds.name);
+                          }}
+                        >
+                          {syncingTableId === ds.id
+                            ? <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                            : <RefreshCw className="w-3.5 h-3.5" />
+                          }
+                        </Button>
+                      </TooltipTrigger>
+                      <TooltipContent side="right" className="text-xs">
+                        Synchronisation Delta — Ajouter les nouveaux produits
+                      </TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
                 )}
                 {/* Delete table button */}
                 <AlertDialog>
