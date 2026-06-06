@@ -118,3 +118,29 @@ Stage Summary:
 - Composite sort: Épuisé Nouveau products don't get priority over available products
 - Lint passes cleanly (zero errors)
 - Dev server compiles and serves correctly
+
+---
+Task ID: 4
+Agent: Main Agent
+Task: Deploy complete native Stock/Disponibilité/Visibility system to production
+
+Work Log:
+- Committed all changes (sync route, DataTable, CatalogPreview) to git
+- Pushed to GitHub: Litbro1517/abaya_collection_catalogue (commit 8178ff0)
+- Deployed to Vercel production: abaya-collection-catalogue-9dum.vercel.app
+- Verified public store using Agent Browser + VLM:
+  - Products show "Épuisé" badge in top-right corner ✓
+  - Products show diagonal "SOLD OUT" overlay ✓
+  - Product detail shows "Produit épuisé" badge ✓
+  - Commander CTA greyed out and disabled ✓
+- Verified API: native columns exist (__stock__, __disponibilite__, __statut__) ✓
+- Verified row data: __disponibilite__='false', __stock__=0, __is_visible__=True ✓
+- Lint passes cleanly (zero errors) ✓
+- Dev server compiles without errors ✓
+
+Stage Summary:
+- All 3 native columns properly created and visible in database
+- Sheet columns named "Disponibilité"/"Stock" are now mapped to native slugs (no duplicates)
+- Business rule Stock=0 → Disponibilité=OFF applied during import/sync
+- Public store correctly shows Sold Out indicators for all épuisé products
+- Deployment live at https://abaya-collection-catalogue-9dum.vercel.app
