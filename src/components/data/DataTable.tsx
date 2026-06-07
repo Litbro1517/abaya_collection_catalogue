@@ -42,7 +42,7 @@ import {
   Type, Hash, Banknote, Images,
   ListChecks, Layers, ToggleRight, ExternalLink, Link2, SquareStack,
   MoveRight, Activity, Lock, Unlock, ArrowUpDown, Zap,
-  ChevronUp, Minus,
+  ChevronUp, Minus, ChevronLeft,
 } from 'lucide-react';
 import { Switch } from '@/components/ui/switch';
 import { toast } from 'sonner';
@@ -102,7 +102,7 @@ export function DataTable({ columns, rows, dataSourceId, loading, onRefresh, onU
   const [showColumnEditor, setShowColumnEditor] = useState(false);
   const [editingColumn, setEditingColumn] = useState<Column | null>(null);
   const [page, setPage] = useState(0);
-  const pageSize = 50;
+  const [pageSize, setPageSize] = useState<number>(50); // 20 | 50 | 0 (0 = All)
 
   // Renaming column inline
   const [renamingColId, setRenamingColId] = useState<string | null>(null);
@@ -269,8 +269,43 @@ export function DataTable({ columns, rows, dataSourceId, loading, onRefresh, onU
     if (aNative !== bNative) return aNative - bNative;
     return 0;
   });
-  const paginatedRows = rows.slice(page * pageSize, (page + 1) * pageSize);
+  // Ref for scroll-to-top on page change
+  const tableContainerRef = useRef<HTMLDivElement>(null);
+
+  // Computed pagination values
+  const effectivePageSize = pageSize === 0 ? rows.length : pageSize; // 0 means "show all"
+  const totalPages = Math.max(1, Math.ceil(rows.length / effectivePageSize));
+  const safePage = Math.min(page, totalPages - 1); // clamp page if rows shrink
+  const paginatedRows = pageSize === 0 ? rows : rows.slice(safePage * pageSize, (safePage + 1) * pageSize);
   const allVisibleSelected = paginatedRows.length > 0 && paginatedRows.every(r => selectedRows.has(r.id));
+
+  // Range indicator text (e.g. "1-50 de 84 produits")
+  const rangeStart = rows.length === 0 ? 0 : safePage * effectivePageSize + 1;
+  const rangeEnd = Math.min((safePage + 1) * effectivePageSize, rows.length);
+
+  // Scroll to top on page change
+  const goToPage = useCallback((newPage: number) => {
+    setPage(newPage);
+    if (tableContainerRef.current) {
+      tableContainerRef.current.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+  }, []);
+
+  // Change page size — reset to page 0
+  const changePageSize = useCallback((size: number) => {
+    setPageSize(size);
+    setPage(0);
+    if (tableContainerRef.current) {
+      tableContainerRef.current.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+  }, []);
+
+  // Auto-correct page when rows shrink (e.g., after deletion)
+  useEffect(() => {
+    if (page > 0 && page >= totalPages) {
+      setPage(totalPages - 1);
+    }
+  }, [page, totalPages]);
 
   // ── Cell editing ──────────────────────────────────────────────────────────
 
@@ -1015,7 +1050,7 @@ export function DataTable({ columns, rows, dataSourceId, loading, onRefresh, onU
         )}
 
         {/* ── Table with sticky row indices ── */}
-        <div className="flex-1 overflow-auto relative">
+        <div ref={tableContainerRef} className="flex-1 overflow-auto relative">
           <table className="w-full text-sm border-collapse">
             <thead className="sticky top-0 z-30">
               <tr className="bg-muted/95 backdrop-blur-sm">
@@ -1304,7 +1339,7 @@ export function DataTable({ columns, rows, dataSourceId, loading, onRefresh, onU
             <tbody>
               {paginatedRows.map((row, idx) => {
                 const isSelected = selectedRows.has(row.id);
-                const rowNum = page * pageSize + idx + 1;
+                const rowNum = safePage * effectivePageSize + idx + 1;
                 // ━━━ Optimistic visibility: overlay on DB value ━━━
                 const dbVisible = (row.data as Record<string, unknown>).__is_visible__ !== false;
                 const isVisible = row.id in optimisticVisibility ? optimisticVisibility[row.id] : dbVisible;
@@ -1469,26 +1504,91 @@ export function DataTable({ columns, rows, dataSourceId, loading, onRefresh, onU
 
         </div>
 
-        {/* ── Footer: pagination + add row ── */}
-        <div className="h-10 border-t border-border bg-card flex items-center px-3 gap-3 shrink-0">
+        {/* ── Footer: Pagination Bar ── */}
+        <div className="h-11 border-t border-border bg-card/95 backdrop-blur-sm flex items-center px-3 gap-2 shrink-0">
+          {/* Add row button */}
           <Button variant="ghost" size="sm" className="h-7 text-xs gap-1 text-[#C9A84C] hover:text-[#C9A84C] hover:bg-[#C9A84C]/5" onClick={addRow}>
-            <Plus className="w-3 h-3" /> Nouvelle ligne
+            <Plus className="w-3 h-3" /> Ligne
           </Button>
+
           <div className="flex-1" />
-          {rows.length > pageSize && (
+
+          {/* Pagination controls — always visible when rows > 0 */}
+          {rows.length > 0 && (
             <div className="flex items-center gap-2">
-              <Button variant="outline" size="sm" className="h-7 text-xs" disabled={page === 0} onClick={() => setPage(page - 1)}>
-                Préc.
+              {/* Page size selector dropdown */}
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="outline" size="sm" className="h-7 text-[10px] gap-1 px-2 font-medium text-muted-foreground hover:text-foreground border-border/60">
+                    {pageSize === 0 ? 'Tout' : pageSize} / page
+                    <ChevronDown className="w-3 h-3" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-32">
+                  <DropdownMenuItem
+                    className={cn("text-xs", pageSize === 20 && "font-bold text-[#C9A84C]")}
+                    onClick={() => changePageSize(20)}
+                  >
+                    20 produits
+                    {pageSize === 20 && <Check className="w-3 h-3 ml-auto" />}
+                  </DropdownMenuItem>
+                  <DropdownMenuItem
+                    className={cn("text-xs", pageSize === 50 && "font-bold text-[#C9A84C]")}
+                    onClick={() => changePageSize(50)}
+                  >
+                    50 produits
+                    {pageSize === 50 && <Check className="w-3 h-3 ml-auto" />}
+                  </DropdownMenuItem>
+                  <DropdownMenuItem
+                    className={cn("text-xs", pageSize === 0 && "font-bold text-[#C9A84C]")}
+                    onClick={() => changePageSize(0)}
+                  >
+                    Tout afficher
+                    {pageSize === 0 && <Check className="w-3 h-3 ml-auto" />}
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+
+              {/* Separator */}
+              <div className="w-px h-4 bg-border/60" />
+
+              {/* Previous page button */}
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-7 w-7"
+                disabled={safePage === 0}
+                onClick={() => goToPage(safePage - 1)}
+                title="Page précédente"
+              >
+                <ChevronLeft className="w-4 h-4" />
               </Button>
-              <span className="text-xs text-muted-foreground">
-                {page + 1} / {Math.ceil(rows.length / pageSize)}
+
+              {/* Page indicator text */}
+              <span className="text-[11px] text-muted-foreground tabular-nums min-w-[100px] text-center select-none">
+                {pageSize === 0
+                  ? `${rows.length} produit${rows.length > 1 ? 's' : ''}`
+                  : `${rangeStart}-${rangeEnd} de ${rows.length}`
+                }
               </span>
-              <Button variant="outline" size="sm" className="h-7 text-xs" disabled={(page + 1) * pageSize >= rows.length} onClick={() => setPage(page + 1)}>
-                Suiv.
+
+              {/* Next page button */}
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-7 w-7"
+                disabled={safePage >= totalPages - 1}
+                onClick={() => goToPage(safePage + 1)}
+                title="Page suivante"
+              >
+                <ChevronRight className="w-4 h-4" />
               </Button>
             </div>
           )}
-          <span className="text-xs text-muted-foreground">{rows.length} lignes · {visibleColumns.length}/{columns.length} colonnes</span>
+
+          {/* Column count — always visible */}
+          <div className="w-px h-4 bg-border/60" />
+          <span className="text-[10px] text-muted-foreground/60">{visibleColumns.length}/{columns.length} cols</span>
         </div>
 
         {/* Delete confirmation dialog */}
