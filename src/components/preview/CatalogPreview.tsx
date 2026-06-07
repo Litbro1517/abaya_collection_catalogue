@@ -500,7 +500,10 @@ export function CatalogPreview({ onAdminLogin }: CatalogPreviewProps) {
       ? rawData.__stock__
       : parseInt(String(rawData.__stock__)) || 0;
 
-    if (stock > 0 && isDisponible) return 'en_stock';       // Scenario A
+    // ━━━ SAFETY NET: stock > 0 always implies "Disponible" ━━━
+    // If stock > 0 but __disponibilite__ is somehow 'false', that's an
+    // invalid state (likely from a bulk import bug). Correct it on-the-fly.
+    if (stock > 0) return 'en_stock';                       // Scenario A (+ safety net)
     if (stock === 0 && isDisponible) return 'sur_commande'; // Scenario C
     return 'epuise';                                        // Scenario B
   }

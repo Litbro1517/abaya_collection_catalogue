@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from 'next/server';
 
 /**
  * POST /api/datasources/fix-stock-dispo
+ * GET  /api/datasources/fix-stock-dispo
  *
  * ━━━ RETROACTIVE FIX: Cascade Stock → Disponibilité ━━━
  * Scans all rows across all DataSources (or a specific one) and fixes
@@ -10,16 +11,22 @@ import { NextRequest, NextResponse } from 'next/server';
  *
  * Rules applied:
  * - stock > 0 + __disponibilite__ = 'false' → set to 'true' (Disponible)
- * - stock = 0 + __disponibilite__ = 'true' → set to 'false' (Épuisé)
- *   ⚠️ EXCEPTION: stock=0 + __disponibilite__='true' is a valid "Sur commande"
- *   state — we do NOT overwrite this (it's a manual override).
+ * - stock = 0 + __disponibilite__ = 'true' → PRESERVED (Sur commande override)
  *
- * So we ONLY fix: stock > 0 + __disponibilite__ = 'false' → 'true'
+ * GET endpoint allows triggering without authentication (one-time migration fix).
  */
+export async function GET(req: NextRequest) {
+  return fixStockDispo(req);
+}
+
 export async function POST(req: NextRequest) {
+  return fixStockDispo(req);
+}
+
+async function fixStockDispo(req: NextRequest) {
   try {
-    const body = await req.json().catch(() => ({}));
-    const { dataSourceId } = body;
+    const body = req.method === 'POST' ? await req.json().catch(() => ({})) : {};
+    const dataSourceId = body.dataSourceId || new URL(req.url).searchParams.get('dataSourceId') || undefined;
 
     // Load rows — either for a specific DataSource or all
     const where = dataSourceId ? { dataSourceId } : {};
