@@ -111,3 +111,29 @@ Stage Summary:
 - Popover type selector with category hover-to-expand (4 categories, 12 types)
 - All existing API functionality preserved (save, type change warning, etc.)
 - Production live: https://abaya-collection-catalogue-9dum.vercel.app
+
+---
+Task ID: 1
+Agent: Main Agent
+Task: Implement collapsible sidebars for max workspace
+
+Work Log:
+- Read BuilderShell.tsx, DataPillar.tsx, LayoutPillar.tsx, store.ts to understand current layout structure
+- Updated Zustand store (store.ts): Added `dataPanelCollapsed` state and `setDataPanelCollapsed` action, added localStorage persistence for both `sidebarCollapsed` and `dataPanelCollapsed` using helper functions `readBoolLS`
+- Redesigned BuilderShell.tsx sidebar: Changed from tiny w-14/w-16 with 9px labels to proper expanded (w-52 with icon+text) / collapsed (w-14 icon-only) states
+- Added toggle button at top of sidebar with ChevronsLeft/ChevronsRight icons
+- Implemented conditional rendering: collapsed shows icon-only buttons with Tooltips, expanded shows icon+text buttons
+- Added panel collapse toggle in sidebar for Data/Layout pillars (Database/Layout icon + "Masquer/Afficher tables/sections")
+- Made DataPillar left panel (w-64 table list) collapsible with smooth transition (w-0 when collapsed, w-64 when expanded)
+- Added small expand button (ChevronRight) on table edge when DataPillar panel is collapsed
+- Made LayoutPillar left panel (w-64 section list) collapsible with same pattern
+- All transitions use `transition-all duration-300 ease-in-out` for smooth animation
+- DataTable/main content uses `flex-1` so it automatically expands when sidebars collapse
+- Lint passed clean, deployed to Vercel successfully
+
+Stage Summary:
+- 4 files modified: BuilderShell.tsx, DataPillar.tsx, LayoutPillar.tsx, store.ts
+- Main navigation sidebar: w-52 (expanded, icon+text) ↔ w-14 (collapsed, icon-only)
+- Data/Layout inner panels: w-64 (expanded) ↔ w-0 (collapsed) with edge expand button
+- State persisted in localStorage (abaya_sidebarCollapsed, abaya_dataPanelCollapsed)
+- Production deployed at https://abaya-collection-catalogue-9dum.vercel.app
