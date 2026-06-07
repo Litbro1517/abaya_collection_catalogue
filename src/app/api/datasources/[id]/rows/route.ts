@@ -6,7 +6,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
     const { id } = await params;
     const url = new URL(req.url);
     const page = Math.max(1, parseInt(url.searchParams.get('page') || '1'));
-    const limit = Math.min(50, Math.max(1, parseInt(url.searchParams.get('limit') || '50')));
+    const limit = Math.min(1000, Math.max(1, parseInt(url.searchParams.get('limit') || '1000')));
 
     // Note: JSON field search not supported with Prisma Json type in PostgreSQL.
     // Filtering by search is done post-fetch if needed.
@@ -27,7 +27,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
       data: rows,
       total,
       page,
-      totalPages: Math.ceil(total / limit),
+      totalPages: Math.ceil(total / (limit || 1)),
       error: null,
     });
   } catch (e) {

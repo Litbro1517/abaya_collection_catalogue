@@ -513,7 +513,7 @@ export function DataPillar() {
           setColumns(metaJson.data.columns || []);
         }
       }
-      const rowsRes = await fetch(`/api/datasources/${activeDataSourceId}/rows?limit=50`);
+      const rowsRes = await fetch(`/api/datasources/${activeDataSourceId}/rows?limit=1000`);
       if (rowsRes.ok) {
         const rowsJson = await rowsRes.json();
         setRows(rowsJson.data || []);
