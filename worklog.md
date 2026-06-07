@@ -78,3 +78,36 @@ Stage Summary:
 - All 3 limit points fixed → full data now flows to Zustand store
 - Pagination UI now correctly shows "1-50 de 82" with page 2 for remaining 32
 - Production live: https://abaya-collection-catalogue-9dum.vercel.app
+
+---
+Task ID: 3
+Agent: Main
+Task: Redesign ColumnEditorDialog.tsx — Glide-style minimalist interface
+
+Work Log:
+- Analyzed 9 uploaded screenshots using VLM: current design (2), Glide reference (4), catalog charte (3)
+- Read full 932-line ColumnEditorDialog.tsx to understand current structure
+- Identified elements to remove: Tabs (Propriétés/Données), ScrollArea, Data tab, heavy config sections
+- Completely rewrote the component (932 → 630 lines, -677/+384):
+  1. REMOVED: Tabs, TabsList, TabsTrigger, TabsContent, ScrollArea, Data tab, Textarea imports
+  2. ADDED: Popover-based type selector with Glide-style two-panel layout
+  3. ADDED: Dynamic CONFIGURATION zone with uppercase divider
+  4. REDESIGNED: Footer with visibility toggle + gold action buttons
+- Design system applied:
+  - Gold/amber #C9A84C accents throughout (25+ instances)
+  - Dark green #1A3C34 for selected state
+  - Compact 480px dialog width
+  - Uppercase tracking labels (NOM, TYPE, CONFIGURATION)
+  - Micro-sized text (9-11px) for hierarchy
+  - Smooth animations (animate-in fade-in slide-in-from-top-1)
+- Type selector: Popover with left categories (hover-to-expand) + right type items
+- Dynamic config: SELECT→options, IMAGE_ARRAY→checkboxes+separator, RELATION→3 fields, CURRENCY→symbol picker, BOOLEAN→labels, IMAGE→prefix, ARRAY→checkboxes
+- Lint passed clean, committed and pushed, Vercel deployed (READY)
+- Production verified: 200 OK
+
+Stage Summary:
+- ColumnEditorDialog completely redesigned with Glide-style minimalist interface
+- No tabs, single clean flow: Name → Type → Configuration (dynamic)
+- Popover type selector with category hover-to-expand (4 categories, 12 types)
+- All existing API functionality preserved (save, type change warning, etc.)
+- Production live: https://abaya-collection-catalogue-9dum.vercel.app
