@@ -230,6 +230,8 @@ export function DataPillar() {
     setShowGoogleSheetsBrowser,
     setSyncStatus,
     setSyncMessage,
+    dataPanelCollapsed,
+    setDataPanelCollapsed,
   } = useAppStore();
 
   const [showCreateDialog, setShowCreateDialog] = useState(false);
@@ -761,8 +763,13 @@ export function DataPillar() {
 
   return (
     <div className="flex h-full">
-      {/* Left: Data source list */}
-      <div className="w-64 border-r border-border bg-card overflow-y-auto shrink-0">
+      {/* Left: Data source list (collapsible) */}
+      <div
+        className={cn(
+          'border-r border-border bg-card overflow-y-auto shrink-0 transition-all duration-300 ease-in-out',
+          dataPanelCollapsed ? 'w-0 overflow-hidden border-r-0' : 'w-64'
+        )}
+      >
         <div className="p-3 space-y-3">
           {/* Google Connect Panel */}
           <GoogleConnectPanel />
@@ -882,7 +889,17 @@ export function DataPillar() {
       </div>
 
       {/* Right: Data table + toolbar */}
-      <div className="flex-1 flex flex-col overflow-hidden">
+      <div className="flex-1 flex flex-col overflow-hidden relative">
+        {/* Expand button when panel is collapsed */}
+        {dataPanelCollapsed && (
+          <button
+            onClick={() => setDataPanelCollapsed(false)}
+            className="absolute left-0 top-1/2 -translate-y-1/2 z-10 w-5 h-10 flex items-center justify-center bg-card border border-border border-l-0 rounded-r-md text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
+            title="Afficher les tables"
+          >
+            <ChevronRight className="w-3 h-3" />
+          </button>
+        )}
         {activeDataSourceId && activeDs && (
           <>
             {/* ── Table name row ── */}

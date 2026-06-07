@@ -7,8 +7,9 @@ import { SectionList } from './SectionList';
 import { SectionConfigurator } from './SectionConfigurator';
 import { AddSectionDialog } from './AddSectionDialog';
 import { Button } from '@/components/ui/button';
-import { Plus, RefreshCw } from 'lucide-react';
+import { Plus, RefreshCw, ChevronRight } from 'lucide-react';
 import { toast } from 'sonner';
+import { cn } from '@/lib/utils';
 
 export function LayoutPillar() {
   const {
@@ -22,6 +23,8 @@ export function LayoutPillar() {
     setColumns,
     rows,
     setRows,
+    dataPanelCollapsed,
+    setDataPanelCollapsed,
   } = useAppStore();
 
   const [showAddSection, setShowAddSection] = useState(false);
@@ -101,8 +104,13 @@ export function LayoutPillar() {
 
   return (
     <div className="flex h-full">
-      {/* Left: Section list */}
-      <div className="w-64 border-r border-border bg-card overflow-y-auto shrink-0">
+      {/* Left: Section list (collapsible) */}
+      <div
+        className={cn(
+          'border-r border-border bg-card overflow-y-auto shrink-0 transition-all duration-300 ease-in-out',
+          dataPanelCollapsed ? 'w-0 overflow-hidden border-r-0' : 'w-64'
+        )}
+      >
         <div className="p-3">
           <div className="flex items-center justify-between mb-3">
             <h2 className="text-sm font-semibold">Sections</h2>
@@ -120,7 +128,17 @@ export function LayoutPillar() {
       </div>
 
       {/* Right: Section configurator */}
-      <div className="flex-1 overflow-y-auto">
+      <div className="flex-1 overflow-y-auto relative">
+        {/* Expand button when panel is collapsed */}
+        {dataPanelCollapsed && (
+          <button
+            onClick={() => setDataPanelCollapsed(false)}
+            className="absolute left-0 top-1/2 -translate-y-1/2 z-10 w-5 h-10 flex items-center justify-center bg-card border border-border border-l-0 rounded-r-md text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
+            title="Afficher les sections"
+          >
+            <ChevronRight className="w-3 h-3" />
+          </button>
+        )}
         {activeSection ? (
           <SectionConfigurator
             section={activeSection}

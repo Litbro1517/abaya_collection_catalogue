@@ -1,6 +1,20 @@
 import { create } from 'zustand';
 import type { DataSource, Column, Row, Catalog, Section, CatalogSettings, Pillar, AppView, SettingsTab, Relation, GoogleSession, GoogleSheetInfo, SyncStatus } from '@/types';
 
+// ── localStorage helpers for sidebar persistence ──
+const LS_SIDEBAR_COLLAPSED = 'abaya_sidebarCollapsed';
+const LS_DATA_PANEL_COLLAPSED = 'abaya_dataPanelCollapsed';
+
+function readBoolLS(key: string, fallback: boolean): boolean {
+  if (typeof window === 'undefined') return fallback;
+  try {
+    const v = localStorage.getItem(key);
+    return v === null ? fallback : v === 'true';
+  } catch {
+    return fallback;
+  }
+}
+
 interface AppState {
   // ── Navigation ──
   view: AppView;
@@ -72,6 +86,8 @@ interface AppState {
   setLoading: (v: boolean) => void;
   sidebarCollapsed: boolean;
   setSidebarCollapsed: (v: boolean) => void;
+  dataPanelCollapsed: boolean;
+  setDataPanelCollapsed: (v: boolean) => void;
 }
 
 export const useAppStore = create<AppState>((set, get) => ({
@@ -146,6 +162,14 @@ export const useAppStore = create<AppState>((set, get) => ({
   // ── UI State ──
   loading: false,
   setLoading: (loading) => set({ loading }),
-  sidebarCollapsed: false,
-  setSidebarCollapsed: (sidebarCollapsed) => set({ sidebarCollapsed }),
+  sidebarCollapsed: readBoolLS(LS_SIDEBAR_COLLAPSED, false),
+  setSidebarCollapsed: (sidebarCollapsed) => {
+    try { localStorage.setItem(LS_SIDEBAR_COLLAPSED, String(sidebarCollapsed)); } catch {}
+    set({ sidebarCollapsed });
+  },
+  dataPanelCollapsed: readBoolLS(LS_DATA_PANEL_COLLAPSED, false),
+  setDataPanelCollapsed: (dataPanelCollapsed) => {
+    try { localStorage.setItem(LS_DATA_PANEL_COLLAPSED, String(dataPanelCollapsed)); } catch {}
+    set({ dataPanelCollapsed });
+  },
 }));

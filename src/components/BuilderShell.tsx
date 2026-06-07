@@ -21,6 +21,8 @@ import {
   Mail,
   Key,
   Loader2,
+  ChevronsLeft,
+  ChevronsRight,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
@@ -47,7 +49,7 @@ const BRAND = {
 } as const;
 
 export function BuilderShell() {
-  const { pillar, setPillar, view, setView, catalog, sidebarCollapsed, setSidebarCollapsed, setIsAdmin, setAdminUser, adminUser, googleSession, setShowGoogleSheetsBrowser, setSettingsTab, setActiveDataSourceId, dataSources } = useAppStore();
+  const { pillar, setPillar, view, setView, catalog, sidebarCollapsed, setSidebarCollapsed, dataPanelCollapsed, setDataPanelCollapsed, setIsAdmin, setAdminUser, adminUser, googleSession, setShowGoogleSheetsBrowser, setSettingsTab, setActiveDataSourceId, dataSources } = useAppStore();
   const { toast } = useToast();
   const [showUserMenu, setShowUserMenu] = useState(false);
   const [addAdminDialogOpen, setAddAdminDialogOpen] = useState(false);
@@ -309,62 +311,154 @@ export function BuilderShell() {
       <div className="flex-1 flex overflow-hidden">
         {/* Left sidebar - Pillar selector */}
         <aside className={cn(
-          'border-r border-border bg-card flex flex-col items-center py-3 gap-1 shrink-0 transition-all duration-300 ease-in-out',
-          sidebarCollapsed ? 'w-14' : 'w-16'
+          'border-r border-border bg-card flex flex-col shrink-0 transition-all duration-300 ease-in-out',
+          sidebarCollapsed ? 'w-14' : 'w-52'
         )}>
-          {/* Dashboard button at top */}
-          <Tooltip>
-            <TooltipTrigger asChild>
+          {/* Toggle button at top */}
+          <div className={cn(
+            'flex items-center shrink-0 h-10 border-b border-border/50',
+            sidebarCollapsed ? 'justify-center px-0' : 'justify-end px-3'
+          )}>
+            <button
+              onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
+              className={cn(
+                'w-7 h-7 rounded-md flex items-center justify-center transition-colors',
+                'text-muted-foreground hover:bg-muted hover:text-foreground'
+              )}
+              title={sidebarCollapsed ? 'Déployer la sidebar' : 'Réduire la sidebar'}
+            >
+              {sidebarCollapsed
+                ? <ChevronsRight className="w-4 h-4" />
+                : <ChevronsLeft className="w-4 h-4" />
+              }
+            </button>
+          </div>
+
+          {/* Navigation items */}
+          <div className="flex flex-col py-2 gap-0.5 flex-1 overflow-y-auto overflow-x-hidden">
+            {/* Dashboard button */}
+            {sidebarCollapsed ? (
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <button
+                    onClick={() => setView('dashboard')}
+                    className="w-10 h-10 mx-auto rounded-lg flex items-center justify-center transition-all text-muted-foreground hover:bg-muted hover:text-foreground"
+                  >
+                    <LayoutDashboard className="w-5 h-5" />
+                  </button>
+                </TooltipTrigger>
+                <TooltipContent side="right">Dashboard</TooltipContent>
+              </Tooltip>
+            ) : (
               <button
                 onClick={() => setView('dashboard')}
-                title="Retour au Dashboard"
-                className="w-11 h-11 rounded-xl flex flex-col items-center justify-center gap-0.5 transition-all text-muted-foreground hover:bg-muted hover:text-foreground"
+                className="flex items-center gap-3 h-10 px-3 mx-2 rounded-lg transition-all text-muted-foreground hover:bg-muted hover:text-foreground"
               >
-                <LayoutDashboard className="w-5 h-5" />
-                <span className={cn(
-                  "text-[9px] leading-none transition-opacity duration-200",
-                  sidebarCollapsed ? "opacity-0 w-0 overflow-hidden" : "opacity-100"
-                )}>Dashboard</span>
+                <LayoutDashboard className="w-5 h-5 shrink-0" />
+                <span className="text-sm truncate">Dashboard</span>
               </button>
-            </TooltipTrigger>
-            <TooltipContent side="right">Retour au Dashboard</TooltipContent>
-          </Tooltip>
+            )}
 
-          <div className="w-8 border-t border-border my-1" />
+            <div className={cn('border-t border-border mx-3 my-1.5')} />
 
-          {pillars.map((p) => (
-            <Tooltip key={p.id}>
-              <TooltipTrigger asChild>
+            {pillars.map((p) => (
+              sidebarCollapsed ? (
+                <Tooltip key={p.id}>
+                  <TooltipTrigger asChild>
+                    <button
+                      onClick={() => setPillar(p.id)}
+                      className={cn(
+                        'w-10 h-10 mx-auto rounded-lg flex items-center justify-center transition-all',
+                        pillar === p.id
+                          ? 'bg-gold/10 text-gold shadow-sm'
+                          : 'text-muted-foreground hover:bg-muted hover:text-foreground'
+                      )}
+                    >
+                      <p.icon className="w-5 h-5" />
+                    </button>
+                  </TooltipTrigger>
+                  <TooltipContent side="right">{p.label}</TooltipContent>
+                </Tooltip>
+              ) : (
                 <button
+                  key={p.id}
                   onClick={() => setPillar(p.id)}
-                  title={p.label}
                   className={cn(
-                    'w-11 h-11 rounded-xl flex flex-col items-center justify-center gap-0.5 transition-all',
+                    'flex items-center gap-3 h-10 px-3 mx-2 rounded-lg transition-all',
                     pillar === p.id
                       ? 'bg-gold/10 text-gold shadow-sm'
                       : 'text-muted-foreground hover:bg-muted hover:text-foreground'
                   )}
                 >
-                  <p.icon className="w-5 h-5" />
-                  <span className={cn(
-                    "text-[9px] leading-none transition-opacity duration-200",
-                    sidebarCollapsed ? "opacity-0 w-0 overflow-hidden" : "opacity-100"
-                  )}>{p.label}</span>
+                  <p.icon className="w-5 h-5 shrink-0" />
+                  <span className="text-sm truncate">{p.label}</span>
                 </button>
-              </TooltipTrigger>
-              <TooltipContent side="right">{p.label}</TooltipContent>
-            </Tooltip>
-          ))}
+              )
+            ))}
 
-          {/* Spacer */}
-          <div className="flex-1" />
+            {/* Panel collapse toggle (Data & Layout pillars have sub-panels) */}
+            {(pillar === 'data' || pillar === 'layout') && (
+              <>
+                <div className={cn('border-t border-border mx-3 my-1.5')} />
+                {sidebarCollapsed ? (
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <button
+                        onClick={() => setDataPanelCollapsed(!dataPanelCollapsed)}
+                        className={cn(
+                          'w-10 h-10 mx-auto rounded-lg flex items-center justify-center transition-all',
+                          dataPanelCollapsed
+                            ? 'text-muted-foreground hover:bg-muted hover:text-foreground'
+                            : 'bg-muted text-foreground hover:bg-muted/80'
+                        )}
+                      >
+                        {pillar === 'data'
+                          ? <Database className="w-4 h-4" />
+                          : <Layout className="w-4 h-4" />
+                        }
+                      </button>
+                    </TooltipTrigger>
+                    <TooltipContent side="right">
+                      {dataPanelCollapsed
+                        ? (pillar === 'data' ? 'Afficher les tables' : 'Afficher les sections')
+                        : (pillar === 'data' ? 'Masquer les tables' : 'Masquer les sections')
+                      }
+                    </TooltipContent>
+                  </Tooltip>
+                ) : (
+                  <button
+                    onClick={() => setDataPanelCollapsed(!dataPanelCollapsed)}
+                    className={cn(
+                      'flex items-center gap-3 h-9 px-3 mx-2 rounded-lg transition-all text-xs',
+                      dataPanelCollapsed
+                        ? 'text-muted-foreground hover:bg-muted hover:text-foreground'
+                        : 'bg-muted text-foreground hover:bg-muted/80'
+                    )}
+                  >
+                    {pillar === 'data'
+                      ? <Database className="w-4 h-4 shrink-0" />
+                      : <Layout className="w-4 h-4 shrink-0" />
+                    }
+                    <span className="truncate">
+                      {dataPanelCollapsed
+                        ? (pillar === 'data' ? 'Afficher tables' : 'Afficher sections')
+                        : (pillar === 'data' ? 'Masquer tables' : 'Masquer sections')
+                      }
+                    </span>
+                  </button>
+                )}
+              </>
+            )}
+          </div>
 
           {/* ABAYA branding at bottom */}
           <div className={cn(
-            "text-[9px] font-bold tracking-[0.2em] text-muted-foreground/40 transition-opacity duration-300",
-            sidebarCollapsed ? "opacity-0" : "opacity-100"
+            'shrink-0 py-2 flex items-center justify-center transition-opacity duration-300',
+            sidebarCollapsed ? 'opacity-0' : 'opacity-100'
           )}>
-            ABAYA
+            <span className="text-[9px] font-bold tracking-[0.2em] text-muted-foreground/40">
+              ABAYA
+            </span>
           </div>
         </aside>
 
