@@ -42,12 +42,13 @@ import {
   Type, Hash, Banknote, Images,
   ListChecks, Layers, ToggleRight, ExternalLink, Link2, SquareStack,
   MoveRight, Activity, Lock, Unlock, ArrowUpDown, Zap,
-  ChevronUp, Minus, ChevronLeft,
+  ChevronUp, Minus, ChevronLeft, Database,
 } from 'lucide-react';
 import { Switch } from '@/components/ui/switch';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import { ColumnEditorDialog } from './ColumnEditorDialog';
+import { StockSourceModal, type StockSourceConfig } from './StockSourceModal';
 
 // Column type icon mapping
 const COLUMN_TYPE_ICON: Record<ColumnType, React.ReactNode> = {
@@ -125,6 +126,13 @@ export function DataTable({ columns, rows, dataSourceId, loading, onRefresh, onU
 
   // Delete confirmation
   const [deleteTarget, setDeleteTarget] = useState<{ type: 'row' | 'column'; id: string; name?: string } | null>(null);
+
+  // Stock source connection modal
+  const [showStockSourceModal, setShowStockSourceModal] = useState(false);
+  const [stockSourceConfig, setStockSourceConfig] = useState<StockSourceConfig | null>(null);
+
+  // Stock lookup values from connected source (rowId → stock value)
+  const [stockLookupValues, setStockLookupValues] = useState<Record<string, number>>({});
 
   // ━━━ Optimistic State Layer (Stock, Switch, Visibility) ━━━━━━━━━━━━━
   // All three use the same pattern: instant local state → async background save
@@ -258,6 +266,48 @@ export function DataTable({ columns, rows, dataSourceId, loading, onRefresh, onU
   // Native system column slugs — non-deletable, ordered first
   const NATIVE_COLUMN_SLUGS = ['__disponibilite__', '__stock__', '__statut__'];
   const isNativeColumn = (slug: string) => NATIVE_COLUMN_SLUGS.includes(slug);
+
+  // ── Load stock source config from the __stock__ column ──
+  useEffect(() => {
+    const stockCol = columns.find(c => c.slug === '__stock__');
+    if (stockCol?.config && typeof stockCol.config === 'object') {
+      const cfg = (stockCol.config as Record<string, unknown>).stockSource as StockSourceConfig | undefined;
+      setStockSourceConfig(cfg || null);
+    } else {
+      setStockSourceConfig(null);
+    }
+  }, [columns]);
+
+  // ── Resolve stock values from connected source ──
+  useEffect(() => {
+    if (!stockSourceConfig || rows.length === 0) {
+      setStockLookupValues({});
+      return;
+    }
+
+    const resolveStock = async () => {
+      try {
+        const res = await fetch(`/api/datasources/${dataSourceId}/stock-lookup`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            sourceTableId: stockSourceConfig.sourceTableId,
+            matchColumnSlug: stockSourceConfig.matchColumnSlug,
+            stockColumnSlug: stockSourceConfig.stockColumnSlug,
+            matchTargetSlug: stockSourceConfig.matchTargetSlug || '__n_ordre__',
+          }),
+        });
+        if (res.ok) {
+          const json = await res.json();
+          setStockLookupValues(json.data || {});
+        }
+      } catch {
+        // Silent fail — will show local stock values as fallback
+      }
+    };
+
+    resolveStock();
+  }, [stockSourceConfig, dataSourceId, rows]);
 
   // Filter out __is_visible__ (handled by Eye icon in # column)
   const visibleColumns = columns.filter(c => c.visible && c.slug !== '__is_visible__');
@@ -795,6 +845,25 @@ export function DataTable({ columns, rows, dataSourceId, loading, onRefresh, onU
 
     // ━━━ Stock counter: Minimalist design with optimistic update + debounce ━━━
     if (col.type === 'NUMBER' && col.slug === '__stock__') {
+      // ── Connected mode: read-only, values from external source ──
+      if (stockSourceConfig) {
+        const lookupVal = stockLookupValues[row.id];
+        const hasLookup = lookupVal !== undefined;
+        const dbVal = parseInt(strVal) || 0;
+        const numVal = hasLookup ? lookupVal : dbVal;
+        const stockColor = numVal > 0 ? 'text-emerald-600' : numVal === 0 ? 'text-red-500' : 'text-muted-foreground';
+
+        return (
+          <div className="flex items-center gap-1 select-none" title="Stock lié à une source externe — lecture seule">
+            <Database className="w-3 h-3 text-[#C9A84C] shrink-0" />
+            <span className={cn("text-xs font-bold min-w-[18px] text-center tabular-nums", stockColor)}>
+              {numVal}
+            </span>
+          </div>
+        );
+      }
+
+      // ── Normal mode: editable with optimistic update + debounce ──
       // Use optimistic value if available, otherwise fall back to DB value
       const dbVal = parseInt(strVal) || 0;
       const numVal = optimisticStock[row.id] ?? dbVal;
@@ -1253,6 +1322,27 @@ export function DataTable({ columns, rows, dataSourceId, loading, onRefresh, onU
 
                               <div className="my-1 h-px bg-border/40" />
 
+                              {/* ── Connect Stock Source — only for __stock__ column ── */}
+                              {col.slug === '__stock__' && (
+                                <button
+                                  className={cn(
+                                    "w-full flex items-center gap-2 px-3 py-1.5 text-left text-xs transition-colors",
+                                    stockSourceConfig
+                                      ? "bg-emerald-50 hover:bg-emerald-100/70 text-emerald-700"
+                                      : "hover:bg-[#C9A84C]/5 text-[#C9A84C] hover:text-[#b8963f]"
+                                  )}
+                                  onClick={() => { setShowStockSourceModal(true); setColOptionsOpen(null); }}
+                                >
+                                  <Database className="w-3.5 h-3.5" />
+                                  <span className="flex-1">
+                                    {stockSourceConfig ? 'Source de stock connectée' : 'Connecter une source de stock'}
+                                  </span>
+                                  {stockSourceConfig && (
+                                    <span className="text-[8px] text-emerald-500">● Live</span>
+                                  )}
+                                </button>
+                              )}
+
                               {/* Visibility option — expandable */}
                               <button
                                 className="w-full flex items-center gap-2 px-3 py-1.5 text-left text-xs hover:bg-secondary/60 transition-colors"
@@ -1653,6 +1743,18 @@ export function DataTable({ columns, rows, dataSourceId, loading, onRefresh, onU
           rows={rows}
           editingColumn={editingColumn}
           onSaved={() => { onRefresh(); setEditingColumn(null); }}
+        />
+
+        {/* ── Stock Source Connection Modal ── */}
+        <StockSourceModal
+          open={showStockSourceModal}
+          onOpenChange={setShowStockSourceModal}
+          currentDataSourceId={dataSourceId}
+          currentConfig={stockSourceConfig}
+          onConfigSaved={(config) => {
+            setStockSourceConfig(config);
+            onRefresh(); // reload columns to reflect config changes
+          }}
         />
       </div>
     </TooltipProvider>
