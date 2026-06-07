@@ -131,9 +131,6 @@ export function DataTable({ columns, rows, dataSourceId, loading, onRefresh, onU
   const [showStockSourceModal, setShowStockSourceModal] = useState(false);
   const [stockSourceConfig, setStockSourceConfig] = useState<StockSourceConfig | null>(null);
 
-  // Stock lookup values from connected source (rowId → stock value)
-  const [stockLookupValues, setStockLookupValues] = useState<Record<string, number>>({});
-
   // ━━━ Optimistic State Layer (Stock, Switch, Visibility) ━━━━━━━━━━━━━
   // All three use the same pattern: instant local state → async background save
   // No onRefresh() calls → no loading spinner → no freeze
@@ -268,6 +265,7 @@ export function DataTable({ columns, rows, dataSourceId, loading, onRefresh, onU
   const isNativeColumn = (slug: string) => NATIVE_COLUMN_SLUGS.includes(slug);
 
   // ── Load stock source config from the __stock__ column ──
+  // Config is stored for UI indicator only — it does NOT make stock read-only
   useEffect(() => {
     const stockCol = columns.find(c => c.slug === '__stock__');
     if (stockCol?.config && typeof stockCol.config === 'object') {
@@ -277,37 +275,6 @@ export function DataTable({ columns, rows, dataSourceId, loading, onRefresh, onU
       setStockSourceConfig(null);
     }
   }, [columns]);
-
-  // ── Resolve stock values from connected source ──
-  useEffect(() => {
-    if (!stockSourceConfig || rows.length === 0) {
-      setStockLookupValues({});
-      return;
-    }
-
-    const resolveStock = async () => {
-      try {
-        const res = await fetch(`/api/datasources/${dataSourceId}/stock-lookup`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            sourceTableId: stockSourceConfig.sourceTableId,
-            matchColumnSlug: stockSourceConfig.matchColumnSlug,
-            stockColumnSlug: stockSourceConfig.stockColumnSlug,
-            matchTargetSlug: stockSourceConfig.matchTargetSlug || '__n_ordre__',
-          }),
-        });
-        if (res.ok) {
-          const json = await res.json();
-          setStockLookupValues(json.data || {});
-        }
-      } catch {
-        // Silent fail — will show local stock values as fallback
-      }
-    };
-
-    resolveStock();
-  }, [stockSourceConfig, dataSourceId, rows]);
 
   // Filter out __is_visible__ (handled by Eye icon in # column)
   const visibleColumns = columns.filter(c => c.visible && c.slug !== '__is_visible__');
@@ -844,26 +811,10 @@ export function DataTable({ columns, rows, dataSourceId, loading, onRefresh, onU
     }
 
     // ━━━ Stock counter: Minimalist design with optimistic update + debounce ━━━
+    // Stock is ALWAYS editable, whether a source is connected or not.
+    // Source connection only performs a one-shot bulk import; it never locks editing.
     if (col.type === 'NUMBER' && col.slug === '__stock__') {
-      // ── Connected mode: read-only, values from external source ──
-      if (stockSourceConfig) {
-        const lookupVal = stockLookupValues[row.id];
-        const hasLookup = lookupVal !== undefined;
-        const dbVal = parseInt(strVal) || 0;
-        const numVal = hasLookup ? lookupVal : dbVal;
-        const stockColor = numVal > 0 ? 'text-emerald-600' : numVal === 0 ? 'text-red-500' : 'text-muted-foreground';
-
-        return (
-          <div className="flex items-center gap-1 select-none" title="Stock lié à une source externe — lecture seule">
-            <Database className="w-3 h-3 text-[#C9A84C] shrink-0" />
-            <span className={cn("text-xs font-bold min-w-[18px] text-center tabular-nums", stockColor)}>
-              {numVal}
-            </span>
-          </div>
-        );
-      }
-
-      // ── Normal mode: editable with optimistic update + debounce ──
+      // ── Always editable with optimistic update + debounce ──
       // Use optimistic value if available, otherwise fall back to DB value
       const dbVal = parseInt(strVal) || 0;
       const numVal = optimisticStock[row.id] ?? dbVal;
@@ -1335,10 +1286,10 @@ export function DataTable({ columns, rows, dataSourceId, loading, onRefresh, onU
                                 >
                                   <Database className="w-3.5 h-3.5" />
                                   <span className="flex-1">
-                                    {stockSourceConfig ? 'Source de stock connectée' : 'Connecter une source de stock'}
+                                    {stockSourceConfig ? 'Source de stock configurée' : 'Connecter une source de stock'}
                                   </span>
                                   {stockSourceConfig && (
-                                    <span className="text-[8px] text-emerald-500">● Live</span>
+                                    <span className="text-[8px] text-emerald-500">● Config</span>
                                   )}
                                 </button>
                               )}

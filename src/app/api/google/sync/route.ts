@@ -172,6 +172,11 @@ export async function POST(req: NextRequest) {
       // Stock (NUMBER) must survive a re-import because they are NOT in the Google Sheet.
       let nativeColumnsToPreserve: { name: string; slug: string; type: string; order: number; visible: boolean; required: boolean; config: unknown }[] = [];
 
+      // ━━━ PRESERVE __stock__ VALUES before deletion (scoped outside if block) ━━━
+      // Stock values are managed locally in the app and must NEVER be overwritten
+      // by a Google Sheet sync. Save them keyed by N ordre for restoration after re-import.
+      const preservedStockValues = new Map<string, { stock: number; disponibilite: string; statut: string; statutLocked: boolean; isVisible: boolean }>();
+
       if (!isNewDataSource) {
         // 1. Save native/special columns that are NOT from the Google Sheet
         const existingCols = await db.column.findMany({ where: { dataSourceId: dsId } });
@@ -198,7 +203,36 @@ export async function POST(req: NextRequest) {
 
         console.log(`📦 Preserving ${nativeColumnsToPreserve.length} native column(s) before re-import: [${nativeColumnsToPreserve.map(c => c.name).join(', ')}]`);
 
-        // 2. Delete all columns and rows
+        // 2. ━━━ PRESERVE __stock__ VALUES before deletion ━━━
+        const existingRows = await db.row.findMany({ where: { dataSourceId: dsId } });
+
+        // Find the N ordre column slug in existing columns
+        let idMetierSlugForStockPreservation = '';
+        for (const col of existingCols) {
+          const nameLower = col.name.toLowerCase().trim();
+          if (nameLower === 'n ordre' || nameLower === 'n°' || nameLower === 'nordre' || col.name.trim() === '#') {
+            idMetierSlugForStockPreservation = col.slug;
+            break;
+          }
+        }
+
+        for (const row of existingRows) {
+          const data = row.data as Record<string, unknown>;
+          const keyValue = idMetierSlugForStockPreservation ? String(data[idMetierSlugForStockPreservation] ?? '').trim() : '';
+          if (keyValue || !idMetierSlugForStockPreservation) {
+            const key = keyValue || row.id; // fallback to row ID if no N ordre found
+            preservedStockValues.set(key, {
+              stock: typeof data.__stock__ === 'number' ? data.__stock__ : parseInt(String(data.__stock__)) || 0,
+              disponibilite: String(data.__disponibilite__ ?? 'false'),
+              statut: String(data.__statut__ ?? 'Courant'),
+              statutLocked: !!data.__statut_locked__,
+              isVisible: data.__is_visible__ !== false,
+            });
+          }
+        }
+        console.log(`🔒 Preserved ${preservedStockValues.size} stock/disponibilité/statut values before deletion`);
+
+        // 3. Delete all columns and rows
         await db.column.deleteMany({ where: { dataSourceId: dsId } });
         await db.row.deleteMany({ where: { dataSourceId: dsId } });
       }
@@ -432,8 +466,9 @@ export async function POST(req: NextRequest) {
         // If sheet has Disponibilité data, use it; otherwise default to OFF
         rowData.__disponibilite__ = sheetDisponibiliteValue ?? 'false';
 
-        // Stock = 0 by default
+        // Stock = 0 by default (for first import / new data sources only)
         // If sheet has Stock data, use it; otherwise default to 0
+        // NOTE: For re-imports, preserved stock values will be restored AFTER row creation
         rowData.__stock__ = sheetStockValue ? parseInt(sheetStockValue) : 0;
 
         // ━━━ Business Rule: Stock=0 → Disponibilité=OFF ━━━
@@ -454,6 +489,46 @@ export async function POST(req: NextRequest) {
       for (let i = 0; i < rowsToCreate.length; i += batchSize) {
         const batch = rowsToCreate.slice(i, i + batchSize);
         await db.row.createMany({ data: batch });
+      }
+
+      // ━━━ RESTORE PRESERVED __stock__ VALUES after row creation ━━━
+      // If this was a re-import (not new data source), restore the stock/disponibilité/statut
+      // values that were saved before deletion. This ensures admin modifications are NEVER lost.
+      if (!isNewDataSource && preservedStockValues.size > 0) {
+        // Find the N ordre column slug in the newly created columns
+        const newCols = await db.column.findMany({ where: { dataSourceId: dsId } });
+        let newIdMetierSlug = '';
+        for (const col of newCols) {
+          const nameLower = col.name.toLowerCase().trim();
+          if (nameLower === 'n ordre' || nameLower === 'n°' || nameLower === 'nordre' || col.name.trim() === '#') {
+            newIdMetierSlug = col.slug;
+            break;
+          }
+        }
+
+        const newRows = await db.row.findMany({ where: { dataSourceId: dsId } });
+        let restoredCount = 0;
+        for (const newRow of newRows) {
+          const data = newRow.data as Record<string, unknown>;
+          const keyValue = newIdMetierSlug ? String(data[newIdMetierSlug] ?? '').trim() : '';
+          const lookupKey = keyValue || newRow.id;
+          const preserved = preservedStockValues.get(lookupKey);
+
+          if (preserved) {
+            const updatedData = { ...data };
+            updatedData.__stock__ = preserved.stock;
+            updatedData.__disponibilite__ = preserved.disponibilite;
+            updatedData.__statut__ = preserved.statut;
+            updatedData.__statut_locked__ = preserved.statutLocked;
+            updatedData.__is_visible__ = preserved.isVisible;
+            await db.row.update({
+              where: { id: newRow.id },
+              data: { data: updatedData },
+            });
+            restoredCount++;
+          }
+        }
+        console.log(`🔒 Restored ${restoredCount} preserved stock/disponibilité/statut values after re-import`);
       }
 
       await db.dataSource.update({

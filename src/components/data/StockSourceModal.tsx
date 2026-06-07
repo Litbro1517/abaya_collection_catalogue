@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useAppStore } from '@/lib/store';
-import type { DataSource, Column } from '@/types';
+import type { Column } from '@/types';
 import {
   Dialog,
   DialogContent,
@@ -19,14 +19,14 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Button } from '@/components/ui/button';
-import { Link2, Database, Key, Hash, Loader2, Unlink, AlertCircle } from 'lucide-react';
+import { Link2, Database, Key, Hash, Loader2, Unlink, AlertCircle, RefreshCw, ArrowRight, Info } from 'lucide-react';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 
 // ── Stock Source Config type ──
 export interface StockSourceConfig {
   sourceTableId: string;       // ID of the data source to look up
-  matchColumnSlug: string;     // Column slug in the source table to match against
+  matchColumnSlug: string;     // Column slug in the source table to match against (empty if same table)
   stockColumnSlug: string;     // Column slug in the source table that contains the stock value
   matchTargetSlug?: string;    // Column slug in the current table to match on (defaults to __n_ordre__)
 }
@@ -53,9 +53,11 @@ export function StockSourceModal({
   const [matchColumnSlug, setMatchColumnSlug] = useState(currentConfig?.matchColumnSlug || '');
   const [stockColumnSlug, setStockColumnSlug] = useState(currentConfig?.stockColumnSlug || '');
   const [saving, setSaving] = useState(false);
+  const [importing, setImporting] = useState(false);
 
-  // Derived: other tables (exclude current)
-  const otherTables = dataSources.filter(ds => ds.id !== currentDataSourceId);
+  // Derived: ALL tables (including current — the user explicitly requested this)
+  const allTables = dataSources;
+  const isSameTable = sourceTableId === currentDataSourceId;
 
   // Derived: columns of the selected source table
   const [sourceColumns, setSourceColumns] = useState<Column[]>([]);
@@ -87,30 +89,63 @@ export function StockSourceModal({
   }, [open, currentConfig]);
 
   // Number columns in the source table (for stock column selector)
+  // When same table, also exclude __stock__ itself
   const numberColumns = sourceColumns.filter(c =>
-    c.type === 'NUMBER' || c.type === 'CURRENCY'
+    (c.type === 'NUMBER' || c.type === 'CURRENCY') &&
+    !(isSameTable && c.slug === '__stock__')
   );
 
-  // All columns in source table (for match column selector)
+  // All columns in source table (for match column selector — only shown for different tables)
   const matchableColumns = sourceColumns;
 
   // Is form valid?
-  const isValid = sourceTableId && matchColumnSlug && stockColumnSlug;
+  // Same table: only need sourceTableId + stockColumnSlug
+  // Different table: need sourceTableId + matchColumnSlug + stockColumnSlug
+  const isValid = isSameTable
+    ? !!(sourceTableId && stockColumnSlug)
+    : !!(sourceTableId && matchColumnSlug && stockColumnSlug);
 
   // Selected source table name
-  const selectedTable = otherTables.find(ds => ds.id === sourceTableId);
+  const selectedTable = allTables.find(ds => ds.id === sourceTableId);
 
-  // Save handler
+  // ── One-shot import: bulk copy values from source to __stock__ ──
+  const performImport = async (config: StockSourceConfig) => {
+    setImporting(true);
+    try {
+      const res = await fetch(`/api/datasources/${currentDataSourceId}/stock-import`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          sourceTableId: config.sourceTableId,
+          matchColumnSlug: config.matchColumnSlug || '',
+          stockColumnSlug: config.stockColumnSlug,
+          matchTargetSlug: config.matchTargetSlug || '__n_ordre__',
+        }),
+      });
+
+      if (!res.ok) {
+        const json = await res.json().catch(() => ({}));
+        throw new Error(json.error || 'Erreur d\'importation');
+      }
+
+      const json = await res.json();
+      return json.updated as number;
+    } finally {
+      setImporting(false);
+    }
+  };
+
+  // Save handler: save config + perform one-shot import
   const handleSave = async () => {
     if (!isValid) return;
     setSaving(true);
     try {
-      // Save the config to the column's config field via API
+      // Build the config
       const config: StockSourceConfig = {
         sourceTableId,
-        matchColumnSlug,
+        matchColumnSlug: isSameTable ? '' : matchColumnSlug,
         stockColumnSlug,
-        matchTargetSlug: '__n_ordre__',
+        matchTargetSlug: isSameTable ? '' : '__n_ordre__',
       };
 
       // Find the __stock__ column in the current data source
@@ -122,7 +157,8 @@ export function StockSourceModal({
       );
       if (!stockColumn) throw new Error('Stock column not found');
 
-      // Update the column config
+      // Save the config to the column's config field
+      const existingColConfig = (stockColumn.config as Record<string, unknown>) || {};
       const updateRes = await fetch(
         `/api/datasources/${currentDataSourceId}/columns/${stockColumn.id}`,
         {
@@ -130,7 +166,7 @@ export function StockSourceModal({
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             config: {
-              ...((stockColumn.config as Record<string, unknown>) || {}),
+              ...existingColConfig,
               stockSource: config,
             },
           }),
@@ -139,14 +175,37 @@ export function StockSourceModal({
 
       if (!updateRes.ok) throw new Error('Failed to save config');
 
+      // ━━━ ONE-SHOT BULK IMPORT ━━━
+      const updatedCount = await performImport(config);
+
       toast.success('Source de stock connectée', {
-        description: `Stock lu depuis « ${selectedTable?.name || 'table'} »`,
+        description: `${updatedCount} valeur(s) de stock importée(s) depuis « ${selectedTable?.name || 'table'} ». Le stock reste modifiable manuellement.`,
       });
       onConfigSaved(config);
       onOpenChange(false);
     } catch (err) {
       toast.error('Erreur', {
         description: err instanceof Error ? err.message : 'Impossible de sauvegarder',
+      });
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  // Force re-import handler: uses current config to re-import
+  const handleForceReimport = async () => {
+    if (!currentConfig) return;
+    setSaving(true);
+    try {
+      const updatedCount = await performImport(currentConfig);
+
+      toast.success('Ré-importation du stock effectuée', {
+        description: `${updatedCount} valeur(s) de stock mise(s) à jour depuis la source.`,
+      });
+      onOpenChange(false);
+    } catch (err) {
+      toast.error('Erreur de ré-importation', {
+        description: err instanceof Error ? err.message : 'Impossible de ré-importer',
       });
     } finally {
       setSaving(false);
@@ -175,7 +234,7 @@ export function StockSourceModal({
       });
 
       toast.success('Source de stock déconnectée', {
-        description: 'Le stock est redevenu modifiable manuellement',
+        description: 'Le stock reste modifiable manuellement',
       });
       onConfigSaved(null);
       onOpenChange(false);
@@ -194,9 +253,8 @@ export function StockSourceModal({
             <Link2 className="w-4 h-4 text-[#C9A84C]" />
             Connecter une source de stock
           </DialogTitle>
-          <DialogDescription>
-            Liez la colonne Stock à une table externe pour récupérer automatiquement les valeurs.
-            Le stock deviendra en lecture seule.
+          <DialogDescription className="text-[11px] leading-relaxed">
+            Liez la colonne Stock à une colonne de la table actuelle ou d&apos;une table externe pour importer les valeurs en masse, tout en conservant la modification manuelle au produit au quotidien.
           </DialogDescription>
         </DialogHeader>
 
@@ -204,7 +262,8 @@ export function StockSourceModal({
           <div className="flex items-center gap-2 px-3 py-2 rounded-md bg-emerald-50 border border-emerald-200 text-emerald-700 text-xs">
             <Database className="w-3.5 h-3.5 shrink-0" />
             <span className="truncate">
-              Actuellement connecté à « {otherTables.find(ds => ds.id === currentConfig.sourceTableId)?.name || 'table inconnue'} »
+              Source configurée : « {allTables.find(ds => ds.id === currentConfig.sourceTableId)?.name || 'table inconnue'} »
+              {currentConfig.sourceTableId === currentDataSourceId && ' (table actuelle)'}
             </span>
           </div>
         )}
@@ -225,12 +284,12 @@ export function StockSourceModal({
                 <SelectValue placeholder="Choisir une table…" />
               </SelectTrigger>
               <SelectContent>
-                {otherTables.length === 0 && (
+                {allTables.length === 0 && (
                   <div className="px-3 py-2 text-xs text-muted-foreground italic">
-                    Aucune autre table disponible
+                    Aucune table disponible
                   </div>
                 )}
-                {otherTables.map(ds => (
+                {allTables.map(ds => (
                   <SelectItem key={ds.id} value={ds.id}>
                     <div className="flex items-center gap-2">
                       <div
@@ -238,54 +297,65 @@ export function StockSourceModal({
                         style={{ backgroundColor: ds.color }}
                       />
                       {ds.name}
+                      {ds.id === currentDataSourceId && (
+                        <span className="text-[9px] text-[#C9A84C] font-medium ml-1">(actuelle)</span>
+                      )}
                     </div>
                   </SelectItem>
                 ))}
               </SelectContent>
             </Select>
+            {isSameTable && sourceTableId && (
+              <p className="text-[10px] text-emerald-600 mt-1 flex items-center gap-1">
+                <Info className="w-3 h-3" />
+                Même table — les valeurs seront copiées directement entre colonnes
+              </p>
+            )}
           </div>
 
-          {/* Match Column selector */}
-          <div>
-            <label className="text-xs font-medium text-muted-foreground flex items-center gap-1.5 mb-1.5">
-              <Key className="w-3 h-3" />
-              Clé de Correspondance
-            </label>
-            <Select
-              value={matchColumnSlug}
-              onValueChange={setMatchColumnSlug}
-              disabled={!sourceTableId || loadingColumns}
-            >
-              <SelectTrigger className="h-9 text-xs">
-                {loadingColumns ? (
-                  <span className="flex items-center gap-1.5">
-                    <Loader2 className="w-3 h-3 animate-spin" />
-                    Chargement…
-                  </span>
-                ) : (
-                  <SelectValue placeholder={!sourceTableId ? "Sélectionnez d'abord une table…" : "Choisir la colonne pivot…"} />
-                )}
-              </SelectTrigger>
-              <SelectContent>
-                {matchableColumns.map(col => (
-                  <SelectItem key={col.id} value={col.slug}>
+          {/* Match Column selector — only shown for DIFFERENT tables */}
+          {!isSameTable && (
+            <div>
+              <label className="text-xs font-medium text-muted-foreground flex items-center gap-1.5 mb-1.5">
+                <Key className="w-3 h-3" />
+                Clé de Correspondance
+              </label>
+              <Select
+                value={matchColumnSlug}
+                onValueChange={setMatchColumnSlug}
+                disabled={!sourceTableId || loadingColumns}
+              >
+                <SelectTrigger className="h-9 text-xs">
+                  {loadingColumns ? (
                     <span className="flex items-center gap-1.5">
-                      {col.name}
-                      <span className="text-[10px] text-muted-foreground">({col.type})</span>
+                      <Loader2 className="w-3 h-3 animate-spin" />
+                      Chargement…
                     </span>
-                  </SelectItem>
-                ))}
-                {sourceTableId && matchableColumns.length === 0 && !loadingColumns && (
-                  <div className="px-3 py-2 text-xs text-muted-foreground italic">
-                    Aucune colonne dans cette table
-                  </div>
-                )}
-              </SelectContent>
-            </Select>
-            <p className="text-[10px] text-muted-foreground mt-1">
-              Colonne dans la table source qui correspond au N° d&apos;ordre du catalogue
-            </p>
-          </div>
+                  ) : (
+                    <SelectValue placeholder={!sourceTableId ? "Sélectionnez d'abord une table…" : "Choisir la colonne pivot…"} />
+                  )}
+                </SelectTrigger>
+                <SelectContent>
+                  {matchableColumns.map(col => (
+                    <SelectItem key={col.id} value={col.slug}>
+                      <span className="flex items-center gap-1.5">
+                        {col.name}
+                        <span className="text-[10px] text-muted-foreground">({col.type})</span>
+                      </span>
+                    </SelectItem>
+                  ))}
+                  {sourceTableId && matchableColumns.length === 0 && !loadingColumns && (
+                    <div className="px-3 py-2 text-xs text-muted-foreground italic">
+                      Aucune colonne dans cette table
+                    </div>
+                  )}
+                </SelectContent>
+              </Select>
+              <p className="text-[10px] text-muted-foreground mt-1">
+                Colonne dans la table source qui correspond au N° d&apos;ordre du catalogue
+              </p>
+            </div>
+          )}
 
           {/* Stock Column selector */}
           <div>
@@ -326,23 +396,49 @@ export function StockSourceModal({
               </SelectContent>
             </Select>
             <p className="text-[10px] text-muted-foreground mt-1">
-              Colonne contenant la valeur numérique du stock à afficher
+              Colonne contenant la valeur numérique du stock à copier
             </p>
           </div>
         </div>
 
-        <DialogFooter className="gap-2 sm:gap-0">
+        {/* Info box about one-shot behavior */}
+        <div className="flex items-start gap-2 px-3 py-2 rounded-md bg-amber-50 border border-amber-200 text-amber-700 text-[10px] leading-relaxed">
+          <ArrowRight className="w-3 h-3 shrink-0 mt-0.5" />
+          <span>
+            L&apos;importation est <strong>ponctuelle</strong> : les valeurs sont copiées une seule fois.
+            Le stock reste <strong>modifiable manuellement</strong> après import.
+            Une actualisation générale du catalogue n&apos;écrasera pas les valeurs de stock.
+          </span>
+        </div>
+
+        <DialogFooter className="gap-2 sm:gap-0 flex-wrap">
           {currentConfig && (
-            <Button
-              variant="outline"
-              size="sm"
-              className="gap-1.5 text-destructive hover:text-destructive"
-              onClick={handleDisconnect}
-              disabled={saving}
-            >
-              <Unlink className="w-3.5 h-3.5" />
-              Déconnecter
-            </Button>
+            <>
+              <Button
+                variant="outline"
+                size="sm"
+                className="gap-1.5 text-emerald-700 hover:text-emerald-800 hover:bg-emerald-50 border-emerald-200"
+                onClick={handleForceReimport}
+                disabled={saving || importing}
+              >
+                {importing ? (
+                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                ) : (
+                  <RefreshCw className="w-3.5 h-3.5" />
+                )}
+                Forcer la ré-importation du stock
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                className="gap-1.5 text-destructive hover:text-destructive"
+                onClick={handleDisconnect}
+                disabled={saving}
+              >
+                <Unlink className="w-3.5 h-3.5" />
+                Déconnecter
+              </Button>
+            </>
           )}
           <div className="flex-1" />
           <Button
