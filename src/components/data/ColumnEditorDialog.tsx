@@ -1,71 +1,59 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
+import {
+  Popover, PopoverContent, PopoverTrigger,
+} from '@/components/ui/popover';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
-import { Textarea } from '@/components/ui/textarea';
+import { Checkbox } from '@/components/ui/checkbox';
 import { Badge } from '@/components/ui/badge';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { ScrollArea } from '@/components/ui/scroll-area';
-import { Separator } from '@/components/ui/separator';
-import { COLUMN_TYPE_OPTIONS } from '@/types';
+import {
+  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
+} from '@/components/ui/select';
 import type { Column, ColumnType, ColumnConfig, Row } from '@/types';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 import {
   X, Plus, Type, Hash, Banknote, Image as ImageIcon, Images,
   ChevronDown, ChevronRight, ListChecks, Link2, Layers, ToggleRight, ExternalLink,
-  Pencil, Trash2, Check, GripVertical, Database, Eye, EyeOff,
-  Upload, Globe, FileSpreadsheet, AlertTriangle, Activity,
+  Pencil, Trash2, Check, Eye, EyeOff,
+  AlertTriangle, Activity, ArrowRight,
 } from 'lucide-react';
 
-// DB type mapping for each column type
-const DB_TYPE_MAP: Record<ColumnType, string> = {
-  TEXT: 'VARCHAR',
-  NUMBER: 'NUMERIC',
-  CURRENCY: 'DECIMAL(10,2)',
-  IMAGE: 'TEXT',
-  IMAGE_ARRAY: 'JSONB',
-  SELECT: 'VARCHAR + options',
-  MULTI_SELECT: 'JSONB + options',
-  RELATION: 'FOREIGN KEY',
-  ARRAY: 'JSONB',
-  BOOLEAN: 'BOOLEAN',
-  URL: 'TEXT',
-  STATUS: 'SPECIAL',
-};
-
-// Visual column type config
-const COLUMN_TYPES: { value: ColumnType; label: string; description: string; icon: React.ReactNode; color: string; dbType: string }[] = [
-  { value: 'TEXT', label: 'Texte', description: 'Texte simple, une ligne', icon: <Type className="w-4 h-4" />, color: 'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300', dbType: DB_TYPE_MAP.TEXT },
-  { value: 'NUMBER', label: 'Nombre', description: 'Valeur numérique', icon: <Hash className="w-4 h-4" />, color: 'bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300', dbType: DB_TYPE_MAP.NUMBER },
-  { value: 'CURRENCY', label: 'Prix', description: 'Valeur monétaire', icon: <Banknote className="w-4 h-4" />, color: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900 dark:text-emerald-300', dbType: DB_TYPE_MAP.CURRENCY },
-  { value: 'IMAGE', label: 'Image', description: 'URL d\'une image', icon: <ImageIcon className="w-4 h-4" />, color: 'bg-purple-100 text-purple-700 dark:bg-purple-900 dark:text-purple-300', dbType: DB_TYPE_MAP.IMAGE },
-  { value: 'IMAGE_ARRAY', label: 'Galerie', description: 'Plusieurs images (JSON ou URLs)', icon: <Images className="w-4 h-4" />, color: 'bg-pink-100 text-pink-700 dark:bg-pink-900 dark:text-pink-300', dbType: DB_TYPE_MAP.IMAGE_ARRAY },
-  { value: 'SELECT', label: 'Sélection', description: 'Choix unique parmi des options', icon: <ChevronDown className="w-4 h-4" />, color: 'bg-amber-100 text-amber-700 dark:bg-amber-900 dark:text-amber-300', dbType: DB_TYPE_MAP.SELECT },
-  { value: 'MULTI_SELECT', label: 'Multi-sélection', description: 'Plusieurs choix possibles', icon: <ListChecks className="w-4 h-4" />, color: 'bg-orange-100 text-orange-700 dark:bg-orange-900 dark:text-orange-300', dbType: DB_TYPE_MAP.MULTI_SELECT },
-  { value: 'BOOLEAN', label: 'Oui/Non', description: 'Valeur vrai ou faux', icon: <ToggleRight className="w-4 h-4" />, color: 'bg-teal-100 text-teal-700 dark:bg-teal-900 dark:text-teal-300', dbType: DB_TYPE_MAP.BOOLEAN },
-  { value: 'RELATION', label: 'Relation', description: 'Lien vers une autre table', icon: <Link2 className="w-4 h-4" />, color: 'bg-cyan-100 text-cyan-700 dark:bg-cyan-900 dark:text-cyan-300', dbType: DB_TYPE_MAP.RELATION },
-  { value: 'ARRAY', label: 'Groupe', description: 'Regroupement de colonnes', icon: <Layers className="w-4 h-4" />, color: 'bg-indigo-100 text-indigo-700 dark:bg-indigo-900 dark:text-indigo-300', dbType: DB_TYPE_MAP.ARRAY },
-  { value: 'URL', label: 'Lien', description: 'URL ou lien externe', icon: <ExternalLink className="w-4 h-4" />, color: 'bg-rose-100 text-rose-700 dark:bg-rose-900 dark:text-rose-300', dbType: DB_TYPE_MAP.URL },
-  { value: 'STATUS', label: 'Statut', description: 'Statut avec verrouillage', icon: <Activity className="w-4 h-4" />, color: 'bg-amber-100 text-amber-700 dark:bg-amber-900 dark:text-amber-300', dbType: DB_TYPE_MAP.STATUS },
+// ── Column type visual config ──────────────────────────────────────────────
+const COLUMN_TYPES: { value: ColumnType; label: string; description: string; icon: React.ReactNode }[] = [
+  { value: 'TEXT', label: 'Texte', description: 'Texte simple, une ligne', icon: <Type className="w-4 h-4" /> },
+  { value: 'NUMBER', label: 'Nombre', description: 'Valeur numérique', icon: <Hash className="w-4 h-4" /> },
+  { value: 'CURRENCY', label: 'Prix', description: 'Valeur monétaire', icon: <Banknote className="w-4 h-4" /> },
+  { value: 'IMAGE', label: 'Image', description: 'URL d\'une image', icon: <ImageIcon className="w-4 h-4" /> },
+  { value: 'IMAGE_ARRAY', label: 'Galerie', description: 'Plusieurs images', icon: <Images className="w-4 h-4" /> },
+  { value: 'SELECT', label: 'Sélection', description: 'Choix unique', icon: <ChevronDown className="w-4 h-4" /> },
+  { value: 'MULTI_SELECT', label: 'Multi-sélection', description: 'Plusieurs choix', icon: <ListChecks className="w-4 h-4" /> },
+  { value: 'BOOLEAN', label: 'Oui/Non', description: 'Valeur vrai ou faux', icon: <ToggleRight className="w-4 h-4" /> },
+  { value: 'RELATION', label: 'Relation', description: 'Lien vers une autre table', icon: <Link2 className="w-4 h-4" /> },
+  { value: 'ARRAY', label: 'Groupe', description: 'Regroupement de colonnes', icon: <Layers className="w-4 h-4" /> },
+  { value: 'URL', label: 'Lien', description: 'URL ou lien externe', icon: <ExternalLink className="w-4 h-4" /> },
+  { value: 'STATUS', label: 'Statut', description: 'Statut avec verrouillage', icon: <Activity className="w-4 h-4" /> },
 ];
 
-// Category grouping for the type selector
-const TYPE_CATEGORIES: { label: string; types: ColumnType[] }[] = [
-  { label: 'Texte', types: ['TEXT', 'URL'] },
-  { label: 'Numérique', types: ['NUMBER', 'CURRENCY'] },
-  { label: 'Média', types: ['IMAGE', 'IMAGE_ARRAY'] },
-  { label: 'Sélection', types: ['SELECT', 'MULTI_SELECT', 'BOOLEAN'] },
-  { label: 'Structure', types: ['RELATION', 'ARRAY', 'STATUS'] },
+// Category grouping — Glide-style: Basic / Computed / Structure
+const TYPE_CATEGORIES: { label: string; icon: React.ReactNode; types: ColumnType[] }[] = [
+  { label: 'Base', icon: <Type className="w-3.5 h-3.5" />, types: ['TEXT', 'NUMBER', 'CURRENCY', 'URL'] },
+  { label: 'Média', icon: <Images className="w-3.5 h-3.5" />, types: ['IMAGE', 'IMAGE_ARRAY'] },
+  { label: 'Sélection', icon: <ListChecks className="w-3.5 h-3.5" />, types: ['SELECT', 'MULTI_SELECT', 'BOOLEAN'] },
+  { label: 'Structure', icon: <Layers className="w-3.5 h-3.5" />, types: ['RELATION', 'ARRAY', 'STATUS'] },
 ];
+
+// Types that show a CONFIGURATION section
+const CONFIG_TYPES: ColumnType[] = ['SELECT', 'MULTI_SELECT', 'IMAGE_ARRAY', 'ARRAY', 'CURRENCY', 'BOOLEAN', 'RELATION', 'IMAGE'];
 
 type DataSourceType = 'manual' | 'googlesheet' | 'url' | 'column';
 
@@ -86,7 +74,6 @@ export function ColumnEditorDialog({ open, onOpenChange, dataSourceId, columns, 
   const [required, setRequired] = useState(editingColumn?.required ?? false);
   const [config, setConfig] = useState<ColumnConfig>(editingColumn?.config || {});
   const [saving, setSaving] = useState(false);
-  const [activeTab, setActiveTab] = useState('properties');
 
   // Track original type for compatibility warning
   const [originalType, setOriginalType] = useState<ColumnType | null>(null);
@@ -107,26 +94,9 @@ export function ColumnEditorDialog({ open, onOpenChange, dataSourceId, columns, 
     (editingColumn?.config as ColumnConfig)?.galleryUrlPrefix as string || ''
   );
 
-  // Column data editing state
-  const [editingCellValues, setEditingCellValues] = useState<Record<string, string>>({});
-  const [hasDataChanges, setHasDataChanges] = useState(false);
-
-  // Type selector dropdown state
-  const [typeDropdownOpen, setTypeDropdownOpen] = useState(false);
-  const [expandedCategory, setExpandedCategory] = useState<string | null>(null);
-
-  // Close dropdown on outside click
-  useEffect(() => {
-    if (!typeDropdownOpen) return;
-    const handler = (e: MouseEvent) => {
-      const target = e.target as HTMLElement;
-      if (!target.closest('[data-type-dropdown]')) {
-        setTypeDropdownOpen(false);
-      }
-    };
-    document.addEventListener('mousedown', handler);
-    return () => document.removeEventListener('mousedown', handler);
-  }, [typeDropdownOpen]);
+  // Type popover state
+  const [typePopoverOpen, setTypePopoverOpen] = useState(false);
+  const [hoveredCategory, setHoveredCategory] = useState<string | null>(null);
 
   // Reset form when dialog opens
   useEffect(() => {
@@ -141,7 +111,7 @@ export function ColumnEditorDialog({ open, onOpenChange, dataSourceId, columns, 
         setGallerySource((editingColumn.config as ColumnConfig)?.gallerySource as DataSourceType || 'manual');
         setGallerySourceColumn((editingColumn.config as ColumnConfig)?.gallerySourceColumn as string || '');
         setGallerySeparator((editingColumn.config as ColumnConfig)?.gallerySeparator as string || ',');
-        setGalleryUrlPrefix((editingColumn.config as ColumnConfig)?.galleryUrlPrefix as string || '');
+        setGalleryUrlPrefix((editingColumn?.config as ColumnConfig)?.galleryUrlPrefix as string || '');
       } else {
         setName('');
         setType('TEXT');
@@ -154,16 +124,13 @@ export function ColumnEditorDialog({ open, onOpenChange, dataSourceId, columns, 
         setGallerySeparator(',');
         setGalleryUrlPrefix('');
       }
-      setActiveTab('properties');
-      setEditingCellValues({});
-      setHasDataChanges(false);
       setShowTypeChangeDialog(false);
-      setTypeDropdownOpen(false);
-      setExpandedCategory(null);
+      setTypePopoverOpen(false);
+      setHoveredCategory(null);
     }
   }, [open, editingColumn]);
 
-  // Check if we should warn about type change before saving
+  // ── Save logic ────────────────────────────────────────────────────────────
   const handleSaveClick = () => {
     if (!name.trim()) return;
     if (typeChanged) {
@@ -177,7 +144,6 @@ export function ColumnEditorDialog({ open, onOpenChange, dataSourceId, columns, 
     if (!name.trim()) return;
     setSaving(true);
     try {
-      // Build enhanced config
       const enhancedConfig = { ...config };
       if (type === 'IMAGE_ARRAY') {
         enhancedConfig.gallerySource = gallerySource;
@@ -193,27 +159,6 @@ export function ColumnEditorDialog({ open, onOpenChange, dataSourceId, columns, 
           body: JSON.stringify({ name, type, visible, required, config: enhancedConfig }),
         });
         if (res.ok) {
-          // Save cell data changes if any
-          if (hasDataChanges && rows) {
-            const slug = editingColumn.slug;
-            const updatePromises = Object.entries(editingCellValues).map(([rowId, value]) => {
-              const row = rows.find(r => r.id === rowId);
-              if (!row) return Promise.resolve();
-              const data = { ...(row.data as Record<string, unknown>) };
-              // Try to parse JSON values (arrays, objects), otherwise keep as string
-              try {
-                data[slug] = JSON.parse(value);
-              } catch {
-                data[slug] = value;
-              }
-              return fetch(`/api/datasources/${dataSourceId}/rows/${rowId}`, {
-                method: 'PUT',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ data }),
-              });
-            });
-            await Promise.all(updatePromises);
-          }
           toast.success('Colonne mise à jour');
           onSaved();
           onOpenChange(false);
@@ -243,6 +188,7 @@ export function ColumnEditorDialog({ open, onOpenChange, dataSourceId, columns, 
     }
   };
 
+  // ── Config helpers ────────────────────────────────────────────────────────
   const addOption = () => {
     const options = [...(config.options || []), ''];
     setConfig({ ...config, options });
@@ -267,661 +213,422 @@ export function ColumnEditorDialog({ open, onOpenChange, dataSourceId, columns, 
     setConfig({ ...config, sourceColumns });
   };
 
-  // Handle cell value change in data tab
-  const handleCellDataChange = (rowId: string, value: string) => {
-    setEditingCellValues(prev => ({ ...prev, [rowId]: value }));
-    setHasDataChanges(true);
-  };
-
-  // Get current cell value (edited or original)
-  const getCellValue = (row: Row, slug: string) => {
-    if (row.id in editingCellValues) return editingCellValues[row.id];
-    const val = (row.data as Record<string, unknown>)[slug];
-    if (val === undefined || val === null) return '';
-    if (typeof val === 'string') return val;
-    if (Array.isArray(val)) return JSON.stringify(val);
-    return String(val);
-  };
-
   const otherColumns = columns.filter(c => c.id !== editingColumn?.id);
+  const showConfig = CONFIG_TYPES.includes(type);
+  const currentTypeConfig = COLUMN_TYPES.find(ct => ct.value === type);
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-2xl max-h-[85vh]">
-        <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            {editingColumn ? (
-              <>
-                <Pencil className="w-4 h-4" />
-                Modifier la colonne
-              </>
-            ) : (
-              <>
-                <Plus className="w-4 h-4" />
-                Nouvelle colonne
-              </>
-            )}
+      <DialogContent className="sm:max-w-[480px] p-0 gap-0 overflow-hidden">
+        {/* ── Header: gold + icon, clean ── */}
+        <DialogHeader className="px-5 pt-5 pb-0">
+          <DialogTitle className="flex items-center gap-2.5 text-base">
+            <div className="w-7 h-7 rounded-lg bg-[#C9A84C]/10 flex items-center justify-center">
+              {editingColumn
+                ? <Pencil className="w-3.5 h-3.5 text-[#C9A84C]" />
+                : <Plus className="w-3.5 h-3.5 text-[#C9A84C]" />
+              }
+            </div>
+            {editingColumn ? 'Modifier la colonne' : 'Nouvelle colonne'}
           </DialogTitle>
         </DialogHeader>
 
-        <Tabs value={activeTab} onValueChange={setActiveTab} className="mt-2">
-          <TabsList className="w-full">
-            <TabsTrigger value="properties" className="flex-1 gap-1.5">
-              <Type className="w-3.5 h-3.5" /> Propriétés
-            </TabsTrigger>
-            <TabsTrigger value="data" className="flex-1 gap-1.5" disabled={!editingColumn}>
-              <Database className="w-3.5 h-3.5" /> Données
-            </TabsTrigger>
-          </TabsList>
+        {/* ── Body: single flow, no tabs ── */}
+        <div className="px-5 pt-4 pb-2 space-y-4">
+          {/* Type change warning */}
+          {typeChanged && editingColumn && (
+            <div className="flex items-start gap-2.5 p-2.5 rounded-lg bg-amber-50 dark:bg-amber-950/20 border border-amber-200">
+              <AlertTriangle className="w-3.5 h-3.5 text-amber-600 shrink-0 mt-0.5" />
+              <p className="text-[11px] text-amber-700 leading-relaxed">
+                Passage de <strong>{COLUMN_TYPES.find(ct => ct.value === originalType)?.label}</strong> à <strong>{currentTypeConfig?.label}</strong>. Les données existantes peuvent être converties ou perdues.
+              </p>
+            </div>
+          )}
 
-          {/* ── PROPERTIES TAB ──────────────────────────────────────────────── */}
-          <TabsContent value="properties" className="mt-4">
-            <ScrollArea className="max-h-[55vh] pr-1">
-              <div className="space-y-5">
-                {/* Type change compatibility warning */}
-                {typeChanged && editingColumn && (
-                  <div className="flex items-start gap-3 p-3 rounded-lg bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-800">
-                    <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
-                    <div>
-                      <p className="text-xs font-medium text-amber-800 dark:text-amber-200">
-                        Changement de type détecté
-                      </p>
-                      <p className="text-[11px] text-amber-700 dark:text-amber-300 mt-0.5">
-                        Vous passez de <strong>{COLUMN_TYPES.find(ct => ct.value === originalType)?.label}</strong> à <strong>{COLUMN_TYPES.find(ct => ct.value === type)?.label}</strong>.
-                        Changer le type peut convertir ou perdre des données existantes.
-                      </p>
-                    </div>
+          {/* ── Field 1: Name ── */}
+          <div>
+            <Label className="mb-1.5 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+              Nom
+            </Label>
+            <Input
+              value={name}
+              onChange={e => setName(e.target.value)}
+              placeholder="Ex: Prix, Couleur, Référence…"
+              className="h-9 text-sm border-border/60 focus:border-[#C9A84C] focus:ring-[#C9A84C]/20"
+              autoFocus
+            />
+            {editingColumn && (
+              <p className="text-[9px] text-muted-foreground/50 mt-1 ml-0.5">
+                slug: <code className="bg-muted/50 px-1 rounded text-[9px]">{editingColumn.slug}</code>
+              </p>
+            )}
+          </div>
+
+          {/* ── Field 2: Type — Glide-style Popover ── */}
+          <div>
+            <Label className="mb-1.5 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+              Type
+            </Label>
+            <Popover open={typePopoverOpen} onOpenChange={setTypePopoverOpen}>
+              <PopoverTrigger asChild>
+                <button
+                  type="button"
+                  className="w-full flex items-center justify-between h-9 px-3 rounded-lg border border-border/60 bg-background text-sm hover:border-[#C9A84C]/50 focus:outline-none focus:ring-1 focus:ring-[#C9A84C]/30 transition-colors"
+                >
+                  <div className="flex items-center gap-2">
+                    <span className="text-[#C9A84C]">{currentTypeConfig?.icon}</span>
+                    <span className="text-foreground">{currentTypeConfig?.label}</span>
+                    <span className="text-muted-foreground/50 text-[10px]">{currentTypeConfig?.description}</span>
                   </div>
-                )}
-                {/* Column Name */}
-                <div>
-                  <Label className="mb-1.5 text-sm font-medium">Nom de la colonne</Label>
-                  <Input
-                    value={name}
-                    onChange={e => setName(e.target.value)}
-                    placeholder="Ex: Prix, Description, Images..."
-                    className="h-9"
-                  />
-                  {editingColumn && (
-                    <p className="text-[10px] text-muted-foreground mt-1">
-                      Slug : <code className="bg-muted px-1 rounded">{editingColumn.slug}</code>
-                    </p>
-                  )}
-                </div>
-
-                {/* Column Type — Clean dropdown selector with DB mapping */}
-                <div className="relative" data-type-dropdown>
-                  <Label className="mb-1.5 text-sm font-medium">Type de colonne</Label>
-                  {/* Dropdown trigger */}
-                  <button
-                    type="button"
-                    className="w-full flex items-center justify-between h-9 px-3 rounded-md border border-[#C9A84C]/40 bg-background text-sm hover:border-[#C9A84C]/70 focus:outline-none focus:ring-1 focus:ring-[#C9A84C]/50 transition-colors"
-                    onClick={() => setTypeDropdownOpen(!typeDropdownOpen)}
-                  >
-                    <div className="flex items-center gap-2">
-                      {(() => {
-                        const ct = COLUMN_TYPES.find(c => c.value === type);
-                        return ct ? (
-                          <>
-                            <span className="text-[#C9A84C]">{ct.icon}</span>
-                            <span className="text-foreground">{ct.label}</span>
-                            <span className="text-muted-foreground text-xs">({ct.dbType})</span>
-                          </>
-                        ) : null;
-                      })()}
-                    </div>
-                    <ChevronDown className={cn("w-4 h-4 text-muted-foreground transition-transform duration-200", typeDropdownOpen && "rotate-180")} />
-                  </button>
-
-                  {/* Dropdown menu */}
-                  {typeDropdownOpen && (
-                    <div className="absolute z-50 mt-1 w-full rounded-md border border-[#C9A84C]/30 bg-popover shadow-md animate-in fade-in-0 zoom-in-95">
-                      {TYPE_CATEGORIES.map((cat, catIdx) => (
-                        <div key={cat.label}>
-                          {/* Category header with chevron */}
-                          <button
-                            type="button"
-                            className="w-full flex items-center justify-between px-3 py-1.5 text-[11px] font-semibold text-muted-foreground uppercase tracking-wider hover:bg-muted/50 transition-colors"
-                            onClick={() => setExpandedCategory(expandedCategory === cat.label ? null : cat.label)}
-                          >
-                            <span>{cat.label}</span>
-                            <ChevronRight className={cn("w-3 h-3 transition-transform duration-200", expandedCategory === cat.label && "rotate-90")} />
-                          </button>
-                          {/* Type items */}
-                          {(expandedCategory === cat.label ? cat.types : cat.types).map(typeVal => {
-                            const ct = COLUMN_TYPES.find(c => c.value === typeVal);
-                            if (!ct) return null;
-                            const isSelected = type === ct.value;
-                            const isHidden = expandedCategory !== cat.label && cat.types.length > 1;
-                            if (isHidden) return null;
-                            return (
-                              <button
-                                key={ct.value}
-                                type="button"
-                                className={cn(
-                                  "w-full flex items-center gap-2 px-3 py-1.5 text-sm transition-colors",
-                                  isSelected
-                                    ? "bg-[#1A3C34] text-white"
-                                    : "hover:bg-muted/60 text-foreground"
-                                )}
-                                onClick={() => {
-                                  setType(ct.value);
-                                  setTypeDropdownOpen(false);
-                                }}
-                              >
-                                <span className={isSelected ? "text-[#C9A84C]" : "text-[#C9A84C]/70"}>{ct.icon}</span>
-                                <span>{ct.label}</span>
-                                <span className={cn("text-xs ml-auto font-mono", isSelected ? "text-white/60" : "text-muted-foreground")}>({ct.value})</span>
-                              </button>
-                            );
-                          })}
-                          {/* When collapsed, show count indicator */}
-                          {expandedCategory !== cat.label && cat.types.length > 1 && (
-                            <button
-                              type="button"
-                              className="w-full flex items-center gap-2 px-3 py-1 text-xs text-muted-foreground hover:bg-muted/40 transition-colors"
-                              onClick={() => setExpandedCategory(cat.label)}
-                            >
-                              <ChevronRight className="w-3 h-3 text-[#C9A84C]/60" />
-                              <span>{cat.types.length} types…</span>
-                            </button>
+                  <ChevronDown className={cn("w-3.5 h-3.5 text-muted-foreground/50 transition-transform", typePopoverOpen && "rotate-180")} />
+                </button>
+              </PopoverTrigger>
+              <PopoverContent
+                align="start"
+                className="w-[340px] p-0 shadow-lg border-border/40 rounded-lg overflow-hidden"
+                sideOffset={4}
+              >
+                {/* Category list on the left, types fly out on the right */}
+                <div className="flex min-h-[260px]">
+                  {/* Left: Categories */}
+                  <div className="w-[120px] border-r border-border/30 bg-muted/20 py-1">
+                    {TYPE_CATEGORIES.map(cat => {
+                      const isHovered = hoveredCategory === cat.label;
+                      const hasSelectedType = cat.types.includes(type);
+                      return (
+                        <button
+                          key={cat.label}
+                          type="button"
+                          className={cn(
+                            "w-full flex items-center gap-2 px-3 py-2 text-xs transition-colors text-left",
+                            isHovered
+                              ? "bg-[#C9A84C]/10 text-[#C9A84C] font-medium"
+                              : hasSelectedType
+                                ? "text-foreground font-medium"
+                                : "text-muted-foreground hover:bg-muted/50"
                           )}
-                          {catIdx < TYPE_CATEGORIES.length - 1 && (
-                            <div className="mx-2 border-t border-border/50" />
+                          onMouseEnter={() => setHoveredCategory(cat.label)}
+                          onClick={() => setHoveredCategory(cat.label)}
+                        >
+                          <span className={cn(isHovered ? "text-[#C9A84C]" : "text-muted-foreground/60")}>{cat.icon}</span>
+                          {cat.label}
+                          <ChevronRight className={cn("w-3 h-3 ml-auto transition-opacity", isHovered ? "opacity-100" : "opacity-30")} />
+                        </button>
+                      );
+                    })}
+                  </div>
+                  {/* Right: Type items for hovered category */}
+                  <div className="flex-1 py-1">
+                    {(hoveredCategory
+                      ? TYPE_CATEGORIES.find(c => c.label === hoveredCategory)?.types || []
+                      : TYPE_CATEGORIES[0].types
+                    ).map(typeVal => {
+                      const ct = COLUMN_TYPES.find(c => c.value === typeVal);
+                      if (!ct) return null;
+                      const isSelected = type === ct.value;
+                      return (
+                        <button
+                          key={ct.value}
+                          type="button"
+                          className={cn(
+                            "w-full flex items-center gap-2.5 px-3 py-2 text-sm transition-colors",
+                            isSelected
+                              ? "bg-[#1A3C34] text-white"
+                              : "hover:bg-muted/40 text-foreground"
                           )}
-                        </div>
-                      ))}
-                    </div>
-                  )}
+                          onClick={() => {
+                            setType(ct.value);
+                            setTypePopoverOpen(false);
+                          }}
+                        >
+                          <span className={isSelected ? "text-[#C9A84C]" : "text-[#C9A84C]/60"}>{ct.icon}</span>
+                          <div className="flex-1 text-left">
+                            <span className="text-xs font-medium">{ct.label}</span>
+                            <span className={cn("text-[10px] ml-1.5", isSelected ? "text-white/50" : "text-muted-foreground/50")}>
+                              {ct.description}
+                            </span>
+                          </div>
+                          {isSelected && <Check className="w-3.5 h-3.5 text-[#C9A84C]" />}
+                        </button>
+                      );
+                    })}
+                  </div>
                 </div>
+              </PopoverContent>
+            </Popover>
+          </div>
 
-                <Separator />
+          {/* ── DYNAMIC CONFIGURATION ZONE ── */}
+          {showConfig && (
+            <div className="animate-in fade-in slide-in-from-top-1 duration-200">
+              {/* Divider + label */}
+              <div className="flex items-center gap-3 pt-1 pb-2">
+                <div className="flex-1 h-px bg-border/50" />
+                <span className="text-[9px] font-bold uppercase tracking-[0.15em] text-muted-foreground/50">
+                  Configuration
+                </span>
+                <div className="flex-1 h-px bg-border/50" />
+              </div>
 
-                {/* Type-specific configuration */}
+              <div className="space-y-3">
+                {/* SELECT / MULTI_SELECT → Options */}
                 {(type === 'SELECT' || type === 'MULTI_SELECT') && (
-                  <div>
-                    <Label className="mb-2 text-sm font-medium">Options de sélection</Label>
-                    <div className="space-y-2">
-                      {(config.options || []).map((opt, i) => (
-                        <div key={i} className="flex items-center gap-2">
-                          <GripVertical className="w-3 h-3 text-muted-foreground shrink-0" />
-                          <Input value={opt} onChange={e => updateOption(i, e.target.value)} className="h-8 text-sm" placeholder={`Option ${i + 1}`} />
-                          <Button variant="ghost" size="icon" className="h-7 w-7 shrink-0" onClick={() => removeOption(i)}>
-                            <X className="w-3 h-3" />
-                          </Button>
-                        </div>
-                      ))}
-                      <Button variant="outline" size="sm" onClick={addOption} className="h-7 text-xs gap-1">
-                        <Plus className="w-3 h-3" /> Ajouter option
-                      </Button>
-                    </div>
+                  <div className="space-y-2">
+                    {(config.options || []).map((opt, i) => (
+                      <div key={i} className="flex items-center gap-1.5">
+                        <Input
+                          value={opt}
+                          onChange={e => updateOption(i, e.target.value)}
+                          className="h-8 text-xs border-border/40 focus:border-[#C9A84C] focus:ring-[#C9A84C]/20"
+                          placeholder={`Option ${i + 1}`}
+                        />
+                        <Button variant="ghost" size="icon" className="h-7 w-7 shrink-0 text-muted-foreground/40 hover:text-destructive" onClick={() => removeOption(i)}>
+                          <X className="w-3 h-3" />
+                        </Button>
+                      </div>
+                    ))}
+                    <Button variant="outline" size="sm" onClick={addOption} className="h-7 text-[10px] gap-1 border-dashed border-[#C9A84C]/30 text-[#C9A84C] hover:bg-[#C9A84C]/5 hover:text-[#C9A84C]">
+                      <Plus className="w-3 h-3" /> Ajouter
+                    </Button>
                   </div>
                 )}
 
-                {type === 'ARRAY' && (
-                  <div>
-                    <Label className="mb-2 text-sm font-medium">Colonnes à regrouper</Label>
-                    <p className="text-[11px] text-muted-foreground mb-2">
-                      Sélectionnez les colonnes dont les valeurs seront regroupées dans ce champ.
+                {/* IMAGE_ARRAY → Gallery source checkboxes */}
+                {type === 'IMAGE_ARRAY' && (
+                  <div className="space-y-2.5">
+                    <p className="text-[10px] text-muted-foreground">
+                      Fusionner plusieurs colonnes d'images en une seule galerie.
                     </p>
-                    <div className="space-y-1 max-h-40 overflow-y-auto border rounded-lg p-2">
-                      {otherColumns.map(col => (
-                        <label key={col.id} className="flex items-center gap-2 text-sm cursor-pointer p-1 rounded hover:bg-muted">
-                          <input
-                            type="checkbox"
-                            checked={(config.sourceColumns || []).includes(col.slug)}
-                            onChange={() => toggleSourceColumn(col.slug)}
-                            className="rounded"
-                          />
-                          <span className="truncate">{col.name}</span>
-                          <Badge variant="outline" className="text-[8px] ml-auto">{COLUMN_TYPES.find(ct => ct.value === col.type)?.label}</Badge>
-                        </label>
-                      ))}
-                      {otherColumns.length === 0 && (
-                        <p className="text-[11px] text-muted-foreground text-center py-2">Aucune autre colonne</p>
+                    <div className="space-y-1 border rounded-lg p-1.5 max-h-32 overflow-y-auto">
+                      {otherColumns
+                        .filter(c => c.type === 'IMAGE' || c.type === 'IMAGE_ARRAY' || c.type === 'TEXT' || c.type === 'URL')
+                        .map(col => (
+                          <label key={col.id} className="flex items-center gap-2 text-xs cursor-pointer py-1 px-1.5 rounded hover:bg-muted/40 transition-colors">
+                            <Checkbox
+                              checked={(config.sourceColumns || []).includes(col.slug)}
+                              onCheckedChange={() => toggleSourceColumn(col.slug)}
+                              className="h-3.5 w-3.5"
+                            />
+                            <span className="text-[#C9A84C]/60">{COLUMN_TYPES.find(ct => ct.value === col.type)?.icon}</span>
+                            <span className="truncate flex-1">{col.name}</span>
+                          </label>
+                        ))
+                      }
+                      {otherColumns.filter(c => c.type === 'IMAGE' || c.type === 'IMAGE_ARRAY' || c.type === 'TEXT' || c.type === 'URL').length === 0 && (
+                        <p className="text-[10px] text-muted-foreground/40 text-center py-2">Aucune colonne compatible</p>
                       )}
                     </div>
+                    {/* Separator config */}
+                    <div className="flex items-center gap-2 pt-1">
+                      <span className="text-[10px] text-muted-foreground/60 shrink-0">Séparateur</span>
+                      <div className="flex gap-1">
+                        {[{ v: ',', l: ',' }, { v: ';', l: ';' }, { v: '|', l: '|' }].map(sep => (
+                          <button
+                            key={sep.v}
+                            type="button"
+                            className={cn(
+                              "w-7 h-6 rounded text-[10px] font-mono transition-all border",
+                              gallerySeparator === sep.v
+                                ? "border-[#C9A84C] bg-[#C9A84C]/10 text-[#C9A84C]"
+                                : "border-border/40 text-muted-foreground/50 hover:border-[#C9A84C]/30"
+                            )}
+                            onClick={() => setGallerySeparator(sep.v)}
+                          >
+                            {sep.l}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
                   </div>
                 )}
 
-                {type === 'CURRENCY' && (
+                {/* IMAGE → URL prefix */}
+                {type === 'IMAGE' && (
                   <div>
-                    <Label className="mb-1.5 text-sm font-medium">Symbole monétaire</Label>
-                    <div className="flex gap-2">
+                    <Label className="mb-1 text-[10px] text-muted-foreground/60">Préfixe d'URL (optionnel)</Label>
+                    <Input
+                      value={config.imagePrefix || ''}
+                      onChange={e => setConfig({ ...config, imagePrefix: e.target.value })}
+                      placeholder="https://example.com/images/"
+                      className="h-8 text-xs border-border/40 focus:border-[#C9A84C]"
+                    />
+                  </div>
+                )}
+
+                {/* ARRAY → Group columns */}
+                {type === 'ARRAY' && (
+                  <div className="space-y-1.5">
+                    <p className="text-[10px] text-muted-foreground">Colonnes à regrouper dans ce champ.</p>
+                    <div className="space-y-0.5 border rounded-lg p-1.5 max-h-28 overflow-y-auto">
+                      {otherColumns.map(col => (
+                        <label key={col.id} className="flex items-center gap-2 text-xs cursor-pointer py-0.5 px-1.5 rounded hover:bg-muted/40">
+                          <Checkbox
+                            checked={(config.sourceColumns || []).includes(col.slug)}
+                            onCheckedChange={() => toggleSourceColumn(col.slug)}
+                            className="h-3.5 w-3.5"
+                          />
+                          <span className="truncate">{col.name}</span>
+                          <Badge variant="outline" className="text-[7px] ml-auto h-3.5 px-1">{COLUMN_TYPES.find(ct => ct.value === col.type)?.label}</Badge>
+                        </label>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* CURRENCY → Symbol */}
+                {type === 'CURRENCY' && (
+                  <div className="flex items-center gap-2">
+                    <span className="text-[10px] text-muted-foreground/60">Devise</span>
+                    <div className="flex gap-1">
                       {['DH', '€', '$', '£'].map(sym => (
                         <button
                           key={sym}
                           type="button"
-                          className={`w-12 h-9 rounded-md border-2 text-sm font-medium transition-all
-                            ${(config.currencySymbol || 'DH') === sym
-                              ? 'border-primary bg-primary/10 text-primary'
-                              : 'border-border hover:border-primary/30'
-                            }`}
+                          className={cn(
+                            "h-7 px-2.5 rounded text-xs font-medium transition-all border",
+                            (config.currencySymbol || 'DH') === sym
+                              ? "border-[#C9A84C] bg-[#C9A84C]/10 text-[#C9A84C]"
+                              : "border-border/40 text-muted-foreground/60 hover:border-[#C9A84C]/30"
+                          )}
                           onClick={() => setConfig({ ...config, currencySymbol: sym })}
                         >
                           {sym}
                         </button>
                       ))}
-                      <Input
-                        value={config.currencySymbol || 'DH'}
-                        onChange={e => setConfig({ ...config, currencySymbol: e.target.value })}
-                        className="h-9 w-20 text-sm"
-                        placeholder="DH"
-                      />
                     </div>
                   </div>
                 )}
 
+                {/* BOOLEAN → Labels */}
                 {type === 'BOOLEAN' && (
-                  <div className="grid grid-cols-2 gap-3">
-                    <div>
-                      <Label className="mb-1.5 text-sm">Label Vrai</Label>
-                      <Input
-                        value={config.trueLabel || 'Oui'}
-                        onChange={e => setConfig({ ...config, trueLabel: e.target.value })}
-                        className="h-8 text-sm"
-                      />
+                  <div className="flex items-center gap-3">
+                    <div className="flex-1">
+                      <Label className="mb-0.5 text-[10px] text-muted-foreground/60">Vrai</Label>
+                      <Input value={config.trueLabel || 'Oui'} onChange={e => setConfig({ ...config, trueLabel: e.target.value })} className="h-7 text-xs border-border/40 focus:border-[#C9A84C]" />
                     </div>
-                    <div>
-                      <Label className="mb-1.5 text-sm">Label Faux</Label>
-                      <Input
-                        value={config.falseLabel || 'Non'}
-                        onChange={e => setConfig({ ...config, falseLabel: e.target.value })}
-                        className="h-8 text-sm"
-                      />
+                    <div className="flex-1">
+                      <Label className="mb-0.5 text-[10px] text-muted-foreground/60">Faux</Label>
+                      <Input value={config.falseLabel || 'Non'} onChange={e => setConfig({ ...config, falseLabel: e.target.value })} className="h-7 text-xs border-border/40 focus:border-[#C9A84C]" />
                     </div>
                   </div>
                 )}
 
-                {/* IMAGE / IMAGE_ARRAY source configuration */}
-                {(type === 'IMAGE' || type === 'IMAGE_ARRAY') && (
-                  <div className="space-y-4">
-                    <div>
-                      <Label className="mb-2 text-sm font-medium flex items-center gap-2">
-                        <Globe className="w-3.5 h-3.5" />
-                        Source des données image
-                      </Label>
-                      <p className="text-[11px] text-muted-foreground mb-3">
-                        Configurez d&apos;où proviennent les images de cette colonne.
-                      </p>
-
-                      <div className="grid grid-cols-2 gap-2">
-                        <button
-                          type="button"
-                          className={`flex items-center gap-2 p-2.5 rounded-lg border-2 text-left transition-all
-                            ${gallerySource === 'manual'
-                              ? 'border-primary bg-primary/5'
-                              : 'border-border hover:border-primary/30'
-                            }`}
-                          onClick={() => setGallerySource('manual')}
-                        >
-                          <Pencil className="w-4 h-4 text-muted-foreground" />
-                          <div>
-                            <p className="text-xs font-medium">Saisie manuelle</p>
-                            <p className="text-[10px] text-muted-foreground">URL saisies directement</p>
-                          </div>
-                        </button>
-                        <button
-                          type="button"
-                          className={`flex items-center gap-2 p-2.5 rounded-lg border-2 text-left transition-all
-                            ${gallerySource === 'column'
-                              ? 'border-primary bg-primary/5'
-                              : 'border-border hover:border-primary/30'
-                            }`}
-                          onClick={() => setGallerySource('column')}
-                        >
-                          <Database className="w-4 h-4 text-muted-foreground" />
-                          <div>
-                            <p className="text-xs font-medium">Depuis une colonne</p>
-                            <p className="text-[10px] text-muted-foreground">Utiliser les données d&apos;une autre colonne</p>
-                          </div>
-                        </button>
-                        <button
-                          type="button"
-                          className={`flex items-center gap-2 p-2.5 rounded-lg border-2 text-left transition-all
-                            ${gallerySource === 'googlesheet'
-                              ? 'border-primary bg-primary/5'
-                              : 'border-border hover:border-primary/30'
-                            }`}
-                          onClick={() => setGallerySource('googlesheet')}
-                        >
-                          <FileSpreadsheet className="w-4 h-4 text-green-600" />
-                          <div>
-                            <p className="text-xs font-medium">Google Sheets</p>
-                            <p className="text-[10px] text-muted-foreground">Import depuis Google Drive</p>
-                          </div>
-                        </button>
-                        <button
-                          type="button"
-                          className={`flex items-center gap-2 p-2.5 rounded-lg border-2 text-left transition-all
-                            ${gallerySource === 'url'
-                              ? 'border-primary bg-primary/5'
-                              : 'border-border hover:border-primary/30'
-                            }`}
-                          onClick={() => setGallerySource('url')}
-                        >
-                          <Upload className="w-4 h-4 text-muted-foreground" />
-                          <div>
-                            <p className="text-xs font-medium">URL avec préfixe</p>
-                            <p className="text-[10px] text-muted-foreground">Préfixe + nom de fichier</p>
-                          </div>
-                        </button>
-                      </div>
-                    </div>
-
-                    {/* Source: column */}
-                    {gallerySource === 'column' && (
-                      <div>
-                        <Label className="mb-1.5 text-sm">Colonne source</Label>
-                        <p className="text-[11px] text-muted-foreground mb-2">
-                          Les données de la colonne sélectionnée seront utilisées comme source pour cette galerie.
-                        </p>
-                        <div className="border rounded-lg overflow-hidden">
-                          {otherColumns
-                            .filter(c => c.type === 'TEXT' || c.type === 'URL' || c.type === 'IMAGE' || c.type === 'IMAGE_ARRAY')
-                            .map(col => (
-                              <button
-                                key={col.id}
-                                type="button"
-                                className={`w-full flex items-center gap-2 p-2 text-left text-sm transition-colors
-                                  ${gallerySourceColumn === col.slug
-                                    ? 'bg-primary/10 text-primary'
-                                    : 'hover:bg-muted'
-                                  }`}
-                                onClick={() => setGallerySourceColumn(col.slug)}
-                              >
-                                <div className="w-5 h-5 rounded bg-muted flex items-center justify-center">
-                                  {COLUMN_TYPES.find(ct => ct.value === col.type)?.icon}
-                                </div>
-                                <span className="flex-1 truncate">{col.name}</span>
-                                <Badge variant="outline" className="text-[8px]">{COLUMN_TYPES.find(ct => ct.value === col.type)?.label}</Badge>
-                                {gallerySourceColumn === col.slug && <Check className="w-3 h-3 text-primary" />}
-                              </button>
-                            ))
-                          }
-                          {otherColumns.filter(c => c.type === 'TEXT' || c.type === 'URL' || c.type === 'IMAGE' || c.type === 'IMAGE_ARRAY').length === 0 && (
-                            <p className="text-[11px] text-muted-foreground text-center py-3">Aucune colonne compatible (Texte, URL, Image, Galerie)</p>
-                          )}
-                        </div>
-                      </div>
-                    )}
-
-                    {/* Source: URL prefix */}
-                    {gallerySource === 'url' && (
-                      <div>
-                        <Label className="mb-1.5 text-sm">Préfixe d&apos;URL</Label>
-                        <Input
-                          value={galleryUrlPrefix}
-                          onChange={e => setGalleryUrlPrefix(e.target.value)}
-                          placeholder="https://drive.google.com/uc?id="
-                          className="h-8 text-sm"
-                        />
-                        <p className="text-[10px] text-muted-foreground mt-1">
-                          Ce préfixe sera ajouté devant chaque valeur de cellule pour former l&apos;URL complète.
-                        </p>
-                      </div>
-                    )}
-
-                    {/* Source: Google Sheets */}
-                    {gallerySource === 'googlesheet' && (
-                      <div className="bg-green-50 dark:bg-green-950/20 rounded-lg p-3">
-                        <div className="flex items-center gap-2 mb-2">
-                          <FileSpreadsheet className="w-4 h-4 text-green-600" />
-                          <span className="text-sm font-medium">Google Sheets</span>
-                        </div>
-                        <p className="text-[11px] text-muted-foreground">
-                          Les images seront importées automatiquement depuis votre Google Sheet connecté.
-                          Utilisez la fonctionnalité de synchronisation pour mettre à jour les données.
-                        </p>
-                      </div>
-                    )}
-
-                    {/* Separator for IMAGE_ARRAY */}
-                    {type === 'IMAGE_ARRAY' && (
-                      <div>
-                        <Label className="mb-1.5 text-sm">Séparateur d&apos;images</Label>
-                        <div className="flex gap-2">
-                          {[
-                            { value: ',', label: 'Virgule (,)' },
-                            { value: ';', label: 'Point-virgule (;)' },
-                            { value: '|', label: 'Pipe (|)' },
-                            { value: '\n', label: 'Nouvelle ligne' },
-                          ].map(sep => (
-                            <button
-                              key={sep.value}
-                              type="button"
-                              className={`px-2.5 py-1.5 rounded-md border-2 text-[11px] transition-all
-                                ${gallerySeparator === sep.value
-                                  ? 'border-primary bg-primary/10 text-primary'
-                                  : 'border-border hover:border-primary/30'
-                                }`}
-                              onClick={() => setGallerySeparator(sep.value)}
-                            >
-                              {sep.label}
-                            </button>
-                          ))}
-                        </div>
-                        <p className="text-[10px] text-muted-foreground mt-1.5">
-                          Si les URLs d&apos;images sont séparées par ce caractère au lieu d&apos;être en format JSON.
-                        </p>
-                      </div>
-                    )}
-
-                    {/* Image URL prefix for IMAGE type */}
-                    {type === 'IMAGE' && (
-                      <div>
-                        <Label className="mb-1.5 text-sm">Préfixe d&apos;URL (optionnel)</Label>
-                        <Input
-                          value={config.imagePrefix || ''}
-                          onChange={e => setConfig({ ...config, imagePrefix: e.target.value })}
-                          placeholder="https://example.com/images/"
-                          className="h-8 text-sm"
-                        />
-                        <p className="text-[10px] text-muted-foreground mt-1">
-                          Ce préfixe sera ajouté devant chaque valeur de cellule.
-                        </p>
-                      </div>
-                    )}
-                  </div>
-                )}
-
+                {/* RELATION → Notion-style 3 fields */}
                 {type === 'RELATION' && (
-                  <div className="bg-cyan-50 dark:bg-cyan-950/20 rounded-lg p-3">
-                    <div className="flex items-center gap-2 mb-2">
-                      <Link2 className="w-4 h-4 text-cyan-600" />
-                      <span className="text-sm font-medium">Relation</span>
-                    </div>
-                    <p className="text-[11px] text-muted-foreground">
-                      Les relations se configurent dans le gestionnaire de relations accessible depuis le panneau de données.
+                  <div className="space-y-2.5">
+                    <p className="text-[10px] text-muted-foreground/60 flex items-center gap-1.5">
+                      <Link2 className="w-3 h-3 text-[#C9A84C]/50" />
+                      Configurez la relation entre les tables
                     </p>
+                    {/* Relation name */}
+                    <div>
+                      <Label className="mb-0.5 text-[10px] text-muted-foreground/60">Nom de la relation</Label>
+                      <Input
+                        value={name}
+                        onChange={e => setName(e.target.value)}
+                        placeholder="Ex: Produits → Catégories"
+                        className="h-7 text-xs border-border/40 focus:border-[#C9A84C]"
+                      />
+                    </div>
+                    {/* Source column */}
+                    <div>
+                      <Label className="mb-0.5 text-[10px] text-muted-foreground/60">Colonne source</Label>
+                      <Select value={config.sourceColumn || ''} onValueChange={v => setConfig({ ...config, sourceColumn: v })}>
+                        <SelectTrigger className="h-7 text-xs border-border/40">
+                          <SelectValue placeholder="Choisir le pivot local…" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {columns.map(col => (
+                            <SelectItem key={col.id} value={col.slug}>
+                              <span className="flex items-center gap-1.5">
+                                <span className="text-[#C9A84C]/60">{COLUMN_TYPES.find(ct => ct.value === col.type)?.icon}</span>
+                                {col.name}
+                              </span>
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    {/* Target table */}
+                    <div>
+                      <Label className="mb-0.5 text-[10px] text-muted-foreground/60">Table cible</Label>
+                      <Select value={config.targetTable || ''} onValueChange={v => setConfig({ ...config, targetTable: v })}>
+                        <SelectTrigger className="h-7 text-xs border-border/40">
+                          <SelectValue placeholder="Sélectionner la source externe…" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="self">Table actuelle (auto-référence)</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
                   </div>
                 )}
-
-                <Separator />
-
-                {/* Visibility & Required */}
-                <div className="flex items-center gap-6">
-                  <label className="flex items-center gap-2.5 text-sm cursor-pointer">
-                    <Switch checked={visible} onCheckedChange={setVisible} />
-                    <div className="flex items-center gap-1.5">
-                      {visible ? <Eye className="w-3.5 h-3.5" /> : <EyeOff className="w-3.5 h-3.5" />}
-                      Visible
-                    </div>
-                  </label>
-                  <label className="flex items-center gap-2.5 text-sm cursor-pointer">
-                    <Switch checked={required} onCheckedChange={setRequired} />
-                    <span>Requis</span>
-                  </label>
-                </div>
               </div>
-            </ScrollArea>
-          </TabsContent>
-
-          {/* ── DATA TAB ────────────────────────────────────────────────────── */}
-          <TabsContent value="data" className="mt-4">
-            {editingColumn && rows ? (
-              <ScrollArea className="max-h-[55vh]">
-                <div className="space-y-1">
-                  <p className="text-[11px] text-muted-foreground mb-3">
-                    Modifiez directement les données de la colonne <strong>{editingColumn.name}</strong> pour chaque ligne.
-                    Les changements seront sauvegardés lors de la mise à jour.
-                  </p>
-
-                  {/* Data editing table */}
-                  <div className="border rounded-lg overflow-hidden">
-                    <div className="bg-muted/50 px-3 py-2 flex items-center gap-2 border-b">
-                      <span className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider w-8">#</span>
-                      <span className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider flex-1">Valeur</span>
-                    </div>
-                    {rows.slice(0, 100).map((row, idx) => {
-                      const cellValue = getCellValue(row, editingColumn.slug);
-                      const isLongValue = cellValue.length > 100;
-                      const isImageUrl = cellValue.startsWith('http') && (editingColumn.type === 'IMAGE' || editingColumn.type === 'IMAGE_ARRAY');
-                      const isJsonArray = cellValue.startsWith('[');
-
-                      return (
-                        <div key={row.id} className="px-3 py-1.5 flex items-start gap-2 border-b border-border/30 last:border-0 hover:bg-muted/20">
-                          <span className="text-[10px] text-muted-foreground w-8 pt-1.5 shrink-0">{idx + 1}</span>
-                          <div className="flex-1 min-w-0">
-                            {isLongValue || isJsonArray ? (
-                              <Textarea
-                                value={cellValue}
-                                onChange={e => handleCellDataChange(row.id, e.target.value)}
-                                className="min-h-[60px] text-xs font-mono"
-                                rows={3}
-                              />
-                            ) : (
-                              <Input
-                                value={cellValue}
-                                onChange={e => handleCellDataChange(row.id, e.target.value)}
-                                className="h-7 text-xs"
-                              />
-                            )}
-                            {/* Image preview */}
-                            {isImageUrl && cellValue.startsWith('http') && (
-                              <div className="mt-1 flex items-center gap-1">
-                                <div className="w-8 h-8 rounded bg-muted overflow-hidden">
-                                  <img
-                                    src={`/api/google/image-proxy?url=${encodeURIComponent(cellValue)}`}
-                                    alt=""
-                                    className="w-full h-full object-cover"
-                                    onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
-                                  />
-                                </div>
-                                <span className="text-[9px] text-muted-foreground truncate max-w-[200px]">
-                                  {cellValue.substring(0, 60)}...
-                                </span>
-                              </div>
-                            )}
-                            {/* JSON array preview */}
-                            {isJsonArray && (
-                              <div className="mt-1">
-                                <Badge variant="secondary" className="text-[9px]">
-                                  {(() => {
-                                    try {
-                                      const arr = JSON.parse(cellValue);
-                                      return Array.isArray(arr) ? `${arr.length} éléments` : 'JSON';
-                                    } catch { return 'JSON invalide'; }
-                                  })()}
-                                </Badge>
-                              </div>
-                            )}
-                          </div>
-                          {cellValue && (
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              className="h-6 w-6 shrink-0 mt-1"
-                              onClick={() => handleCellDataChange(row.id, '')}
-                            >
-                              <Trash2 className="w-2.5 h-2.5 text-destructive" />
-                            </Button>
-                          )}
-                        </div>
-                      );
-                    })}
-                    {rows.length > 100 && (
-                      <div className="px-3 py-2 text-[11px] text-muted-foreground text-center bg-muted/20">
-                        Affichage des 100 premières lignes sur {rows.length}
-                      </div>
-                    )}
-                  </div>
-
-                  {hasDataChanges && (
-                    <div className="flex items-center gap-2 mt-3 p-2 bg-amber-50 dark:bg-amber-950/20 rounded-lg">
-                      <Badge variant="outline" className="text-[10px] gap-1 border-amber-300">
-                        <Pencil className="w-2.5 h-2.5" /> Modifications en attente
-                      </Badge>
-                      <span className="text-[10px] text-muted-foreground">
-                        Cliquez sur &quot;Mettre à jour&quot; pour sauvegarder les changements de données.
-                      </span>
-                    </div>
-                  )}
-                </div>
-              </ScrollArea>
-            ) : (
-              <div className="text-center py-8 text-muted-foreground">
-                <Database className="w-8 h-8 mx-auto mb-2 opacity-30" />
-                <p className="text-sm">Sauvegardez d&apos;abord la colonne pour modifier ses données</p>
-              </div>
-            )}
-          </TabsContent>
-        </Tabs>
-
-        <DialogFooter className="gap-2">
-          <Button variant="outline" onClick={() => onOpenChange(false)}>Annuler</Button>
-          {editingColumn && (
-            <Button
-              variant="destructive"
-              size="sm"
-              className="mr-auto"
-              onClick={async () => {
-                if (confirm(`Supprimer la colonne "${editingColumn.name}" ? Cette action est irréversible.`)) {
-                  try {
-                    await fetch(`/api/datasources/${dataSourceId}/columns/${editingColumn.id}`, { method: 'DELETE' });
-                    toast.success('Colonne supprimée');
-                    onSaved();
-                    onOpenChange(false);
-                  } catch {
-                    toast.error('Erreur de suppression');
-                  }
-                }
-              }}
-            >
-              <Trash2 className="w-3.5 h-3.5 mr-1" /> Supprimer
-            </Button>
+            </div>
           )}
-          <Button onClick={handleSaveClick} disabled={!name.trim() || saving}>
-            {saving ? 'Sauvegarde...' : editingColumn ? 'Mettre à jour' : 'Créer'}
-          </Button>
-        </DialogFooter>
+        </div>
 
-        {/* Type change confirmation dialog */}
+        {/* ── Footer: clean, minimal ── */}
+        <div className="px-5 py-3 border-t border-border/30 flex items-center justify-between">
+          {/* Left: Visibility toggle */}
+          <div className="flex items-center gap-3">
+            <label className="flex items-center gap-1.5 text-[10px] text-muted-foreground cursor-pointer">
+              <Switch checked={visible} onCheckedChange={setVisible} className="scale-75" />
+              {visible ? <Eye className="w-3 h-3" /> : <EyeOff className="w-3 h-3" />}
+            </label>
+            {editingColumn && (
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-6 text-[10px] gap-1 text-destructive/60 hover:text-destructive hover:bg-destructive/5 px-1.5"
+                onClick={() => {
+                  fetch(`/api/datasources/${dataSourceId}/columns/${editingColumn.id}`, { method: 'DELETE' })
+                    .then(res => { if (res.ok) { onSaved(); onOpenChange(false); toast.success('Colonne supprimée'); } })
+                    .catch(() => toast.error('Erreur'));
+                }}
+              >
+                <Trash2 className="w-3 h-3" /> Supprimer
+              </Button>
+            )}
+          </div>
+          {/* Right: Action buttons */}
+          <div className="flex items-center gap-2">
+            <Button variant="ghost" size="sm" className="h-8 text-xs" onClick={() => onOpenChange(false)}>
+              Annuler
+            </Button>
+            <Button
+              size="sm"
+              className="h-8 text-xs gap-1.5 bg-[#C9A84C] hover:bg-[#C9A84C]/90 text-white"
+              disabled={!name.trim() || saving}
+              onClick={handleSaveClick}
+            >
+              {saving ? (
+                <span className="animate-pulse">…</span>
+              ) : editingColumn ? (
+                <>Mettre à jour</>
+              ) : (
+                <>
+                  <Plus className="w-3 h-3" /> Créer
+                </>
+              )}
+            </Button>
+          </div>
+        </div>
+
+        {/* ── Type change confirmation dialog ── */}
         <AlertDialog open={showTypeChangeDialog} onOpenChange={setShowTypeChangeDialog}>
           <AlertDialogContent>
             <AlertDialogHeader>
-              <AlertDialogTitle className="flex items-center gap-2">
-                <AlertTriangle className="w-4 h-4 text-amber-600" />
-                Confirmer le changement de type
-              </AlertDialogTitle>
+              <AlertDialogTitle>Changer le type ?</AlertDialogTitle>
               <AlertDialogDescription>
-                Vous êtes sur le point de changer le type de la colonne de{' '}
-                <strong>{COLUMN_TYPES.find(ct => ct.value === originalType)?.label}</strong> vers{' '}
-                <strong>{COLUMN_TYPES.find(ct => ct.value === type)?.label}</strong>.
-                Les données existantes pourraient ne pas être compatibles avec le nouveau type.
-                Certaines valeurs peuvent être perdues ou affichées incorrectement.
+                Vous passez de <strong>{COLUMN_TYPES.find(ct => ct.value === originalType)?.label}</strong> à <strong>{currentTypeConfig?.label}</strong>.
+                Cette action peut convertir ou perdre des données existantes.
               </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>
               <AlertDialogCancel>Annuler</AlertDialogCancel>
-              <AlertDialogAction
-                className="bg-amber-600 text-white hover:bg-amber-700"
-                onClick={() => {
-                  setShowTypeChangeDialog(false);
-                  handleSave();
-                }}
-              >
-                Confirmer le changement
+              <AlertDialogAction className="bg-[#C9A84C] hover:bg-[#C9A84C]/90 text-white" onClick={handleSave}>
+                Confirmer
               </AlertDialogAction>
             </AlertDialogFooter>
           </AlertDialogContent>
