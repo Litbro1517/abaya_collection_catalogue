@@ -137,3 +137,34 @@ Stage Summary:
 - Data/Layout inner panels: w-64 (expanded) ↔ w-0 (collapsed) with edge expand button
 - State persisted in localStorage (abaya_sidebarCollapsed, abaya_dataPanelCollapsed)
 - Production deployed at https://abaya-collection-catalogue-9dum.vercel.app
+
+---
+Task ID: 2
+Agent: Main Agent
+Task: Inject "Connecter une source de stock" action in the Stock column menu
+
+Work Log:
+- Analyzed screenshot of current Stock column context menu (Éditer/Renommer/Trier/Dupliquer/Ajouter à droite/Visibilité)
+- Read DataTable.tsx column options menu code (lines 1140-1300)
+- Created StockSourceModal.tsx with 3 dropdowns: Table Source, Clé de Correspondance, Colonne Stock Source
+- Added state variables in DataTable: showStockSourceModal, stockSourceConfig, stockLookupValues
+- Injected "Connecter une source de stock" button in column context menu for __stock__ column (above Visibilité)
+- Button shows green "● Live" indicator when source is already connected
+- Stock cell renders in read-only mode when connected: shows Database icon + lookup value
+- Added useEffect to load stockSourceConfig from __stock__ column's config JSON
+- Added useEffect to resolve stock values via POST /api/datasources/[id]/stock-lookup
+- Created backend API route: POST /api/datasources/[id]/stock-lookup
+  - Fetches current table rows and source table rows
+  - Builds lookup map from matchColumnSlug → stockColumnSlug
+  - Returns { data: { [rowId]: stockValue } }
+- StockSourceModal saves config to column.config.stockSource via PUT /columns API
+- Disconnect button in modal clears the config and reverts to manual editing
+- Lint passed, pushed to GitHub, deployed to Vercel successfully
+
+Stage Summary:
+- 3 files changed: DataTable.tsx (modified), StockSourceModal.tsx (new), stock-lookup/route.ts (new)
+- Stock column context menu now has "Connecter une source de stock" button (gold when disconnected, green when connected)
+- StockSourceModal provides 3-level configuration (Table → Match Key → Stock Column)
+- Backend lookup endpoint performs cross-table join by matching on N° d'ordre (default)
+- Connected stock cells show Database icon + read-only value from external source
+- Production deployed at https://abaya-collection-catalogue-9dum.vercel.app
