@@ -261,8 +261,11 @@ export function DataTable({ columns, rows, dataSourceId, loading, onRefresh, onU
   }, [flushStockChange]);
 
   // ━━━ RETROACTIVE FIX: Cascade Stock → Disponibilité on mount ━━━
-  // Runs once on mount: detects rows where stock > 0 but __disponibilite__ = 'false'
-  // and calls the backend fix endpoint to correct them in a single transaction.
+  // Runs once on mount: detects rows where stock/disponibilité are mismatched
+  // (stock > 0 + Épuisé, or stock = 0 + Sur commande from import bug)
+  // and calls the backend fix endpoint to correct them.
+  // Import binary rule: stock>0 → Disponible, stock=0 → Épuisé
+  // "Sur commande" is NEVER auto-generated — purely manual admin choice.
   const stockDispoFixRan = useRef(false);
   useEffect(() => {
     if (stockDispoFixRan.current || !rows.length) return;
@@ -273,21 +276,25 @@ export function DataTable({ columns, rows, dataSourceId, loading, onRefresh, onU
       const d = r.data as Record<string, unknown>;
       const stock = typeof d.__stock__ === 'number' ? d.__stock__ : parseInt(String(d.__stock__ ?? '0')) || 0;
       const dispo = String(d.__disponibilite__ ?? 'false');
-      return stock > 0 && dispo === 'false';
+      // Anomaly: stock > 0 but marked Épuisé, OR stock = 0 but marked Disponible (Sur commande from import bug)
+      return (stock > 0 && dispo === 'false') || (stock === 0 && dispo === 'true');
     });
 
     if (hasMismatch) {
       console.log('🔧 Detected stock/disponibilité mismatch — running retroactive fix');
-      fetch(`/api/datasources/fix-stock-dispo`, {
+      fetch(`/api/datasources/fix-stock-dispo?fix_sur_commande=true`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ dataSourceId }),
+        body: JSON.stringify({ dataSourceId, fix_sur_commande: true }),
       })
         .then(res => res.json())
         .then(result => {
-          if (result.data?.fixedCount > 0) {
-            toast.success(`✅ ${result.data.fixedCount} produit(s) corrigé(s) : stock > 0 → Disponible`);
-            // Refresh to show the corrected data
+          const fixed = (result.data?.fixedToDisponible || 0) + (result.data?.fixedToEpuise || 0);
+          if (fixed > 0) {
+            const parts = [];
+            if (result.data.fixedToDisponible > 0) parts.push(`${result.data.fixedToDisponible} stock>0 → Disponible`);
+            if (result.data.fixedToEpuise > 0) parts.push(`${result.data.fixedToEpuise} stock=0 → Épuisé`);
+            toast.success(`✅ ${fixed} produit(s) corrigé(s) : ${parts.join(', ')}`);
             onRefresh();
           }
         })
