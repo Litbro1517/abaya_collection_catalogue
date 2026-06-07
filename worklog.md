@@ -168,3 +168,27 @@ Stage Summary:
 - Backend lookup endpoint performs cross-table join by matching on N° d'ordre (default)
 - Connected stock cells show Database icon + read-only value from external source
 - Production deployed at https://abaya-collection-catalogue-9dum.vercel.app
+
+---
+Task ID: 1
+Agent: Main Agent
+Task: Fix Stock/Disponibilité cascade coupling during bulk import
+
+Work Log:
+- Analyzed screenshot: stock values positive (45, 25, 114, 125) but Disponibilité stuck on "Épuisé"
+- Found root cause: sync route only handled stock=0 → Disponibilité=OFF but never stock>0 → Disponibilité=ON
+- Fixed 3 locations in /src/app/api/google/sync/route.ts:
+  * Full import (line ~439): Added CASCADE rule for stock>0 → 'true' and stock=0 → 'false'
+  * Delta sync new rows (line ~917): Same CASCADE rule
+  * Delta sync backfill (line ~997): Full cascade only on backfilled rows (preserves Sur Commande)
+- Created /src/app/api/datasources/fix-stock-dispo/route.ts: retroactive fix endpoint (GET+POST)
+- Added auto-detect + auto-fix useEffect in DataTable.tsx (runs once on mount)
+- Added safety net in CatalogPreview.tsx computeStockState: stock>0 always returns 'en_stock'
+- Triggered retroactive fix on production: 5 rows corrected, 1 Sur Commande preserved
+- Verified all 5 previously broken products now display correctly as "Disponible"
+
+Stage Summary:
+- Bug fixed: bulk stock import now cascades to Disponibilité in the same transaction
+- Retroactive fix applied: 5 rows corrected in production DB
+- Safety net added: client-side computeStockState corrects invalid states on-the-fly
+- Deployed to Vercel: https://abaya-collection-catalogue-9dum.vercel.app
