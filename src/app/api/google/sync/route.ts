@@ -471,11 +471,15 @@ export async function POST(req: NextRequest) {
         // NOTE: For re-imports, preserved stock values will be restored AFTER row creation
         rowData.__stock__ = sheetStockValue ? parseInt(sheetStockValue) : 0;
 
-        // ━━━ Business Rule: Stock=0 → Disponibilité=OFF ━━━
-        // If stock is 0, force Disponibilité to OFF (unless manually overridden later)
+        // ━━━ Business Rule: CASCADE Stock → Disponibilité ━━━
+        // Stock > 0 → Disponibilité = ON (Disponible)
+        // Stock = 0 → Disponibilité = OFF (Épuisé)
+        // This ensures the switch always reflects the stock state on import.
         const stockNum = typeof rowData.__stock__ === 'number' ? rowData.__stock__ : parseInt(String(rowData.__stock__)) || 0;
-        if (stockNum === 0) {
-          rowData.__disponibilite__ = 'false';
+        if (stockNum > 0) {
+          rowData.__disponibilite__ = 'true'; // CASCADE: stock positif → Disponible
+        } else {
+          rowData.__disponibilite__ = 'false'; // CASCADE: stock nul → Épuisé
         }
 
         rowsToCreate.push({
@@ -989,10 +993,14 @@ export async function POST(req: NextRequest) {
       // Use sheet data if available, otherwise default 0
       rowData.__stock__ = deltaSheetStockValue ? parseInt(deltaSheetStockValue) : 0;
 
-      // ━━━ Business Rule: Stock=0 → Disponibilité=OFF ━━━
+      // ━━━ Business Rule: CASCADE Stock → Disponibilité ━━━
+      // Stock > 0 → Disponibilité = ON (Disponible)
+      // Stock = 0 → Disponibilité = OFF (Épuisé)
       const deltaStockNum = typeof rowData.__stock__ === 'number' ? rowData.__stock__ : parseInt(String(rowData.__stock__)) || 0;
-      if (deltaStockNum === 0) {
-        rowData.__disponibilite__ = 'false';
+      if (deltaStockNum > 0) {
+        rowData.__disponibilite__ = 'true'; // CASCADE: stock positif → Disponible
+      } else {
+        rowData.__disponibilite__ = 'false'; // CASCADE: stock nul → Épuisé
       }
 
       rowsToCreate.push({
@@ -1069,9 +1077,23 @@ export async function POST(req: NextRequest) {
         needsUpdate = true;
       }
 
-      // Business rule: if stock is 0, force Disponibilité to OFF
+      // ━━━ CASCADE Business Rule: Stock → Disponibilité ━━━
+      // Stock > 0 → Disponibilité = ON (Disponible)
+      // Stock = 0 → Disponibilité = OFF (Épuisé)
+      // Only apply cascade if __disponibilite__ was just backfilled (undefined before)
+      // to avoid overwriting manual Sur Commande overrides on existing rows.
       const existingStock = typeof updatedData.__stock__ === 'number' ? updatedData.__stock__ : parseInt(String(updatedData.__stock__)) || 0;
-      if (existingStock === 0 && updatedData.__disponibilite__ !== 'false') {
+      // If __disponibilite__ was backfilled (was undefined), apply full cascade
+      if (data.__disponibilite__ === undefined) {
+        if (existingStock > 0) {
+          updatedData.__disponibilite__ = 'true'; // CASCADE: stock positif → Disponible
+        } else {
+          updatedData.__disponibilite__ = 'false'; // CASCADE: stock nul → Épuisé
+        }
+      }
+      // For existing rows, only force OFF if stock=0 and disponibilité is somehow 'true'
+      // (but respect Sur Commande — only cascade on backfill)
+      if (existingStock === 0 && updatedData.__disponibilite__ !== 'false' && data.__disponibilite__ === undefined) {
         updatedData.__disponibilite__ = 'false';
         needsUpdate = true;
       }

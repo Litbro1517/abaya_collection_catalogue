@@ -260,6 +260,41 @@ export function DataTable({ columns, rows, dataSourceId, loading, onRefresh, onU
     };
   }, [flushStockChange]);
 
+  // ━━━ RETROACTIVE FIX: Cascade Stock → Disponibilité on mount ━━━
+  // Runs once on mount: detects rows where stock > 0 but __disponibilite__ = 'false'
+  // and calls the backend fix endpoint to correct them in a single transaction.
+  const stockDispoFixRan = useRef(false);
+  useEffect(() => {
+    if (stockDispoFixRan.current || !rows.length) return;
+    stockDispoFixRan.current = true;
+
+    // Quick client-side check: are there mismatches?
+    const hasMismatch = rows.some(r => {
+      const d = r.data as Record<string, unknown>;
+      const stock = typeof d.__stock__ === 'number' ? d.__stock__ : parseInt(String(d.__stock__ ?? '0')) || 0;
+      const dispo = String(d.__disponibilite__ ?? 'false');
+      return stock > 0 && dispo === 'false';
+    });
+
+    if (hasMismatch) {
+      console.log('🔧 Detected stock/disponibilité mismatch — running retroactive fix');
+      fetch(`/api/datasources/fix-stock-dispo`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ dataSourceId }),
+      })
+        .then(res => res.json())
+        .then(result => {
+          if (result.data?.fixedCount > 0) {
+            toast.success(`✅ ${result.data.fixedCount} produit(s) corrigé(s) : stock > 0 → Disponible`);
+            // Refresh to show the corrected data
+            onRefresh();
+          }
+        })
+        .catch(() => { /* silent */ });
+    }
+  }, [rows, dataSourceId, onRefresh]);
+
   // Native system column slugs — non-deletable, ordered first
   const NATIVE_COLUMN_SLUGS = ['__disponibilite__', '__stock__', '__statut__'];
   const isNativeColumn = (slug: string) => NATIVE_COLUMN_SLUGS.includes(slug);
