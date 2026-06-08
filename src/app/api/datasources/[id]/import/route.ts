@@ -103,12 +103,37 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     const columnSlugs: string[] = [];
     const slugCount: Record<string, number> = {};
 
+    // ━━━ Map CSV columns to native slugs ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+    // If the CSV has columns named "Catégorie"/"Sous-catégorie", map them to native slugs
+    const NATIVE_SLUG_MAP: Record<string, string> = {
+      'categorie': '__category__',
+      'catégorie': '__category__',
+      'category': '__category__',
+      'sous_categorie': '__sub_category__',
+      'sous-categorie': '__sub_category__',
+      'sous_categorie': '__sub_category__',
+      'sous-catégorie': '__sub_category__',
+      'subcategory': '__sub_category__',
+      'disponibilite': '__disponibilite__',
+      'disponibilité': '__disponibilite__',
+      'stock': '__stock__',
+      'statut': '__statut__',
+    };
+    const sheetColToNativeSlug = new Map<number, string>(); // col index → native slug
+
     for (let c = 0; c < headers.length; c++) {
       const values = dataRows.map(r => r[c] || '');
       const type = detectColumnType(values);
       columnTypes.push(type);
 
-      let slug = slugify(headers[c]);
+      // Check if this CSV column maps to a native slug
+      const headerLower = headers[c].toLowerCase().trim();
+      const nativeSlug = NATIVE_SLUG_MAP[headerLower];
+      if (nativeSlug) {
+        sheetColToNativeSlug.set(c, nativeSlug);
+      }
+
+      let slug = nativeSlug || slugify(headers[c]);
       if (!slug) slug = `column_${c}`;
       if (slugCount[slug] !== undefined) {
         slugCount[slug]++;
@@ -151,6 +176,11 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     }
 
     for (let c = 0; c < headers.length; c++) {
+      // Skip columns that map to native slugs — they'll be handled by the native column block
+      if (sheetColToNativeSlug.has(c)) {
+        columnsToSkip.add(c);
+        continue;
+      }
       if (columnsToSkip.has(c)) {
         // Create as hidden individual columns (for data storage)
         columnsToCreate.push({
@@ -195,6 +225,34 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
       });
     }
 
+    // ━━━ Guarantee native system columns ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+    // Always ensure the 5 native columns exist (same as Google Sync does)
+    // These are required for the DataTable's special cell rendering
+    const nativeColumns = [
+      { slug: '__category__', name: 'Catégorie', type: 'SELECT', order: -5, config: {} },
+      { slug: '__sub_category__', name: 'Sous-catégorie', type: 'SELECT', order: -4, config: {} },
+      { slug: '__disponibilite__', name: 'Disponibilité', type: 'BOOLEAN', order: -3, config: { labels: { true: 'Disponible', false: 'Épuisé' } } },
+      { slug: '__stock__', name: 'Stock', type: 'NUMBER', order: -2, config: { isCounter: true, min: 0 } },
+      { slug: '__statut__', name: 'Statut', type: 'STATUS', order: -1, config: { options: ['Nouveau', 'Courant'] } },
+    ];
+
+    for (const nc of nativeColumns) {
+      await db.column.upsert({
+        where: { dataSourceId_slug: { dataSourceId: id, slug: nc.slug } },
+        update: {},
+        create: {
+          dataSourceId: id,
+          slug: nc.slug,
+          name: nc.name,
+          type: nc.type,
+          order: nc.order,
+          visible: true,
+          required: false,
+          config: nc.config,
+        },
+      });
+    }
+
     // Create rows — sequential to avoid connection pool exhaustion with pgbouncer
     for (let i = 0; i < dataRows.length; i++) {
       const row = dataRows[i];
@@ -215,6 +273,19 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
           rowData[imageArraySlug] = images;
         }
       }
+
+      // ━━━ Native row data defaults ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+      // Ensure every row has the native system fields initialized
+      if (rowData.__category__ === undefined) rowData.__category__ = '';
+      if (rowData.__sub_category__ === undefined) rowData.__sub_category__ = '';
+      if (rowData.__stock__ === undefined) rowData.__stock__ = '0';
+      if (rowData.__disponibilite__ === undefined) rowData.__disponibilite__ = 'false';
+      if (rowData.__statut__ === undefined) rowData.__statut__ = 'Courant';
+      if (rowData.__statut_locked__ === undefined) rowData.__statut_locked__ = false;
+      if (rowData.__is_visible__ === undefined) rowData.__is_visible__ = true;
+      // Cascade: if stock > 0 → Disponible
+      const stockVal = parseInt(String(rowData.__stock__)) || 0;
+      if (stockVal > 0) rowData.__disponibilite__ = 'true';
 
       await db.row.create({
         data: {
