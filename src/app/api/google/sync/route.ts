@@ -175,7 +175,7 @@ export async function POST(req: NextRequest) {
       // ━━━ PRESERVE __stock__ VALUES before deletion (scoped outside if block) ━━━
       // Stock values are managed locally in the app and must NEVER be overwritten
       // by a Google Sheet sync. Save them keyed by N ordre for restoration after re-import.
-      const preservedStockValues = new Map<string, { stock: number; disponibilite: string; statut: string; statutLocked: boolean; isVisible: boolean }>();
+      const preservedStockValues = new Map<string, { stock: number; disponibilite: string; statut: string; statutLocked: boolean; isVisible: boolean; category: string; subCategory: string }>();
 
       if (!isNewDataSource) {
         // 1. Save native/special columns that are NOT from the Google Sheet
@@ -227,6 +227,8 @@ export async function POST(req: NextRequest) {
               statut: String(data.__statut__ ?? 'Courant'),
               statutLocked: !!data.__statut_locked__,
               isVisible: data.__is_visible__ !== false,
+              category: String(data.__category__ ?? ''),
+              subCategory: String(data.__sub_category__ ?? ''),
             });
           }
         }
@@ -253,6 +255,8 @@ export async function POST(req: NextRequest) {
       const nativeNamePatterns: { slug: string; names: string[] }[] = [
         { slug: '__disponibilite__', names: ['disponibilité', 'disponibilite', 'disponible'] },
         { slug: '__stock__', names: ['stock', 'quantité', 'quantite'] },
+        { slug: '__category__', names: ['catégorie', 'categorie', 'category'] },
+        { slug: '__sub_category__', names: ['sous-catégorie', 'sous-categorie', 'subcategory'] },
       ];
 
       // Map: sheet column index → native slug (for data mapping)
@@ -329,7 +333,7 @@ export async function POST(req: NextRequest) {
       await db.column.createMany({ data: columnsToCreate });
 
       // ━━━ RESTORE native columns after sheet column creation ━━━
-      // These 3 columns are ALWAYS guaranteed to exist — they are native to the app
+      // These 5 columns are ALWAYS guaranteed to exist — they are native to the app
       // and NOT present in Google Sheets. They must survive every import/sync.
 
       // 1. __statut__ — STATUS column (badge + lock)
@@ -385,10 +389,42 @@ export async function POST(req: NextRequest) {
         },
       });
 
+      // 4. __category__ — TEXT column for product category
+      await db.column.upsert({
+        where: { dataSourceId_slug: { dataSourceId: dsId, slug: '__category__' } },
+        update: {},
+        create: {
+          name: 'Catégorie',
+          slug: '__category__',
+          type: 'TEXT',
+          dataSourceId: dsId,
+          visible: true,
+          required: false,
+          config: {},
+          order: -4,
+        },
+      });
+
+      // 5. __sub_category__ — TEXT column for product sub-category
+      await db.column.upsert({
+        where: { dataSourceId_slug: { dataSourceId: dsId, slug: '__sub_category__' } },
+        update: {},
+        create: {
+          name: 'Sous-catégorie',
+          slug: '__sub_category__',
+          type: 'TEXT',
+          dataSourceId: dsId,
+          visible: true,
+          required: false,
+          config: {},
+          order: -5,
+        },
+      });
+
       // Restore other preserved native columns from before the deletion
       for (const nc of nativeColumnsToPreserve) {
-        // Skip the 3 native columns we already upserted above
-        if (nc.slug === '__statut__' || nc.slug === '__disponibilite__' || nc.slug === '__stock__') continue;
+        // Skip the 5 native columns we already upserted above
+        if (nc.slug === '__statut__' || nc.slug === '__disponibilite__' || nc.slug === '__stock__' || nc.slug === '__category__' || nc.slug === '__sub_category__') continue;
 
         await db.column.upsert({
           where: { dataSourceId_slug: { dataSourceId: dsId, slug: nc.slug } },
@@ -406,7 +442,7 @@ export async function POST(req: NextRequest) {
         });
       }
 
-      console.log(`✅ Native columns ALWAYS guaranteed: __statut__(STATUS), __disponibilite__(BOOLEAN/Switch), __stock__(NUMBER/Counter)${sheetColToNativeSlug.size > 0 ? ` — ${sheetColToNativeSlug.size} sheet column(s) mapped to native slugs` : ''}${nativeColumnsToPreserve.filter(c => c.slug !== '__statut__' && c.slug !== '__disponibilite__' && c.slug !== '__stock__').map(c => `, ${c.name} (${c.type})`).join('')}`);
+      console.log(`✅ Native columns ALWAYS guaranteed: __statut__(STATUS), __disponibilite__(BOOLEAN/Switch), __stock__(NUMBER/Counter), __category__(TEXT), __sub_category__(TEXT)${sheetColToNativeSlug.size > 0 ? ` — ${sheetColToNativeSlug.size} sheet column(s) mapped to native slugs` : ''}${nativeColumnsToPreserve.filter(c => c.slug !== '__statut__' && c.slug !== '__disponibilite__' && c.slug !== '__stock__' && c.slug !== '__category__' && c.slug !== '__sub_category__').map(c => `, ${c.name} (${c.type})`).join('')}`);
 
       // Build row data with auto-initialization for first import
       const rowsToCreate: { dataSourceId: string; data: Record<string, unknown>; order: number }[] = [];
@@ -438,10 +474,12 @@ export async function POST(req: NextRequest) {
         }
 
         // ━━━ Map sheet columns to native slugs ━━━
-        // If the sheet had "Disponibilité"/"Stock" columns, their data goes
-        // to __disponibilite__ and __stock__ respectively (not duplicate columns)
+        // If the sheet had "Disponibilité"/"Stock"/"Catégorie"/"Sous-catégorie" columns,
+        // their data goes to the native slugs respectively (not duplicate columns)
         let sheetDisponibiliteValue: string | null = null;
         let sheetStockValue: string | null = null;
+        let sheetCategoryValue: string | null = null;
+        let sheetSubCategoryValue: string | null = null;
 
         for (const [sheetIdx, nativeSlug] of sheetColToNativeSlug) {
           const rawVal = sheetIdx < row.length ? (row[sheetIdx] || '').trim() : '';
@@ -452,6 +490,10 @@ export async function POST(req: NextRequest) {
           } else if (nativeSlug === '__stock__') {
             const num = parseInt(rawVal);
             sheetStockValue = isNaN(num) ? '0' : String(num);
+          } else if (nativeSlug === '__category__') {
+            sheetCategoryValue = rawVal;
+          } else if (nativeSlug === '__sub_category__') {
+            sheetSubCategoryValue = rawVal;
           }
         }
 
@@ -470,6 +512,16 @@ export async function POST(req: NextRequest) {
         // If sheet has Stock data, use it; otherwise default to 0
         // NOTE: For re-imports, preserved stock values will be restored AFTER row creation
         rowData.__stock__ = sheetStockValue ? parseInt(sheetStockValue) : 0;
+
+        // Catégorie = empty by default
+        // If sheet has Catégorie data, use it; otherwise default to ''
+        // NOTE: For re-imports, preserved category values will be restored AFTER row creation
+        rowData.__category__ = sheetCategoryValue ?? '';
+
+        // Sous-catégorie = empty by default
+        // If sheet has Sous-catégorie data, use it; otherwise default to ''
+        // NOTE: For re-imports, preserved sub-category values will be restored AFTER row creation
+        rowData.__sub_category__ = sheetSubCategoryValue ?? '';
 
         // ━━━ Business Rule: CASCADE Stock → Disponibilité ━━━
         // Stock > 0 → Disponibilité = ON (Disponible)
@@ -537,6 +589,9 @@ export async function POST(req: NextRequest) {
             updatedData.__statut__ = preserved.statut;
             updatedData.__statut_locked__ = preserved.statutLocked;
             updatedData.__is_visible__ = preserved.isVisible;
+            // Preserve category/sub-category values from admin edits
+            updatedData.__category__ = preserved.category;
+            updatedData.__sub_category__ = preserved.subCategory;
             await db.row.update({
               where: { id: newRow.id },
               data: { data: updatedData },
@@ -544,7 +599,7 @@ export async function POST(req: NextRequest) {
             restoredCount++;
           }
         }
-        console.log(`🔒 Restored ${restoredCount} preserved stock/disponibilité/statut values after re-import`);
+        console.log(`🔒 Restored ${restoredCount} preserved stock/disponibilité/statut/category values after re-import`);
       }
 
       await db.dataSource.update({
@@ -591,12 +646,15 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // ━━━ ENSURE ALL 3 NATIVE COLUMNS EXIST ━━━━━━━━━━━━━━━━━━━━━━━━━
-    // Native columns (__statut__, __disponibilite__, __stock__) may have been
-    // lost during a previous full import. Always restore them before delta sync.
+    // ━━━ ENSURE ALL 5 NATIVE COLUMNS EXIST ━━━━━━━━━━━━━━━━━━━━━━━━━
+    // Native columns (__statut__, __disponibilite__, __stock__, __category__,
+    // __sub_category__) may have been lost during a previous full import.
+    // Always restore them before delta sync.
     const hasStatutColumn = existingDs.columns.some(c => c.slug === '__statut__' || c.type === 'STATUS');
     const hasDisponibiliteColumn = existingDs.columns.some(c => c.slug === '__disponibilite__');
     const hasStockColumn = existingDs.columns.some(c => c.slug === '__stock__');
+    const hasCategoryColumn = existingDs.columns.some(c => c.slug === '__category__');
+    const hasSubCategoryColumn = existingDs.columns.some(c => c.slug === '__sub_category__');
 
     // Also check if the Google Sheet has these columns natively
     // (for data mapping purposes — native columns are ALWAYS created regardless)
@@ -613,6 +671,8 @@ export async function POST(req: NextRequest) {
     const deltaNativeNamePatterns: { slug: string; names: string[] }[] = [
       { slug: '__disponibilite__', names: ['disponibilité', 'disponibilite', 'disponible'] },
       { slug: '__stock__', names: ['stock', 'quantité', 'quantite'] },
+      { slug: '__category__', names: ['catégorie', 'categorie', 'category'] },
+      { slug: '__sub_category__', names: ['sous-catégorie', 'sous-categorie', 'subcategory'] },
     ];
     const deltaSheetColToNativeSlug = new Map<number, string>();
     for (let c = 0; c < headers.length; c++) {
@@ -675,6 +735,40 @@ export async function POST(req: NextRequest) {
       },
     });
     if (!hasStockColumn) console.log('🔧 Restored missing __stock__ NUMBER/Counter column during delta sync');
+
+    // 4. __category__ (TEXT) — ALWAYS ensure it exists
+    await db.column.upsert({
+      where: { dataSourceId_slug: { dataSourceId: dsId, slug: '__category__' } },
+      update: {},
+      create: {
+        name: 'Catégorie',
+        slug: '__category__',
+        type: 'TEXT',
+        dataSourceId: dsId,
+        visible: true,
+        required: false,
+        config: {},
+        order: -4,
+      },
+    });
+    if (!hasCategoryColumn) console.log('🔧 Restored missing __category__ TEXT column during delta sync');
+
+    // 5. __sub_category__ (TEXT) — ALWAYS ensure it exists
+    await db.column.upsert({
+      where: { dataSourceId_slug: { dataSourceId: dsId, slug: '__sub_category__' } },
+      update: {},
+      create: {
+        name: 'Sous-catégorie',
+        slug: '__sub_category__',
+        type: 'TEXT',
+        dataSourceId: dsId,
+        visible: true,
+        required: false,
+        config: {},
+        order: -5,
+      },
+    });
+    if (!hasSubCategoryColumn) console.log('🔧 Restored missing __sub_category__ TEXT column during delta sync');
 
     // Reload columns to include any newly created ones
     const refreshedCols = await db.column.findMany({ where: { dataSourceId: dsId } });
@@ -830,6 +924,11 @@ export async function POST(req: NextRequest) {
 
       if (existingIdMetierValues.has(rowIdMetier)) {
         // EXISTING row — DO NOT TOUCH (strict rule: never overwrite)
+        // This is the core guarantee of the Delta Sync Engine: existing rows'
+        // data (stock, disponibilite, statut, category, sub_category, etc.) is
+        // NEVER modified. Only NEW rows are inserted. This ensures admin
+        // modifications (Sur commande toggles, manual category edits, etc.) are
+        // always preserved across re-syncs.
         existingRowsSkipped.push(rowIdMetier);
         continue;
       }
@@ -854,7 +953,7 @@ export async function POST(req: NextRequest) {
     // ━━━ HANDLE NEW COLUMNS (if any) ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
     // If the Google Sheet has new columns that don't exist in the DB, add them
     // BUT skip columns that overlap with native columns (Disponibilité/Stock)
-    const nativeNameSet = new Set(['disponibilité', 'disponibilite', 'disponible', 'stock', 'quantité', 'quantite']);
+    const nativeNameSet = new Set(['disponibilité', 'disponibilite', 'disponible', 'stock', 'quantité', 'quantite', 'catégorie', 'categorie', 'category', 'sous-catégorie', 'sous-categorie', 'subcategory']);
     const newColumnsFiltered = newColumnsInSheet.filter(h => !nativeNameSet.has(h.toLowerCase().trim()));
 
     if (newColumnsFiltered.length > 0) {
@@ -977,6 +1076,8 @@ export async function POST(req: NextRequest) {
       // ━━━ Map sheet columns to native slugs ━━━
       let deltaSheetDisponibiliteValue: string | null = null;
       let deltaSheetStockValue: string | null = null;
+      let deltaSheetCategoryValue: string | null = null;
+      let deltaSheetSubCategoryValue: string | null = null;
 
       for (const [sheetIdx, nativeSlug] of deltaSheetColToNativeSlug) {
         const rawVal = sheetIdx < row.length ? (row[sheetIdx] || '').trim() : '';
@@ -986,6 +1087,10 @@ export async function POST(req: NextRequest) {
         } else if (nativeSlug === '__stock__') {
           const num = parseInt(rawVal);
           deltaSheetStockValue = isNaN(num) ? '0' : String(num);
+        } else if (nativeSlug === '__category__') {
+          deltaSheetCategoryValue = rawVal;
+        } else if (nativeSlug === '__sub_category__') {
+          deltaSheetSubCategoryValue = rawVal;
         }
       }
 
@@ -1004,6 +1109,14 @@ export async function POST(req: NextRequest) {
       // Stock = 0 (counter default)
       // Use sheet data if available, otherwise default 0
       rowData.__stock__ = deltaSheetStockValue ? parseInt(deltaSheetStockValue) : 0;
+
+      // Catégorie = empty by default
+      // Use sheet data if available, otherwise default ''
+      rowData.__category__ = deltaSheetCategoryValue ?? '';
+
+      // Sous-catégorie = empty by default
+      // Use sheet data if available, otherwise default ''
+      rowData.__sub_category__ = deltaSheetSubCategoryValue ?? '';
 
       // ━━━ Business Rule: CASCADE Stock → Disponibilité ━━━
       // Stock > 0 → Disponibilité = ON (Disponible)
@@ -1089,6 +1202,36 @@ export async function POST(req: NextRequest) {
         needsUpdate = true;
       }
 
+      // Always ensure __category__ exists
+      if (data.__category__ === undefined) {
+        let categoryValue = '';
+        for (const [sheetIdx, nativeSlug] of deltaSheetColToNativeSlug) {
+          if (nativeSlug === '__category__') {
+            const colSlug = columnSlugs[sheetIdx];
+            const rawVal = String(data[colSlug] ?? '').trim();
+            categoryValue = rawVal;
+            break;
+          }
+        }
+        updatedData.__category__ = categoryValue;
+        needsUpdate = true;
+      }
+
+      // Always ensure __sub_category__ exists
+      if (data.__sub_category__ === undefined) {
+        let subCategoryValue = '';
+        for (const [sheetIdx, nativeSlug] of deltaSheetColToNativeSlug) {
+          if (nativeSlug === '__sub_category__') {
+            const colSlug = columnSlugs[sheetIdx];
+            const rawVal = String(data[colSlug] ?? '').trim();
+            subCategoryValue = rawVal;
+            break;
+          }
+        }
+        updatedData.__sub_category__ = subCategoryValue;
+        needsUpdate = true;
+      }
+
       // ━━━ CASCADE Business Rule: Stock → Disponibilité ━━━
       // Stock > 0 → Disponibilité = ON (Disponible)
       // Stock = 0 → Disponibilité = OFF (Épuisé)
@@ -1120,7 +1263,7 @@ export async function POST(req: NextRequest) {
     }
 
     if (backfilledCount > 0) {
-      console.log(`✅ BACKFILLED ${backfilledCount} existing row(s) with native column defaults (Statut/Disponibilité/Stock)`);
+      console.log(`✅ BACKFILLED ${backfilledCount} existing row(s) with native column defaults (Statut/Disponibilité/Stock/Catégorie/Sous-catégorie)`);
     }
 
     // Update lastSyncedAt

@@ -33,68 +33,88 @@ async function countProductReferences(field: '__category__' | '__sub_category__'
   return count;
 }
 
-// GET /api/categories — Return all categories with subCategories, ordered by ordre
-export async function GET() {
+// GET /api/subcategories — Return subcategories, optionally filtered by categoryId
+export async function GET(req: NextRequest) {
   try {
-    const categories = await db.category.findMany({
+    const categoryId = req.nextUrl.searchParams.get('categoryId');
+
+    const where: { categoryId?: string } = {};
+    if (categoryId) where.categoryId = categoryId;
+
+    const subCategories = await db.subCategory.findMany({
+      where,
       orderBy: { ordre: 'asc' },
       include: {
-        subCategories: {
-          orderBy: { ordre: 'asc' },
+        category: {
+          select: { id: true, slug: true, label: true },
         },
       },
     });
-    return NextResponse.json({ data: categories });
+
+    return NextResponse.json({ data: subCategories });
   } catch (error) {
-    console.error('GET /api/categories error:', error);
+    console.error('GET /api/subcategories error:', error);
     return NextResponse.json({ error: 'Erreur serveur' }, { status: 500 });
   }
 }
 
-// POST /api/categories — Create a new category
+// POST /api/subcategories — Create a subcategory
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
-    const label: string | undefined = body.label;
+    const { label, categoryId } = body;
+
     if (!label || typeof label !== 'string' || label.trim() === '') {
       return NextResponse.json({ error: 'Le champ "label" est requis' }, { status: 400 });
+    }
+    if (!categoryId) {
+      return NextResponse.json({ error: 'Le champ "categoryId" est requis' }, { status: 400 });
+    }
+
+    // Verify parent category exists
+    const parentCategory = await db.category.findUnique({ where: { id: categoryId } });
+    if (!parentCategory) {
+      return NextResponse.json({ error: 'Catégorie parente introuvable' }, { status: 404 });
     }
 
     const slug = body.slug || generateSlug(label);
 
     // Check slug uniqueness
-    const existing = await db.category.findUnique({ where: { slug } });
+    const existing = await db.subCategory.findUnique({ where: { slug } });
     if (existing) {
       return NextResponse.json(
-        { error: `Une catégorie avec le slug "${slug}" existe déjà` },
+        { error: `Une sous-catégorie avec le slug "${slug}" existe déjà` },
         { status: 409 }
       );
     }
 
-    const category = await db.category.create({
+    const subCategory = await db.subCategory.create({
       data: {
         label: label.trim(),
         slug,
+        categoryId,
         visible: body.visible !== false,
         ordre: body.ordre ?? 0,
       },
       include: {
-        subCategories: { orderBy: { ordre: 'asc' } },
+        category: {
+          select: { id: true, slug: true, label: true },
+        },
       },
     });
 
-    return NextResponse.json({ data: category }, { status: 201 });
+    return NextResponse.json({ data: subCategory }, { status: 201 });
   } catch (error: unknown) {
     const prismaError = error as { code?: string };
     if (prismaError.code === 'P2002') {
-      return NextResponse.json({ error: 'Cette catégorie existe déjà (slug dupliqué)' }, { status: 409 });
+      return NextResponse.json({ error: 'Cette sous-catégorie existe déjà (slug dupliqué)' }, { status: 409 });
     }
-    console.error('POST /api/categories error:', error);
+    console.error('POST /api/subcategories error:', error);
     return NextResponse.json({ error: 'Erreur serveur' }, { status: 500 });
   }
 }
 
-// PATCH /api/categories — Update a category by id
+// PATCH /api/subcategories — Update a subcategory by id
 export async function PATCH(req: NextRequest) {
   try {
     const body = await req.json();
@@ -109,26 +129,28 @@ export async function PATCH(req: NextRequest) {
     if (body.visible !== undefined) updateData.visible = body.visible;
     if (body.ordre !== undefined) updateData.ordre = body.ordre;
 
-    const category = await db.category.update({
+    const subCategory = await db.subCategory.update({
       where: { id },
       data: updateData,
       include: {
-        subCategories: { orderBy: { ordre: 'asc' } },
+        category: {
+          select: { id: true, slug: true, label: true },
+        },
       },
     });
 
-    return NextResponse.json({ data: category });
+    return NextResponse.json({ data: subCategory });
   } catch (error: unknown) {
     const prismaError = error as { code?: string };
     if (prismaError.code === 'P2025') {
-      return NextResponse.json({ error: 'Catégorie introuvable' }, { status: 404 });
+      return NextResponse.json({ error: 'Sous-catégorie introuvable' }, { status: 404 });
     }
-    console.error('PATCH /api/categories error:', error);
+    console.error('PATCH /api/subcategories error:', error);
     return NextResponse.json({ error: 'Erreur serveur' }, { status: 500 });
   }
 }
 
-// DELETE /api/categories?id=xxx — Delete a category (cascade removes subcategories)
+// DELETE /api/subcategories?id=xxx — Delete a subcategory
 export async function DELETE(req: NextRequest) {
   try {
     const id = req.nextUrl.searchParams.get('id');
@@ -136,34 +158,33 @@ export async function DELETE(req: NextRequest) {
       return NextResponse.json({ error: 'Le paramètre "id" est requis' }, { status: 400 });
     }
 
-    // Find the category to get its slug
-    const category = await db.category.findUnique({
+    // Find the subcategory to get its slug
+    const subCategory = await db.subCategory.findUnique({
       where: { id },
       select: { slug: true },
     });
-    if (!category) {
-      return NextResponse.json({ error: 'Catégorie introuvable' }, { status: 404 });
+    if (!subCategory) {
+      return NextResponse.json({ error: 'Sous-catégorie introuvable' }, { status: 404 });
     }
 
-    // Zero-product constraint: check if any rows reference this category slug
-    const productCount = await countProductReferences('__category__', category.slug);
+    // Zero-product constraint: check if any rows reference this subcategory slug
+    const productCount = await countProductReferences('__sub_category__', subCategory.slug);
     if (productCount > 0) {
       return NextResponse.json(
-        { error: `Impossible de supprimer: ${productCount} produit(s) référence(nt) cette catégorie`, count: productCount },
+        { error: `Impossible de supprimer: ${productCount} produit(s) référence(nt) cette sous-catégorie`, count: productCount },
         { status: 403 }
       );
     }
 
-    // Safe to delete — cascade will remove subcategories
-    await db.category.delete({ where: { id } });
+    await db.subCategory.delete({ where: { id } });
 
     return NextResponse.json({ data: { id, deleted: true } });
   } catch (error: unknown) {
     const prismaError = error as { code?: string };
     if (prismaError.code === 'P2025') {
-      return NextResponse.json({ error: 'Catégorie introuvable' }, { status: 404 });
+      return NextResponse.json({ error: 'Sous-catégorie introuvable' }, { status: 404 });
     }
-    console.error('DELETE /api/categories error:', error);
+    console.error('DELETE /api/subcategories error:', error);
     return NextResponse.json({ error: 'Erreur serveur' }, { status: 500 });
   }
 }

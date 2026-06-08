@@ -299,7 +299,7 @@ export function DataTable({ columns, rows, dataSourceId, loading, onRefresh, onU
   }, [rows, dataSourceId, onRefresh]);
 
   // Native system column slugs — non-deletable, ordered first
-  const NATIVE_COLUMN_SLUGS = ['__disponibilite__', '__stock__', '__statut__'];
+  const NATIVE_COLUMN_SLUGS = ['__category__', '__sub_category__', '__disponibilite__', '__stock__', '__statut__'];
   const isNativeColumn = (slug: string) => NATIVE_COLUMN_SLUGS.includes(slug);
 
   // ── Load stock source config from the __stock__ column ──
@@ -317,7 +317,7 @@ export function DataTable({ columns, rows, dataSourceId, loading, onRefresh, onU
   // Filter out __is_visible__ (handled by Eye icon in # column)
   const visibleColumns = columns.filter(c => c.visible && c.slug !== '__is_visible__');
   // Sort visible columns: native columns first in specified order, then regular columns
-  const NATIVE_ORDER: Record<string, number> = { '__disponibilite__': 0, '__stock__': 1, '__statut__': 2 };
+  const NATIVE_ORDER: Record<string, number> = { '__category__': 0, '__sub_category__': 1, '__disponibilite__': 2, '__stock__': 3, '__statut__': 4 };
   const sortedVisibleColumns = [...visibleColumns].sort((a, b) => {
     const aNative = NATIVE_ORDER[a.slug] ?? 999;
     const bNative = NATIVE_ORDER[b.slug] ?? 999;
@@ -398,6 +398,29 @@ export function DataTable({ columns, rows, dataSourceId, loading, onRefresh, onU
         data.__disponibilite__ = 'false'; // Scenario B: stock nul → Épuisé (default)
         // Note: Admin can manually toggle the switch ON to create "Sur commande"
       }
+    }
+
+    // ━━━ Clear optimistic overlays for __stock__ saves ━━━
+    // When saving __stock__ via text input (double-click → type → Enter),
+    // clear any stale optimistic overlays so the DB value takes precedence.
+    // This prevents a previous optimistic switch/stock from shadowing the saved value.
+    if (colSlug === '__stock__') {
+      setOptimisticStock(prev => {
+        const next = { ...prev };
+        delete next[rowId];
+        return next;
+      });
+      setOptimisticSwitch(prev => {
+        const next = { ...prev };
+        delete next[rowId];
+        return next;
+      });
+      // Also cancel any pending debounced stock save for this row
+      if (stockDebounceRef.current[rowId]) {
+        clearTimeout(stockDebounceRef.current[rowId]);
+        delete stockDebounceRef.current[rowId];
+      }
+      delete stockPendingRef.current[rowId];
     }
 
     try {
@@ -1009,6 +1032,14 @@ export function DataTable({ columns, rows, dataSourceId, loading, onRefresh, onU
               // Also update optimistic stock/switch consistency
               if (optimisticStock[row.id] !== undefined) {
                 data.__stock__ = String(optimisticStock[row.id]);
+              }
+
+              // ━━━ FIX: Sync pending stock save with new disponibilite ━━━
+              // If a debounced stock save is pending for this row, its captured data
+              // still has the OLD __disponibilite__. When it fires, it would overwrite
+              // this switch change. Update the pending payload to prevent this race.
+              if (stockPendingRef.current[row.id]) {
+                stockPendingRef.current[row.id].data.__disponibilite__ = String(checked);
               }
 
               // ━━━ Async background save (no await, no blocking) ━━━

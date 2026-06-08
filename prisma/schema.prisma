@@ -3,10 +3,8 @@ generator client {
 }
 
 datasource db {
-  provider   = "postgresql"
-  url        = env("DATABASE_URL")
-  directUrl  = env("DIRECT_URL")
-  relationMode = "prisma"
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
 }
 
 // ═══════════════════════════════════════════════════════════════
@@ -14,25 +12,25 @@ datasource db {
 // ═══════════════════════════════════════════════════════════════
 
 model DataSource {
-  id            String    @id @default(cuid())
-  name          String
-  slug          String    @unique
-  description   String?
-  icon          String    @default("Table")
-  color         String    @default("#C9A84C")
-  sourceType    String    @default("manual") // manual, csv, googlesheet
-  sourceUrl     String?
-  sheetId       String?
-  sheetName     String?
-  syncInterval  Int       @default(0)
-  lastSyncedAt  DateTime?
+  id              String     @id @default(cuid())
+  name            String
+  slug            String     @unique
+  description     String?
+  icon            String     @default("Table")
+  color           String     @default("#C9A84C")
+  sourceType      String     @default("manual") // manual, csv, googlesheet
+  sourceUrl       String?
+  sheetId         String?
+  sheetName       String?
+  syncInterval    Int        @default(0)
+  lastSyncedAt    DateTime?
   googleSessionId String?
-  columns       Column[]
-  rows          Row[]
-  relations     Relation[] @relation("SourceRelation")
+  columns         Column[]
+  rows            Row[]
+  relations       Relation[] @relation("SourceRelation")
   targetRelations Relation[] @relation("TargetRelation")
-  createdAt     DateTime  @default(now()) @map("created_at")
-  updatedAt     DateTime  @updatedAt @map("updated_at")
+  createdAt       DateTime   @default(now()) @map("created_at")
+  updatedAt       DateTime   @updatedAt @map("updated_at")
 
   @@map("data_sources")
 }
@@ -87,45 +85,45 @@ model Relation {
 // ═══════════════════════════════════════════════════════════════
 
 model Catalog {
-  id           String   @id @default(cuid())
-  name         String   @default("Mon Catalogue")
-  slug         String   @default("mon-catalogue") @unique
-  published    Boolean  @default(false)
-  sections     Section[]
-  settings     CatalogSettings?
-  createdAt    DateTime @default(now()) @map("created_at")
-  updatedAt    DateTime @updatedAt @map("updated_at")
+  id        String           @id @default(cuid())
+  name      String           @default("Mon Catalogue")
+  slug      String           @unique @default("mon-catalogue")
+  published Boolean          @default(false)
+  sections  Section[]
+  settings  CatalogSettings?
+  createdAt DateTime         @default(now()) @map("created_at")
+  updatedAt DateTime         @updatedAt @map("updated_at")
 
   @@map("catalogs")
 }
 
 model Section {
-  id           String   @id @default(cuid())
-  catalogId    String   @map("catalog_id")
-  catalog      Catalog  @relation(fields: [catalogId], references: [id], onDelete: Cascade)
-  type         String   @default("collection")
-  title        String?
-  subtitle     String?
-  config       Json?
-  order        Int      @default(0)
-  visible      Boolean  @default(true)
-  components   Component[]
-  createdAt    DateTime @default(now()) @map("created_at")
-  updatedAt    DateTime @updatedAt @map("updated_at")
+  id         String      @id @default(cuid())
+  catalogId  String      @map("catalog_id")
+  catalog    Catalog     @relation(fields: [catalogId], references: [id], onDelete: Cascade)
+  type       String      @default("collection")
+  title      String?
+  subtitle   String?
+  config     Json?
+  order      Int         @default(0)
+  visible    Boolean     @default(true)
+  components Component[]
+  createdAt  DateTime    @default(now()) @map("created_at")
+  updatedAt  DateTime    @updatedAt @map("updated_at")
 
   @@map("sections")
 }
 
 model Component {
-  id          String   @id @default(cuid())
-  sectionId   String   @map("section_id")
-  section     Section  @relation(fields: [sectionId], references: [id], onDelete: Cascade)
-  type        String   @default("card")
-  config      Json?
-  order       Int      @default(0)
-  visible     Boolean  @default(true)
-  createdAt   DateTime @default(now()) @map("created_at")
-  updatedAt   DateTime @updatedAt @map("updated_at")
+  id        String   @id @default(cuid())
+  sectionId String   @map("section_id")
+  section   Section  @relation(fields: [sectionId], references: [id], onDelete: Cascade)
+  type      String   @default("card")
+  config    Json?
+  order     Int      @default(0)
+  visible   Boolean  @default(true)
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
 
   @@map("components")
 }
@@ -168,45 +166,45 @@ model CatalogSettings {
 // ═══════════════════════════════════════════════════════════════
 
 model AdminUser {
-  id           String        @id @default(cuid())
-  email        String        @unique
+  id           String         @id @default(cuid())
+  email        String         @unique
   name         String?
   picture      String?
-  role         String        @default("admin") // owner, admin, editor
-  status       String        @default("active") // active, suspended
-  passwordHash String?       @map("password_hash")
-  googleSub    String?       @map("google_sub") // Google OAuth subject ID
+  role         String         @default("admin") // owner, admin, editor
+  status       String         @default("active") // active, suspended
+  passwordHash String?        @map("password_hash")
+  googleSub    String?        @map("google_sub") // Google OAuth subject ID
   sessions     AdminSession[]
   auditLogs    AuditLog[]
-  createdAt    DateTime      @default(now()) @map("created_at")
-  updatedAt    DateTime      @updatedAt @map("updated_at")
+  createdAt    DateTime       @default(now()) @map("created_at")
+  updatedAt    DateTime       @updatedAt @map("updated_at")
 
   @@map("admin_users")
 }
 
 model AdminSession {
-  id         String    @id @default(cuid())
-  token      String    @unique
-  adminId    String    @map("admin_id")
-  admin      AdminUser @relation(fields: [adminId], references: [id], onDelete: Cascade)
-  ip         String?   @map("ip_address")
-  userAgent  String?   @map("user_agent")
-  createdAt  DateTime  @default(now()) @map("created_at")
-  expiresAt  DateTime  @map("expires_at")
+  id        String    @id @default(cuid())
+  token     String    @unique
+  adminId   String    @map("admin_id")
+  admin     AdminUser @relation(fields: [adminId], references: [id], onDelete: Cascade)
+  ip        String?   @map("ip_address")
+  userAgent String?   @map("user_agent")
+  createdAt DateTime  @default(now()) @map("created_at")
+  expiresAt DateTime  @map("expires_at")
 
   @@map("admin_sessions")
 }
 
 model AuditLog {
-  id        String   @id @default(cuid())
-  adminId   String   @map("admin_id")
+  id        String    @id @default(cuid())
+  adminId   String    @map("admin_id")
   admin     AdminUser @relation(fields: [adminId], references: [id], onDelete: Cascade)
   action    String // create, update, delete, login, logout, sync
   entity    String // datasource, section, catalog, settings, etc.
-  entityId  String? @map("entity_id")
+  entityId  String?   @map("entity_id")
   details   Json?
-  ip        String?  @map("ip_address")
-  createdAt DateTime @default(now()) @map("created_at")
+  ip        String?   @map("ip_address")
+  createdAt DateTime  @default(now()) @map("created_at")
 
   @@map("audit_logs")
 }
@@ -216,16 +214,16 @@ model AuditLog {
 // ═══════════════════════════════════════════════════════════════
 
 model GoogleSession {
-  id            String   @id @default(cuid())
-  accessToken   String   @map("access_token")
-  refreshToken  String?  @map("refresh_token")
-  tokenExpiry   DateTime @map("token_expiry")
-  scope         String   @default("")
-  email         String?
-  name          String?
-  picture       String?
-  createdAt     DateTime @default(now()) @map("created_at")
-  updatedAt     DateTime @updatedAt @map("updated_at")
+  id           String   @id @default(cuid())
+  accessToken  String   @map("access_token")
+  refreshToken String?  @map("refresh_token")
+  tokenExpiry  DateTime @map("token_expiry")
+  scope        String   @default("")
+  email        String?
+  name         String?
+  picture      String?
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
 
   @@map("google_sessions")
 }
@@ -235,4 +233,37 @@ model Settings {
   value String @default("")
 
   @@map("settings")
+}
+
+// ═══════════════════════════════════════════════════════════════
+// CATEGORIES - Dynamic two-level filtering system
+// ━━━ Slug-first architecture: slug is immutable, label is renameable
+// ━━━ Zero-product deletion constraint: cannot delete if products reference it
+// ═══════════════════════════════════════════════════════════════
+
+model Category {
+  id             String         @id @default(cuid())
+  slug           String         @unique          // Immutable identifier — NEVER changes after creation
+  label          String                            // Display name — renameable by admin
+  visible        Boolean        @default(true)   // Admin toggle: invisible = hidden from public catalog
+  ordre          Int            @default(0)      // Display order (ascending)
+  subCategories  SubCategory[]
+  createdAt      DateTime       @default(now()) @map("created_at")
+  updatedAt      DateTime       @updatedAt @map("updated_at")
+
+  @@map("categories")
+}
+
+model SubCategory {
+  id           String   @id @default(cuid())
+  slug         String   @unique          // Immutable identifier — NEVER changes after creation
+  label        String                      // Display name — renameable by admin
+  categoryId   String   @map("category_id")
+  category     Category @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  visible      Boolean  @default(true)   // Admin toggle: invisible = hidden from public catalog
+  ordre        Int      @default(0)      // Display order (ascending)
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  @@map("sub_categories")
 }

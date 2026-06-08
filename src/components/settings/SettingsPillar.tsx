@@ -11,12 +11,44 @@ import { Switch } from '@/components/ui/switch';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
+import { Badge } from '@/components/ui/badge';
+import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
 import { AdminUserManager } from '@/components/settings/AdminUserManager';
 import {
   Globe, Palette, Share2, Monitor, Shield, Save, Loader2,
-  MessageCircle, ExternalLink, Mail, Instagram, Copy, Check, Key
+  MessageCircle, ExternalLink, Mail, Instagram, Copy, Check, Key,
+  BookOpen, Trash2, Plus
 } from 'lucide-react';
 import { toast } from 'sonner';
+
+// ─── Catalogue types ─────────────────────────────────────────────────────
+interface CatItem {
+  id: string;
+  slug: string;
+  label: string;
+  visible: boolean;
+  ordre: number;
+  subCategories: SubCatItem[];
+}
+
+interface SubCatItem {
+  id: string;
+  slug: string;
+  label: string;
+  visible: boolean;
+  ordre: number;
+  categoryId: string;
+  category?: { id: string; slug: string; label: string };
+}
+
+function generateSlug(label: string): string {
+  return label
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-|-$/g, '');
+}
 
 export function SettingsPillar() {
   const { settings, setSettings, adminUser, settingsTab, setSettingsTab } = useAppStore();
@@ -33,6 +65,23 @@ export function SettingsPillar() {
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [passwordSaving, setPasswordSaving] = useState(false);
+
+  // ─── Catalogue tab state ──────────────────────────────────────────────
+  const [categories, setCategories] = useState<CatItem[]>([]);
+  const [subCategories, setSubCategories] = useState<SubCatItem[]>([]);
+  const [selectedCategoryId, setSelectedCategoryId] = useState<string>('');
+  const [catLoading, setCatLoading] = useState(false);
+  const [subLoading, setSubLoading] = useState(false);
+  const [editingCatId, setEditingCatId] = useState<string | null>(null);
+  const [editingCatLabel, setEditingCatLabel] = useState('');
+  const [editingSubId, setEditingSubId] = useState<string | null>(null);
+  const [editingSubLabel, setEditingSubLabel] = useState('');
+  const [newCatLabel, setNewCatLabel] = useState('');
+  const [newSubLabel, setNewSubLabel] = useState('');
+  const [showNewCat, setShowNewCat] = useState(false);
+  const [showNewSub, setShowNewSub] = useState(false);
+  const [productCounts, setProductCounts] = useState<Record<string, number>>({});
+  const [productCountsLoaded, setProductCountsLoaded] = useState(false);
 
   useEffect(() => {
     if (settings) setLocal(settings);
@@ -67,6 +116,330 @@ export function SettingsPillar() {
   useEffect(() => {
     if (!settings) loadSettings();
   }, [settings, loadSettings]);
+
+  // ─── Catalogue: Load categories ─────────────────────────────────────
+  const loadCategories = useCallback(async () => {
+    setCatLoading(true);
+    try {
+      const res = await fetch('/api/categories');
+      if (res.ok) {
+        const json = await res.json();
+        setCategories(json.data || []);
+      }
+    } catch {
+      toast.error('Erreur lors du chargement des catégories');
+    } finally {
+      setCatLoading(false);
+    }
+  }, []);
+
+  // ─── Catalogue: Load subcategories for selected parent ──────────────
+  const loadSubCategories = useCallback(async (categoryId: string) => {
+    setSubLoading(true);
+    try {
+      const res = await fetch(`/api/subcategories?categoryId=${categoryId}`);
+      if (res.ok) {
+        const json = await res.json();
+        setSubCategories(json.data || []);
+      }
+    } catch {
+      toast.error('Erreur lors du chargement des sous-catégories');
+    } finally {
+      setSubLoading(false);
+    }
+  }, []);
+
+  // ─── Catalogue: Load product counts ─────────────────────────────────
+  const loadProductCounts = useCallback(async () => {
+    try {
+      const dsRes = await fetch('/api/datasources');
+      if (!dsRes.ok) return;
+      const dsJson = await dsRes.json();
+      const dsList: { id: string }[] = dsJson.data || [];
+
+      const counts: Record<string, number> = {};
+
+      for (const ds of dsList) {
+        const rowsRes = await fetch(`/api/datasources/${ds.id}/rows?limit=1000`);
+        if (!rowsRes.ok) continue;
+        const rowsJson = await rowsRes.json();
+        const rows: { data: unknown }[] = rowsJson.data || [];
+
+        for (const row of rows) {
+          const data = row.data as Record<string, unknown> | null;
+          if (data) {
+            if (data.__category__ && typeof data.__category__ === 'string') {
+              counts[data.__category__] = (counts[data.__category__] || 0) + 1;
+            }
+            if (data.__sub_category__ && typeof data.__sub_category__ === 'string') {
+              counts[data.__sub_category__] = (counts[data.__sub_category__] || 0) + 1;
+            }
+          }
+        }
+      }
+
+      setProductCounts(counts);
+      setProductCountsLoaded(true);
+    } catch {
+      // Silent fail for product counts
+    }
+  }, []);
+
+  // Load categories & product counts on mount
+  useEffect(() => {
+    loadCategories();
+  }, [loadCategories]);
+
+  useEffect(() => {
+    if (!productCountsLoaded) {
+      loadProductCounts();
+    }
+  }, [productCountsLoaded, loadProductCounts]);
+
+  // Load subcategories when parent is selected
+  useEffect(() => {
+    if (selectedCategoryId) {
+      loadSubCategories(selectedCategoryId);
+    } else {
+      setSubCategories([]);
+    }
+  }, [selectedCategoryId, loadSubCategories]);
+
+  // Auto-select first category
+  useEffect(() => {
+    if (categories.length > 0 && !selectedCategoryId) {
+      setSelectedCategoryId(categories[0].id);
+    }
+  }, [categories, selectedCategoryId]);
+
+  // ─── Catalogue: Add category ────────────────────────────────────────
+  const addCategory = async () => {
+    if (!newCatLabel.trim()) {
+      toast.error('Le nom est requis');
+      return;
+    }
+    try {
+      const res = await fetch('/api/categories', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          label: newCatLabel.trim(),
+          slug: generateSlug(newCatLabel.trim()),
+          ordre: categories.length + 1,
+        }),
+      });
+      if (res.ok) {
+        const json = await res.json();
+        setCategories(prev => [...prev, json.data]);
+        setNewCatLabel('');
+        setShowNewCat(false);
+        toast.success('Catégorie ajoutée');
+      } else {
+        const json = await res.json();
+        toast.error(json.error || 'Erreur');
+      }
+    } catch {
+      toast.error('Erreur de connexion');
+    }
+  };
+
+  // ─── Catalogue: Add subcategory ─────────────────────────────────────
+  const addSubCategory = async () => {
+    if (!newSubLabel.trim()) {
+      toast.error('Le nom est requis');
+      return;
+    }
+    if (!selectedCategoryId) return;
+    try {
+      const parentCat = categories.find(c => c.id === selectedCategoryId);
+      const prefix = parentCat ? parentCat.slug + '-' : '';
+      const res = await fetch('/api/subcategories', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          label: newSubLabel.trim(),
+          slug: prefix + generateSlug(newSubLabel.trim()),
+          categoryId: selectedCategoryId,
+          ordre: subCategories.length + 1,
+        }),
+      });
+      if (res.ok) {
+        const json = await res.json();
+        setSubCategories(prev => [...prev, json.data]);
+        // Also update nested subCategories in categories state
+        setCategories(prev =>
+          prev.map(c =>
+            c.id === selectedCategoryId
+              ? { ...c, subCategories: [...(c.subCategories || []), json.data] }
+              : c
+          )
+        );
+        setNewSubLabel('');
+        setShowNewSub(false);
+        toast.success('Sous-catégorie ajoutée');
+      } else {
+        const json = await res.json();
+        toast.error(json.error || 'Erreur');
+      }
+    } catch {
+      toast.error('Erreur de connexion');
+    }
+  };
+
+  // ─── Catalogue: Save category label (inline edit) ───────────────────
+  const saveCatLabel = async (id: string) => {
+    const trimmed = editingCatLabel.trim();
+    if (!trimmed) {
+      setEditingCatId(null);
+      return;
+    }
+    // Optimistic update
+    setCategories(prev => prev.map(c => (c.id === id ? { ...c, label: trimmed } : c)));
+    setEditingCatId(null);
+    try {
+      const res = await fetch('/api/categories', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id, label: trimmed }),
+      });
+      if (res.ok) {
+        toast.success('Catégorie renommée');
+      } else {
+        const json = await res.json();
+        toast.error(json.error || 'Erreur');
+        loadCategories();
+      }
+    } catch {
+      toast.error('Erreur de connexion');
+      loadCategories();
+    }
+  };
+
+  // ─── Catalogue: Save subcategory label (inline edit) ────────────────
+  const saveSubLabel = async (id: string) => {
+    const trimmed = editingSubLabel.trim();
+    if (!trimmed) {
+      setEditingSubId(null);
+      return;
+    }
+    // Optimistic update
+    setSubCategories(prev => prev.map(s => (s.id === id ? { ...s, label: trimmed } : s)));
+    setEditingSubId(null);
+    try {
+      const res = await fetch('/api/subcategories', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id, label: trimmed }),
+      });
+      if (res.ok) {
+        toast.success('Sous-catégorie renommée');
+      } else {
+        const json = await res.json();
+        toast.error(json.error || 'Erreur');
+        if (selectedCategoryId) loadSubCategories(selectedCategoryId);
+      }
+    } catch {
+      toast.error('Erreur de connexion');
+      if (selectedCategoryId) loadSubCategories(selectedCategoryId);
+    }
+  };
+
+  // ─── Catalogue: Toggle category visibility ──────────────────────────
+  const toggleCatVisible = async (id: string, visible: boolean) => {
+    setCategories(prev => prev.map(c => (c.id === id ? { ...c, visible } : c)));
+    try {
+      const res = await fetch('/api/categories', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id, visible }),
+      });
+      if (res.ok) {
+        toast.success(visible ? 'Catégorie visible' : 'Catégorie masquée');
+      } else {
+        const json = await res.json();
+        toast.error(json.error || 'Erreur');
+        loadCategories();
+      }
+    } catch {
+      toast.error('Erreur de connexion');
+      loadCategories();
+    }
+  };
+
+  // ─── Catalogue: Toggle subcategory visibility ───────────────────────
+  const toggleSubVisible = async (id: string, visible: boolean) => {
+    setSubCategories(prev => prev.map(s => (s.id === id ? { ...s, visible } : s)));
+    try {
+      const res = await fetch('/api/subcategories', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id, visible }),
+      });
+      if (res.ok) {
+        toast.success(visible ? 'Sous-catégorie visible' : 'Sous-catégorie masquée');
+      } else {
+        const json = await res.json();
+        toast.error(json.error || 'Erreur');
+        if (selectedCategoryId) loadSubCategories(selectedCategoryId);
+      }
+    } catch {
+      toast.error('Erreur de connexion');
+      if (selectedCategoryId) loadSubCategories(selectedCategoryId);
+    }
+  };
+
+  // ─── Catalogue: Delete category ─────────────────────────────────────
+  const deleteCategory = async (id: string) => {
+    try {
+      const res = await fetch(`/api/categories?id=${id}`, { method: 'DELETE' });
+      if (res.ok) {
+        setCategories(prev => prev.filter(c => c.id !== id));
+        if (selectedCategoryId === id) {
+          setSelectedCategoryId('');
+        }
+        toast.success('Catégorie supprimée');
+        loadProductCounts();
+      } else {
+        const json = await res.json();
+        if (res.status === 403) {
+          toast.error(json.error || 'Impossible de supprimer : des produits sont associés');
+          loadProductCounts();
+        } else {
+          toast.error(json.error || 'Erreur');
+        }
+      }
+    } catch {
+      toast.error('Erreur de connexion');
+    }
+  };
+
+  // ─── Catalogue: Delete subcategory ──────────────────────────────────
+  const deleteSubCategory = async (id: string) => {
+    try {
+      const res = await fetch(`/api/subcategories?id=${id}`, { method: 'DELETE' });
+      if (res.ok) {
+        setSubCategories(prev => prev.filter(s => s.id !== id));
+        setCategories(prev =>
+          prev.map(c => ({
+            ...c,
+            subCategories: (c.subCategories || []).filter(s => s.id !== id),
+          }))
+        );
+        toast.success('Sous-catégorie supprimée');
+        loadProductCounts();
+      } else {
+        const json = await res.json();
+        if (res.status === 403) {
+          toast.error(json.error || 'Impossible de supprimer : des produits sont associés');
+          loadProductCounts();
+        } else {
+          toast.error(json.error || 'Erreur');
+        }
+      }
+    } catch {
+      toast.error('Erreur de connexion');
+    }
+  };
 
   const handleSave = async (updates?: Partial<CatalogSettings>) => {
     const data = updates || local;
@@ -171,12 +544,13 @@ export function SettingsPillar() {
         </div>
 
         <Tabs value={settingsTab} onValueChange={(v) => setSettingsTab(v as SettingsTab)} className="space-y-4">
-          <TabsList className="grid w-full grid-cols-5">
+          <TabsList className="grid w-full grid-cols-6">
             <TabsTrigger value="general" className="text-xs gap-1"><Globe className="w-3 h-3" /> Général</TabsTrigger>
             <TabsTrigger value="appearance" className="text-xs gap-1"><Palette className="w-3 h-3" /> Style</TabsTrigger>
             <TabsTrigger value="conversion" className="text-xs gap-1"><Share2 className="w-3 h-3" /> Partage</TabsTrigger>
             <TabsTrigger value="display" className="text-xs gap-1"><Monitor className="w-3 h-3" /> Affichage</TabsTrigger>
             <TabsTrigger value="admin" className="text-xs gap-1"><Shield className="w-3 h-3" /> Admin</TabsTrigger>
+            <TabsTrigger value="catalogue" className="text-xs gap-1"><BookOpen className="w-3 h-3" /> Catalogue</TabsTrigger>
           </TabsList>
 
           {/* Général */}
@@ -513,6 +887,299 @@ export function SettingsPillar() {
                   </CardContent>
                 </Card>
               )}
+            </div>
+          </TabsContent>
+
+          {/* Catalogue */}
+          <TabsContent value="catalogue">
+            <div className="space-y-4">
+
+              {/* Slot 1 — Grandes Catégories (Niveau 1) */}
+              <Card>
+                <CardHeader>
+                  <div>
+                    <CardTitle className="text-sm flex items-center gap-2">
+                      <BookOpen className="w-4 h-4" style={{ color: '#C9A84C' }} />
+                      Grandes Catégories
+                    </CardTitle>
+                    <p className="text-xs text-muted-foreground mt-0.5">Niveau 1 — Navigation principale</p>
+                  </div>
+                </CardHeader>
+                <CardContent className="space-y-1">
+                  {catLoading ? (
+                    <div className="flex items-center justify-center py-8">
+                      <Loader2 className="w-4 h-4 animate-spin text-muted-foreground" />
+                    </div>
+                  ) : categories.length === 0 ? (
+                    <p className="text-xs text-muted-foreground text-center py-8">Aucune catégorie</p>
+                  ) : (
+                    categories.map((cat) => {
+                      const count = productCounts[cat.slug] || 0;
+                      return (
+                        <div
+                          key={cat.id}
+                          className={`flex items-center gap-2 p-2 rounded-md border transition-all duration-200 ${
+                            !cat.visible ? 'opacity-40' : ''
+                          }`}
+                        >
+                          <span className="text-[10px] text-muted-foreground w-5 text-center font-mono">
+                            {cat.ordre}
+                          </span>
+                          {editingCatId === cat.id ? (
+                            <Input
+                              value={editingCatLabel}
+                              onChange={e => setEditingCatLabel(e.target.value)}
+                              onBlur={() => saveCatLabel(cat.id)}
+                              onKeyDown={e => {
+                                if (e.key === 'Enter') saveCatLabel(cat.id);
+                                if (e.key === 'Escape') setEditingCatId(null);
+                              }}
+                              className="h-7 text-xs flex-1"
+                              autoFocus
+                            />
+                          ) : (
+                            <span
+                              className="text-sm flex-1 cursor-pointer hover:opacity-70 transition-opacity select-none"
+                              style={{ color: '#C9A84C' }}
+                              onDoubleClick={() => {
+                                setEditingCatId(cat.id);
+                                setEditingCatLabel(cat.label);
+                              }}
+                              title="Double-cliquer pour renommer"
+                            >
+                              {cat.label}
+                            </span>
+                          )}
+                          <Badge variant="secondary" className="text-[10px] h-5 px-1.5 shrink-0">
+                            {count}
+                          </Badge>
+                          <Switch
+                            checked={cat.visible}
+                            onCheckedChange={v => toggleCatVisible(cat.id, v)}
+                            className="scale-75 origin-center"
+                          />
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <span className="inline-flex">
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  className="h-7 w-7 text-red-400 hover:text-red-600 hover:bg-red-50 disabled:opacity-40 disabled:cursor-not-allowed"
+                                  disabled={count > 0}
+                                  onClick={() => deleteCategory(cat.id)}
+                                >
+                                  <Trash2 className="w-3.5 h-3.5" />
+                                </Button>
+                              </span>
+                            </TooltipTrigger>
+                            {count > 0 && (
+                              <TooltipContent side="left">
+                                Impossible : {count} produit{count !== 1 ? 's' : ''} associé{count !== 1 ? 's' : ''}
+                              </TooltipContent>
+                            )}
+                          </Tooltip>
+                        </div>
+                      );
+                    })
+                  )}
+
+                  {showNewCat ? (
+                    <div className="flex items-center gap-2 p-2 border border-dashed rounded-md mt-2" style={{ borderColor: '#C9A84C' }}>
+                      <Input
+                        value={newCatLabel}
+                        onChange={e => setNewCatLabel(e.target.value)}
+                        placeholder="Nom de la catégorie"
+                        className="h-7 text-xs flex-1"
+                        autoFocus
+                        onKeyDown={e => {
+                          if (e.key === 'Enter') addCategory();
+                          if (e.key === 'Escape') { setShowNewCat(false); setNewCatLabel(''); }
+                        }}
+                      />
+                      <Button
+                        size="sm"
+                        className="h-7 text-xs gap-1 text-white"
+                        onClick={addCategory}
+                        style={{ backgroundColor: '#C9A84C' }}
+                      >
+                        <Plus className="w-3 h-3" /> OK
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        className="h-7 text-xs"
+                        onClick={() => { setShowNewCat(false); setNewCatLabel(''); }}
+                      >
+                        Annuler
+                      </Button>
+                    </div>
+                  ) : (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="w-full text-xs gap-1 border-dashed mt-2"
+                      onClick={() => setShowNewCat(true)}
+                      style={{ borderColor: '#C9A84C', color: '#C9A84C' }}
+                    >
+                      <Plus className="w-3 h-3" /> Ajouter
+                    </Button>
+                  )}
+                </CardContent>
+              </Card>
+
+              {/* Slot 2 — Sous-catégories (Niveau 2) */}
+              <Card>
+                <CardHeader>
+                  <div>
+                    <CardTitle className="text-sm flex items-center gap-2">
+                      <BookOpen className="w-4 h-4" style={{ color: '#C9A84C' }} />
+                      Sous-catégories
+                    </CardTitle>
+                    <p className="text-xs text-muted-foreground mt-0.5">Niveau 2 — Filtres contextuels</p>
+                  </div>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  <Select value={selectedCategoryId} onValueChange={setSelectedCategoryId}>
+                    <SelectTrigger className="h-8 text-xs">
+                      <SelectValue placeholder="Sélectionner une catégorie parente" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {categories.map(cat => (
+                        <SelectItem key={cat.id} value={cat.id}>{cat.label}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+
+                  {!selectedCategoryId ? (
+                    <p className="text-xs text-muted-foreground text-center py-8">
+                      Sélectionnez une catégorie parente
+                    </p>
+                  ) : subLoading ? (
+                    <div className="flex items-center justify-center py-8">
+                      <Loader2 className="w-4 h-4 animate-spin text-muted-foreground" />
+                    </div>
+                  ) : subCategories.length === 0 ? (
+                    <p className="text-xs text-muted-foreground text-center py-8">
+                      Aucune sous-catégorie
+                    </p>
+                  ) : (
+                    <div className="space-y-1">
+                      {subCategories.map((sub) => {
+                        const count = productCounts[sub.slug] || 0;
+                        return (
+                          <div
+                            key={sub.id}
+                            className={`flex items-center gap-2 p-2 rounded-md border transition-all duration-200 ${
+                              !sub.visible ? 'opacity-40' : ''
+                            }`}
+                          >
+                            <span className="text-[10px] text-muted-foreground w-5 text-center font-mono">
+                              {sub.ordre}
+                            </span>
+                            {editingSubId === sub.id ? (
+                              <Input
+                                value={editingSubLabel}
+                                onChange={e => setEditingSubLabel(e.target.value)}
+                                onBlur={() => saveSubLabel(sub.id)}
+                                onKeyDown={e => {
+                                  if (e.key === 'Enter') saveSubLabel(sub.id);
+                                  if (e.key === 'Escape') setEditingSubId(null);
+                                }}
+                                className="h-7 text-xs flex-1"
+                                autoFocus
+                              />
+                            ) : (
+                              <span
+                                className="text-sm flex-1 cursor-pointer hover:opacity-70 transition-opacity select-none"
+                                style={{ color: '#C9A84C' }}
+                                onDoubleClick={() => {
+                                  setEditingSubId(sub.id);
+                                  setEditingSubLabel(sub.label);
+                                }}
+                                title="Double-cliquer pour renommer"
+                              >
+                                {sub.label}
+                              </span>
+                            )}
+                            <Badge variant="secondary" className="text-[10px] h-5 px-1.5 shrink-0">
+                              {count}
+                            </Badge>
+                            <Switch
+                              checked={sub.visible}
+                              onCheckedChange={v => toggleSubVisible(sub.id, v)}
+                              className="scale-75 origin-center"
+                            />
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <span className="inline-flex">
+                                  <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    className="h-7 w-7 text-red-400 hover:text-red-600 hover:bg-red-50 disabled:opacity-40 disabled:cursor-not-allowed"
+                                    disabled={count > 0}
+                                    onClick={() => deleteSubCategory(sub.id)}
+                                  >
+                                    <Trash2 className="w-3.5 h-3.5" />
+                                  </Button>
+                                </span>
+                              </TooltipTrigger>
+                              {count > 0 && (
+                                <TooltipContent side="left">
+                                  Impossible : {count} produit{count !== 1 ? 's' : ''} associé{count !== 1 ? 's' : ''}
+                                </TooltipContent>
+                              )}
+                            </Tooltip>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+
+                  {selectedCategoryId && (
+                    showNewSub ? (
+                      <div className="flex items-center gap-2 p-2 border border-dashed rounded-md mt-2" style={{ borderColor: '#C9A84C' }}>
+                        <Input
+                          value={newSubLabel}
+                          onChange={e => setNewSubLabel(e.target.value)}
+                          placeholder="Nom de la sous-catégorie"
+                          className="h-7 text-xs flex-1"
+                          autoFocus
+                          onKeyDown={e => {
+                            if (e.key === 'Enter') addSubCategory();
+                            if (e.key === 'Escape') { setShowNewSub(false); setNewSubLabel(''); }
+                          }}
+                        />
+                        <Button
+                          size="sm"
+                          className="h-7 text-xs gap-1 text-white"
+                          onClick={addSubCategory}
+                          style={{ backgroundColor: '#C9A84C' }}
+                        >
+                          <Plus className="w-3 h-3" /> OK
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          className="h-7 text-xs"
+                          onClick={() => { setShowNewSub(false); setNewSubLabel(''); }}
+                        >
+                          Annuler
+                        </Button>
+                      </div>
+                    ) : (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="w-full text-xs gap-1 border-dashed mt-2"
+                        onClick={() => setShowNewSub(true)}
+                        style={{ borderColor: '#C9A84C', color: '#C9A84C' }}
+                      >
+                        <Plus className="w-3 h-3" /> Ajouter
+                      </Button>
+                    )
+                  )}
+                </CardContent>
+              </Card>
             </div>
           </TabsContent>
         </Tabs>

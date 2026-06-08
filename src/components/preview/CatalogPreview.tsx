@@ -235,6 +235,26 @@ export function CatalogPreview({ onAdminLogin }: CatalogPreviewProps) {
   const [likedProducts, setLikedProducts] = useState<Set<string>>(new Set);
   const [activeFilter, setActiveFilter] = useState<string>('all');
 
+  // ━━━ Two-Level Dynamic Category Filter ━━━━━━━━━━━━━━━━━━━━━━━━━
+  // Level 1: Macro categories (Ensemble, Abaya, Kimono, etc.)
+  // Level 2: Micro sub-filters (Nouveau, Saison, Discount) — contextual
+  const [activeMacroFilter, setActiveMacroFilter] = useState<string>('all'); // category slug or 'all'
+  const [activeMicroFilter, setActiveMicroFilter] = useState<string>('all'); // subcategory slug or 'all'
+  const [dynamicCategories, setDynamicCategories] = useState<{
+    id: string; slug: string; label: string; visible: boolean; ordre: number;
+    subCategories: { id: string; slug: string; label: string; visible: boolean; ordre: number; categoryId: string }[];
+  }[]>([]);
+
+  // Fetch dynamic categories from DB on mount
+  useEffect(() => {
+    fetch('/api/categories')
+      .then(res => res.ok ? res.json() : null)
+      .then(json => {
+        if (json?.data) setDynamicCategories(json.data);
+      })
+      .catch(() => {});
+  }, []);
+
   const s = settings || catalog?.settings;
   const primaryColor = s?.primaryColor || BRAND.dore;
   const secondaryColor = s?.secondaryColor || BRAND.vertFonce;
@@ -432,6 +452,7 @@ export function CatalogPreview({ onAdminLogin }: CatalogPreviewProps) {
     return '#';
   };
 
+  // Legacy filter options (fallback when no dynamic categories loaded)
   const getFilterOptions = (): { value: string; label: string }[] => {
     const options = new Map<string, string>();
     options.set('all', 'Tout');
@@ -451,6 +472,40 @@ export function CatalogPreview({ onAdminLogin }: CatalogPreviewProps) {
     return Array.from(options.entries()).map(([value, label]) => ({ value, label }));
   };
 
+  // Compute product counts per category slug (from __category__ field in row data)
+  const getCategoryProductCounts = (): Map<string, number> => {
+    const counts = new Map<string, number>();
+    sections.forEach(({ rows }) => {
+      rows.forEach(r => {
+        const data = r.data as Record<string, unknown>;
+        if (data.__is_visible__ === false) return;
+        const catSlug = String(data.__category__ || '').trim();
+        if (catSlug) {
+          counts.set(catSlug, (counts.get(catSlug) || 0) + 1);
+        }
+      });
+    });
+    return counts;
+  };
+
+  // Compute product counts per subcategory slug for a given category
+  const getSubCategoryProductCounts = (categorySlug: string): Map<string, number> => {
+    const counts = new Map<string, number>();
+    sections.forEach(({ rows }) => {
+      rows.forEach(r => {
+        const data = r.data as Record<string, unknown>;
+        if (data.__is_visible__ === false) return;
+        const catSlug = String(data.__category__ || '').trim();
+        if (catSlug !== categorySlug) return;
+        const subSlug = String(data.__sub_category__ || '').trim();
+        if (subSlug) {
+          counts.set(subSlug, (counts.get(subSlug) || 0) + 1);
+        }
+      });
+    });
+    return counts;
+  };
+
   const filterRows = (rows: Row[], config: SectionConfig): Row[] => {
     let filtered = rows.filter(r => {
       const data = r.data as Record<string, unknown>;
@@ -463,7 +518,25 @@ export function CatalogPreview({ onAdminLogin }: CatalogPreviewProps) {
       return hasTitle || hasCover || hasPrice;
     });
 
-    if (activeFilter !== 'all' && config.filterColumn) {
+    // ━━━ Two-Level Category Filter ━━━━━━━━━━━━━━━━━━━━━━━━━
+    // Priority: dynamic categories from DB over legacy filterColumn
+    if (dynamicCategories.length > 0) {
+      // Level 1: Macro filter by __category__
+      if (activeMacroFilter !== 'all') {
+        filtered = filtered.filter(r => {
+          const data = r.data as Record<string, unknown>;
+          return String(data.__category__ || '').trim() === activeMacroFilter;
+        });
+        // Level 2: Micro filter by __sub_category__ (only when macro is selected)
+        if (activeMicroFilter !== 'all') {
+          filtered = filtered.filter(r => {
+            const data = r.data as Record<string, unknown>;
+            return String(data.__sub_category__ || '').trim() === activeMicroFilter;
+          });
+        }
+      }
+    } else if (activeFilter !== 'all' && config.filterColumn) {
+      // Fallback: legacy single-level filter
       filtered = filtered.filter(r => {
         const val = getCellValue(r, config.filterColumn!);
         return val && val.split(/[,;]/).some(v => v.trim() === activeFilter);
@@ -978,8 +1051,107 @@ export function CatalogPreview({ onAdminLogin }: CatalogPreviewProps) {
         </div>
       )}
 
-      {/* Category Filter Bar */}
-      {filterOptions.length > 1 && (
+      {/* ━━━ Two-Level Dynamic Category Filter ━━━━━━━━━━━━━━━━━━━━━━━━━ */}
+      {dynamicCategories.length > 0 ? (
+        <div className="sticky top-[52px] z-20 border-b backdrop-blur-md" style={{ backgroundColor: `${bgColor}ee`, borderColor: `${primaryColor}20` }}>
+          {/* ── Level 1: Macro Categories ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */}
+          <div className="catalog-filter-bar no-scrollbar">
+            {/* "Tout" pill */}
+            <button
+              className={cn(
+                'px-4 py-1.5 rounded-full text-xs sm:text-sm font-medium whitespace-nowrap transition-all duration-200',
+                activeMacroFilter === 'all' ? 'shadow-sm' : 'hover:opacity-80'
+              )}
+              style={{
+                backgroundColor: activeMacroFilter === 'all' ? secondaryColor : 'transparent',
+                color: activeMacroFilter === 'all' ? BRAND.blanc : BRAND.noir,
+                border: activeMacroFilter === 'all' ? 'none' : `1px solid ${primaryColor}30`,
+              }}
+              onClick={() => { setActiveMacroFilter('all'); setActiveMicroFilter('all'); setCurrentPage(1); }}
+            >
+              Tout
+            </button>
+            {/* Dynamic category pills with product count */}
+            {(() => {
+              const catCounts = getCategoryProductCounts();
+              return dynamicCategories
+                .filter(cat => cat.visible)
+                .map(cat => {
+                  const count = catCounts.get(cat.slug) || 0;
+                  return (
+                    <button
+                      key={cat.slug}
+                      className={cn(
+                        'px-4 py-1.5 rounded-full text-xs sm:text-sm font-medium whitespace-nowrap transition-all duration-200',
+                        activeMacroFilter === cat.slug ? 'shadow-sm' : 'hover:opacity-80'
+                      )}
+                      style={{
+                        backgroundColor: activeMacroFilter === cat.slug ? secondaryColor : 'transparent',
+                        color: activeMacroFilter === cat.slug ? BRAND.blanc : BRAND.noir,
+                        border: activeMacroFilter === cat.slug ? 'none' : `1px solid ${primaryColor}30`,
+                      }}
+                      onClick={() => {
+                        setActiveMacroFilter(cat.slug);
+                        setActiveMicroFilter('all');
+                        setCurrentPage(1);
+                      }}
+                    >
+                      {cat.label}{count > 0 ? ` (${count})` : ''}
+                    </button>
+                  );
+                });
+            })()}
+          </div>
+
+          {/* ── Level 2: Micro Sub-filters (only when a macro category is selected) ━━ */}
+          {activeMacroFilter !== 'all' && (() => {
+            const selectedCat = dynamicCategories.find(c => c.slug === activeMacroFilter);
+            if (!selectedCat || !selectedCat.subCategories?.length) return null;
+            const visibleSubs = selectedCat.subCategories.filter(sub => sub.visible);
+            if (visibleSubs.length === 0) return null;
+            const subCounts = getSubCategoryProductCounts(activeMacroFilter);
+            return (
+              <div className="catalog-filter-bar no-scrollbar" style={{ paddingTop: '4px', paddingBottom: '8px' }}>
+                {/* "Tous" sub-pill */}
+                <button
+                  className={cn(
+                    'px-3.5 py-1 rounded-full text-[11px] sm:text-xs font-medium whitespace-nowrap transition-all duration-200',
+                    activeMicroFilter === 'all' ? 'shadow-sm' : 'hover:opacity-80'
+                  )}
+                  style={{
+                    backgroundColor: activeMicroFilter === 'all' ? BRAND.dore : 'transparent',
+                    color: activeMicroFilter === 'all' ? BRAND.blanc : BRAND.noir,
+                    border: activeMicroFilter === 'all' ? 'none' : `1px solid ${BRAND.dore}30`,
+                  }}
+                  onClick={() => { setActiveMicroFilter('all'); setCurrentPage(1); }}
+                >
+                  Tous
+                </button>
+                {visibleSubs.map(sub => {
+                  const count = subCounts.get(sub.slug) || 0;
+                  return (
+                    <button
+                      key={sub.slug}
+                      className={cn(
+                        'px-3.5 py-1 rounded-full text-[11px] sm:text-xs font-medium whitespace-nowrap transition-all duration-200',
+                        activeMicroFilter === sub.slug ? 'shadow-sm' : 'hover:opacity-80'
+                      )}
+                      style={{
+                        backgroundColor: activeMicroFilter === sub.slug ? BRAND.dore : 'transparent',
+                        color: activeMicroFilter === sub.slug ? BRAND.blanc : BRAND.noir,
+                        border: activeMicroFilter === sub.slug ? 'none' : `1px solid ${BRAND.dore}30`,
+                      }}
+                      onClick={() => { setActiveMicroFilter(sub.slug); setCurrentPage(1); }}
+                    >
+                      {sub.label}{count > 0 ? ` (${count})` : ''}
+                    </button>
+                  );
+                })}
+              </div>
+            );
+          })()}
+        </div>
+      ) : filterOptions.length > 1 ? (
         <div className="sticky top-[52px] z-20 border-b backdrop-blur-md" style={{ backgroundColor: `${bgColor}ee`, borderColor: `${primaryColor}20` }}>
           <div className="catalog-filter-bar no-scrollbar">
             {filterOptions.map(opt => (
@@ -1001,7 +1173,20 @@ export function CatalogPreview({ onAdminLogin }: CatalogPreviewProps) {
             ))}
           </div>
         </div>
-      )}
+      ) : null}
+
+      {/* ── Contextual Category Title ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */}
+      {activeMacroFilter !== 'all' && dynamicCategories.length > 0 && (() => {
+        const selectedCat = dynamicCategories.find(c => c.slug === activeMacroFilter);
+        if (!selectedCat) return null;
+        return (
+          <div className="mx-auto max-w-[1270px] px-4 sm:px-8 pt-6 pb-2">
+            <h2 className="text-2xl sm:text-3xl font-bold" style={{ color: BRAND.noir, fontFamily: "'Playfair Display', serif" }}>
+              {selectedCat.label}
+            </h2>
+          </div>
+        );
+      })()}
 
       {/* Error */}
       {loadError && (

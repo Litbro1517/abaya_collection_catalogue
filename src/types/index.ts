@@ -240,7 +240,7 @@ export type SyncStatus = 'idle' | 'syncing' | 'success' | 'error';
 
 export type AppView = 'preview' | 'builder' | 'dashboard';
 export type Pillar = 'data' | 'layout' | 'settings';
-export type SettingsTab = 'general' | 'appearance' | 'conversion' | 'display' | 'admin';
+export type SettingsTab = 'general' | 'appearance' | 'conversion' | 'display' | 'admin' | 'catalogue';
 
 export interface ImportResult {
   success: boolean;
