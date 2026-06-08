@@ -8,6 +8,14 @@ import { db } from '@/lib/db';
  * This is a DESTRUCTIVE write — it overwrites __stock__ values in the current table.
  * Called ONCE when the user clicks "Connecter" or "Forcer la ré-importation du stock".
  *
+ * After writing stock values, applies the reactive cascade:
+ *   stock > 0 → __disponibilite__ = 'true' (Disponible)
+ *   stock = 0 → __disponibilite__ = 'false' (Épuisé — default, admin can toggle to Sur commande)
+ *
+ * ⚠️ IMPORTANT: This cascade ONLY applies to rows whose __stock__ was modified.
+ * Rows that already had stock=0 + dispo=true ("Sur commande") from a previous admin
+ * choice are NOT touched unless their stock value actually changed.
+ *
  * Body:
  *   sourceTableId    — ID of the data source to read from (can be the same table)
  *   matchColumnSlug  — Column slug in the source table that matches the key
@@ -53,7 +61,13 @@ export async function POST(
         if (sourceValue !== undefined && sourceValue !== null && sourceValue !== '') {
           const numStock = typeof sourceValue === 'number' ? sourceValue : parseInt(String(sourceValue));
           if (!isNaN(numStock)) {
-            const updatedData = { ...data, __stock__: numStock };
+            const updatedData: Record<string, unknown> = { ...data, __stock__: numStock };
+            // ━━━ Reactive Cascade: stock → disponibilite ━━━
+            if (numStock > 0) {
+              updatedData.__disponibilite__ = 'true'; // stock positif → Disponible
+            } else {
+              updatedData.__disponibilite__ = 'false'; // stock nul → Épuisé (default)
+            }
             await db.row.update({
               where: { id: row.id },
               data: { data: updatedData },
@@ -97,7 +111,14 @@ export async function POST(
         const matchValue = String(data[matchTargetSlug] ?? '');
 
         if (matchValue && lookupMap.has(matchValue)) {
-          const updatedData = { ...data, __stock__: lookupMap.get(matchValue)! };
+          const numStock = lookupMap.get(matchValue)!;
+          const updatedData: Record<string, unknown> = { ...data, __stock__: numStock };
+          // ━━━ Reactive Cascade: stock → disponibilite ━━━
+          if (numStock > 0) {
+            updatedData.__disponibilite__ = 'true'; // stock positif → Disponible
+          } else {
+            updatedData.__disponibilite__ = 'false'; // stock nul → Épuisé (default)
+          }
           await db.row.update({
             where: { id: row.id },
             data: { data: updatedData },

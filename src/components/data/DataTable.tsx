@@ -260,41 +260,37 @@ export function DataTable({ columns, rows, dataSourceId, loading, onRefresh, onU
     };
   }, [flushStockChange]);
 
-  // ━━━ RETROACTIVE FIX: Cascade Stock → Disponibilité on mount ━━━
-  // Runs once on mount: detects rows where stock/disponibilité are mismatched
-  // (stock > 0 + Épuisé, or stock = 0 + Sur commande from import bug)
-  // and calls the backend fix endpoint to correct them.
-  // Import binary rule: stock>0 → Disponible, stock=0 → Épuisé
-  // "Sur commande" is NEVER auto-generated — purely manual admin choice.
+  // ━━━ RETROACTIVE FIX: Only fix TRUE anomalies (stock > 0 + Épuisé) ━━━
+  // Runs once on mount: detects rows where stock > 0 but Disponibilité is OFF.
+  // ⚠️ IMPORTANT: stock = 0 + Disponibilité ON ("Sur commande") is a LEGITIMATE
+  // admin choice and must NEVER be auto-corrected. The previous version incorrectly
+  // treated "Sur commande" as an import bug and forcibly reverted it to "Épuisé".
   const stockDispoFixRan = useRef(false);
   useEffect(() => {
     if (stockDispoFixRan.current || !rows.length) return;
     stockDispoFixRan.current = true;
 
-    // Quick client-side check: are there mismatches?
+    // Only check for TRUE anomaly: stock > 0 but marked Épuisé
+    // "Sur commande" (stock=0 + dispo=true) is a DELIBERATE admin choice — never fix it
     const hasMismatch = rows.some(r => {
       const d = r.data as Record<string, unknown>;
       const stock = typeof d.__stock__ === 'number' ? d.__stock__ : parseInt(String(d.__stock__ ?? '0')) || 0;
       const dispo = String(d.__disponibilite__ ?? 'false');
-      // Anomaly: stock > 0 but marked Épuisé, OR stock = 0 but marked Disponible (Sur commande from import bug)
-      return (stock > 0 && dispo === 'false') || (stock === 0 && dispo === 'true');
+      return stock > 0 && dispo === 'false';
     });
 
     if (hasMismatch) {
-      console.log('🔧 Detected stock/disponibilité mismatch — running retroactive fix');
-      fetch(`/api/datasources/fix-stock-dispo?fix_sur_commande=true`, {
+      console.log('🔧 Detected stock>0 + Épuisé anomaly — running retroactive fix (Sur commande preserved)');
+      fetch(`/api/datasources/fix-stock-dispo`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ dataSourceId, fix_sur_commande: true }),
+        body: JSON.stringify({ dataSourceId }),
       })
         .then(res => res.json())
         .then(result => {
-          const fixed = (result.data?.fixedToDisponible || 0) + (result.data?.fixedToEpuise || 0);
+          const fixed = result.data?.fixedToDisponible || 0;
           if (fixed > 0) {
-            const parts = [];
-            if (result.data.fixedToDisponible > 0) parts.push(`${result.data.fixedToDisponible} stock>0 → Disponible`);
-            if (result.data.fixedToEpuise > 0) parts.push(`${result.data.fixedToEpuise} stock=0 → Épuisé`);
-            toast.success(`✅ ${fixed} produit(s) corrigé(s) : ${parts.join(', ')}`);
+            toast.success(`✅ ${fixed} produit(s) corrigé(s) : stock>0 → Disponible`);
             onRefresh();
           }
         })
@@ -387,6 +383,21 @@ export function DataTable({ columns, rows, dataSourceId, loading, onRefresh, onU
       data[colSlug] = JSON.parse(editValue);
     } catch {
       data[colSlug] = editValue;
+    }
+
+    // ━━━ Reactive Cascade: __stock__ changes must update __disponibilite__ ━━━
+    // When stock is edited via generic text input (double-click → type → Enter),
+    // apply the same business rules as the stepper buttons:
+    //   stock > 0 → Disponible (dispo = true)
+    //   stock = 0 → Épuisé (dispo = false) — admin can then toggle to Sur commande
+    if (colSlug === '__stock__') {
+      const newStock = typeof data.__stock__ === 'number' ? data.__stock__ : parseInt(String(data.__stock__)) || 0;
+      if (newStock > 0) {
+        data.__disponibilite__ = 'true'; // Scenario A: stock positif → Disponible
+      } else {
+        data.__disponibilite__ = 'false'; // Scenario B: stock nul → Épuisé (default)
+        // Note: Admin can manually toggle the switch ON to create "Sur commande"
+      }
     }
 
     try {
