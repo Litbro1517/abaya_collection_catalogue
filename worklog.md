@@ -275,3 +275,40 @@ Stage Summary:
 - WhatsApp CTA button added to each grid card with adaptive state
 - Nouveau badge strictly preserved
 - Production deployed and verified: https://abaya-collection-catalogue-9dum.vercel.app
+
+---
+Task ID: 2
+Agent: Main Agent
+Task: Refonte UI Tunnel de Conversion & Stratégie WhatsApp
+
+Work Log:
+- Analyzed 2 uploaded screenshots via VLM (catalog grid + product detail)
+- Screenshot 1: Shows 2x4 grid with golden "Commander" buttons below each card (from previous iteration)
+- Screenshot 2: Shows product detail with golden "Commander via WhatsApp" button
+- Removed the golden CTA button below cards (product-card-cta class and all CSS)
+- Created new micro-CTA on product image:
+  - Positioned absolute at bottom-center of image
+  - Ultra-thin: ~38% width, py-1 (4px), rounded-full (9999px)
+  - WhatsApp green background: rgba(37, 211, 102, 0.88)
+  - Text: "COMMANDER" in uppercase, 10px font, letter-spacing 0.1em
+  - Click: navigates to product detail page via setSelectedProduct (NOT WhatsApp)
+  - Épuisé variant: gray rgba(128,128,128,0.7), "PRODUIT ÉPUISÉ", pulse animation
+- Updated detail page CTA:
+  - Changed from golden (#C9A84C) to WhatsApp green (#25D366)
+  - White text instead of dark text
+  - Added MessageCircle icon (w-5 h-5)
+  - Green box-shadow: 0 4px 14px rgba(37, 211, 102, 0.35)
+  - Text: "Commander via WhatsApp" for all active states
+  - Épuisé: gray background, gray text, "Produit épuisé", NO box-shadow, pulse animation
+- Fixed: duplicate CSS line in epuise-pulse keyframe area
+- Fixed: green box-shadow not removed on disabled CTA (added box-shadow: none)
+- Validated on production via Agent Browser: 8/8 core checks PASS
+- Known config issue: WhatsApp href="#" when phone number not configured (data issue, not code bug)
+
+Stage Summary:
+- Golden CTA buttons completely removed from catalog cards
+- Micro-CTA (WhatsApp green, ultra-thin, rounded-full) now on product images
+- Micro-CTA navigates to product detail page (educates client to click)
+- Product detail CTA now uses official WhatsApp green with glow shadow
+- Disabled state properly removes green glow
+- Production deployed: https://abaya-collection-catalogue-9dum.vercel.app
