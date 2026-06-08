@@ -214,3 +214,24 @@ Stage Summary:
 - Manual Sur commande preserved: admin can still toggle switch ON with stock=0 for Sur commande
 - 8 retroactive fixes applied on production
 - Deployed to Vercel: https://abaya-collection-catalogue-9dum.vercel.app
+
+---
+Task ID: 3
+Agent: Main Agent
+Task: Épuration des étiquettes catalogue — haut de gamme & minimaliste
+
+Work Log:
+- Analyzed screenshot: cluttered SOLD OUT diagonal overlay + duplicate red badges + heavy Sur commande badge
+- Removed: red "Épuisé" corner badge (duplicate), diagonal "SOLD OUT" overlay with pink background
+- Replaced Épuisé overlay with: subtle bg-black/10 + backdrop-blur-[1px] + ghost text "épuisé" (white/50, font-light, tracking-[0.35em])
+- Replaced Sur commande badge with: translucent rgba(139,115,85,0.55) + backdrop-blur(8px) + thin gold border
+- Redesigned detail view Épuisé badge: minimal gray (bg rgba(0,0,0,0.06), text rgba(0,0,0,0.35))
+- Redesigned detail view Sur commande badge: translucent gold (bg rgba(139,115,85,0.1), backdrop-blur)
+- Refined Nouveau badge: tracking-[0.15em], rounded-sm, backdrop-blur(4px)
+- All changes in CatalogPreview.tsx only — no logic changes
+
+Stage Summary:
+- Épuisé: single subtle overlay, product visible in transparency, no aggressive visuals
+- Sur commande: airy translucent badge with gold border, image visible through
+- Detail view: minimal inline badges matching card aesthetic
+- Deployed to Vercel: https://abaya-collection-catalogue-9dum.vercel.app
