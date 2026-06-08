@@ -927,7 +927,7 @@ export function CatalogPreview({ onAdminLogin }: CatalogPreviewProps) {
               return null;
             })()}
 
-            {/* ━━━ REACTIVE CTA BUTTON (Detail View) ━━━━━━━━━━━━━━━━━━━━ */}
+            {/* ━━━ REACTIVE CTA BUTTON (Detail View) — WhatsApp Green ━━━━━ */}
             {(() => {
               const detailRawData = row.data as Record<string, unknown>;
               const detailStockState = computeStockState(detailRawData);
@@ -935,22 +935,20 @@ export function CatalogPreview({ onAdminLogin }: CatalogPreviewProps) {
               const isSurCommande = detailStockState === 'sur_commande';
               return (
                 <a
-                  className={cn('whatsapp-cta', isEpuise && 'whatsapp-cta--disabled')}
+                  className={cn('whatsapp-cta whatsapp-cta--green', isEpuise && 'whatsapp-cta--disabled')}
                   href={isEpuise ? undefined : conversionLink}
                   target={isEpuise ? undefined : '_blank'}
                   rel={isEpuise ? undefined : 'noopener noreferrer'}
-                  style={{
-                    backgroundColor: isEpuise ? BRAND.grisClair : primaryColor,
-                    color: isEpuise ? BRAND.grisMoyen : '#111',
-                  }}
                   onClick={isEpuise ? (e: React.MouseEvent) => e.preventDefault() : undefined}
+                  style={{
+                    backgroundColor: isEpuise ? BRAND.grisClair : '#25D366',
+                    color: isEpuise ? BRAND.grisMoyen : '#fff',
+                  }}
                 >
+                  <MessageCircle className="w-5 h-5 shrink-0" />
                   {isEpuise ? 'Produit épuisé' :
-                   isSurCommande ? 'Commander (Atelier)' :
-                   s?.conversionChannel === 'whatsapp' ? 'Commander via WhatsApp' :
-                   s?.conversionChannel === 'messenger' ? 'Commander via Messenger' :
-                   s?.conversionChannel === 'email' ? 'Commander par email' :
-                   'Commander'}
+                   isSurCommande ? 'Commander via WhatsApp' :
+                   'Commander via WhatsApp'}
                 </a>
               );
             })()}
@@ -1050,7 +1048,6 @@ export function CatalogPreview({ onAdminLogin }: CatalogPreviewProps) {
             const price = config.priceColumn ? getCellValue(row, config.priceColumn) : '';
             const isLiked = likedProducts.has(row.id);
             const imageCount = getImageCount(row, config, columns);
-            const conversionLink = buildConversionLink(row, config);
             const isEpuise = stockState === 'epuise';
             const isSurCommande = stockState === 'sur_commande';
 
@@ -1122,6 +1119,25 @@ export function CatalogPreview({ onAdminLogin }: CatalogPreviewProps) {
                       {imageCount}
                     </div>
                   )}
+
+                  {/* ━━━ MICRO-CTA ON IMAGE — WhatsApp green, ultra-thin ━━━ */}
+                  <button
+                    className={cn('product-card-micro-cta', isEpuise && 'product-card-micro-cta--disabled')}
+                    style={{
+                      backgroundColor: isEpuise ? 'rgba(128,128,128,0.7)' : 'rgba(37, 211, 102, 0.88)',
+                      color: isEpuise ? 'rgba(255,255,255,0.7)' : '#fff',
+                    }}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      if (!isEpuise) {
+                        setSelectedProduct({ row, columns, section });
+                        setCarouselIdx(0);
+                      }
+                    }}
+                    aria-label={isEpuise ? 'Produit épuisé' : 'Commander'}
+                  >
+                    {isEpuise ? 'Produit épuisé' : 'Commander'}
+                  </button>
                 </div>
 
                 {/* Text */}
@@ -1150,31 +1166,7 @@ export function CatalogPreview({ onAdminLogin }: CatalogPreviewProps) {
                   </div>
                 )}
 
-                {/* WhatsApp CTA button — always visible, adapts to stock state */}
-                <a
-                  className={cn(
-                    'product-card-cta',
-                    isEpuise && 'product-card-cta--disabled'
-                  )}
-                  href={isEpuise ? undefined : conversionLink}
-                  target={isEpuise ? undefined : '_blank'}
-                  rel={isEpuise ? undefined : 'noopener noreferrer'}
-                  onClick={isEpuise ? (e: React.MouseEvent) => e.preventDefault() : undefined}
-                  style={{
-                    backgroundColor: isEpuise ? BRAND.grisClair : primaryColor,
-                    color: isEpuise ? BRAND.grisMoyen : '#111',
-                  }}
-                >
-                  <MessageCircle className="w-3.5 h-3.5 shrink-0" />
-                  <span className="truncate">
-                    {isEpuise ? 'Produit épuisé' :
-                     isSurCommande ? 'Commander (Atelier)' :
-                     s?.conversionChannel === 'whatsapp' ? 'Commander' :
-                     s?.conversionChannel === 'messenger' ? 'Commander' :
-                     s?.conversionChannel === 'email' ? 'Commander' :
-                     'Commander'}
-                  </span>
-                </a>
+                {/* No CTA below card — micro-CTA is on the image */}
               </article>
             );
           })}

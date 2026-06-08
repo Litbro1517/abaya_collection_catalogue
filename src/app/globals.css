@@ -397,37 +397,47 @@
   color: #D97706; /* amber-600 — warm gold */
 }
 
-/* ── Product Card: CTA Button ── */
-.product-card-cta {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 6px;
-  margin-top: 10px;
-  padding: 8px 12px;
-  border-radius: 8px;
-  font-size: 12px;
-  font-weight: 600;
-  text-decoration: none;
+/* ── Product Card: Micro-CTA on image (WhatsApp green, ultra-thin) ── */
+.product-card-micro-cta {
+  position: absolute;
+  bottom: 10px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 38%;
+  min-width: 90px;
+  max-width: 140px;
+  padding: 4px 0;
+  border: none;
+  border-radius: 9999px;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
   text-align: center;
+  cursor: pointer;
+  z-index: 3;
   transition: opacity 0.2s, transform 0.15s;
-  position: relative;
-  z-index: 2;
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
 }
 
-.product-card-cta:hover {
-  opacity: 0.9;
+.product-card-micro-cta:hover {
+  opacity: 0.95;
+  transform: translateX(-50%) scale(1.04);
 }
 
-.product-card-cta:active {
-  transform: scale(0.98);
+.product-card-micro-cta:active {
+  transform: translateX(-50%) scale(0.97);
 }
 
-.product-card-cta--disabled {
+.product-card-micro-cta--disabled {
   cursor: not-allowed;
-  pointer-events: none;
-  opacity: 0.7;
   animation: epuise-pulse 2.5s ease-in-out infinite;
+}
+
+.product-card-micro-cta--disabled:hover {
+  transform: translateX(-50%);
+  opacity: 0.7;
 }
 
 @keyframes epuise-pulse {
@@ -443,14 +453,13 @@
   .product-card-status {
     font-size: 9px;
   }
-  .product-card-cta {
-    padding: 7px 10px;
-    font-size: 11px;
-    gap: 5px;
-  }
-  .product-card-cta svg {
-    width: 12px;
-    height: 12px;
+  .product-card-micro-cta {
+    width: 42%;
+    min-width: 72px;
+    max-width: 110px;
+    font-size: 8px;
+    padding: 3px 0;
+    bottom: 8px;
   }
 }
 
@@ -797,21 +806,33 @@
   white-space: nowrap;
 }
 
-/* ── WhatsApp CTA ── */
+/* ── WhatsApp CTA (Detail Page) ── */
 .whatsapp-cta {
-  display: block;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
   margin-top: 24px;
-  padding: 15px 18px;
+  padding: 16px 18px;
   border-radius: 12px;
   text-align: center;
   text-decoration: none;
   font-weight: 700;
   font-size: 16px;
-  transition: opacity 0.2s;
+  letter-spacing: 0.02em;
+  transition: opacity 0.2s, transform 0.15s;
 }
 
 .whatsapp-cta:hover {
-  opacity: 0.9;
+  opacity: 0.92;
+}
+
+.whatsapp-cta:active {
+  transform: scale(0.98);
+}
+
+.whatsapp-cta--green {
+  box-shadow: 0 4px 14px rgba(37, 211, 102, 0.35);
 }
 
 .whatsapp-cta--disabled {
