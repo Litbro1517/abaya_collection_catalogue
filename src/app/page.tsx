@@ -254,7 +254,7 @@ function HomeContent() {
   }
 
   // Admin builder mode — only for authenticated admins with owner/admin role
-  const canAccessBuilder = isAdmin && adminUser && (adminUser.role === 'owner' || adminUser.role === 'admin');
+  const canAccessBuilder = isAdmin && adminUser && (adminUser.role === 'owner' || adminUser.role === 'admin' || adminUser.role === 'super_admin');
   if (canAccessBuilder && view === 'builder') {
     return <BuilderShell />;
   }

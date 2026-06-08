@@ -134,9 +134,10 @@ export async function DELETE() {
     }
 
     const response = NextResponse.json({ data: { success: true } });
+    const isProduction = process.env.NODE_ENV === 'production';
     response.cookies.set('admin_token', '', {
       httpOnly: true,
-      secure: false,
+      secure: isProduction,
       sameSite: 'lax',
       expires: new Date(0),
       path: '/',

@@ -22,7 +22,7 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ error: 'Non authentifié' }, { status: 401 });
     }
 
-    if (admin.role !== 'owner' && admin.role !== 'admin') {
+    if (admin.role !== 'owner' && admin.role !== 'admin' && admin.role !== 'super_admin') {
       return NextResponse.json({ error: 'Accès refusé' }, { status: 403 });
     }
 
@@ -61,7 +61,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Non authentifié' }, { status: 401 });
     }
 
-    if (admin.role !== 'owner') {
+    if (admin.role !== 'owner' && admin.role !== 'super_admin') {
       return NextResponse.json({ error: 'Seul le propriétaire peut ajouter des administrateurs' }, { status: 403 });
     }
 
@@ -144,7 +144,7 @@ export async function PATCH(req: NextRequest) {
       return NextResponse.json({ error: 'Non authentifié' }, { status: 401 });
     }
 
-    if (admin.role !== 'owner') {
+    if (admin.role !== 'owner' && admin.role !== 'super_admin') {
       return NextResponse.json({ error: 'Seul le propriétaire peut modifier les administrateurs' }, { status: 403 });
     }
 
@@ -226,7 +226,7 @@ export async function DELETE(req: NextRequest) {
       return NextResponse.json({ error: 'Non authentifié' }, { status: 401 });
     }
 
-    if (admin.role !== 'owner') {
+    if (admin.role !== 'owner' && admin.role !== 'super_admin') {
       return NextResponse.json({ error: 'Seul le propriétaire peut supprimer des administrateurs' }, { status: 403 });
     }
 

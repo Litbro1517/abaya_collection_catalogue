@@ -16,8 +16,8 @@ export default async function AdminPage() {
     redirect('/');
   }
 
-  // Not owner/admin → redirect to home
-  if (admin.role !== 'owner' && admin.role !== 'admin') {
+  // Not owner/admin/super_admin → redirect to home
+  if (admin.role !== 'owner' && admin.role !== 'admin' && admin.role !== 'super_admin') {
     redirect('/');
   }
 

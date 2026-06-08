@@ -43,9 +43,10 @@ export async function createAdminSession(
   });
 
   const cookieStore = await cookies();
+  const isProduction = process.env.NODE_ENV === 'production';
   cookieStore.set('admin_token', token, {
     httpOnly: true,
-    secure: false,
+    secure: isProduction,
     sameSite: 'lax',
     expires: expiresAt,
     path: '/',

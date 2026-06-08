@@ -48,9 +48,9 @@ export async function middleware(req: NextRequest) {
         return NextResponse.redirect(new URL('/', req.url));
       }
 
-      // Only owner and admin roles can access /admin
+      // Only owner, admin and super_admin roles can access /admin
       const role = authJson.admin.role;
-      if (role !== 'owner' && role !== 'admin') {
+      if (role !== 'owner' && role !== 'admin' && role !== 'super_admin') {
         return NextResponse.redirect(new URL('/', req.url));
       }
 
