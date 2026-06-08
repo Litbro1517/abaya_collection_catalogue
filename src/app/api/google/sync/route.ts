@@ -5,6 +5,112 @@ import { getValidAccessToken } from '@/lib/google/auth';
 import { resolveImageUrl } from '@/lib/google/drive-images';
 
 /**
+ * syncCategoriesFromRows
+ * ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+ * Auto-upsert Category & SubCategory records from imported row data.
+ * Scans all rows for a given dataSourceId, collects unique __category__
+ * and __sub_category__ values, and upserts them into the dedicated
+ * Category / SubCategory Prisma tables.
+ *
+ * Rules:
+ * - NEVER overwrite an existing category's label or visibility (admin sovereignty)
+ * - If a row has __category__ but no __sub_category__, just create the category
+ * - If a row has both, create the category first, then the sub-category linked to it
+ * - Sub-category slugs are prefixed with parent: `${parentSlug}-${subSlug}`
+ * - Skip empty/whitespace-only values
+ * ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+ */
+async function syncCategoriesFromRows(dataSourceId: string): Promise<void> {
+  const rows = await db.row.findMany({ where: { dataSourceId } });
+
+  // Collect unique category values and map sub-categories to their parent categories
+  const uniqueCategories = new Set<string>();
+  // Map: sub-category label → parent category label (first occurrence wins)
+  const subToParent = new Map<string, string>();
+
+  for (const row of rows) {
+    const data = row.data as Record<string, unknown>;
+    const categoryVal = String(data.__category__ ?? '').trim();
+    const subCategoryVal = String(data.__sub_category__ ?? '').trim();
+
+    if (categoryVal) {
+      uniqueCategories.add(categoryVal);
+      if (subCategoryVal && !subToParent.has(subCategoryVal)) {
+        subToParent.set(subCategoryVal, categoryVal);
+      }
+    }
+  }
+
+  if (uniqueCategories.size === 0) {
+    console.log('📂 syncCategoriesFromRows: No category values found in rows — skipping');
+    return;
+  }
+
+  // Get current max ordre for auto-increment
+  const existingCategories = await db.category.findMany({ orderBy: { ordre: 'desc' }, take: 1 });
+  let nextOrdre = existingCategories.length > 0 ? existingCategories[0].ordre + 1 : 1;
+
+  let categoriesUpserted = 0;
+  let subCategoriesUpserted = 0;
+
+  // Upsert categories first
+  for (const catLabel of uniqueCategories) {
+    const catSlug = generateSlug(catLabel);
+    if (!catSlug) continue;
+
+    await db.category.upsert({
+      where: { slug: catSlug },
+      update: {}, // NEVER update label/visibility — admin's choice is sovereign
+      create: {
+        slug: catSlug,
+        label: catLabel,
+        visible: true,
+        ordre: nextOrdre,
+      },
+    });
+    nextOrdre++;
+    categoriesUpserted++;
+  }
+
+  // Upsert sub-categories (linked to their parent category)
+  if (subToParent.size > 0) {
+    const existingSubCategories = await db.subCategory.findMany({ orderBy: { ordre: 'desc' }, take: 1 });
+    let nextSubOrdre = existingSubCategories.length > 0 ? existingSubCategories[0].ordre + 1 : 1;
+
+    for (const [subLabel, parentLabel] of subToParent) {
+      const parentSlug = generateSlug(parentLabel);
+      const subSlug = generateSlug(subLabel);
+      if (!parentSlug || !subSlug) continue;
+
+      // Find the parent category to get its id
+      const parentCategory = await db.category.findUnique({ where: { slug: parentSlug } });
+      if (!parentCategory) {
+        console.warn(`📂 syncCategoriesFromRows: Parent category "${parentLabel}" (slug: ${parentSlug}) not found — skipping sub-category "${subLabel}"`);
+        continue;
+      }
+
+      const compositeSlug = `${parentSlug}-${subSlug}`;
+
+      await db.subCategory.upsert({
+        where: { slug: compositeSlug },
+        update: {}, // NEVER update label/visibility — admin's choice is sovereign
+        create: {
+          slug: compositeSlug,
+          label: subLabel,
+          categoryId: parentCategory.id,
+          visible: true,
+          ordre: nextSubOrdre,
+        },
+      });
+      nextSubOrdre++;
+      subCategoriesUpserted++;
+    }
+  }
+
+  console.log(`📂 syncCategoriesFromRows: Auto-upserted ${categoriesUpserted} categorie(s) and ${subCategoriesUpserted} sub-categorie(s) from DataSource ${dataSourceId}`);
+}
+
+/**
  * POST /api/google/sync
  * Import a Google Sheet as a new DataSource, or DELTA-sync an existing one
  *
@@ -611,6 +717,12 @@ export async function POST(req: NextRequest) {
         where: { id: dsId },
         include: { _count: { select: { columns: true, rows: true } } },
       });
+
+      // ━━━ AUTO-UPSERT CATEGORIES FROM ROW DATA ━━━━━━━━━━━━━━━━━━━
+      // Scan all imported rows for __category__/__sub_category__ values
+      // and auto-create corresponding Category/SubCategory records so the
+      // pill filter appears without manual admin configuration.
+      await syncCategoriesFromRows(dsId);
 
       return NextResponse.json({
         data: {
@@ -1277,6 +1389,12 @@ export async function POST(req: NextRequest) {
       where: { id: dsId },
       include: { _count: { select: { columns: true, rows: true } } },
     });
+
+    // ━━━ AUTO-UPSERT CATEGORIES FROM ROW DATA ━━━━━━━━━━━━━━━━━━━━━
+    // Scan all rows (existing + newly inserted) for __category__/__sub_category__
+    // values and auto-create corresponding Category/SubCategory records so the
+    // pill filter appears without manual admin configuration.
+    await syncCategoriesFromRows(dsId);
 
     return NextResponse.json({
       data: {

@@ -22,9 +22,14 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
       db.row.count({ where }),
     ]);
 
-    // Json fields are returned as native objects by Prisma with PostgreSQL
+    // SQLite returns JSON fields as strings — parse them for client compatibility
+    const parsedRows = rows.map(row => ({
+      ...row,
+      data: typeof row.data === 'string' ? JSON.parse(row.data) : row.data,
+    }));
+
     return NextResponse.json({
-      data: rows,
+      data: parsedRows,
       total,
       page,
       totalPages: Math.ceil(total / (limit || 1)),

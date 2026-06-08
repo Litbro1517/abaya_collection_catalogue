@@ -97,6 +97,87 @@ interface Props {
   onAddColumn?: () => void;
 }
 
+// ━━━ CategoryCell — Inline select for __category__ / __sub_category__ ━━━━━━━
+// Separate component because it uses hooks (useState, useEffect)
+function CategoryCell({
+  colSlug,
+  rowData,
+  rowId,
+  dataSourceId,
+  onUpdateRow,
+  onRefresh,
+}: {
+  colSlug: string;
+  rowData: Record<string, unknown>;
+  rowId: string;
+  dataSourceId: string;
+  onUpdateRow: (rowId: string, newData: Record<string, unknown>) => void;
+  onRefresh: () => void;
+}) {
+  const isCategory = colSlug === '__category__';
+  const currentVal = String(rowData[colSlug] || '').trim();
+
+  const [catOptions, setCatOptions] = useState<{ id: string; slug: string; label: string; subCategories: { slug: string; label: string }[] }[]>([]);
+
+  // Fetch all categories (with subCategories) once on mount
+  useEffect(() => {
+    fetch('/api/categories')
+      .then(r => r.ok ? r.json() : null)
+      .then(json => {
+        if (json?.data) setCatOptions(json.data);
+      })
+      .catch(() => {});
+  }, []);
+
+  const handleChange = (newSlug: string) => {
+    const data = { ...rowData };
+    data[colSlug] = newSlug;
+    // If changing category, reset sub-category
+    if (isCategory && newSlug !== currentVal) {
+      data.__sub_category__ = '';
+    }
+    // Optimistic local update
+    onUpdateRow(rowId, data);
+    // Background save
+    fetch(`/api/datasources/${dataSourceId}/rows/${rowId}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ data }),
+    }).then(res => {
+      if (res.ok) {
+        toast.success(isCategory ? 'Catégorie mise à jour' : 'Sous-catégorie mise à jour');
+      } else {
+        toast.error('Erreur de sauvegarde');
+        onRefresh();
+      }
+    }).catch(() => {
+      toast.error('Erreur réseau');
+      onRefresh();
+    });
+  };
+
+  // Derive options from catOptions without useState for subOptions
+  const parentSlug = String(rowData.__category__ || '').trim();
+  const parentCat = catOptions.find(c => c.slug === parentSlug);
+  const options = isCategory
+    ? catOptions.map(c => ({ slug: c.slug, label: c.label }))
+    : (parentCat?.subCategories || []);
+
+  return (
+    <select
+      className="h-6 text-[10px] bg-background border border-border/60 rounded px-1 focus:border-[#C9A84C] focus:ring-1 focus:ring-[#C9A84C]/20 outline-none max-w-[120px] truncate"
+      value={currentVal}
+      onChange={(e) => handleChange(e.target.value)}
+      title={currentVal || (isCategory ? 'Aucune catégorie' : 'Aucune sous-catégorie')}
+    >
+      <option value="">—</option>
+      {options.map(opt => (
+        <option key={opt.slug} value={opt.slug}>{opt.label}</option>
+      ))}
+    </select>
+  );
+}
+
 export function DataTable({ columns, rows, dataSourceId, loading, onRefresh, onUpdateRow, sortConfig, onSortChange, onSetSortDirect, onLocalStatusChange, onLocalLockToggle, pendingStatusChanges, onAddColumn }: Props) {
   const [editingCell, setEditingCell] = useState<string | null>(null); // `${rowId}-${colSlug}`
   const [editValue, setEditValue] = useState('');
@@ -838,6 +919,21 @@ export function DataTable({ columns, rows, dataSourceId, loading, onRefresh, onU
             {isLocked ? <Lock className="w-3 h-3" /> : <Unlock className="w-3 h-3" />}
           </button>
         </div>
+      );
+    }
+
+    // ━━━ Category/SubCategory Select Dropdowns ━━━━━━━━━━━━━━━━━━━━━
+    // Render inline select dropdowns for __category__ and __sub_category__
+    if (col.slug === '__category__' || col.slug === '__sub_category__') {
+      return (
+        <CategoryCell
+          colSlug={col.slug}
+          rowData={row.data as Record<string, unknown>}
+          rowId={row.id}
+          dataSourceId={dataSourceId}
+          onUpdateRow={onUpdateRow}
+          onRefresh={onRefresh}
+        />
       );
     }
 

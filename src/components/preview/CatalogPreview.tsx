@@ -245,14 +245,31 @@ export function CatalogPreview({ onAdminLogin }: CatalogPreviewProps) {
     subCategories: { id: string; slug: string; label: string; visible: boolean; ordre: number; categoryId: string }[];
   }[]>([]);
 
-  // Fetch dynamic categories from DB on mount
+  // Fetch dynamic categories from DB on mount; auto-seed defaults if empty
   useEffect(() => {
-    fetch('/api/categories')
-      .then(res => res.ok ? res.json() : null)
-      .then(json => {
-        if (json?.data) setDynamicCategories(json.data);
-      })
-      .catch(() => {});
+    const loadCategories = async () => {
+      try {
+        const res = await fetch('/api/categories');
+        if (!res.ok) return;
+        const json = await res.json();
+        if (json?.data && json.data.length > 0) {
+          setDynamicCategories(json.data);
+          return;
+        }
+        // No categories found — seed defaults and re-fetch
+        const seedRes = await fetch('/api/categories/seed', { method: 'POST' });
+        if (seedRes.ok) {
+          const catRes = await fetch('/api/categories');
+          if (catRes.ok) {
+            const catJson = await catRes.json();
+            if (catJson?.data) setDynamicCategories(catJson.data);
+          }
+        }
+      } catch {
+        // Silent fail — catalog still works with legacy filter
+      }
+    };
+    loadCategories();
   }, []);
 
   const s = settings || catalog?.settings;
@@ -1104,12 +1121,19 @@ export function CatalogPreview({ onAdminLogin }: CatalogPreviewProps) {
           </div>
 
           {/* ── Level 2: Micro Sub-filters (only when a macro category is selected) ━━ */}
+          {/* ━━━ Brand Chart color: inactive text uses chart-3 (#8B4513) instead of noir ━━━ */}
           {activeMacroFilter !== 'all' && (() => {
             const selectedCat = dynamicCategories.find(c => c.slug === activeMacroFilter);
             if (!selectedCat || !selectedCat.subCategories?.length) return null;
             const visibleSubs = selectedCat.subCategories.filter(sub => sub.visible);
             if (visibleSubs.length === 0) return null;
             const subCounts = getSubCategoryProductCounts(activeMacroFilter);
+            // Brand chart palette for sub-category row
+            const CHART_ACTIVE_BG = BRAND.dore;       // #C9A84C — chart-1 gold
+            const CHART_ACTIVE_TEXT = BRAND.blanc;      // #FFFFFF
+            const CHART_INACTIVE_TEXT = '#8B4513';      // chart-3 warm brown
+            const CHART_INACTIVE_BG = 'rgba(201,168,76,0.08)'; // subtle gold tint
+            const CHART_INACTIVE_BORDER = 'rgba(201,168,76,0.25)';
             return (
               <div className="catalog-filter-bar no-scrollbar" style={{ paddingTop: '4px', paddingBottom: '8px' }}>
                 {/* "Tous" sub-pill */}
@@ -1119,9 +1143,9 @@ export function CatalogPreview({ onAdminLogin }: CatalogPreviewProps) {
                     activeMicroFilter === 'all' ? 'shadow-sm' : 'hover:opacity-80'
                   )}
                   style={{
-                    backgroundColor: activeMicroFilter === 'all' ? BRAND.dore : 'transparent',
-                    color: activeMicroFilter === 'all' ? BRAND.blanc : BRAND.noir,
-                    border: activeMicroFilter === 'all' ? 'none' : `1px solid ${BRAND.dore}30`,
+                    backgroundColor: activeMicroFilter === 'all' ? CHART_ACTIVE_BG : CHART_INACTIVE_BG,
+                    color: activeMicroFilter === 'all' ? CHART_ACTIVE_TEXT : CHART_INACTIVE_TEXT,
+                    border: activeMicroFilter === 'all' ? 'none' : `1px solid ${CHART_INACTIVE_BORDER}`,
                   }}
                   onClick={() => { setActiveMicroFilter('all'); setCurrentPage(1); }}
                 >
@@ -1137,9 +1161,9 @@ export function CatalogPreview({ onAdminLogin }: CatalogPreviewProps) {
                         activeMicroFilter === sub.slug ? 'shadow-sm' : 'hover:opacity-80'
                       )}
                       style={{
-                        backgroundColor: activeMicroFilter === sub.slug ? BRAND.dore : 'transparent',
-                        color: activeMicroFilter === sub.slug ? BRAND.blanc : BRAND.noir,
-                        border: activeMicroFilter === sub.slug ? 'none' : `1px solid ${BRAND.dore}30`,
+                        backgroundColor: activeMicroFilter === sub.slug ? CHART_ACTIVE_BG : CHART_INACTIVE_BG,
+                        color: activeMicroFilter === sub.slug ? CHART_ACTIVE_TEXT : CHART_INACTIVE_TEXT,
+                        border: activeMicroFilter === sub.slug ? 'none' : `1px solid ${CHART_INACTIVE_BORDER}`,
                       }}
                       onClick={() => { setActiveMicroFilter(sub.slug); setCurrentPage(1); }}
                     >

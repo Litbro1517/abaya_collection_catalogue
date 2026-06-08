@@ -26,9 +26,13 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
         return NextResponse.json({ data: null, error: 'Not found' }, { status: 404 });
       }
 
-      // Json fields are returned as native objects by Prisma with PostgreSQL
+      // SQLite returns JSON fields as strings — parse them for client compatibility
       const result = {
         ...ds,
+        columns: ds.columns.map(col => ({
+          ...col,
+          config: typeof col.config === 'string' ? JSON.parse(col.config) : col.config,
+        })),
         rows: [], // No rows in meta mode
       };
 
@@ -64,9 +68,17 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
       return NextResponse.json({ data: null, error: 'Not found' }, { status: 404 });
     }
 
-    // Json fields are returned as native objects by Prisma with PostgreSQL
+    // SQLite returns JSON fields as strings — parse them for client compatibility
     const result = {
       ...ds,
+      columns: ds.columns.map(col => ({
+        ...col,
+        config: typeof col.config === 'string' ? JSON.parse(col.config) : col.config,
+      })),
+      rows: ds.rows.map(row => ({
+        ...row,
+        data: typeof row.data === 'string' ? JSON.parse(row.data) : row.data,
+      })),
       totalRows: rowCount,
       page,
       totalPages: Math.ceil(rowCount / limit),

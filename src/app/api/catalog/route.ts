@@ -56,8 +56,20 @@ export async function GET() {
       });
     }
 
-    // Json fields (config) are returned as native objects by Prisma with PostgreSQL
-    return NextResponse.json({ data: catalog, error: null });
+    // SQLite returns JSON fields as strings — parse them for client compatibility
+    const parsedCatalog = {
+      ...catalog,
+      sections: catalog.sections.map(section => ({
+        ...section,
+        config: typeof section.config === 'string' ? JSON.parse(section.config) : section.config,
+        components: section.components.map(comp => ({
+          ...comp,
+          config: typeof comp.config === 'string' ? JSON.parse(comp.config) : comp.config,
+        })),
+      })),
+    };
+
+    return NextResponse.json({ data: parsedCatalog, error: null });
   } catch (e) {
     console.error('Catalog fetch error:', e);
     return NextResponse.json({ data: null, error: 'Failed to fetch catalog' }, { status: 500 });

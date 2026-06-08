@@ -1,97 +1,95 @@
 ---
 Task ID: 1
-Agent: Main
-Task: Add Category & SubCategory models to Prisma schema
+Agent: Main Orchestrator
+Task: Analyze critical files for Dynamic Filtering System & Admin Control Panel
 
 Work Log:
-- Added Category model (slug unique, label, visible, ordre) to prisma/schema.prisma
-- Added SubCategory model (slug unique, label, categoryId FK, visible, ordre)
-- Changed datasource from postgresql to sqlite (matching existing .env)
-- Ran bun run db:push successfully — tables created
+- Read and analyzed prisma/schema.prisma — Category & SubCategory tables already exist with slug-first architecture
+- Read and analyzed src/components/preview/CatalogPreview.tsx — Two-level filter UI already implemented with dynamic categories
+- Read and analyzed src/components/data/DataTable.tsx — Admin data table with stock/switch/visibility handling
+- Read and analyzed src/app/api/google/sync/route.ts — Google Sheets sync with category/subcategory mapping
+- Read and analyzed src/app/api/categories/route.ts — Full CRUD with zero-product deletion constraint
+- Read and analyzed src/app/api/subcategories/route.ts — Full CRUD with zero-product deletion constraint
+- Read and analyzed src/app/api/datasources/fix-stock-dispo/route.ts — Only fixes stock>0+Epuisé, preserves Sur commande
+- Read and analyzed src/components/settings/SettingsPillar.tsx — Catalogue tab with category/subcategory management
+- Read and analyzed src/app/globals.css — Micro-CTA styles, brand colors, animations
+- Analyzed 3 user-provided screenshots via VLM — Two-level pill filter design with dark green active + light gray inactive
 
 Stage Summary:
-- Two new tables: categories, sub_categories
-- Slug-first architecture: slug is immutable identifier, label is renameable
-- Zero-product deletion constraint enforced via API, not DB level
----
-Task ID: 2
-Agent: Subagent (full-stack-developer)
-Task: Create API routes for Category & SubCategory CRUD
+- Bug #1 (Sur commande persistence) already fixed — sync route preserves admin's disponibilite choice for stock=0
+- Bug #2 (Keyboard vs arrow stock input) already fixed — both paths apply same cascade logic
+- Prisma schema already has Category/SubCategory with slug-first architecture
+- API routes already have full CRUD + zero-product deletion constraint
+- CatalogPreview already has two-level pill filter UI
+- SettingsPillar already has category/subcategory management UI
+- Missing: Sub-category pill row color change, Flow A auto-upsert, seed data, DataTable category dropdowns
 
-Work Log:
-- Rewrote /src/app/api/categories/route.ts with GET/POST/PATCH/DELETE
-- Created /src/app/api/subcategories/route.ts with GET/POST/PATCH/DELETE
-- Both DELETE endpoints enforce zero-product constraint (scan all Row data)
-- Seeded 5 categories (Ensemble, Abaya, Kimono, Robe, Accessoires) with 3 subcategories each
-
-Stage Summary:
-- Full CRUD API for categories and subcategories
-- Slugs auto-generated from labels (accent-stripped)
-- Product count check before deletion
----
-Task ID: 3
-Agent: Subagent (full-stack-developer)
-Task: Add __category__ and __sub_category__ native columns to sync/import flow
-
-Work Log:
-- Updated sync route to add __category__ (TEXT, order -4) and __sub_category__ (TEXT, order -5)
-- Maps sheet columns "Catégorie"/"Categorie"/"Category" to __category__
-- Maps sheet columns "Sous-catégorie"/"Sous-categorie"/"SubCategory" to __sub_category__
-- Preserves values on re-import alongside stock/disponibilite/statut
-- Updated DataTable NATIVE_COLUMN_SLUGS and NATIVE_ORDER
-
-Stage Summary:
-- Categories flow through import pipeline natively
-- Dual ingestion: Google Sheets import + manual admin entry
 ---
 Task ID: 4
-Agent: Subagent (full-stack-developer)
-Task: Build admin Catalogue management panel in Settings
+Agent: Main Orchestrator
+Task: Change sub-category pill row inactive text from black to brand chart color
 
 Work Log:
-- Added 'catalogue' to SettingsTab type in types/index.ts
-- Added 6th tab "Catalogue" with BookOpen icon to SettingsPillar
-- Slot 1: Grandes Catégories (Niveau 1) — list with inline editing, visibility switch, product count, delete with zero-product check
-- Slot 2: Sous-catégories (Niveau 2) — select parent, same features
-- Brand gold #C9A84C used for accents
+- Modified CatalogPreview.tsx Level 2 micro sub-filter pills
+- Changed inactive text from BRAND.noir (#1F1F1F black) to chart-3 warm brown (#8B4513)
+- Changed inactive background from transparent to subtle gold tint (rgba(201,168,76,0.08))
+- Changed inactive border from thin gold to chart color border (rgba(201,168,76,0.25))
+- Added brand chart palette constants for consistent styling
 
 Stage Summary:
-- Complete admin control panel for managing two-level filters
-- Inline label editing, visibility toggle, safe deletion
+- Sub-category pills now use brand chart colors instead of black for inactive state
+- Active pills remain gold (#C9A84C) with white text
+- Inactive pills use warm brown (#8B4513) text with subtle gold background tint
+
 ---
 Task ID: 5
-Agent: Main
-Task: Implement two-level pill filter UI in CatalogPreview
+Agent: Sub-agent (full-stack-developer)
+Task: Implement Flow A: Auto-upsert categories from Google Sheets during sync
 
 Work Log:
-- Added activeMacroFilter and activeMicroFilter state
-- Added dynamicCategories state fetched from /api/categories
-- Added getCategoryProductCounts() and getSubCategoryProductCounts()
-- Updated filterRows() to use __category__ and __sub_category__ fields
-- Replaced single-level filter bar with two-level pill system:
-  - Level 1: Green pills (secondaryColor) for macro categories with product counts
-  - Level 2: Gold pills (BRAND.dore) for micro sub-filters, only when macro selected
-- Added contextual category title (h2 with Playfair Display font)
-- Kept legacy filter as fallback when no dynamic categories loaded
+- Added syncCategoriesFromRows(dataSourceId) helper function to sync route
+- Function queries all rows for the given dataSourceId
+- Collects unique __category__ and __sub_category__ values
+- Upserts Category records with slug = generateSlug(value), never overwrites admin's label/visibility
+- Upserts SubCategory records with composite slug (parentSlug-subSlug)
+- Called at end of Branch 1 (Full Import) and Branch 2 (Delta Sync)
+- Lint check passes
 
 Stage Summary:
-- Two-level dynamic filtering fully implemented
-- Level 1 pills: Tout + visible categories with counts
-- Level 2 pills: Tous + visible subcategories with counts (contextual)
-- Context title appears when category selected
+- Categories from Google Sheets are now auto-upserted into Category/SubCategory DB tables during sync
+- Admin's manual category edits (label, visibility) are never overwritten by import
+
 ---
 Task ID: 6
-Agent: Subagent (full-stack-developer)
-Task: Fix stock/disponibilité persistence + event handler bugs
+Agent: Sub-agent (full-stack-developer)
+Task: Seed default categories + update CatalogPreview auto-seed
 
 Work Log:
-- Fixed race condition: debounced stock save overwrites switch change (Sur commande)
-- Added pending debounce sync in switch handler
-- Fixed keyboard "0" vs arrow "0" divergence in saveCell
-- Added cleanup for optimistic state on text-edit save
-- Added __category__ and __sub_category__ to native column handling
+- Created /src/app/api/categories/seed/route.ts with POST+GET handlers
+- Seeds 5 default categories: Ensemble, Abaya, Kimono, Robe, Accessoires
+- Each with 3 sub-categories: Nouveau, Saison, Discount
+- Idempotent upsert — never overwrites existing admin changes
+- Updated CatalogPreview useEffect to auto-seed when categories are empty
+- Fixed JSX parsing error in CatalogPreview two-level filter section
 
 Stage Summary:
-- Switch changes now persist correctly (Sur commande survives refresh)
-- Keyboard and arrow input behave identically
-- Debounced saves respect concurrent switch toggles
+- Default categories are auto-seeded on first catalog load
+- CatalogPreview fetches categories, seeds if empty, then re-fetches
+
+---
+Task ID: 7
+Agent: Main Orchestrator
+Task: Add category/subcategory select dropdowns in DataTable
+
+Work Log:
+- Created CategoryCell component as separate React component (uses hooks)
+- Renders HTML select dropdown for __category__ and __sub_category__ columns
+- Fetches categories from /api/categories on mount
+- Sub-category options derived from parent category's subCategories
+- Changing category auto-resets sub-category
+- Optimistic local update + background API save
+- Lint check passes
+
+Stage Summary:
+- Admin can now assign categories/subcategories directly from the DataTable
+- Category changes cascade to reset sub-category selection
