@@ -886,22 +886,37 @@ export function CatalogPreview({ onAdminLogin }: CatalogPreviewProps) {
             {(() => {
               const detailRawData = row.data as Record<string, unknown>;
               const detailStockState = computeStockState(detailRawData);
-              // Scenario B: Épuisé — SOLD OUT badge (red)
+              // Scenario B: Épuisé — minimaliste, épuré
               if (detailStockState === 'epuise') {
                 return (
                   <div className="flex items-center gap-2 mb-3">
-                    <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-rose-600 text-white shadow-sm">
-                      <span className="w-1.5 h-1.5 rounded-full bg-white" />
-                      Épuisé — SOLD OUT
+                    <span
+                      className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-sm text-[10px] font-medium tracking-[0.2em] uppercase select-none"
+                      style={{
+                        backgroundColor: 'rgba(0,0,0,0.06)',
+                        color: 'rgba(0,0,0,0.35)',
+                        border: '1px solid rgba(0,0,0,0.08)',
+                      }}
+                    >
+                      <span className="w-1 h-1 rounded-full bg-black/20" />
+                      Épuisé
                     </span>
                   </div>
                 );
               }
-              // Scenario C: Sur commande — elegant gold badge
+              // Scenario C: Sur commande — aérien, translucide, doré
               if (detailStockState === 'sur_commande') {
                 return (
                   <div className="flex items-center gap-2 mb-3">
-                    <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold shadow-sm" style={{ backgroundColor: '#8B7355', color: '#FFF8E7' }}>
+                    <span
+                      className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-sm text-[10px] font-medium tracking-[0.15em] uppercase select-none"
+                      style={{
+                        backgroundColor: 'rgba(139, 115, 85, 0.1)',
+                        backdropFilter: 'blur(8px)',
+                        color: '#8B7355',
+                        border: '1px solid rgba(201, 168, 76, 0.2)',
+                      }}
+                    >
                       <span className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: '#C9A84C' }} />
                       Sur commande — Confection à la demande
                     </span>
@@ -1086,46 +1101,49 @@ export function CatalogPreview({ onAdminLogin }: CatalogPreviewProps) {
                     <Heart className={isLiked ? 'fill-current' : ''} style={{ width: 14, height: 14, color: isLiked ? '#EF4444' : '#808080' }} />
                   </button>
 
-                  {/* ━━━ REACTIVE BADGE ENGINE ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */}
+                  {/* ━━━ REACTIVE BADGE ENGINE — Haut de Gamme & Minimaliste ━━━ */}
                   {/* Nouveau badge — HIDDEN when Épuisé OR Sur commande (strict rule) */}
                   {statut === 'Nouveau' && stockState === 'en_stock' && (
-                    <span className="absolute left-2 top-2 z-10 rounded-md px-2 py-0.5 text-[10px] font-semibold text-white shadow-sm" style={{ backgroundColor: BRAND.vertFonce }}>
+                    <span
+                      className="absolute left-2.5 top-2.5 z-10 rounded-sm px-2.5 py-1 text-[9px] font-medium tracking-[0.15em] uppercase text-white/90"
+                      style={{ backgroundColor: BRAND.vertFonce, backdropFilter: 'blur(4px)' }}
+                    >
                       Nouveau
                     </span>
                   )}
 
-                  {/* Scenario B: SOLD OUT badge — red bg-rose-600, white text (NOT green!) */}
-                  {stockState === 'epuise' && (
-                    <span className="absolute right-2 top-2 z-10 rounded-md px-2 py-0.5 text-[10px] font-semibold text-white shadow-sm bg-rose-600">
-                      Épuisé
-                    </span>
-                  )}
-
-                  {/* Scenario C: SUR COMMANDE badge — elegant gold/dark styling */}
-                  {stockState === 'sur_commande' && (
-                    <span className="absolute right-2 top-2 z-10 rounded-md px-2 py-0.5 text-[10px] font-semibold shadow-sm" style={{ backgroundColor: '#8B7355', color: '#FFF8E7' }}>
-                      Sur commande
-                    </span>
-                  )}
-
-                  {/* SOLD OUT overlay — only for Scenario B (Épuisé) */}
+                  {/* Scenario B: Épuisé — Épuré: single subtle overlay, NO duplicate badge */}
                   {stockState === 'epuise' && (
                     <div className="absolute inset-0 z-[5] flex items-center justify-center pointer-events-none">
-                      <div className="absolute inset-0 bg-black/20" />
+                      {/* Voile translucide — laisse deviner le produit en transparence */}
+                      <div className="absolute inset-0 bg-black/10 backdrop-blur-[1px]" />
+                      {/* Texte épuré — fin, espacé, élégant */}
                       <span
-                        className="relative z-10 text-white font-bold text-sm tracking-widest uppercase opacity-70"
+                        className="relative z-10 text-white/50 font-light text-[11px] tracking-[0.35em] uppercase select-none"
                         style={{
-                          transform: 'rotate(-25deg)',
-                          textShadow: '0 1px 3px rgba(0,0,0,0.5)',
-                          border: '2px solid rgba(255,46,99,0.6)',
-                          padding: '4px 16px',
-                          borderRadius: '4px',
-                          backgroundColor: 'rgba(255,46,99,0.85)',
+                          textShadow: '0 0 8px rgba(0,0,0,0.15)',
+                          letterSpacing: '0.35em',
                         }}
                       >
-                        SOLD OUT
+                        épuisé
                       </span>
                     </div>
+                  )}
+
+                  {/* Scenario C: Sur commande — aérien, translucide, doré */}
+                  {stockState === 'sur_commande' && (
+                    <span
+                      className="absolute left-2.5 top-2.5 z-10 rounded-sm px-2.5 py-1 text-[9px] font-medium tracking-[0.12em] uppercase select-none"
+                      style={{
+                        backgroundColor: 'rgba(139, 115, 85, 0.55)',
+                        backdropFilter: 'blur(8px)',
+                        WebkitBackdropFilter: 'blur(8px)',
+                        color: 'rgba(255, 248, 231, 0.92)',
+                        border: '1px solid rgba(201, 168, 76, 0.25)',
+                      }}
+                    >
+                      Sur commande
+                    </span>
                   )}
 
                   {/* Image count badge */}
