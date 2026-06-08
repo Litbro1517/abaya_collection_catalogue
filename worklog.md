@@ -338,3 +338,26 @@ Stage Summary:
 - PRODUIT ÉPUISÉ button has validated pulsating radiation glow animation (2.5s ease-in-out infinite)
 - Price line status text preserved (SOLD OUT / SUR COMMANDE)
 - Production verified and deployed
+---
+Task ID: 1
+Agent: Main
+Task: Fix Sur commande persistence bug & harmonize stock input cascade
+
+Work Log:
+- Read and analyzed all critical files: DataTable.tsx, fix-stock-dispo/route.ts, google/sync/route.ts, stock-import/route.ts, CatalogPreview.tsx, Prisma schema
+- Identified Root Cause #1: Auto-fix useEffect on mount treated stock=0+dispo=true ("Sur commande") as an import anomaly and forcibly reverted it to "Épuisé" via fix-stock-dispo endpoint with fix_sur_commande=true
+- Identified Root Cause #2: saveCell (generic text editing via double-click) bypassed the reactive cascade for __stock__ changes, so keyboard "0" didn't update __disponibilite__ while arrow decrement did
+- Fixed DataTable.tsx auto-fix: Now only fixes stock>0+Épuisé anomaly. Sur commande (stock=0+dispo=true) is treated as legitimate admin choice.
+- Fixed DataTable.tsx saveCell: Added reactive cascade for __stock__ changes via generic text input
+- Fixed fix-stock-dispo/route.ts: Removed fix_sur_commande logic entirely. Only fixes stock>0 anomalies.
+- Fixed google/sync/route.ts: Preserved row restoration now respects admin's __disponibilite__ choice for stock=0 instead of forcing Épuisé
+- Fixed stock-import/route.ts: Added reactive cascade after bulk stock import
+- Verified CatalogPreview.tsx computeStockState() is already correct (no changes needed)
+- Deployed to Vercel production: https://abaya-collection-catalogue-9dum.vercel.app
+
+Stage Summary:
+- 4 files modified: DataTable.tsx, fix-stock-dispo/route.ts, google/sync/route.ts, stock-import/route.ts
+- Core principle: Admin's "Sur commande" choice (stock=0 + switch ON) is now SOVEREIGN and never auto-corrected
+- Only true anomaly fixed: stock>0 + dispo=false → auto-corrected to Disponible
+- All stock input methods (stepper, generic text edit, bulk import) now apply the same reactive cascade
+- Micro-CTA amber/gold design is untouched (CatalogPreview.tsx was not modified)
