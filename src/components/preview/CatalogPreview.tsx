@@ -935,7 +935,7 @@ export function CatalogPreview({ onAdminLogin }: CatalogPreviewProps) {
               const isSurCommande = detailStockState === 'sur_commande';
               return (
                 <a
-                  className={cn('whatsapp-cta', isEpuise && 'opacity-50 pointer-events-none cursor-not-allowed')}
+                  className={cn('whatsapp-cta', isEpuise && 'whatsapp-cta--disabled')}
                   href={isEpuise ? undefined : conversionLink}
                   target={isEpuise ? undefined : '_blank'}
                   rel={isEpuise ? undefined : 'noopener noreferrer'}
@@ -1050,6 +1050,9 @@ export function CatalogPreview({ onAdminLogin }: CatalogPreviewProps) {
             const price = config.priceColumn ? getCellValue(row, config.priceColumn) : '';
             const isLiked = likedProducts.has(row.id);
             const imageCount = getImageCount(row, config, columns);
+            const conversionLink = buildConversionLink(row, config);
+            const isEpuise = stockState === 'epuise';
+            const isSurCommande = stockState === 'sur_commande';
 
             return (
               <article key={row.id} className="product-card">
@@ -1101,48 +1104,14 @@ export function CatalogPreview({ onAdminLogin }: CatalogPreviewProps) {
                     <Heart className={isLiked ? 'fill-current' : ''} style={{ width: 14, height: 14, color: isLiked ? '#EF4444' : '#808080' }} />
                   </button>
 
-                  {/* ━━━ REACTIVE BADGE ENGINE — Haut de Gamme & Minimaliste ━━━ */}
-                  {/* Nouveau badge — HIDDEN when Épuisé OR Sur commande (strict rule) */}
+                  {/* ━━━ BADGE ENGINE — Only Nouveau on image, NO status overlays ━━━ */}
+                  {/* Nouveau badge — STRICTLY preserved, only shown for in-stock products */}
                   {statut === 'Nouveau' && stockState === 'en_stock' && (
                     <span
                       className="absolute left-2.5 top-2.5 z-10 rounded-sm px-2.5 py-1 text-[9px] font-medium tracking-[0.15em] uppercase text-white/90"
                       style={{ backgroundColor: BRAND.vertFonce, backdropFilter: 'blur(4px)' }}
                     >
                       Nouveau
-                    </span>
-                  )}
-
-                  {/* Scenario B: Épuisé — Épuré: single subtle overlay, NO duplicate badge */}
-                  {stockState === 'epuise' && (
-                    <div className="absolute inset-0 z-[5] flex items-center justify-center pointer-events-none">
-                      {/* Voile translucide — laisse deviner le produit en transparence */}
-                      <div className="absolute inset-0 bg-black/10 backdrop-blur-[1px]" />
-                      {/* Texte épuré — fin, espacé, élégant */}
-                      <span
-                        className="relative z-10 text-white/50 font-light text-[11px] tracking-[0.35em] uppercase select-none"
-                        style={{
-                          textShadow: '0 0 8px rgba(0,0,0,0.15)',
-                          letterSpacing: '0.35em',
-                        }}
-                      >
-                        épuisé
-                      </span>
-                    </div>
-                  )}
-
-                  {/* Scenario C: Sur commande — aérien, translucide, doré */}
-                  {stockState === 'sur_commande' && (
-                    <span
-                      className="absolute left-2.5 top-2.5 z-10 rounded-sm px-2.5 py-1 text-[9px] font-medium tracking-[0.12em] uppercase select-none"
-                      style={{
-                        backgroundColor: 'rgba(139, 115, 85, 0.55)',
-                        backdropFilter: 'blur(8px)',
-                        WebkitBackdropFilter: 'blur(8px)',
-                        color: 'rgba(255, 248, 231, 0.92)',
-                        border: '1px solid rgba(201, 168, 76, 0.25)',
-                      }}
-                    >
-                      Sur commande
                     </span>
                   )}
 
@@ -1159,9 +1128,53 @@ export function CatalogPreview({ onAdminLogin }: CatalogPreviewProps) {
                 {config.showTitle !== false && title && (
                   <strong className="product-card-title">{title}</strong>
                 )}
-                {price && config.showPrice !== false && (
-                  <span className="product-card-price">{price}</span>
+
+                {/* Price line with inline status — minimalist, high-end */}
+                {((price && config.showPrice !== false) || isEpuise || isSurCommande) && (
+                  <div className="product-card-price-row">
+                    {price && config.showPrice !== false && (
+                      <span className="product-card-price">{price}</span>
+                    )}
+                    {/* Scenario B: Épuisé — soft rose, no background */}
+                    {isEpuise && (
+                      <span className="product-card-status product-card-status--epuise">
+                        Sold out
+                      </span>
+                    )}
+                    {/* Scenario C: Sur commande — amber/gold, no background */}
+                    {isSurCommande && (
+                      <span className="product-card-status product-card-status--sur-commande">
+                        Sur commande
+                      </span>
+                    )}
+                  </div>
                 )}
+
+                {/* WhatsApp CTA button — always visible, adapts to stock state */}
+                <a
+                  className={cn(
+                    'product-card-cta',
+                    isEpuise && 'product-card-cta--disabled'
+                  )}
+                  href={isEpuise ? undefined : conversionLink}
+                  target={isEpuise ? undefined : '_blank'}
+                  rel={isEpuise ? undefined : 'noopener noreferrer'}
+                  onClick={isEpuise ? (e: React.MouseEvent) => e.preventDefault() : undefined}
+                  style={{
+                    backgroundColor: isEpuise ? BRAND.grisClair : primaryColor,
+                    color: isEpuise ? BRAND.grisMoyen : '#111',
+                  }}
+                >
+                  <MessageCircle className="w-3.5 h-3.5 shrink-0" />
+                  <span className="truncate">
+                    {isEpuise ? 'Produit épuisé' :
+                     isSurCommande ? 'Commander (Atelier)' :
+                     s?.conversionChannel === 'whatsapp' ? 'Commander' :
+                     s?.conversionChannel === 'messenger' ? 'Commander' :
+                     s?.conversionChannel === 'email' ? 'Commander' :
+                     'Commander'}
+                  </span>
+                </a>
               </article>
             );
           })}
