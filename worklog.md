@@ -235,3 +235,43 @@ Stage Summary:
 - Sur commande: airy translucent badge with gold border, image visible through
 - Detail view: minimal inline badges matching card aesthetic
 - Deployed to Vercel: https://abaya-collection-catalogue-9dum.vercel.app
+
+---
+Task ID: 1
+Agent: Main Agent
+Task: Refonte UI Catalogue - Images nettes, Statuts sur ligne prix, CTA WhatsApp adaptatif
+
+Work Log:
+- Analyzed uploaded screenshot (Capture d'écran 2026-06-08 110813.png) via VLM
+- Read complete CatalogPreview.tsx (1241 lines) and globals.css (825 lines)
+- Identified current implementation: blur overlay + "épuisé" text on images, "Sur commande" badge on images, separate price display
+- Removed all image overlays for Épuisé products (bg-black/10 backdrop-blur-[1px] + centered "épuisé" text)
+- Removed "Sur commande" badge from product images (translucent brown badge at top-left)
+- Strictly preserved "Nouveau" badge on images (dark green, top-left, only for en_stock products)
+- Added inline status text on price line:
+  - "Sold out" in rose-700 (#BE185D) next to price - no background
+  - "Sur commande" in amber-600 (#D97706) next to price - no background
+  - Typography: uppercase, tracking-wider, font-semibold, text-sm
+- Added WhatsApp CTA button to each grid card:
+  - Active: golden background (#C9A84C), "Commander" text, links to WhatsApp
+  - Sur commande: golden background, "Commander (Atelier)" text
+  - Épuisé: gray background (#F0F0F0), gray text (#808080), "Produit épuisé", disabled
+  - Subtle pulse animation (epuise-pulse keyframe) on disabled state
+- Updated detail view CTA button to use same pulse animation (whatsapp-cta--disabled class)
+- Added CSS for: product-card-price-row, product-card-status, product-card-cta, epuise-pulse animation
+- Ran lint: passed with no errors
+- Deployed to Vercel: successful, build completed in 47s
+- Validated on production via Agent Browser: ALL 8 criteria PASS
+  - Images 100% sharp/clear, no overlays
+  - No status text on images
+  - Nouveau badge preserved
+  - Status text correctly inline with price
+  - CTA buttons per card with correct states
+  - No console errors
+
+Stage Summary:
+- All image overlays (blur, dark veil, status badges) removed from product photos
+- Status indicators moved to price line with minimalist typography
+- WhatsApp CTA button added to each grid card with adaptive state
+- Nouveau badge strictly preserved
+- Production deployed and verified: https://abaya-collection-catalogue-9dum.vercel.app
