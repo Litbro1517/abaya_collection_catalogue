@@ -435,19 +435,19 @@
 
 /* ── Active CTA: Amber/Gold — cloned from Masquer button ── */
 .product-card-micro-cta--active {
-  background-color: rgba(195, 155, 55, 0.72);
-  color: #5C4A1E;
+  background-color: rgba(195, 155, 55, 0.78);
+  color: #fff;
 }
 
 .product-card-micro-cta--active:hover {
-  background-color: rgba(195, 155, 55, 0.82);
+  background-color: rgba(195, 155, 55, 0.88);
 }
 
 /* ── Disabled CTA: Muted amber with pulsating radiation glow ── */
 .product-card-micro-cta--disabled {
   cursor: not-allowed;
-  background-color: rgba(160, 130, 60, 0.35);
-  color: rgba(92, 74, 30, 0.55);
+  background-color: rgba(140, 115, 55, 0.45);
+  color: rgba(255, 255, 255, 0.8);
   animation: epuise-pulse 2.5s ease-in-out infinite;
 }
 
