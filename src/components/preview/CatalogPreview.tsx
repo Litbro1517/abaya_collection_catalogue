@@ -1120,16 +1120,12 @@ export function CatalogPreview({ onAdminLogin }: CatalogPreviewProps) {
                     </div>
                   )}
 
-                  {/* ━━━ MICRO-CTA ON IMAGE — Same capsule for both states ━━━ */}
+                  {/* ━━━ MICRO-CTA ON IMAGE — Amber/Gold capsule (cloned Masquer style) ━━━ */}
                   <button
                     className={cn(
                       'product-card-micro-cta',
                       isEpuise ? 'product-card-micro-cta--disabled' : 'product-card-micro-cta--active'
                     )}
-                    style={{
-                      backgroundColor: isEpuise ? 'rgba(128,128,128,0.55)' : 'rgba(45, 190, 107, 0.85)',
-                      color: isEpuise ? 'rgba(255,255,255,0.65)' : '#fff',
-                    }}
                     onClick={(e) => {
                       e.stopPropagation();
                       if (!isEpuise) {
