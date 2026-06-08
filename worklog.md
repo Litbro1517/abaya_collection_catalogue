@@ -312,3 +312,29 @@ Stage Summary:
 - Product detail CTA now uses official WhatsApp green with glow shadow
 - Disabled state properly removes green glow
 - Production deployed: https://abaya-collection-catalogue-9dum.vercel.app
+---
+Task ID: 1
+Agent: Main Agent
+Task: Harmonisation des Proportions & Validation de l'Animation Épuisé
+
+Work Log:
+- Read current CatalogPreview.tsx and globals.css to understand existing micro-CTA implementation
+- Analyzed uploaded screenshot via VLM to identify current button states
+- Updated globals.css: harmonized `.product-card-micro-cta` to ultra-thin capsule (width: 30%, padding: 3px 0, font-size: 9px, rounded-full)
+- Added `.product-card-micro-cta--active` class with softened WhatsApp green glow (rgba(45, 190, 107, 0.85))
+- Enhanced `.product-card-micro-cta--disabled` with pulsating radiation animation (epuise-pulse keyframes with box-shadow glow)
+- Both buttons share identical geometry: same width, height, padding, border-radius, font-size
+- Updated CatalogPreview.tsx: both states use cn() with shared base class + state modifier
+- Active: "COMMANDER" in softened noble green; Disabled: "PRODUIT ÉPUISÉ" in translucent grey with glow
+- Softened WhatsApp green from raw #25D366 to rgba(45, 190, 107, 0.85) for noble/elegant appearance
+- Preserved price line status text (SOLD OUT in rose-700, SUR COMMANDE in amber-600)
+- Lint check passed clean
+- Deployed to Vercel production: https://abaya-collection-catalogue-9dum.vercel.app
+- Agent Browser verification: 7/7 checks passed (cards, CTA buttons, capsule shape, animation, price line, footer)
+
+Stage Summary:
+- Both COMMANDER and PRODUIT ÉPUISÉ buttons now share identical thin elongated rounded-full capsule geometry
+- WhatsApp green softened for noble/elegant look (rgba(45, 190, 107, 0.85))
+- PRODUIT ÉPUISÉ button has validated pulsating radiation glow animation (2.5s ease-in-out infinite)
+- Price line status text preserved (SOLD OUT / SUR COMMANDE)
+- Production verified and deployed
