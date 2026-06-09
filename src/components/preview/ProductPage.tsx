@@ -187,6 +187,9 @@ export function ProductPage({
   const variants = config.variantColumn ? getCellValue(config.variantColumn) : '';
   const statut = (rawData.__statut__ as string) || 'Courant';
 
+  // ── ColorMap state (must be declared BEFORE colorData computation) ──
+  const [colorMap, setColorMap] = useState<Record<string, string>>({});
+
   // ── Parse colors: colorColumn (ColorMap) → optionscouleurs fallback → variantColumn fallback ──
   // Priority 1: dedicated colorColumn (ColorMap-driven, COLOR type)
   const rawColorValue = config.colorColumn ? getCellValue(config.colorColumn) : '';
@@ -330,7 +333,6 @@ export function ProductPage({
   const [isLiked, setIsLiked] = useState(false);
   const [showShareToast, setShowShareToast] = useState(false);
   const [imageLoaded, setImageLoaded] = useState<Set<number>>(new Set());
-  const [colorMap, setColorMap] = useState<Record<string, string>>({});
 
   const touchStartX = useRef(0);
   const touchEndX = useRef(0);
