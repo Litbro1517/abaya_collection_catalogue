@@ -210,3 +210,137 @@ Stage Summary:
 - Deactivation bug fixed (filtering only in admin UI)
 - Import/Map feature added to ColorCell dropdown
 - All changes deployed to production
+
+---
+Task ID: 2
+Agent: full-stack-developer
+Task: Create ColorSourceModal component
+
+Work Log:
+- Read StockSourceModal.tsx to understand the exact structure to replicate
+- Created /home/z/my-project/src/components/data/ColorSourceModal.tsx with all adaptations:
+  - ColorSourceConfig interface (sourceTableId, matchColumnSlug, colorColumnSlug, matchTargetSlug)
+  - ColorSourceModalProps with colorColumnSlug prop for identifying the COLOR column
+  - TEXT column filtering instead of NUMBER/CURRENCY for the color source column selector
+  - API endpoint: POST /api/datasources/{id}/color-import (instead of stock-import)
+  - API response handling: supports { updated, unknown } — shows warning toast for unrecognized colors
+  - Dialog title: "Connecter une source de couleurs" with Palette icon
+  - Color column label: "Colonne Couleur Source" with Palette icon
+  - Color column hint: "Colonne contenant les noms de couleur bruts (ex: 'noir, beige')"
+  - Info box: mentions ColorMap normalization, unrecognized color reporting, manual editability
+  - Config persistence: saves as `colorSource` (not `stockSource`) on the COLOR column
+  - Same table logic: when sourceTableId === currentDataSourceId, skips match column
+  - Force reimport text: "Forcer la ré-importation des couleurs"
+  - Success toast: "Source de couleurs connectée — {updated} produit(s) mis à jour"
+  - Warning toast: "{unknown.length} couleur(s) non reconnue(s) : {unknown.join(', ')}"
+  - Same gold (#C9A84C) and emerald color scheme as StockSourceModal
+- Lint passes with no errors
+
+Stage Summary:
+- ColorSourceModal component created as a full adaptation of StockSourceModal
+- Supports connecting a TEXT column as color source, with ColorMap normalization
+- Handles unknown colors via warning toast
+- Config saved as `colorSource` on the COLOR column identified by `colorColumnSlug` prop
+
+---
+Task ID: 3
+Agent: full-stack-developer
+Task: Create POST /api/datasources/[id]/color-import backend route
+
+Work Log:
+- Read reference files: stock-import route pattern, color-utils.ts (normalizeColorName, generateColorSlug, parseColorList)
+- Created `/home/z/my-project/src/app/api/datasources/[id]/color-import/route.ts`
+- Followed exact Next.js 16 async params pattern from stock-import
+- Implemented 5-step algorithm:
+  1. Load ALL ColorMap entries → build slug→{name,hex} resolution map
+  2. Fetch current rows from DB
+  3. Same-table vs different-table logic (with matchColumnSlug validation for cross-table)
+  4. Per-row resolve: parseColorList → normalizeColorName → generateColorSlug → ColorMap lookup
+  5. Fail-fast: if unknownNames.size > 0 → 422 with {error, unknown, count}; else write all rows
+- Extracted `resolveColors()` helper for clean per-value parsing/normalization
+- Written values use ColorMap canonical names (comma-separated, e.g. "Noir, Beige, Rose")
+- targetColorColumnSlug defaults to "__colors__", matchTargetSlug defaults to "__n_ordre__"
+- Lint passes with no errors
+
+Stage Summary:
+- POST /api/datasources/[id]/color-import route is fully implemented
+- Handles same-table and cross-table imports with ColorMap normalization
+- Fail-fast 422 on any unrecognized color names (no partial writes)
+- Uses shared color-utils functions for parsing, normalization, and slug generation
+---
+Task ID: 1
+Agent: main
+Task: Extend ColumnHeaderMenu with "Connecter une source de couleurs" for COLOR columns
+
+Work Log:
+- Added `ColorSourceModal` and `ColorSourceConfig` import to DataTable.tsx
+- Added state: `showColorSourceModal`, `colorSourceConfig`, `colorSourceColumnSlug`
+- Added `useEffect` to load `colorSource` config from the COLOR column
+- Added "Connecter une source de couleurs" button in the column header popover menu, gated by `col.type === 'COLOR'`
+- Added `<ColorSourceModal>` render component alongside the existing `<StockSourceModal>`
+- The modal receives `colorColumnSlug` prop to identify which COLOR column to save config to
+
+Stage Summary:
+- Column header menu now shows "Connecter une source de couleurs" for COLOR type columns
+- Config is persisted in `column.config.colorSource`
+- When source is configured, shows green "Source de couleurs configurée" with ● Config badge
+
+---
+Task ID: 2
+Agent: subagent (full-stack-developer)
+Task: Create ColorSourceModal component
+
+Work Log:
+- Created `/home/z/my-project/src/components/data/ColorSourceModal.tsx`
+- Clone of StockSourceModal adapted for colors
+- Uses `Palette` icon instead of `Link2`/`Hash`
+- Filters TEXT columns for color source selector (not NUMBER)
+- API endpoint: `POST /api/datasources/[id]/color-import`
+- Handles unknown colors with warning toast
+- Config saved as `colorSource` in column config
+
+Stage Summary:
+- ColorSourceModal fully functional with same UX pattern as StockSourceModal
+- Supports same table and different table import modes
+- Force re-import and disconnect buttons work
+
+---
+Task ID: 3
+Agent: subagent (full-stack-developer)
+Task: Create POST /api/datasources/[id]/color-import backend route
+
+Work Log:
+- Created `/home/z/my-project/src/app/api/datasources/[id]/color-import/route.ts`
+- 5-step algorithm: Load ColorMap → Fetch rows → Process → Normalize → Fail-fast on unknowns
+- Same table: direct column-to-column read
+- Different table: lookup join via matchColumnSlug
+- Normalizes via `parseColorList` + `normalizeColorName` + `generateColorSlug`
+- Writes canonical ColorMap names (not raw input)
+- Returns 422 with unknown color list if any unrecognized colors found
+- Returns `{ updated: count }` on success
+
+Stage Summary:
+- Backend route fully implements the color-import specification
+- Fail-fast behavior: NO database writes if ANY color is unrecognized
+- Canonical names written: "Noir, Beige" not "noir, BEIGE"
+
+---
+Task ID: 4
+Agent: main
+Task: Fix ColorCell to use resolveColorHex instead of exact name matching
+
+Work Log:
+- Added imports: `resolveColorHex`, `buildColorLookupMap`, `normalizeCouleurKey` from color-utils
+- Added `colorLookupMap` built from `buildColorLookupMap(colors)`
+- Rewrote `getColorByName()` with 3 strategies: exact match, normalized key match, slug match
+- Added `resolveHex()` helper using the multi-strategy `resolveColorHex`
+- Updated `renderInlineDisplay()`: uses `resolveHex(name)` instead of `getColorByName(name)?.hex`
+- Updated `renderSelectedChips()`: uses `resolveHex(name)` instead of `colorItem?.hex`
+- Updated checkbox list: fuzzy `isSelected` check using `normalizeCouleurKey` comparison
+- Updated `toggleColor()`: fuzzy deselection (removes even if case differs)
+
+Stage Summary:
+- ColorCell now resolves color hex codes using the same 7-strategy resolver as ProductPage
+- Case-insensitive matching: "noir", "NOIR", "Noir" all resolve correctly
+- Fuzzy selection/deselection: clicking "Noir" checkbox removes "noir" from the cell value
+- No more gray dots for case mismatches

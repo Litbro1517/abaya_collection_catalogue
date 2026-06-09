@@ -9,6 +9,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Plus, Check, X, Palette, ArrowRightLeft, Search } from 'lucide-react';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
+import { resolveColorHex, buildColorLookupMap, normalizeCouleurKey } from '@/lib/color-utils';
 
 // ━━━ Types ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
@@ -142,15 +143,48 @@ export function ColorCell({
     .filter(c => c.visible && c.isActive)
     .sort((a, b) => a.ordre - b.ordre);
 
-  // Helper: lookup color by name
-  const getColorByName = (name: string): ColorMapItem | undefined =>
-    colors.find(c => c.name === name);
+  // Build a robust lookup map for hex resolution (same as ProductPage)
+  const colorLookupMap = buildColorLookupMap(colors);
+
+  // Helper: lookup color by name (fuzzy — case-insensitive, accent-tolerant)
+  const getColorByName = (name: string): ColorMapItem | undefined => {
+    // Strategy 1: Exact match (fast path)
+    const exact = colors.find(c => c.name === name);
+    if (exact) return exact;
+    // Strategy 2: Normalized key match (case-insensitive, accent-insensitive)
+    const normKey = normalizeCouleurKey(name);
+    const byNorm = colors.find(c => normalizeCouleurKey(c.name) === normKey);
+    if (byNorm) return byNorm;
+    // Strategy 3: Slug match
+    const slugMatch = colors.find(c => c.slug === normKey);
+    if (slugMatch) return slugMatch;
+    return undefined;
+  };
+
+  // Resolve hex for a color name using the multi-strategy resolver
+  const resolveHex = (name: string): string | null => resolveColorHex(name, colorLookupMap);
+
+  // Local slug generator for fuzzy matching
+  const generateColorSlugLocal = (name: string): string =>
+    name.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[^a-z0-9-]+/g, '-').replace(/^-|-$/g, '');
 
   // ── Toggle a color selection ──
   const toggleColor = (colorName: string) => {
-    const newSelected = selectedNames.includes(colorName)
-      ? selectedNames.filter(n => n !== colorName)
-      : [...selectedNames, colorName];
+    // Check if already selected (fuzzy match for case-insensitive equality)
+    const existingIdx = selectedNames.findIndex(n =>
+      n === colorName ||
+      normalizeCouleurKey(n) === normalizeCouleurKey(colorName) ||
+      normalizeCouleurKey(n) === generateColorSlugLocal(colorName)
+    );
+
+    let newSelected: string[];
+    if (existingIdx >= 0) {
+      // Remove the existing entry (even if case differs)
+      newSelected = selectedNames.filter((_, i) => i !== existingIdx);
+    } else {
+      // Add using the canonical ColorMap name
+      newSelected = [...selectedNames, colorName];
+    }
 
     const newData = { ...rowData };
     newData[colSlug] = newSelected.join(', ');
@@ -335,12 +369,12 @@ export function ColorCell({
     return (
       <div className="flex items-center gap-0.5 flex-wrap" title={selectedNames.join(', ')}>
         {selectedNames.map(name => {
-          const colorItem = getColorByName(name);
+          const resolvedHex = resolveHex(name);
           return (
             <div
               key={name}
-              className={cn('w-4 h-4 rounded-full shrink-0 border border-white/50 shadow-sm', !colorItem?.hex && 'color-dot-missing')}
-              style={colorItem?.hex ? { backgroundColor: colorItem.hex } : undefined}
+              className={cn('w-4 h-4 rounded-full shrink-0 border border-white/50 shadow-sm', !resolvedHex && 'color-dot-missing')}
+              style={resolvedHex ? { backgroundColor: resolvedHex } : undefined}
               title={name}
             />
           );
@@ -355,8 +389,7 @@ export function ColorCell({
     return (
       <div className="flex flex-wrap gap-1 mb-2 pb-2 border-b border-border/50">
         {selectedNames.map(name => {
-          const colorItem = getColorByName(name);
-          const hex = colorItem?.hex || null;
+          const resolvedHex = resolveHex(name);
           return (
             <Badge
               key={name}
@@ -367,8 +400,8 @@ export function ColorCell({
               )}
             >
               <div
-                className={cn('w-3 h-3 rounded-full shrink-0 border border-white/30', !hex && 'color-dot-missing')}
-                style={hex ? { backgroundColor: hex } : undefined}
+                className={cn('w-3 h-3 rounded-full shrink-0 border border-white/30', !resolvedHex && 'color-dot-missing')}
+                style={resolvedHex ? { backgroundColor: resolvedHex } : undefined}
               />
               <span>{name}</span>
               <button
@@ -404,7 +437,12 @@ export function ColorCell({
           </div>
         ) : (
           visibleColors.map(color => {
-            const isSelected = selectedNames.includes(color.name);
+            // Fuzzy match: check if any selected name matches this color (case-insensitive, accent-insensitive)
+            const isSelected = selectedNames.some(selName => {
+              if (selName === color.name) return true;
+              return normalizeCouleurKey(selName) === normalizeCouleurKey(color.name) ||
+                     normalizeCouleurKey(selName) === color.slug;
+            });
             return (
               <label
                 key={color.id}

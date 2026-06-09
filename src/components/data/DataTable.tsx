@@ -50,6 +50,7 @@ import { cn } from '@/lib/utils';
 import { ColumnEditorDialog } from './ColumnEditorDialog';
 import { ColorCell } from './ColorCell';
 import { StockSourceModal, type StockSourceConfig } from './StockSourceModal';
+import { ColorSourceModal, type ColorSourceConfig } from './ColorSourceModal';
 
 // Column type icon mapping
 const COLUMN_TYPE_ICON: Record<ColumnType, React.ReactNode> = {
@@ -214,6 +215,11 @@ export function DataTable({ columns, rows, dataSourceId, loading, onRefresh, onU
   // Stock source connection modal
   const [showStockSourceModal, setShowStockSourceModal] = useState(false);
   const [stockSourceConfig, setStockSourceConfig] = useState<StockSourceConfig | null>(null);
+
+  // Color source connection modal
+  const [showColorSourceModal, setShowColorSourceModal] = useState(false);
+  const [colorSourceConfig, setColorSourceConfig] = useState<ColorSourceConfig | null>(null);
+  const [colorSourceColumnSlug, setColorSourceColumnSlug] = useState<string>('__colors__');
 
   // ━━━ Optimistic State Layer (Stock, Switch, Visibility) ━━━━━━━━━━━━━
   // All three use the same pattern: instant local state → async background save
@@ -395,6 +401,19 @@ export function DataTable({ columns, rows, dataSourceId, loading, onRefresh, onU
       setStockSourceConfig(cfg || null);
     } else {
       setStockSourceConfig(null);
+    }
+  }, [columns]);
+
+  // ── Load color source config from the COLOR column ──
+  // Config is stored for UI indicator only — colors remain manually editable
+  useEffect(() => {
+    const colorCol = columns.find(c => c.type === 'COLOR');
+    if (colorCol?.config && typeof colorCol.config === 'object') {
+      const cfg = (colorCol.config as Record<string, unknown>).colorSource as ColorSourceConfig | undefined;
+      setColorSourceConfig(cfg || null);
+      setColorSourceColumnSlug(colorCol.slug);
+    } else {
+      setColorSourceConfig(null);
     }
   }, [columns]);
 
@@ -1493,6 +1512,31 @@ export function DataTable({ columns, rows, dataSourceId, loading, onRefresh, onU
                                 </button>
                               )}
 
+                              {/* ── Connect Color Source — for COLOR type columns ── */}
+                              {col.type === 'COLOR' && (
+                                <button
+                                  className={cn(
+                                    "w-full flex items-center gap-2 px-3 py-1.5 text-left text-xs transition-colors",
+                                    colorSourceConfig
+                                      ? "bg-emerald-50 hover:bg-emerald-100/70 text-emerald-700"
+                                      : "hover:bg-[#C9A84C]/5 text-[#C9A84C] hover:text-[#b8963f]"
+                                  )}
+                                  onClick={() => {
+                                    setColorSourceColumnSlug(col.slug);
+                                    setShowColorSourceModal(true);
+                                    setColOptionsOpen(null);
+                                  }}
+                                >
+                                  <Palette className="w-3.5 h-3.5" />
+                                  <span className="flex-1">
+                                    {colorSourceConfig ? 'Source de couleurs configurée' : 'Connecter une source de couleurs'}
+                                  </span>
+                                  {colorSourceConfig && (
+                                    <span className="text-[8px] text-emerald-500">● Config</span>
+                                  )}
+                                </button>
+                              )}
+
                               {/* Visibility option — expandable */}
                               <button
                                 className="w-full flex items-center gap-2 px-3 py-1.5 text-left text-xs hover:bg-secondary/60 transition-colors"
@@ -1904,6 +1948,19 @@ export function DataTable({ columns, rows, dataSourceId, loading, onRefresh, onU
           onConfigSaved={(config) => {
             setStockSourceConfig(config);
             onRefresh(); // reload columns to reflect config changes
+          }}
+        />
+
+        {/* ── Color Source Connection Modal ── */}
+        <ColorSourceModal
+          open={showColorSourceModal}
+          onOpenChange={setShowColorSourceModal}
+          currentDataSourceId={dataSourceId}
+          currentConfig={colorSourceConfig}
+          colorColumnSlug={colorSourceColumnSlug}
+          onConfigSaved={(config) => {
+            setColorSourceConfig(config);
+            onRefresh(); // reload rows to reflect imported colors
           }}
         />
       </div>
