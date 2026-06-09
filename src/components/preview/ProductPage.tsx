@@ -253,11 +253,31 @@ export function ProductPage({
     }
   }
 
-  // Filter out technical/internal fields
+  // Filter out technical/internal/duplicate fields
+  // Remove: system columns (__*), Options_* labels, fields already shown as title/price/description
+  const detailSlugsShown = new Set<string>();
+  if (config.titleColumn) detailSlugsShown.add(config.titleColumn);
+  if (config.priceColumn) detailSlugsShown.add(config.priceColumn);
+  if (config.descriptionColumn) detailSlugsShown.add(config.descriptionColumn);
+  if (config.variantColumn) detailSlugsShown.add(config.variantColumn);
+  if (config.coverColumn) detailSlugsShown.add(config.coverColumn);
+  if (config.carouselColumn) detailSlugsShown.add(config.carouselColumn);
+  // Also add their corresponding column names (case-insensitive match)
+  const detailLabelsShown = new Set<string>();
+  for (const slug of detailSlugsShown) {
+    const col = detailColumns.find(c => c.slug === slug);
+    if (col) detailLabelsShown.add(col.name.toLowerCase());
+  }
+  // Common duplicate names to filter
+  const duplicateLabels = new Set(['prix', 'price', 'description', 'titre', 'title', 'nom', 'name', 'prix_revendeur']);
+
   const filteredDetailFields = detailFields.filter(f =>
     !f.label.startsWith('Options_') &&
     !f.label.startsWith('__') &&
-    !f.slug.startsWith('__')
+    !f.slug.startsWith('__') &&
+    !detailSlugsShown.has(f.slug) &&
+    !duplicateLabels.has(f.label.toLowerCase()) &&
+    !detailLabelsShown.has(f.label.toLowerCase())
   );
 
   // ── Conversion link ──
