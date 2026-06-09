@@ -11,6 +11,7 @@ import {
   ShoppingBag, LayoutDashboard, Lock
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { ProductPage } from './ProductPage';
 
 // ── Brand Constants ──
 const BRAND = {
@@ -750,301 +751,26 @@ export function CatalogPreview({ onAdminLogin }: CatalogPreviewProps) {
   };
 
   // ═══════════════════════════════════════════════════════════════════════
-  // ── PRODUCT DETAIL VIEW (full-page inline, NOT a Dialog) ──
+  // ── PRODUCT DETAIL VIEW — Delegated to ProductPage component ──
   // ═══════════════════════════════════════════════════════════════════════
   const renderDetailView = () => {
     if (!selectedProduct) return null;
     const { row, columns: detailColumns, section } = selectedProduct;
-    const config = section.config as SectionConfig;
-    const carouselImages = getCarouselImages(row, config, detailColumns);
-    const title = config.titleColumn ? getCellValue(row, config.titleColumn) : '';
-    const price = config.priceColumn ? getCellValue(row, config.priceColumn) : '';
-    const description = config.descriptionColumn ? getCellValue(row, config.descriptionColumn) : '';
-    const variants = config.variantColumn ? getCellValue(row, config.variantColumn) : '';
-    const conversionLink = buildConversionLink(row, config);
-    const coverImage = carouselImages[0] || '';
-
-    // Parse variants
-    const variantList = variants ? variants.split(/[,;]/).map(v => v.trim()).filter(Boolean) : [];
-    const sizePattern = /^(XS|S|M|L|XL|2XL|3XL|4XL|XXL|XXXL|\d{1,2})$/i;
-    const sizes = variantList.filter(v => sizePattern.test(v));
-    const colors = variantList.filter(v => !sizePattern.test(v));
-
-    const goPrev = () => setCarouselIdx(i => (i === 0 ? carouselImages.length - 1 : i - 1));
-    const goNext = () => setCarouselIdx(i => (i === carouselImages.length - 1 ? 0 : i + 1));
-    const goTo = (idx: number) => setCarouselIdx(idx);
-
-    // Touch swipe
-    const onTouchStart = (e: React.TouchEvent) => { touchStartX.current = e.touches[0].clientX; };
-    const onTouchMove = (e: React.TouchEvent) => { touchEndX.current = e.touches[0].clientX; };
-    const onTouchEnd = () => {
-      const diff = touchStartX.current - touchEndX.current;
-      if (Math.abs(diff) > 50) {
-        if (diff > 0) goNext();
-        else goPrev();
-      }
-    };
-
-    // Collect detail fields
-    const detailFields: { label: string; value: string }[] = [];
-    if (price) detailFields.push({ label: 'Prix_Vente', value: price });
-    if (description) detailFields.push({ label: 'Description', value: description });
-    if (sizes.length > 0) detailFields.push({ label: 'Options_Tailles', value: sizes.join(', ') });
-    if (colors.length > 0) detailFields.push({ label: 'Options_Couleurs', value: colors.join(', ') });
-
-    if (config.detailColumns && config.detailColumns.length > 0) {
-      for (const slug of config.detailColumns) {
-        const col = detailColumns.find(c => c.slug === slug);
-        if (!col) continue;
-        const val = getCellValue(row, slug);
-        if (!val) continue;
-        if (!detailFields.some(f => f.label === col.name)) {
-          detailFields.push({ label: col.name, value: val });
-        }
-      }
-    }
-
     return (
-      <main className="detail-container flex-1 pb-24 sm:pb-8">
-        {/* ── Breadcrumb: inside product container, above hero ── */}
-        {renderBreadcrumbs()}
-
-        {/* ── Desktop/Tablet: Side-by-side layout; Mobile: Stacked ── */}
-        <div className="detail-layout">
-          {/* LEFT COLUMN: Carousel */}
-          <div>
-            {/* ── Glide Carousel: virtual-window sliding with CSS transforms ── */}
-            {carouselImages.length > 0 && (
-              <section
-                className="glide-carousel"
-                onTouchStart={onTouchStart}
-                onTouchMove={onTouchMove}
-                onTouchEnd={onTouchEnd}
-              >
-                {/* Sliding track — virtual window: only render visible ± 2 slides */}
-                <div
-                  className="glide-carousel-track"
-                  style={{
-                    transform: `translateX(-${carouselIdx * 100}%)`,
-                  }}
-                >
-                  {carouselImages.map((rawUrl, i) => {
-                    // Virtual window: only load images within ±2 of current index
-                    const isVisible = Math.abs(i - carouselIdx) <= 2;
-                    const directUrl = isVisible ? resolveDirectImageUrl(rawUrl, 1000) : '';
-                    const proxyUrl = isVisible ? resolveProxyImageUrl(rawUrl, 1000) : '';
-                    return (
-                      <div key={i} className="glide-carousel-slide">
-                        {isVisible ? (
-                          <img
-                            src={directUrl}
-                            alt={`${title} - ${i + 1}`}
-                            loading={Math.abs(i - carouselIdx) <= 1 ? 'eager' : 'lazy'}
-                            decoding="async"
-                            onError={(e) => {
-                              const el = e.target as HTMLImageElement;
-                              if (!el.dataset.retried) {
-                                el.dataset.retried = '1';
-                                el.src = proxyUrl;
-                              }
-                            }}
-                          />
-                        ) : (
-                          <div className="glide-carousel-placeholder" />
-                        )}
-                      </div>
-                    );
-                  })}
-                </div>
-
-                {carouselImages.length > 1 && (
-                  <>
-                    <button
-                      className="carousel-arrow left"
-                      onClick={goPrev}
-                      aria-label="Image précédente"
-                    >
-                      ‹
-                    </button>
-                    <button
-                      className="carousel-arrow right"
-                      onClick={goNext}
-                      aria-label="Image suivante"
-                    >
-                      ›
-                    </button>
-
-                    {/* Dots: compact window for many images, full display for few */}
-                    <div className="carousel-dots">
-                      {carouselImages.length <= 10 ? (
-                        carouselImages.map((_, i) => (
-                          <button
-                            key={i}
-                            className={i === carouselIdx ? 'active' : ''}
-                            onClick={() => goTo(i)}
-                            aria-label={`Image ${i + 1}`}
-                          />
-                        ))
-                      ) : (
-                        <>
-                          {/* First dot */}
-                          <button
-                            className={carouselIdx === 0 ? 'active' : ''}
-                            onClick={() => goTo(0)}
-                            aria-label="Image 1"
-                          />
-                          {/* Left ellipsis */}
-                          {carouselIdx > 3 && <span className="carousel-ellipsis">…</span>}
-                          {/* Window dots around current */}
-                          {Array.from({ length: carouselImages.length }, (_, i) => i)
-                            .filter(i => {
-                              if (i === 0 || i === carouselImages.length - 1) return false;
-                              return Math.abs(i - carouselIdx) <= 2;
-                            })
-                            .map(i => (
-                              <button
-                                key={i}
-                                className={i === carouselIdx ? 'active' : ''}
-                                onClick={() => goTo(i)}
-                                aria-label={`Image ${i + 1}`}
-                              />
-                            ))}
-                          {/* Right ellipsis */}
-                          {carouselIdx < carouselImages.length - 4 && <span className="carousel-ellipsis">…</span>}
-                          {/* Last dot */}
-                          <button
-                            className={carouselIdx === carouselImages.length - 1 ? 'active' : ''}
-                            onClick={() => goTo(carouselImages.length - 1)}
-                            aria-label={`Image ${carouselImages.length}`}
-                          />
-                          {/* Counter badge */}
-                          <span className="carousel-counter">
-                            {carouselIdx + 1}/{carouselImages.length}
-                          </span>
-                        </>
-                      )}
-                    </div>
-                  </>
-                )}
-              </section>
-            )}
-          </div>
-
-          {/* RIGHT COLUMN: Product Info (sticky on desktop) */}
-          <div className="detail-info">
-            {/* ── Product Hero: title + price + description ── */}
-            <section className="product-hero">
-              {coverImage ? (
-                <img
-                  className="product-hero-thumb"
-                  src={resolveDirectImageUrl(coverImage, 400)}
-                  alt={title}
-                  onError={(e) => {
-                    const el = e.target as HTMLImageElement;
-                    if (!el.dataset.retried) {
-                      el.dataset.retried = '1';
-                      el.src = resolveProxyImageUrl(coverImage, 400);
-                    }
-                  }}
-                />
-              ) : (
-                <div className="product-hero-thumb product-hero-thumb-placeholder">
-                  <ImageIcon style={{ width: 32, height: 32, color: '#808080', opacity: 0.4 }} />
-                </div>
-              )}
-
-              <div className="product-hero-text">
-                <h1>{title}</h1>
-                {price && <p className="product-hero-price">{price}</p>}
-                {description && <p>{description}</p>}
-              </div>
-            </section>
-
-            {/* ── Product Fields ── */}
-            {detailFields.length > 0 && (
-              <section className="product-fields">
-                {detailFields.map((field, i) => (
-                  <div key={i} className="product-field">
-                    <span>{field.label}</span>
-                    <strong>{field.value}</strong>
-                  </div>
-                ))}
-              </section>
-            )}
-
-            {/* ━━━ REACTIVE STOCK STATE INDICATOR (Detail View) ━━━━━━━━━━ */}
-            {(() => {
-              const detailRawData = row.data as Record<string, unknown>;
-              const detailStockState = computeStockState(detailRawData);
-              // Scenario B: Épuisé — minimaliste, épuré
-              if (detailStockState === 'epuise') {
-                return (
-                  <div className="flex items-center gap-2 mb-3">
-                    <span
-                      className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-sm text-[10px] font-medium tracking-[0.2em] uppercase select-none"
-                      style={{
-                        backgroundColor: 'rgba(0,0,0,0.06)',
-                        color: 'rgba(0,0,0,0.35)',
-                        border: '1px solid rgba(0,0,0,0.08)',
-                      }}
-                    >
-                      <span className="w-1 h-1 rounded-full bg-black/20" />
-                      Épuisé
-                    </span>
-                  </div>
-                );
-              }
-              // Scenario C: Sur commande — aérien, translucide, doré
-              if (detailStockState === 'sur_commande') {
-                return (
-                  <div className="flex items-center gap-2 mb-3">
-                    <span
-                      className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-sm text-[10px] font-medium tracking-[0.15em] uppercase select-none"
-                      style={{
-                        backgroundColor: 'rgba(139, 115, 85, 0.1)',
-                        backdropFilter: 'blur(8px)',
-                        color: '#8B7355',
-                        border: '1px solid rgba(201, 168, 76, 0.2)',
-                      }}
-                    >
-                      <span className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: '#C9A84C' }} />
-                      Sur commande — Confection à la demande
-                    </span>
-                  </div>
-                );
-              }
-              // Scenario A: En stock — no badge needed (normal display)
-              return null;
-            })()}
-
-            {/* ━━━ REACTIVE CTA BUTTON (Detail View) — WhatsApp Green ━━━━━ */}
-            {(() => {
-              const detailRawData = row.data as Record<string, unknown>;
-              const detailStockState = computeStockState(detailRawData);
-              const isEpuise = detailStockState === 'epuise';
-              const isSurCommande = detailStockState === 'sur_commande';
-              return (
-                <a
-                  className={cn('whatsapp-cta whatsapp-cta--green', isEpuise && 'whatsapp-cta--disabled')}
-                  href={isEpuise ? undefined : conversionLink}
-                  target={isEpuise ? undefined : '_blank'}
-                  rel={isEpuise ? undefined : 'noopener noreferrer'}
-                  onClick={isEpuise ? (e: React.MouseEvent) => e.preventDefault() : undefined}
-                  style={{
-                    backgroundColor: isEpuise ? BRAND.grisClair : '#25D366',
-                    color: isEpuise ? BRAND.grisMoyen : '#fff',
-                  }}
-                >
-                  <MessageCircle className="w-5 h-5 shrink-0" />
-                  {isEpuise ? 'Produit épuisé' :
-                   isSurCommande ? 'Commander via WhatsApp' :
-                   'Commander via WhatsApp'}
-                </a>
-              );
-            })()}
-          </div>
-        </div>
-      </main>
+      <ProductPage
+        row={row}
+        columns={detailColumns}
+        section={section}
+        catalogName={catalogName}
+        conversionChannel={s?.conversionChannel || 'whatsapp'}
+        whatsappNumber={s?.whatsappNumber || ''}
+        messengerLink={s?.messengerLink || ''}
+        emailContact={s?.emailContact || ''}
+        conversionMessage={s?.conversionMessage || ''}
+        primaryColor={primaryColor}
+        secondaryColor={secondaryColor}
+        onBack={() => setSelectedProduct(null)}
+      />
     );
   };
 
