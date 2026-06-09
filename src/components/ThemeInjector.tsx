@@ -9,6 +9,9 @@ import type { ThemePivots, ThemeExceptions } from '@/lib/theme.config';
  * ThemeInjector — Fetches theme settings from DB and passes to ThemeProvider.
  * This is the bridge between the database and the CSS variable injection.
  * Separated from layout.tsx to keep layout as a server component.
+ *
+ * Listens for 'theme-updated' custom events to re-fetch settings
+ * when the admin saves changes in the Style panel (live preview).
  */
 export function ThemeInjector() {
   const [themeData, setThemeData] = useState<{
@@ -16,14 +19,17 @@ export function ThemeInjector() {
     exceptions: ThemeExceptions;
     customCSS: string;
   } | null>(null);
+  const [refreshKey, setRefreshKey] = useState(0);
 
+  // Fetch theme data whenever refreshKey changes (initial load + updates)
   useEffect(() => {
-    async function loadTheme() {
+    let cancelled = false;
+    async function fetchTheme() {
       try {
         const res = await fetch('/api/catalog/settings');
-        if (res.ok) {
+        if (res.ok && !cancelled) {
           const { data } = await res.json();
-          if (data) {
+          if (data && !cancelled) {
             setThemeData({
               pivots: {
                 primaryColor: data.primaryColor || THEME_DEFAULTS.primaryColor,
@@ -44,7 +50,17 @@ export function ThemeInjector() {
         // Use defaults on error — globals.css provides fallbacks
       }
     }
-    loadTheme();
+    fetchTheme();
+    return () => { cancelled = true; };
+  }, [refreshKey]);
+
+  // Listen for theme-updated events (from SettingsPillar save)
+  useEffect(() => {
+    function handleThemeUpdate() {
+      setRefreshKey(k => k + 1);
+    }
+    window.addEventListener('theme-updated', handleThemeUpdate);
+    return () => window.removeEventListener('theme-updated', handleThemeUpdate);
   }, []);
 
   if (!themeData) return null;

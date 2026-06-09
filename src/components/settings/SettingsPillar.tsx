@@ -18,9 +18,17 @@ import { ColorMapManager } from '@/components/settings/ColorMapManager';
 import {
   Globe, Palette, Share2, Monitor, Shield, Save, Loader2,
   MessageCircle, ExternalLink, Mail, Instagram, Copy, Check, Key,
-  BookOpen, Trash2, Plus
+  BookOpen, Trash2, Plus, RotateCcw
 } from 'lucide-react';
 import { toast } from 'sonner';
+import {
+  THEME_DEFAULTS,
+  PIVOT_LABELS,
+  EXCEPTION_LABELS,
+  PIVOT_DESCRIPTIONS,
+  EXCEPTION_DESCRIPTIONS,
+} from '@/lib/theme.config';
+import type { ThemePivots, ThemeExceptions } from '@/lib/theme.config';
 
 // ─── Catalogue types ─────────────────────────────────────────────────────
 interface CatItem {
@@ -459,6 +467,8 @@ export function SettingsPillar() {
           setLocal(json.data);
         }
         toast.success('Paramètres sauvegardés');
+        // Trigger ThemeInjector to refresh CSS variables instantly
+        window.dispatchEvent(new CustomEvent('theme-updated'));
       }
     } catch {
       toast.error('Erreur de sauvegarde');
@@ -520,19 +530,6 @@ export function SettingsPillar() {
     return <div className="flex items-center justify-center h-full text-muted-foreground">Chargement...</div>;
   }
 
-  const presetColors = [
-    { name: 'Or', value: '#C9A84C' },
-    { name: 'Charbon', value: '#1A1A1A' },
-    { name: 'Émeraude', value: '#2E7D32' },
-    { name: 'Bordeaux', value: '#800020' },
-    { name: 'Bleu Marine', value: '#1A237E' },
-    { name: 'Terracotta', value: '#C0644A' },
-    { name: 'Lavande', value: '#9575CD' },
-    { name: 'Moutarde', value: '#F9A825' },
-    { name: 'Rose', value: '#F48FB1' },
-    { name: 'Crème', value: '#FAF8F5' },
-  ];
-
   return (
     <div className="h-full overflow-y-auto p-4">
       <div className="max-w-2xl mx-auto">
@@ -587,60 +584,241 @@ export function SettingsPillar() {
             </Card>
           </TabsContent>
 
-          {/* Apparence */}
+          {/* Apparence — Active Theme Engine Dashboard */}
           <TabsContent value="appearance">
-            <Card>
-              <CardHeader><CardTitle className="text-sm">Apparence</CardTitle></CardHeader>
-              <CardContent className="space-y-4">
-                {(['primaryColor', 'secondaryColor', 'accentColor', 'backgroundColor'] as const).map(field => (
-                  <div key={field}>
-                    <Label className="text-xs">
-                      {field === 'primaryColor' ? 'Couleur principale' :
-                       field === 'secondaryColor' ? 'Couleur secondaire' :
-                       field === 'accentColor' ? 'Couleur d\'accent' : 'Couleur de fond'}
-                    </Label>
-                    <div className="flex items-center gap-2 mt-1">
-                      <div className="flex gap-1.5 flex-wrap">
-                        {presetColors.map(c => (
-                          <button
-                            key={c.value}
-                            className={`w-6 h-6 rounded-full border-2 transition-all ${local[field] === c.value ? 'border-foreground scale-110' : 'border-transparent'}`}
-                            style={{ backgroundColor: c.value }}
-                            onClick={() => updateField(field, c.value)}
-                            title={c.name}
-                          />
-                        ))}
-                      </div>
-                      <Input
-                        value={local[field]}
-                        onChange={e => updateField(field, e.target.value)}
-                        className="w-24 h-8 text-xs"
-                      />
-                    </div>
+            <div className="space-y-4">
+
+              {/* ═══ Palette Principale (4 Pivots) ═══ */}
+              <Card>
+                <CardHeader>
+                  <div>
+                    <CardTitle className="text-sm flex items-center gap-2">
+                      <Palette className="w-4 h-4" style={{ color: 'var(--gold)' }} />
+                      Palette Principale
+                    </CardTitle>
+                    <p className="text-xs text-muted-foreground mt-0.5">
+                      4 couleurs pivots — pilotent 80% du design par dérivation automatique
+                    </p>
                   </div>
-                ))}
-                <div>
-                  <Label className="text-xs">Police</Label>
-                  <Select value={local.fontFamily} onValueChange={v => updateField('fontFamily', v)}>
-                    <SelectTrigger><SelectValue /></SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="inter">Inter</SelectItem>
-                      <SelectItem value="playfair">Playfair Display</SelectItem>
-                      <SelectItem value="roboto">Roboto</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div>
-                  <Label className="text-xs">CSS personnalisé</Label>
-                  <Textarea
-                    value={local.customCSS}
-                    onChange={e => updateField('customCSS', e.target.value)}
-                    className="h-24 font-mono text-xs"
-                    placeholder="/* Votre CSS personnalisé */"
-                  />
-                </div>
-              </CardContent>
-            </Card>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  {([
+                    'primaryColor',
+                    'secondaryColor',
+                    'accentColor',
+                    'backgroundColor',
+                  ] as const).map((field) => {
+                    const defaultVal = THEME_DEFAULTS[field];
+                    const label = PIVOT_LABELS[field];
+                    const desc = PIVOT_DESCRIPTIONS[field];
+                    const currentVal = (local as Record<string, string>)[field] || defaultVal;
+                    const isModified = currentVal !== defaultVal;
+
+                    return (
+                      <div key={field} className="space-y-1">
+                        <Label className="text-xs font-medium">{label}</Label>
+                        <p className="text-[10px] text-muted-foreground leading-tight">{desc}</p>
+                        <div className="flex items-center gap-2">
+                          {/* Reference circle — shows the original default color */}
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <div
+                                className="w-6 h-6 rounded-full border-2 shrink-0 cursor-default"
+                                style={{
+                                  backgroundColor: defaultVal,
+                                  borderColor: isModified ? 'var(--border)' : 'var(--gold)',
+                                  boxShadow: isModified ? 'none' : '0 0 0 2px var(--gold)',
+                                }}
+                              />
+                            </TooltipTrigger>
+                            <TooltipContent side="top" className="text-xs">
+                              Référence : {defaultVal}
+                            </TooltipContent>
+                          </Tooltip>
+
+                          {/* Current color preview */}
+                          <div
+                            className="w-6 h-6 rounded-full border shrink-0"
+                            style={{
+                              backgroundColor: currentVal,
+                              borderColor: 'var(--border)',
+                            }}
+                          />
+
+                          {/* Hex input with validation */}
+                          <Input
+                            value={currentVal}
+                            onChange={(e) => {
+                              const val = e.target.value;
+                              updateField(field, val);
+                            }}
+                            onBlur={(e) => {
+                              // Auto-prepend # if missing
+                              let val = e.target.value.trim();
+                              if (val && !val.startsWith('#')) val = '#' + val;
+                              // Validate hex format
+                              if (/^#[0-9A-Fa-f]{6}$/.test(val)) {
+                                updateField(field, val);
+                              } else if (val && !/^#[0-9A-Fa-f]{0,6}$/.test(val)) {
+                                toast.error('Format hex invalide — utilisez #RRGGBB');
+                              }
+                            }}
+                            className="w-24 h-8 text-xs font-mono"
+                            placeholder="#RRGGBB"
+                            maxLength={7}
+                          />
+
+                          {/* Reset button */}
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-7 w-7 shrink-0"
+                                disabled={!isModified}
+                                onClick={() => updateField(field, defaultVal)}
+                              >
+                                <RotateCcw className="w-3.5 h-3.5" />
+                              </Button>
+                            </TooltipTrigger>
+                            <TooltipContent side="top" className="text-xs">
+                              Restaurer {defaultVal}
+                            </TooltipContent>
+                          </Tooltip>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </CardContent>
+              </Card>
+
+              {/* ═══ Couleurs Avancées (3 Exceptions) ═══ */}
+              <Card>
+                <CardHeader>
+                  <div>
+                    <CardTitle className="text-sm flex items-center gap-2">
+                      <Palette className="w-4 h-4" style={{ color: 'var(--primary)' }} />
+                      Couleurs Avancées
+                    </CardTitle>
+                    <p className="text-xs text-muted-foreground mt-0.5">
+                      3 exceptions non-dérivables — couleurs fonctionnelles spécifiques
+                    </p>
+                  </div>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  {([
+                    'brandGreenColor',
+                    'destructiveColor',
+                    'borderColor',
+                  ] as const).map((field) => {
+                    const defaultVal = THEME_DEFAULTS[field];
+                    const label = EXCEPTION_LABELS[field];
+                    const desc = EXCEPTION_DESCRIPTIONS[field];
+                    const currentVal = (local as Record<string, string>)[field] || defaultVal;
+                    const isModified = currentVal !== defaultVal;
+
+                    return (
+                      <div key={field} className="space-y-1">
+                        <Label className="text-xs font-medium">{label}</Label>
+                        <p className="text-[10px] text-muted-foreground leading-tight">{desc}</p>
+                        <div className="flex items-center gap-2">
+                          {/* Reference circle */}
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <div
+                                className="w-6 h-6 rounded-full border-2 shrink-0 cursor-default"
+                                style={{
+                                  backgroundColor: defaultVal,
+                                  borderColor: isModified ? 'var(--border)' : 'var(--gold)',
+                                  boxShadow: isModified ? 'none' : '0 0 0 2px var(--gold)',
+                                }}
+                              />
+                            </TooltipTrigger>
+                            <TooltipContent side="top" className="text-xs">
+                              Référence : {defaultVal}
+                            </TooltipContent>
+                          </Tooltip>
+
+                          {/* Current color preview */}
+                          <div
+                            className="w-6 h-6 rounded-full border shrink-0"
+                            style={{
+                              backgroundColor: currentVal,
+                              borderColor: 'var(--border)',
+                            }}
+                          />
+
+                          {/* Hex input */}
+                          <Input
+                            value={currentVal}
+                            onChange={(e) => updateField(field, e.target.value)}
+                            onBlur={(e) => {
+                              let val = e.target.value.trim();
+                              if (val && !val.startsWith('#')) val = '#' + val;
+                              if (/^#[0-9A-Fa-f]{6}$/.test(val)) {
+                                updateField(field, val);
+                              } else if (val && !/^#[0-9A-Fa-f]{0,6}$/.test(val)) {
+                                toast.error('Format hex invalide — utilisez #RRGGBB');
+                              }
+                            }}
+                            className="w-24 h-8 text-xs font-mono"
+                            placeholder="#RRGGBB"
+                            maxLength={7}
+                          />
+
+                          {/* Reset button */}
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-7 w-7 shrink-0"
+                                disabled={!isModified}
+                                onClick={() => updateField(field, defaultVal)}
+                              >
+                                <RotateCcw className="w-3.5 h-3.5" />
+                              </Button>
+                            </TooltipTrigger>
+                            <TooltipContent side="top" className="text-xs">
+                              Restaurer {defaultVal}
+                            </TooltipContent>
+                          </Tooltip>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </CardContent>
+              </Card>
+
+              {/* ═══ Police & CSS ═══ */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-sm">Police & CSS</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div>
+                    <Label className="text-xs">Police</Label>
+                    <Select value={local.fontFamily} onValueChange={v => updateField('fontFamily', v)}>
+                      <SelectTrigger><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="inter">Inter</SelectItem>
+                        <SelectItem value="playfair">Playfair Display</SelectItem>
+                        <SelectItem value="roboto">Roboto</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div>
+                    <Label className="text-xs">CSS personnalisé</Label>
+                    <Textarea
+                      value={local.customCSS}
+                      onChange={e => updateField('customCSS', e.target.value)}
+                      className="h-24 font-mono text-xs"
+                      placeholder="/* Votre CSS personnalisé */"
+                    />
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
           </TabsContent>
 
           {/* Conversion & Partage */}
