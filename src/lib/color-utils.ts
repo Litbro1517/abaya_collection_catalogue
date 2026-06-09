@@ -151,18 +151,57 @@ export function resolveColorHex(colorName: string, colorMap: Record<string, stri
     }
   }
 
-  // Strategy 5: Fallback to COULEURS_DEFAULTS
+  // Strategy 5: Fuzzy alias matching (common Moroccan/French color name variants)
+  const aliasMap: Record<string, string> = {
+    'blanche': 'blanc', 'blanches': 'blanc',
+    'bordo': 'bordeaux', 'bordeau': 'bordeaux',
+    'blue': 'bleu', 'bleus': 'bleu',
+    'maron': 'marron', 'marrone': 'marron', 'maroon': 'marron',
+    'noire': 'noir', 'noires': 'noir', 'black': 'noir',
+    'grise': 'gris', 'grises': 'gris', 'gray': 'gris', 'grey': 'gris',
+    'verte': 'vert', 'vertes': 'vert', 'green': 'vert',
+    'rouge': 'rouge', 'red': 'rouge',
+    'rose': 'rose', 'pink': 'rose',
+    'blanc': 'blanc', 'white': 'blanc',
+    'beige': 'beige',
+    'orange': 'orange',
+    'violet': 'violet', 'violette': 'violet', 'purple': 'violet', 'mauve': 'mauve',
+    'jaune': 'jaune', 'yellow': 'jaune',
+    'kaki': 'kaki', 'khaki': 'kaki',
+    'chocolat': 'chocolat', 'brown': 'marron',
+  };
+  const aliasKey = aliasMap[key] || aliasMap[collapsedKey];
+  if (aliasKey) {
+    if (colorMap[aliasKey]) return colorMap[aliasKey];
+    if (colorMap[normalizeCouleurKey(aliasKey)]) return colorMap[normalizeCouleurKey(aliasKey)];
+  }
+  // Also try each word's alias for compound names
+  if (words.length > 1) {
+    for (const word of words) {
+      const wordKey = normalizeCouleurKey(word);
+      const wordAlias = aliasMap[wordKey];
+      if (wordAlias) {
+        if (colorMap[wordAlias]) return colorMap[wordAlias];
+        if (colorMap[normalizeCouleurKey(wordAlias)]) return colorMap[normalizeCouleurKey(wordAlias)];
+      }
+    }
+  }
+
+  // Strategy 6: Fallback to COULEURS_DEFAULTS
   if (COULEURS_DEFAULTS[key]) return COULEURS_DEFAULTS[key];
   if (COULEURS_DEFAULTS[collapsedKey]) return COULEURS_DEFAULTS[collapsedKey];
+  if (aliasKey && COULEURS_DEFAULTS[aliasKey]) return COULEURS_DEFAULTS[aliasKey];
   // Try per-word in defaults too
   if (words.length > 1) {
     for (const word of words) {
       const wordKey = normalizeCouleurKey(word);
       if (COULEURS_DEFAULTS[wordKey]) return COULEURS_DEFAULTS[wordKey];
+      const wordAlias = aliasMap[wordKey];
+      if (wordAlias && COULEURS_DEFAULTS[wordAlias]) return COULEURS_DEFAULTS[wordAlias];
     }
   }
 
-  // Strategy 6: Try if it's already a hex color
+  // Strategy 7: Try if it's already a hex color
   if (/^#[0-9a-fA-F]{3,8}$/.test(colorName)) return colorName;
 
   return null;
