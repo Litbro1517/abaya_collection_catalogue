@@ -1098,9 +1098,18 @@ export function CatalogPreview({ onAdminLogin }: CatalogPreviewProps) {
                   <strong className="product-card-title">{title}</strong>
                 )}
 
-                {/* Color dots from ColorMap */}
-                {config.colorColumn && (() => {
-                  const rawColors = getCellValue(row, config.colorColumn);
+                {/* Color dots from ColorMap (with optionscouleurs fallback) */}
+                {(() => {
+                  // Priority 1: colorColumn (ColorMap-driven)
+                  let rawColors = config.colorColumn ? getCellValue(row, config.colorColumn) : '';
+                  // Priority 2: fallback to optionscouleurs column
+                  if (!rawColors) {
+                    const fbKeys = ['optionscouleurs', 'option-couleurs', 'couleurs'];
+                    for (const k of fbKeys) {
+                      const v = getCellValue(row, k);
+                      if (v) { rawColors = v; break; }
+                    }
+                  }
                   if (!rawColors) return null;
                   const names = rawColors.split(/[,;]/).map(v => v.trim()).filter(Boolean);
                   if (names.length === 0) return null;

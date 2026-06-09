@@ -3,7 +3,13 @@ import { join } from 'path'
 import { config as dotenvConfig } from 'dotenv'
 
 // Override system env var if it's pointing to wrong DB (e.g. file: SQLite)
+// The system may provide a file: SQLite URL while the app needs PostgreSQL
 if (process.env.DATABASE_URL?.startsWith('file:')) {
+  dotenvConfig({ path: join(process.cwd(), '.env'), override: true });
+}
+
+// Safety check: if DATABASE_URL still doesn't look like PostgreSQL, force override
+if (!process.env.DATABASE_URL?.startsWith('postgresql://') && !process.env.DATABASE_URL?.startsWith('postgres://')) {
   dotenvConfig({ path: join(process.cwd(), '.env'), override: true });
 }
 

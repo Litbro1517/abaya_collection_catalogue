@@ -187,11 +187,24 @@ export function ProductPage({
   const variants = config.variantColumn ? getCellValue(config.variantColumn) : '';
   const statut = (rawData.__statut__ as string) || 'Courant';
 
-  // ── Parse colors from colorColumn (COLOR type) or fallback to variantColumn ──
-  // Priority: dedicated colorColumn (ColorMap-driven) > variantColumn parsing
+  // ── Parse colors: colorColumn (ColorMap) → optionscouleurs fallback → variantColumn fallback ──
+  // Priority 1: dedicated colorColumn (ColorMap-driven, COLOR type)
   const rawColorValue = config.colorColumn ? getCellValue(config.colorColumn) : '';
   const colorNames: string[] = rawColorValue
     ? rawColorValue.split(/[,;]/).map(v => v.trim()).filter(Boolean)
+    : [];
+
+  // Priority 2: look for an "optionscouleurs" or similar column in raw data
+  const fallbackColorKeys = ['optionscouleurs', 'option-couleurs', 'couleurs'];
+  let fallbackColorValue = '';
+  if (colorNames.length === 0) {
+    for (const key of fallbackColorKeys) {
+      const val = getCellValue(key);
+      if (val) { fallbackColorValue = val; break; }
+    }
+  }
+  const fallbackColorNames = fallbackColorValue
+    ? fallbackColorValue.split(/[,;]/).map(v => v.trim()).filter(Boolean)
     : [];
 
   // ── Parse variants into sizes (from variantColumn) ──
@@ -199,9 +212,15 @@ export function ProductPage({
   const sizePattern = /^(XS|S|M|L|XL|2XL|3XL|4XL|XXL|XXXL|\d{1,2})$/i;
   const sizes = variantList.filter(v => sizePattern.test(v));
 
-  // If no dedicated colorColumn, extract colors from variantColumn (legacy fallback)
-  const legacyColorNames = rawColorValue ? [] : variantList.filter(v => !sizePattern.test(v));
-  const finalColorNames = colorNames.length > 0 ? colorNames : legacyColorNames;
+  // Priority 3: extract non-size values from variantColumn (legacy fallback)
+  const legacyColorNames = variantList.filter(v => !sizePattern.test(v));
+
+  // Final color list: colorColumn → optionscouleurs → variantColumn non-size
+  const finalColorNames = colorNames.length > 0
+    ? colorNames
+    : fallbackColorNames.length > 0
+      ? fallbackColorNames
+      : legacyColorNames;
 
   // ── Color data with hex resolution from ColorMap ──
   const colorData = finalColorNames.map(name => ({
@@ -589,40 +608,41 @@ export function ProductPage({
             </div>
           )}
 
-          {/* ── Color swatches ── */}
+          {/* ── Color swatches (40×40px circles from ColorMap) ── */}
           {colorData.length > 0 && (
             <div className="product-page-section">
               <div className="product-page-section-title">
                 Couleurs{selectedColor ? <span className="selected-value">: {selectedColor}</span> : ''}
               </div>
               <div className="product-page-colors">
-                {colorData.map(({ name, hex }) => (
-                  <button
-                    key={name}
-                    className={cn(
-                      'product-page-color-swatch',
-                      selectedColor === name && 'selected'
-                    )}
-                    onClick={() => setSelectedColor(selectedColor === name ? null : name)}
-                    title={name}
-                    aria-label={`Couleur ${name}`}
-                  >
-                    <span
-                      className="swatch-circle"
-                      style={{
-                        backgroundColor: hex || BRAND.grisClair,
-                        border: hex ? 'none' : `2px dashed ${BRAND.grisMoyen}`,
-                      }}
-                    />
-                    <span className="swatch-name">{name}</span>
-                    {selectedColor === name && (
-                      <Check
-                        className="swatch-check"
-                        style={{ color: hex && isLightColor(hex) ? BRAND.noir : BRAND.blanc }}
+                {colorData.map(({ name, hex }) => {
+                  const isSelected = selectedColor === name;
+                  return (
+                    <button
+                      key={name}
+                      className={cn(
+                        'product-page-color-circle',
+                        isSelected && 'selected'
+                      )}
+                      onClick={() => setSelectedColor(isSelected ? null : name)}
+                      title={name}
+                      aria-label={`Couleur ${name}${isSelected ? ' (sélectionnée)' : ''}`}
+                    >
+                      <span
+                        className="color-circle-inner"
+                        style={{
+                          backgroundColor: hex || BRAND.grisClair,
+                        }}
                       />
-                    )}
-                  </button>
-                ))}
+                      {isSelected && (
+                        <Check
+                          className="color-circle-check"
+                          style={{ color: hex && isLightColor(hex) ? BRAND.noir : BRAND.blanc }}
+                        />
+                      )}
+                    </button>
+                  );
+                })}
               </div>
             </div>
           )}

@@ -1345,71 +1345,55 @@ img {
   margin-bottom: 10px;
 }
 
-/* ── Color Swatches ── */
+/* ── Color Circles (40×40px — ColorMap-driven, no text) ── */
 .product-page-colors {
   display: flex;
   flex-wrap: wrap;
-  gap: 8px;
+  gap: 10px;
 }
 
-.product-page-color-swatch {
+.product-page-color-circle {
   position: relative;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 4px;
-  padding: 6px;
-  border-radius: 10px;
-  border: 2px solid transparent;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  border: 2.5px solid transparent;
   background: transparent;
   cursor: pointer;
-  transition: border-color 0.2s, background 0.15s;
-  min-width: 48px;
+  padding: 0;
+  transition: border-color 0.2s, transform 0.15s, box-shadow 0.2s;
 }
 
-.product-page-color-swatch:hover {
-  background: #f8f6f2;
+.product-page-color-circle:hover {
+  transform: scale(1.12);
+  box-shadow: 0 2px 8px rgba(0,0,0,0.12);
 }
 
-.product-page-color-swatch.selected {
+.product-page-color-circle.selected {
   border-color: #C9A84C;
-  background: rgba(201, 168, 76, 0.08);
+  box-shadow: 0 0 0 2px rgba(201, 168, 76, 0.3);
 }
 
-.swatch-circle {
-  width: 28px;
-  height: 28px;
+.color-circle-inner {
+  width: 100%;
+  height: 100%;
   border-radius: 50%;
   display: flex;
   align-items: center;
   justify-content: center;
-  box-shadow: inset 0 0 0 1px rgba(0,0,0,0.1);
+  box-shadow: inset 0 0 0 1px rgba(0,0,0,0.08);
   position: relative;
-  transition: transform 0.15s;
-}
-
-.product-page-color-swatch:hover .swatch-circle {
-  transform: scale(1.1);
-}
-
-.swatch-name {
-  font-size: 10px;
-  color: #777;
-  white-space: nowrap;
-  max-width: 56px;
   overflow: hidden;
-  text-overflow: ellipsis;
-  text-align: center;
-  line-height: 1.2;
 }
 
-.swatch-check {
+.color-circle-check {
   position: absolute;
   top: 50%;
   left: 50%;
   transform: translate(-50%, -50%);
-  width: 14px;
-  height: 14px;
+  width: 18px;
+  height: 18px;
+  pointer-events: none;
 }
 
 /* ── Size Chips ── */
