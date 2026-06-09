@@ -42,12 +42,13 @@ import {
   Type, Hash, Banknote, Images,
   ListChecks, Layers, ToggleRight, ExternalLink, Link2, SquareStack,
   MoveRight, Activity, Lock, Unlock, ArrowUpDown, Zap,
-  ChevronUp, Minus, ChevronLeft, Database,
+  ChevronUp, Minus, ChevronLeft, Database, Palette,
 } from 'lucide-react';
 import { Switch } from '@/components/ui/switch';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import { ColumnEditorDialog } from './ColumnEditorDialog';
+import { ColorCell } from './ColorCell';
 import { StockSourceModal, type StockSourceConfig } from './StockSourceModal';
 
 // Column type icon mapping
@@ -64,6 +65,7 @@ const COLUMN_TYPE_ICON: Record<ColumnType, React.ReactNode> = {
   BOOLEAN: <ToggleRight className="w-3 h-3" />,
   URL: <ExternalLink className="w-3 h-3" />,
   STATUS: <Activity className="w-3 h-3" />,
+  COLOR: <Palette className="w-3 h-3" />,
 };
 
 const COLUMN_TYPE_LABEL: Record<ColumnType, string> = {
@@ -79,6 +81,7 @@ const COLUMN_TYPE_LABEL: Record<ColumnType, string> = {
   BOOLEAN: 'Oui/Non',
   URL: 'Lien',
   STATUS: 'Statut',
+  COLOR: 'Couleur',
 };
 
 interface Props {
@@ -931,6 +934,22 @@ export function DataTable({ columns, rows, dataSourceId, loading, onRefresh, onU
           rowData={row.data as Record<string, unknown>}
           rowId={row.id}
           dataSourceId={dataSourceId}
+          onUpdateRow={onUpdateRow}
+          onRefresh={onRefresh}
+        />
+      );
+    }
+
+    // ━━━ Color Cell: Multi-select from ColorMap ━━━━━━━━━━━━━━━━━━━
+    if (col.type === 'COLOR') {
+      const strVal = String((row.data as Record<string, unknown>)[col.slug] || '');
+      return (
+        <ColorCell
+          value={strVal}
+          rowId={row.id}
+          colSlug={col.slug}
+          dataSourceId={dataSourceId}
+          rowData={row.data as Record<string, unknown>}
           onUpdateRow={onUpdateRow}
           onRefresh={onRefresh}
         />

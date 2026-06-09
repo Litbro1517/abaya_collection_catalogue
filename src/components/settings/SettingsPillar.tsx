@@ -14,6 +14,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
 import { AdminUserManager } from '@/components/settings/AdminUserManager';
+import { ColorMapManager } from '@/components/settings/ColorMapManager';
 import {
   Globe, Palette, Share2, Monitor, Shield, Save, Loader2,
   MessageCircle, ExternalLink, Mail, Instagram, Copy, Check, Key,
@@ -544,13 +545,14 @@ export function SettingsPillar() {
         </div>
 
         <Tabs value={settingsTab} onValueChange={(v) => setSettingsTab(v as SettingsTab)} className="space-y-4">
-          <TabsList className="grid w-full grid-cols-6">
+          <TabsList className="grid w-full grid-cols-7">
             <TabsTrigger value="general" className="text-xs gap-1"><Globe className="w-3 h-3" /> Général</TabsTrigger>
             <TabsTrigger value="appearance" className="text-xs gap-1"><Palette className="w-3 h-3" /> Style</TabsTrigger>
             <TabsTrigger value="conversion" className="text-xs gap-1"><Share2 className="w-3 h-3" /> Partage</TabsTrigger>
             <TabsTrigger value="display" className="text-xs gap-1"><Monitor className="w-3 h-3" /> Affichage</TabsTrigger>
             <TabsTrigger value="admin" className="text-xs gap-1"><Shield className="w-3 h-3" /> Admin</TabsTrigger>
             <TabsTrigger value="catalogue" className="text-xs gap-1"><BookOpen className="w-3 h-3" /> Catalogue</TabsTrigger>
+            <TabsTrigger value="couleurs" className="text-xs gap-1"><Palette className="w-3 h-3" /> Couleurs</TabsTrigger>
           </TabsList>
 
           {/* Général */}
@@ -1181,6 +1183,11 @@ export function SettingsPillar() {
                 </CardContent>
               </Card>
             </div>
+          </TabsContent>
+
+          {/* Couleurs */}
+          <TabsContent value="couleurs">
+            <ColorMapManager />
           </TabsContent>
         </Tabs>
       </div>

@@ -25,7 +25,7 @@ import {
   X, Plus, Type, Hash, Banknote, Image as ImageIcon, Images,
   ChevronDown, ChevronRight, ListChecks, Link2, Layers, ToggleRight, ExternalLink,
   Pencil, Trash2, Check, Eye, EyeOff,
-  AlertTriangle, Activity, ArrowRight,
+  AlertTriangle, Activity, ArrowRight, Palette,
 } from 'lucide-react';
 
 // ── Column type visual config ──────────────────────────────────────────────
@@ -42,13 +42,14 @@ const COLUMN_TYPES: { value: ColumnType; label: string; description: string; ico
   { value: 'ARRAY', label: 'Groupe', description: 'Regroupement de colonnes', icon: <Layers className="w-4 h-4" /> },
   { value: 'URL', label: 'Lien', description: 'URL ou lien externe', icon: <ExternalLink className="w-4 h-4" /> },
   { value: 'STATUS', label: 'Statut', description: 'Statut avec verrouillage', icon: <Activity className="w-4 h-4" /> },
+  { value: 'COLOR', label: 'Couleur', description: 'Sélection de couleurs', icon: <Palette className="w-4 h-4" /> },
 ];
 
 // Category grouping — Glide-style: Basic / Computed / Structure
 const TYPE_CATEGORIES: { label: string; icon: React.ReactNode; types: ColumnType[] }[] = [
   { label: 'Base', icon: <Type className="w-3.5 h-3.5" />, types: ['TEXT', 'NUMBER', 'CURRENCY', 'URL'] },
   { label: 'Média', icon: <Images className="w-3.5 h-3.5" />, types: ['IMAGE', 'IMAGE_ARRAY'] },
-  { label: 'Sélection', icon: <ListChecks className="w-3.5 h-3.5" />, types: ['SELECT', 'MULTI_SELECT', 'BOOLEAN'] },
+  { label: 'Sélection', icon: <ListChecks className="w-3.5 h-3.5" />, types: ['SELECT', 'MULTI_SELECT', 'BOOLEAN', 'COLOR'] },
   { label: 'Structure', icon: <Layers className="w-3.5 h-3.5" />, types: ['RELATION', 'ARRAY', 'STATUS'] },
 ];
 

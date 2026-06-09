@@ -268,3 +268,23 @@ model SubCategory {
 
   @@map("sub_categories")
 }
+
+// ═══════════════════════════════════════════════════════════════
+// COLOR MAP - Centralized color library (Slow Luxury Architecture)
+// ━━━ Normalized color names → hex codes, shared across all products
+// ━━━ Triple-Flux: Admin Settings, DataTable Select, Mass Import
+// ═══════════════════════════════════════════════════════════════
+
+model ColorMap {
+  id       String  @id @default(cuid())
+  name     String  @unique              // Normalized Title Case (e.g. "Bleu-Nuit")
+  slug     String  @unique              // Immutable identifier for matching
+  hex      String                       // Hex code (e.g. "#1565C0")
+  ordre    Int     @default(0)          // Display order (ascending)
+  visible  Boolean @default(true)       // Admin toggle for visibility
+  isActive Boolean @default(true) @map("is_active")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@map("color_map")
+}

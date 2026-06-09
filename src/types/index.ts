@@ -12,7 +12,8 @@ export type ColumnType =
   | 'ARRAY'
   | 'BOOLEAN'
   | 'URL'
-  | 'STATUS';
+  | 'STATUS'
+  | 'COLOR';
 
 export const COLUMN_TYPE_OPTIONS: { value: ColumnType; label: string; icon: string }[] = [
   { value: 'TEXT', label: 'Texte', icon: 'Type' },
@@ -22,6 +23,7 @@ export const COLUMN_TYPE_OPTIONS: { value: ColumnType; label: string; icon: stri
   { value: 'IMAGE_ARRAY', label: "Galerie d'images", icon: 'Images' },
   { value: 'SELECT', label: 'Sélection', icon: 'ChevronDown' },
   { value: 'MULTI_SELECT', label: 'Multi-sélection', icon: 'ListChecks' },
+  { value: 'COLOR', label: 'Couleur', icon: 'Palette' },
   { value: 'RELATION', label: 'Relation', icon: 'Link' },
   { value: 'ARRAY', label: 'Groupe (Array)', icon: 'Layers' },
   { value: 'BOOLEAN', label: 'Oui/Non', icon: 'ToggleRight' },
@@ -240,7 +242,7 @@ export type SyncStatus = 'idle' | 'syncing' | 'success' | 'error';
 
 export type AppView = 'preview' | 'builder' | 'dashboard';
 export type Pillar = 'data' | 'layout' | 'settings';
-export type SettingsTab = 'general' | 'appearance' | 'conversion' | 'display' | 'admin' | 'catalogue';
+export type SettingsTab = 'general' | 'appearance' | 'conversion' | 'display' | 'admin' | 'catalogue' | 'couleurs';
 
 export interface ImportResult {
   success: boolean;

@@ -118,13 +118,14 @@ function computeStockState(rawData: Record<string, unknown>): StockState {
 }
 
 // ── Color Hex Lookup ──
-function resolveColorHex(colorName: string): string | null {
+function resolveColorHex(colorName: string, colorMap: Record<string, string>): string | null {
+  // First check ColorMap (server data)
   const key = normalizeCouleurKey(colorName);
+  if (colorMap[key]) return colorMap[key];
+  // Try direct match on name
+  if (colorMap[colorName.toLowerCase()]) return colorMap[colorName.toLowerCase()];
+  // Fallback to COULEURS_DEFAULTS
   if (COULEURS_DEFAULTS[key]) return COULEURS_DEFAULTS[key];
-  // Try direct match
-  for (const [k, v] of Object.entries(COULEURS_DEFAULTS)) {
-    if (normalizeCouleurKey(k) === key) return v;
-  }
   // Try if it's already a hex color
   if (/^#[0-9a-fA-F]{3,8}$/.test(colorName)) return colorName;
   return null;
@@ -195,7 +196,7 @@ export function ProductPage({
   // ── Color data with hex resolution ──
   const colorData = colorNames.map(name => ({
     name,
-    hex: resolveColorHex(name),
+    hex: resolveColorHex(name, colorMap),
   }));
 
   // ── Carousel images ──
@@ -252,6 +253,13 @@ export function ProductPage({
     }
   }
 
+  // Filter out technical/internal fields
+  const filteredDetailFields = detailFields.filter(f =>
+    !f.label.startsWith('Options_') &&
+    !f.label.startsWith('__') &&
+    !f.slug.startsWith('__')
+  );
+
   // ── Conversion link ──
   const conversionLink = (() => {
     if (conversionChannel === 'whatsapp' && whatsappNumber) {
@@ -272,6 +280,7 @@ export function ProductPage({
   const [isLiked, setIsLiked] = useState(false);
   const [showShareToast, setShowShareToast] = useState(false);
   const [imageLoaded, setImageLoaded] = useState<Set<number>>(new Set());
+  const [colorMap, setColorMap] = useState<Record<string, string>>({});
 
   const touchStartX = useRef(0);
   const touchEndX = useRef(0);
@@ -279,6 +288,23 @@ export function ProductPage({
   // Scroll to top on mount
   useEffect(() => {
     window.scrollTo({ top: 0, behavior: 'smooth' });
+  }, []);
+
+  // Fetch color map from API
+  useEffect(() => {
+    fetch('/api/colormap')
+      .then(r => r.ok ? r.json() : null)
+      .then(json => {
+        if (json?.data) {
+          const map: Record<string, string> = {};
+          for (const c of json.data) {
+            map[c.name.toLowerCase()] = c.hex;
+            map[c.slug] = c.hex;
+          }
+          setColorMap(map);
+        }
+      })
+      .catch(() => {});
   }, []);
 
   // ── Carousel controls ──
@@ -526,15 +552,18 @@ export function ProductPage({
 
           {/* ── Description ── */}
           {description && (
-            <p className="product-page-description">{description}</p>
+            <div className="product-page-section">
+              <div className="product-page-section-title">Description</div>
+              <p className="product-page-description">{description}</p>
+            </div>
           )}
 
           {/* ── Color swatches ── */}
           {colorData.length > 0 && (
             <div className="product-page-section">
-              <label className="product-page-section-label">
-                Couleur{selectedColor ? ` : ${selectedColor}` : ''}
-              </label>
+              <div className="product-page-section-title">
+                Couleurs{selectedColor ? <span className="selected-value">: {selectedColor}</span> : ''}
+              </div>
               <div className="product-page-colors">
                 {colorData.map(({ name, hex }) => (
                   <button
@@ -570,9 +599,9 @@ export function ProductPage({
           {/* ── Size selector ── */}
           {sizes.length > 0 && (
             <div className="product-page-section">
-              <label className="product-page-section-label">
-                Taille{selectedSize ? ` : ${selectedSize}` : ''}
-              </label>
+              <div className="product-page-section-title">
+                Tailles{selectedSize ? <span className="selected-value">: {selectedSize}</span> : ''}
+              </div>
               <div className="product-page-sizes">
                 {sizes.map(size => (
                   <button
@@ -593,9 +622,10 @@ export function ProductPage({
           )}
 
           {/* ── Detail fields ── */}
-          {detailFields.length > 0 && (
+          {filteredDetailFields.length > 0 && (
             <div className="product-page-details">
-              {detailFields.map(field => (
+              <div className="product-page-section-title">Détails</div>
+              {filteredDetailFields.map(field => (
                 <div key={field.slug} className="product-page-detail-row">
                   <span className="detail-label">{field.label}</span>
                   <span className="detail-value">{field.value}</span>
