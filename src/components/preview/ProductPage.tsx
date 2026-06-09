@@ -2,7 +2,7 @@
 
 import { useState, useRef, useCallback, useEffect } from 'react';
 import type { Section, SectionConfig, Column, ColumnConfig, Row } from '@/types';
-import { COULEURS_DEFAULTS, normalizeCouleurKey } from '@/lib/constants';
+import { resolveColorHex, buildColorLookupMap, normalizeCouleurKey } from '@/lib/color-utils';
 import {
   ArrowLeft,
   MessageCircle,
@@ -113,41 +113,6 @@ function computeStockState(rawData: Record<string, unknown>): StockState {
   if (stock > 0) return 'en_stock';
   if (stock === 0 && isDisponible) return 'sur_commande';
   return 'epuise';
-}
-
-// ── Color Hex Lookup (multi-strategy, case-insensitive, separator-tolerant) ──
-function resolveColorHex(colorName: string, colorMap: Record<string, string>): string | null {
-  // Strategy 1: Normalize key (lowercase + strip accents)
-  const key = normalizeCouleurKey(colorName);
-  if (colorMap[key]) return colorMap[key];
-
-  // Strategy 2: Direct lowercase match
-  const lower = colorName.toLowerCase().trim();
-  if (colorMap[lower]) return colorMap[lower];
-
-  // Strategy 3: Try normalizing spaces/commas (e.g., "bleu nuit" → "bleunuit")
-  const collapsedKey = key.replace(/[\s,;]+/g, '');
-  if (colorMap[collapsedKey]) return colorMap[collapsedKey];
-
-  // Strategy 4: Try each word individually (for compound names like "Rose kachiri")
-  // This helps when a compound name partially matches
-  const words = colorName.trim().split(/[\s,;]+/).filter(Boolean);
-  if (words.length > 1) {
-    for (const word of words) {
-      const wordKey = normalizeCouleurKey(word);
-      if (colorMap[wordKey]) return colorMap[wordKey];
-    }
-  }
-
-  // Strategy 5: Fallback to COULEURS_DEFAULTS
-  if (COULEURS_DEFAULTS[key]) return COULEURS_DEFAULTS[key];
-  const defaultCollapsed = collapsedKey;
-  if (COULEURS_DEFAULTS[defaultCollapsed]) return COULEURS_DEFAULTS[defaultCollapsed];
-
-  // Strategy 6: Try if it's already a hex color
-  if (/^#[0-9a-fA-F]{3,8}$/.test(colorName)) return colorName;
-
-  return null;
 }
 
 // ═══════════════════════════════════════════════════════════════════════
@@ -368,19 +333,7 @@ export function ProductPage({
       .then(r => r.ok ? r.json() : null)
       .then(json => {
         if (json?.data) {
-          const map: Record<string, string> = {};
-          for (const c of json.data) {
-            // Store by multiple keys for robust lookup
-            map[c.name.toLowerCase()] = c.hex;
-            map[c.slug] = c.hex;
-            // Also store accent-stripped version
-            const accentKey = normalizeCouleurKey(c.name);
-            map[accentKey] = c.hex;
-            // Store collapsed version (no spaces/commas)
-            const collapsed = accentKey.replace(/[\s,;]+/g, '');
-            if (collapsed !== accentKey) map[collapsed] = c.hex;
-          }
-          setColorMap(map);
+          setColorMap(buildColorLookupMap(json.data));
         }
       })
       .catch(() => {});

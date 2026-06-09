@@ -11,7 +11,7 @@ import {
   ShoppingBag, LayoutDashboard, Lock
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { COULEURS_DEFAULTS, normalizeCouleurKey } from '@/lib/constants';
+import { resolveColorHex, buildColorLookupMap, normalizeCouleurKey } from '@/lib/color-utils';
 import { ProductPage } from './ProductPage';
 
 // ── Brand Constants ──
@@ -245,19 +245,7 @@ export function CatalogPreview({ onAdminLogin }: CatalogPreviewProps) {
       .then(r => r.ok ? r.json() : null)
       .then(json => {
         if (json?.data) {
-          const map: Record<string, string> = {};
-          for (const c of json.data) {
-            // Store by multiple keys for robust lookup
-            map[c.name.toLowerCase()] = c.hex;
-            map[c.slug] = c.hex;
-            // Also store accent-stripped version
-            const accentKey = normalizeCouleurKey(c.name);
-            map[accentKey] = c.hex;
-            // Store collapsed version (no spaces/commas)
-            const collapsed = accentKey.replace(/[\s,;]+/g, '');
-            if (collapsed !== accentKey) map[collapsed] = c.hex;
-          }
-          setColorMapData(map);
+          setColorMapData(buildColorLookupMap(json.data));
         }
       })
       .catch(() => {});
@@ -1124,9 +1112,7 @@ export function CatalogPreview({ onAdminLogin }: CatalogPreviewProps) {
                   return (
                     <div className="flex items-center gap-1 mt-0.5 px-0.5">
                       {names.slice(0, 5).map(name => {
-                        const key = normalizeCouleurKey(name);
-                        const collapsedKey = key.replace(/[\s,;]+/g, '');
-                        const hex = colorMapData[name.toLowerCase()] || colorMapData[key] || colorMapData[collapsedKey] || COULEURS_DEFAULTS[key] || COULEURS_DEFAULTS[collapsedKey] || null;
+                        const hex = resolveColorHex(name, colorMapData);
                         return (
                           <div
                             key={name}
