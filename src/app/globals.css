@@ -260,6 +260,10 @@
     background: var(--bg);
     color: var(--text);
     font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    overflow-x: hidden;
+  }
+  html {
+    overflow-x: hidden;
   }
   h1, h2, h3 {
     font-family: 'Playfair Display', serif;
@@ -1004,6 +1008,7 @@
 /* ── Image Rendering ── */
 img {
   image-rendering: auto;
+  max-width: 100%;
 }
 
 /* ── Carousel Spinner Animation ── */
@@ -1159,6 +1164,8 @@ img {
   grid-template-columns: 1fr 420px;
   gap: 48px;
   align-items: start;
+  min-width: 0;
+  overflow: hidden;
 }
 
 @media (min-width: 1280px) {
@@ -1178,16 +1185,19 @@ img {
 /* ── Gallery (Left Column) ── */
 .product-page-gallery {
   position: relative;
+  min-width: 0;
+  overflow: hidden;
 }
 
 /* ── Carousel ── */
 .product-page-carousel {
   position: relative;
   width: 100%;
+  max-width: 100%;
   aspect-ratio: 3 / 4;
   overflow: hidden;
   border-radius: 12px;
-  background: #f8f6f2;
+  background: var(--bg-carousel, #f8f6f2);
 }
 
 .product-page-carousel-empty {
@@ -1304,6 +1314,8 @@ img {
   position: sticky;
   top: 80px;
   padding-top: 0;
+  min-width: 0;
+  overflow: hidden;
 }
 
 @media (max-width: 900px) {
@@ -1603,6 +1615,9 @@ img {
   font-size: 13px;
   color: #777;
   white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 50%;
 }
 
 .detail-value {
