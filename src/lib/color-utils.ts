@@ -66,7 +66,7 @@ export function generateColorSlug(name: string): string {
 export function parseColorList(raw: string): string[] {
   return raw
     .trim()
-    .split(/[,;]/)
+    .split(/[,;]|\s{2,}/)  // Split on comma/semicolon OR 2+ spaces
     .map(s => s.trim())
     .filter(Boolean);
 }

@@ -237,7 +237,8 @@ export function CatalogPreview({ onAdminLogin }: CatalogPreviewProps) {
   const [likedProducts, setLikedProducts] = useState<Set<string>>(new Set);
   const [activeFilter, setActiveFilter] = useState<string>('all');
 
-  // ── ColorMap for color dots on cards ──
+  // ── ColorMap for color dots on cards (include ALL colors — no isActive/visible filter;
+  // filtering is for admin UI only, not for hex resolution) ──
   const [colorMapData, setColorMapData] = useState<Record<string, string>>({});
   useEffect(() => {
     fetch('/api/colormap')
@@ -246,8 +247,15 @@ export function CatalogPreview({ onAdminLogin }: CatalogPreviewProps) {
         if (json?.data) {
           const map: Record<string, string> = {};
           for (const c of json.data) {
+            // Store by multiple keys for robust lookup
             map[c.name.toLowerCase()] = c.hex;
             map[c.slug] = c.hex;
+            // Also store accent-stripped version
+            const accentKey = normalizeCouleurKey(c.name);
+            map[accentKey] = c.hex;
+            // Store collapsed version (no spaces/commas)
+            const collapsed = accentKey.replace(/[\s,;]+/g, '');
+            if (collapsed !== accentKey) map[collapsed] = c.hex;
           }
           setColorMapData(map);
         }
@@ -1117,12 +1125,16 @@ export function CatalogPreview({ onAdminLogin }: CatalogPreviewProps) {
                     <div className="flex items-center gap-1 mt-0.5 px-0.5">
                       {names.slice(0, 5).map(name => {
                         const key = normalizeCouleurKey(name);
-                        const hex = colorMapData[name.toLowerCase()] || colorMapData[key] || COULEURS_DEFAULTS[key] || null;
+                        const collapsedKey = key.replace(/[\s,;]+/g, '');
+                        const hex = colorMapData[name.toLowerCase()] || colorMapData[key] || colorMapData[collapsedKey] || COULEURS_DEFAULTS[key] || COULEURS_DEFAULTS[collapsedKey] || null;
                         return (
                           <div
                             key={name}
-                            className="w-3.5 h-3.5 rounded-full border border-black/10 shrink-0"
-                            style={{ backgroundColor: hex || '#9CA3AF' }}
+                            className={cn(
+                              'w-3.5 h-3.5 rounded-full border border-black/10 shrink-0',
+                              !hex && 'color-dot-missing'
+                            )}
+                            style={hex ? { backgroundColor: hex } : undefined}
                             title={name}
                           />
                         );

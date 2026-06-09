@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Checkbox } from '@/components/ui/checkbox';
-import { Plus, Check, X, Palette } from 'lucide-react';
+import { Plus, Check, X, Palette, ArrowRightLeft, Search } from 'lucide-react';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 
@@ -43,6 +43,45 @@ function isLightColor(hex: string): boolean {
   return (0.299 * r + 0.587 * g + 0.114 * b) / 255 > 0.6;
 }
 
+// ━━━ ColumnSelector Component ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+function ColumnSelector({ dataSourceId, colSlug, value, onChange }: {
+  dataSourceId: string;
+  colSlug: string;
+  value: string;
+  onChange: (v: string) => void;
+}) {
+  const [columns, setColumns] = useState<{slug: string; name: string}[]>([]);
+
+  useEffect(() => {
+    fetch(`/api/datasources/${dataSourceId}/columns`)
+      .then(r => r.ok ? r.json() : null)
+      .then(json => {
+        if (json?.data) {
+          setColumns(
+            json.data
+              .filter((c: any) => c.type === 'TEXT' && c.slug !== colSlug)
+              .map((c: any) => ({ slug: c.slug, name: c.name }))
+          );
+        }
+      })
+      .catch(() => {});
+  }, [dataSourceId, colSlug]);
+
+  return (
+    <select
+      className="w-full h-7 text-xs rounded-md border border-input bg-background px-2"
+      value={value}
+      onChange={e => onChange(e.target.value)}
+    >
+      <option value="">Choisir une colonne...</option>
+      {columns.map(c => (
+        <option key={c.slug} value={c.slug}>{c.name}</option>
+      ))}
+    </select>
+  );
+}
+
 // ━━━ ColorCell Component ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 export function ColorCell({
@@ -62,6 +101,12 @@ export function ColorCell({
   const [newHex, setNewHex] = useState('#000000');
   const [adding, setAdding] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
+
+  // Mapper state
+  const [showMapper, setShowMapper] = useState(false);
+  const [mapperSourceCol, setMapperSourceCol] = useState<string>('');
+  const [mapperPreview, setMapperPreview] = useState<{raw: string; mapped: string | null; hex: string | null}[]>([]);
+  const [mapperLoading, setMapperLoading] = useState(false);
 
   // Parse the current value into an array of selected color names
   const selectedNames = value
@@ -193,6 +238,77 @@ export function ColorCell({
     }
   };
 
+  // ── Mapper: preview color mapping from source column ──
+  const handleMapperPreview = async () => {
+    if (!mapperSourceCol) return;
+    setMapperLoading(true);
+    try {
+      // Get the raw value from the source column
+      const sourceVal = String(rowData[mapperSourceCol] || '');
+      if (!sourceVal.trim()) {
+        toast.error('Aucune valeur dans la colonne source');
+        setMapperLoading(false);
+        return;
+      }
+      // Parse into individual names
+      const names = sourceVal.split(/[,;]\s*/).map(s => s.trim()).filter(Boolean);
+      // Lookup via ColorMap API
+      const res = await fetch(`/api/colormap/lookup?names=${encodeURIComponent(names.join(','))}`);
+      if (res.ok) {
+        const json = await res.json();
+        const results = json.data || [];
+        setMapperPreview(names.map((name, i) => ({
+          raw: name,
+          mapped: results[i]?.hex ? name : null,
+          hex: results[i]?.hex || null,
+        })));
+      }
+    } catch {
+      toast.error('Erreur lors du mapping');
+    } finally {
+      setMapperLoading(false);
+    }
+  };
+
+  // ── Mapper: apply the mapping results to the cell ──
+  const handleMapperApply = () => {
+    // Only keep colors that were successfully mapped
+    const mappedNames = mapperPreview
+      .filter(p => p.mapped)
+      .map(p => p.raw);
+
+    if (mappedNames.length === 0) {
+      toast.error('Aucune couleur reconnue dans la source');
+      return;
+    }
+
+    // Combine with existing selection
+    const newSelected = [...new Set([...selectedNames, ...mappedNames])];
+    const newData = { ...rowData };
+    newData[colSlug] = newSelected.join(', ');
+    onUpdateRow(rowId, newData);
+
+    // Background save
+    fetch(`/api/datasources/${dataSourceId}/rows/${rowId}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ data: newData }),
+    }).then(res => {
+      if (res.ok) toast.success(`${mappedNames.length} couleur(s) mappée(s)`);
+      else {
+        toast.error('Erreur');
+        onRefresh();
+      }
+    }).catch(() => {
+      toast.error('Erreur réseau');
+      onRefresh();
+    });
+
+    setShowMapper(false);
+    setMapperPreview([]);
+    setMapperSourceCol('');
+  };
+
   // ── Handle Enter key in quick-add form ──
   const handleQuickAddKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter') {
@@ -223,8 +339,8 @@ export function ColorCell({
           return (
             <div
               key={name}
-              className="w-4 h-4 rounded-full shrink-0 border border-white/50 shadow-sm"
-              style={{ backgroundColor: colorItem?.hex || '#9CA3AF' }}
+              className={cn('w-4 h-4 rounded-full shrink-0 border border-white/50 shadow-sm', !colorItem?.hex && 'color-dot-missing')}
+              style={colorItem?.hex ? { backgroundColor: colorItem.hex } : undefined}
               title={name}
             />
           );
@@ -240,7 +356,7 @@ export function ColorCell({
       <div className="flex flex-wrap gap-1 mb-2 pb-2 border-b border-border/50">
         {selectedNames.map(name => {
           const colorItem = getColorByName(name);
-          const hex = colorItem?.hex || '#9CA3AF';
+          const hex = colorItem?.hex || null;
           return (
             <Badge
               key={name}
@@ -251,8 +367,8 @@ export function ColorCell({
               )}
             >
               <div
-                className="w-3 h-3 rounded-full shrink-0 border border-white/30"
-                style={{ backgroundColor: hex }}
+                className={cn('w-3 h-3 rounded-full shrink-0 border border-white/30', !hex && 'color-dot-missing')}
+                style={hex ? { backgroundColor: hex } : undefined}
               />
               <span>{name}</span>
               <button
@@ -381,6 +497,78 @@ export function ColorCell({
                 <X className="w-2.5 h-2.5" />
               </Button>
             </div>
+          </div>
+        )}
+      </div>
+      {/* ── Import/Map from source ── */}
+      <div className="mt-2 pt-2 border-t border-border/50">
+        {!showMapper ? (
+          <Button
+            variant="ghost"
+            size="sm"
+            className="w-full h-7 text-xs text-muted-foreground hover:text-foreground gap-1"
+            onClick={() => setShowMapper(true)}
+          >
+            <ArrowRightLeft className="w-3 h-3" />
+            Importer / Mapper
+          </Button>
+        ) : (
+          <div className="space-y-1.5">
+            <div className="text-[10px] text-muted-foreground font-medium">Source column:</div>
+            <ColumnSelector
+              dataSourceId={dataSourceId}
+              colSlug={colSlug}
+              value={mapperSourceCol}
+              onChange={setMapperSourceCol}
+            />
+            <div className="flex gap-1">
+              <Button
+                size="sm"
+                className="h-6 text-[10px] px-2 gap-0.5 flex-1"
+                onClick={handleMapperPreview}
+                disabled={mapperLoading || !mapperSourceCol}
+              >
+                {mapperLoading ? <Palette className="w-2.5 h-2.5 animate-pulse" /> : <Search className="w-2.5 h-2.5" />}
+                {mapperLoading ? 'Analyse...' : 'Analyser'}
+              </Button>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-6 text-[10px] px-2"
+                onClick={() => { setShowMapper(false); setMapperPreview([]); setMapperSourceCol(''); }}
+              >
+                <X className="w-2.5 h-2.5" />
+              </Button>
+            </div>
+            {/* Preview results */}
+            {mapperPreview.length > 0 && (
+              <div className="max-h-24 overflow-y-auto space-y-0.5 custom-scrollbar">
+                {mapperPreview.map((p, i) => (
+                  <div key={i} className="flex items-center gap-1.5 text-[10px]">
+                    <div
+                      className={cn('w-3 h-3 rounded-full shrink-0 border border-border/30', !p.hex && 'color-dot-missing')}
+                      style={p.hex ? { backgroundColor: p.hex } : undefined}
+                    />
+                    <span className="truncate flex-1">{p.raw}</span>
+                    {p.mapped ? (
+                      <Check className="w-2.5 h-2.5 text-emerald-600 shrink-0" />
+                    ) : (
+                      <X className="w-2.5 h-2.5 text-red-400 shrink-0" />
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+            {mapperPreview.length > 0 && mapperPreview.some(p => p.mapped) && (
+              <Button
+                size="sm"
+                className="h-6 text-[10px] px-2 gap-0.5 w-full"
+                onClick={handleMapperApply}
+              >
+                <Check className="w-2.5 h-2.5" />
+                Appliquer ({mapperPreview.filter(p => p.mapped).length} couleur(s))
+              </Button>
+            )}
           </div>
         )}
       </div>

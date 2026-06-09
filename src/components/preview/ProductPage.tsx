@@ -13,8 +13,6 @@ import {
   Minus,
   Plus,
   ShoppingBag,
-  Package,
-  Clock,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -117,17 +115,38 @@ function computeStockState(rawData: Record<string, unknown>): StockState {
   return 'epuise';
 }
 
-// ── Color Hex Lookup ──
+// ── Color Hex Lookup (multi-strategy, case-insensitive, separator-tolerant) ──
 function resolveColorHex(colorName: string, colorMap: Record<string, string>): string | null {
-  // First check ColorMap (server data)
+  // Strategy 1: Normalize key (lowercase + strip accents)
   const key = normalizeCouleurKey(colorName);
   if (colorMap[key]) return colorMap[key];
-  // Try direct match on name
-  if (colorMap[colorName.toLowerCase()]) return colorMap[colorName.toLowerCase()];
-  // Fallback to COULEURS_DEFAULTS
+
+  // Strategy 2: Direct lowercase match
+  const lower = colorName.toLowerCase().trim();
+  if (colorMap[lower]) return colorMap[lower];
+
+  // Strategy 3: Try normalizing spaces/commas (e.g., "bleu nuit" → "bleunuit")
+  const collapsedKey = key.replace(/[\s,;]+/g, '');
+  if (colorMap[collapsedKey]) return colorMap[collapsedKey];
+
+  // Strategy 4: Try each word individually (for compound names like "Rose kachiri")
+  // This helps when a compound name partially matches
+  const words = colorName.trim().split(/[\s,;]+/).filter(Boolean);
+  if (words.length > 1) {
+    for (const word of words) {
+      const wordKey = normalizeCouleurKey(word);
+      if (colorMap[wordKey]) return colorMap[wordKey];
+    }
+  }
+
+  // Strategy 5: Fallback to COULEURS_DEFAULTS
   if (COULEURS_DEFAULTS[key]) return COULEURS_DEFAULTS[key];
-  // Try if it's already a hex color
+  const defaultCollapsed = collapsedKey;
+  if (COULEURS_DEFAULTS[defaultCollapsed]) return COULEURS_DEFAULTS[defaultCollapsed];
+
+  // Strategy 6: Try if it's already a hex color
   if (/^#[0-9a-fA-F]{3,8}$/.test(colorName)) return colorName;
+
   return null;
 }
 
@@ -342,7 +361,8 @@ export function ProductPage({
     window.scrollTo({ top: 0, behavior: 'smooth' });
   }, []);
 
-  // Fetch color map from API
+  // Fetch color map from API (include ALL colors — no isActive/visible filter;
+  // filtering is for admin UI only, not for hex resolution)
   useEffect(() => {
     fetch('/api/colormap')
       .then(r => r.ok ? r.json() : null)
@@ -350,8 +370,15 @@ export function ProductPage({
         if (json?.data) {
           const map: Record<string, string> = {};
           for (const c of json.data) {
+            // Store by multiple keys for robust lookup
             map[c.name.toLowerCase()] = c.hex;
             map[c.slug] = c.hex;
+            // Also store accent-stripped version
+            const accentKey = normalizeCouleurKey(c.name);
+            map[accentKey] = c.hex;
+            // Store collapsed version (no spaces/commas)
+            const collapsed = accentKey.replace(/[\s,;]+/g, '');
+            if (collapsed !== accentKey) map[collapsed] = c.hex;
           }
           setColorMap(map);
         }
@@ -582,26 +609,6 @@ export function ProductPage({
             </div>
           )}
 
-          {/* ── Stock indicator ── */}
-          {stockState === 'en_stock' && stock > 0 && (
-            <div className="product-page-stock-info">
-              <Package className="w-3.5 h-3.5" style={{ color: BRAND.vertFonce }} />
-              <span>{stock} en stock</span>
-            </div>
-          )}
-          {stockState === 'sur_commande' && (
-            <div className="product-page-stock-info stock-sur-commande">
-              <Clock className="w-3.5 h-3.5" />
-              <span>Confection à la demande</span>
-            </div>
-          )}
-          {stockState === 'epuise' && (
-            <div className="product-page-stock-info stock-epuise">
-              <span className="w-1.5 h-1.5 rounded-full bg-black/20" />
-              <span>Plus disponible</span>
-            </div>
-          )}
-
           {/* ── Description ── */}
           {description && (
             <div className="product-page-section">
@@ -631,10 +638,11 @@ export function ProductPage({
                       aria-label={`Couleur ${name}${isSelected ? ' (sélectionnée)' : ''}`}
                     >
                       <span
-                        className="color-circle-inner"
-                        style={{
-                          backgroundColor: hex || BRAND.grisClair,
-                        }}
+                        className={cn(
+                          'color-circle-inner',
+                          !hex && 'color-circle-missing'
+                        )}
+                        style={hex ? { backgroundColor: hex } : undefined}
                       />
                       {isSelected && (
                         <Check

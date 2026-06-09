@@ -93,3 +93,88 @@ Stage Summary:
 - Color dots render on catalog cards with optionscouleurs fallback
 - ColorMap API working on production with 17 colors
 - Known: ~63% of raw color names from data have no ColorMap hex mapping (data issue, not code bug)
+
+---
+Task ID: 6
+Agent: Main
+Task: Add "Import/Map from source" option in ColorCell
+
+Work Log:
+- Read current ColorCell.tsx to understand structure (popover dropdown with color checkboxes + quick-add)
+- Read /api/colormap/lookup and /api/datasources/[id]/columns API routes to understand available endpoints
+- Added ArrowRightLeft and Search to lucide-react imports
+- Added mapper state variables: showMapper, mapperSourceCol, mapperPreview, mapperLoading
+- Added handleMapperPreview function: reads source column value from rowData, parses comma-separated names, calls /api/colormap/lookup to resolve hex codes
+- Added handleMapperApply function: combines mapped color names with existing selection, saves via PUT /api/datasources/{id}/rows/{rowId}
+- Added ColumnSelector component: fetches TEXT-type columns from /api/datasources/{id}/columns (excluding current colSlug), renders as <select> dropdown
+- Added inline mapper UI after the quick-add section in dropdown content:
+  - "Importer / Mapper" button with ArrowRightLeft icon to toggle mapper mode
+  - ColumnSelector dropdown to pick source column
+  - "Analyser" button to trigger lookup via ColorMap API
+  - Preview list showing each parsed name with color dot, check/X icon for mapped/unmapped
+  - "Appliquer" button to confirm and save matched colors
+- Lint passes with no errors
+- Dev server running cleanly
+
+Stage Summary:
+- ColorCell now has "Importer / Mapper depuis une source" feature in its popover dropdown
+- Users can select a TEXT column from the same data source, preview ColorMap matches, and apply recognized colors
+- ColumnSelector fetches columns dynamically from the datasource columns API
+- Mapper combines new mapped colors with existing selection (deduplication via Set)
+
+---
+Task ID: 2+4
+Agent: Main
+Task: Remove stock display from ProductPage + Fix color fallback with checkerboard pattern
+
+Work Log:
+- Task 1: Removed stock indicator blocks (3 conditional divs) from ProductPage.tsx (lines 585-603)
+  - Removed "X en stock", "Confection à la demande", and "Plus disponible" displays
+  - Kept computeStockState, stockState, stock, isEpuise, isSurCommande variables (used for Épuisé/Sur commande badges and CTA disabling)
+- Task 1: Removed unused Package and Clock icon imports from ProductPage.tsx
+- Task 2: Updated ProductPage.tsx color-circle-inner to use checkerboard class instead of gray fallback
+  - Changed `style={{ backgroundColor: hex || BRAND.grisClair }}` to `cn('color-circle-inner', !hex && 'color-circle-missing')` + conditional style
+- Task 2: Updated CatalogPreview.tsx color dots to use checkerboard class instead of #9CA3AF
+  - Changed `style={{ backgroundColor: hex || '#9CA3AF' }}` to `cn(..., !hex && 'color-dot-missing')` + conditional style
+  - cn import already existed in CatalogPreview
+- Task 2: Added .color-circle-missing and .color-dot-missing CSS classes to globals.css after .color-circle-check rule
+  - Both use CSS linear-gradient checkerboard pattern (transparency standard)
+  - .color-circle-missing: 10px tiles for 40x40px circles
+  - .color-dot-missing: 6px tiles for small dots
+- Task 2: Updated ColorCell.tsx renderInlineDisplay and renderSelectedChips
+  - renderInlineDisplay: changed gray fallback to checkerboard class `color-dot-missing`
+  - renderSelectedChips: changed `colorItem?.hex || '#9CA3AF'` to `colorItem?.hex || null` with checkerboard fallback
+- Ran `bun run lint` — no errors
+
+Stage Summary:
+- Stock indicator ("10 en stock", etc.) removed from client-facing ProductPage — admin-only info no longer leaks
+- Unrecognized colors now show checkerboard pattern instead of gray — clearly signals "no color data" rather than implying "Gris"
+- Changes applied across 4 files: ProductPage.tsx, CatalogPreview.tsx, globals.css, ColorCell.tsx
+
+---
+Task ID: 3+5
+Agent: Main
+Task: Rewrite Normalization System (case-insensitive, smart separators, space tolerance) + Fix Deactivation Bug
+
+Work Log:
+- Updated `normalizeCouleurKey()` in constants.ts: added `.trim()` and JSDoc comments explaining behavior
+- Replaced `resolveColorHex()` in ProductPage.tsx with multi-strategy version (6 strategies):
+  - Strategy 1: Normalize key (lowercase + strip accents)
+  - Strategy 2: Direct lowercase match
+  - Strategy 3: Collapsed key (spaces/commas/semicolons removed) — handles "bleu nuit" → "bleunuit"
+  - Strategy 4: Per-word lookup for compound names (e.g., "Rose kachiri" → tries "rose" and "kachiri")
+  - Strategy 5: Fallback to COULEURS_DEFAULTS (both normal and collapsed)
+  - Strategy 6: Hex color passthrough
+- Updated colorMap fetch useEffect in ProductPage.tsx to build more robust lookup map:
+  - Stores by lowercase name, slug, accent-stripped key, and collapsed key (no spaces/commas)
+  - Does NOT filter by isActive/visible — all colors included for hex resolution
+- Updated colorMapData fetch useEffect in CatalogPreview.tsx with same robust lookup map (no isActive/visible filter)
+- Updated color dot hex resolution in CatalogPreview.tsx to use multi-strategy lookup (lowercase → accentKey → collapsedKey → COULEURS_DEFAULTS)
+- Updated `parseColorList()` in color-utils.ts: split regex changed from `[,;]` to `[,;]|\s{2,}` (handles 2+ consecutive spaces as separator)
+- Ran `bun run lint` — no errors
+
+Stage Summary:
+- Color lookup is now case-insensitive, accent-insensitive, and separator-tolerant
+- Deactivation bug fixed: colorMap lookups include ALL colors regardless of isActive/visible status
+- isActive/visible filtering is now exclusively in admin UI (ColorCell dropdown), not in preview rendering
+- Compound color names can partially match via per-word fallback strategy

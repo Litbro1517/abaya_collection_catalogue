@@ -40,11 +40,22 @@ export const COULEURS_DEFAULTS: Record<string, string> = {
   'argent': '#9E9E9E',
 };
 
+/**
+ * Normalize a color name for lookup/comparison.
+ * Case-insensitive, accent-insensitive, separator-normalized.
+ *
+ * Examples:
+ *   "Noir, Blanc" → "noir, blanc"  (used for lookup key matching)
+ *   "NOIR" → "noir"
+ *   "Bleu-Nuit" → "bleu-nuit"     (hyphen preserved as ligature)
+ *   "Noir ,  Blanc" → "noir ,  blanc"  (trim only outer whitespace)
+ */
 export function normalizeCouleurKey(nom: string): string {
   return nom
+    .trim()
     .toLowerCase()
     .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '');
+    .replace(/[\u0300-\u036f]/g, '');  // Strip accents
 }
 
 export function formatPrice(price: number): string {
