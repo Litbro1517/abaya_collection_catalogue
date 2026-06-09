@@ -187,14 +187,24 @@ export function ProductPage({
   const variants = config.variantColumn ? getCellValue(config.variantColumn) : '';
   const statut = (rawData.__statut__ as string) || 'Courant';
 
-  // ── Parse variants into sizes and colors ──
+  // ── Parse colors from colorColumn (COLOR type) or fallback to variantColumn ──
+  // Priority: dedicated colorColumn (ColorMap-driven) > variantColumn parsing
+  const rawColorValue = config.colorColumn ? getCellValue(config.colorColumn) : '';
+  const colorNames: string[] = rawColorValue
+    ? rawColorValue.split(/[,;]/).map(v => v.trim()).filter(Boolean)
+    : [];
+
+  // ── Parse variants into sizes (from variantColumn) ──
   const variantList = variants ? variants.split(/[,;]/).map(v => v.trim()).filter(Boolean) : [];
   const sizePattern = /^(XS|S|M|L|XL|2XL|3XL|4XL|XXL|XXXL|\d{1,2})$/i;
   const sizes = variantList.filter(v => sizePattern.test(v));
-  const colorNames = variantList.filter(v => !sizePattern.test(v));
 
-  // ── Color data with hex resolution ──
-  const colorData = colorNames.map(name => ({
+  // If no dedicated colorColumn, extract colors from variantColumn (legacy fallback)
+  const legacyColorNames = rawColorValue ? [] : variantList.filter(v => !sizePattern.test(v));
+  const finalColorNames = colorNames.length > 0 ? colorNames : legacyColorNames;
+
+  // ── Color data with hex resolution from ColorMap ──
+  const colorData = finalColorNames.map(name => ({
     name,
     hex: resolveColorHex(name, colorMap),
   }));
@@ -262,6 +272,7 @@ export function ProductPage({
   if (config.variantColumn) detailSlugsShown.add(config.variantColumn);
   if (config.coverColumn) detailSlugsShown.add(config.coverColumn);
   if (config.carouselColumn) detailSlugsShown.add(config.carouselColumn);
+  if (config.colorColumn) detailSlugsShown.add(config.colorColumn);
   // Also add their corresponding column names (case-insensitive match)
   const detailLabelsShown = new Set<string>();
   for (const slug of detailSlugsShown) {

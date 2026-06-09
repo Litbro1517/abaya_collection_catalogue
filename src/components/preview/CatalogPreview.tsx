@@ -11,6 +11,7 @@ import {
   ShoppingBag, LayoutDashboard, Lock
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { COULEURS_DEFAULTS, normalizeCouleurKey } from '@/lib/constants';
 import { ProductPage } from './ProductPage';
 
 // ── Brand Constants ──
@@ -235,6 +236,24 @@ export function CatalogPreview({ onAdminLogin }: CatalogPreviewProps) {
   const [currentPage, setCurrentPage] = useState(1);
   const [likedProducts, setLikedProducts] = useState<Set<string>>(new Set);
   const [activeFilter, setActiveFilter] = useState<string>('all');
+
+  // ── ColorMap for color dots on cards ──
+  const [colorMapData, setColorMapData] = useState<Record<string, string>>({});
+  useEffect(() => {
+    fetch('/api/colormap')
+      .then(r => r.ok ? r.json() : null)
+      .then(json => {
+        if (json?.data) {
+          const map: Record<string, string> = {};
+          for (const c of json.data) {
+            map[c.name.toLowerCase()] = c.hex;
+            map[c.slug] = c.hex;
+          }
+          setColorMapData(map);
+        }
+      })
+      .catch(() => {});
+  }, []);
 
   // ━━━ Two-Level Dynamic Category Filter ━━━━━━━━━━━━━━━━━━━━━━━━━
   // Level 1: Macro categories (Ensemble, Abaya, Kimono, etc.)
@@ -1078,6 +1097,33 @@ export function CatalogPreview({ onAdminLogin }: CatalogPreviewProps) {
                 {config.showTitle !== false && title && (
                   <strong className="product-card-title">{title}</strong>
                 )}
+
+                {/* Color dots from ColorMap */}
+                {config.colorColumn && (() => {
+                  const rawColors = getCellValue(row, config.colorColumn);
+                  if (!rawColors) return null;
+                  const names = rawColors.split(/[,;]/).map(v => v.trim()).filter(Boolean);
+                  if (names.length === 0) return null;
+                  return (
+                    <div className="flex items-center gap-1 mt-0.5 px-0.5">
+                      {names.slice(0, 5).map(name => {
+                        const key = normalizeCouleurKey(name);
+                        const hex = colorMapData[name.toLowerCase()] || colorMapData[key] || COULEURS_DEFAULTS[key] || null;
+                        return (
+                          <div
+                            key={name}
+                            className="w-3.5 h-3.5 rounded-full border border-black/10 shrink-0"
+                            style={{ backgroundColor: hex || '#9CA3AF' }}
+                            title={name}
+                          />
+                        );
+                      })}
+                      {names.length > 5 && (
+                        <span className="text-[9px] text-muted-foreground ml-0.5">+{names.length - 5}</span>
+                      )}
+                    </div>
+                  );
+                })()}
 
                 {/* Price line with inline status — minimalist, high-end */}
                 {((price && config.showPrice !== false) || isEpuise || isSurCommande) && (

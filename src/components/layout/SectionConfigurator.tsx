@@ -9,7 +9,7 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
-import { ChevronDown, ChevronRight, Database, ImageIcon, Layers, LayoutGrid, Save, Loader2 } from 'lucide-react';
+import { ChevronDown, ChevronRight, Database, ImageIcon, Layers, LayoutGrid, Save, Loader2, Palette } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 interface Props {
@@ -54,6 +54,7 @@ export function SectionConfigurator({ section, dataSources, columns, rows, onUpd
   const imageArrayColumns = dsColumns.filter(c => c.type === 'IMAGE_ARRAY' || c.type === 'ARRAY');
   const currencyColumns = dsColumns.filter(c => c.type === 'CURRENCY' || c.type === 'NUMBER');
   const textColumns = dsColumns.filter(c => c.type === 'TEXT' || c.type === 'SELECT');
+  const colorColumns = dsColumns.filter(c => c.type === 'COLOR');
 
   const handleChange = (key: string, value: unknown) => {
     const newConfig = { ...localConfig, [key]: value };
@@ -253,13 +254,41 @@ export function SectionConfigurator({ section, dataSources, columns, rows, onUpd
             </div>
 
             <div>
-              <Label className="text-xs mb-1 block">Colonne variantes (couleurs/tailles)</Label>
+              <Label className="text-xs mb-1 block">Colonne Couleurs (ColorMap)</Label>
+              <Select value={localConfig.colorColumn || ''} onValueChange={v => handleChange('colorColumn', v)}>
+                <SelectTrigger className="h-9"><SelectValue placeholder="Choisir la colonne couleur..." /></SelectTrigger>
+                <SelectContent>
+                  {colorColumns.map(c => (
+                    <SelectItem key={c.slug} value={c.slug}>
+                      <div className="flex items-center gap-1.5">
+                        <Palette className="w-3 h-3 text-[#C9A84C]" />
+                        {c.name}
+                      </div>
+                    </SelectItem>
+                  ))}
+                  {colorColumns.length === 0 && (
+                    <div className="px-2 py-1.5 text-[10px] text-muted-foreground">
+                      Aucune colonne de type Couleur. Créez une colonne avec le type « Couleur » dans le DataTable.
+                    </div>
+                  )}
+                </SelectContent>
+              </Select>
+              <p className="text-[10px] text-muted-foreground mt-1">
+                Colonne de type « Couleur » reliée à la ColorMap. Les couleurs s&apos;afficheront sous forme de cercles.
+              </p>
+            </div>
+
+            <div>
+              <Label className="text-xs mb-1 block">Colonne Tailles / Variantes</Label>
               <Select value={localConfig.variantColumn || ''} onValueChange={v => handleChange('variantColumn', v)}>
                 <SelectTrigger className="h-9"><SelectValue placeholder="Choisir..." /></SelectTrigger>
                 <SelectContent>
                   {textColumns.map(c => <SelectItem key={c.slug} value={c.slug}>{c.name}</SelectItem>)}
                 </SelectContent>
               </Select>
+              <p className="text-[10px] text-muted-foreground mt-1">
+                Colonne contenant les tailles (S, M, L…) ou options variées
+              </p>
             </div>
 
             <div>

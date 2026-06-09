@@ -152,7 +152,8 @@ export interface SectionConfig {
   // Level 3: Detail/Carousel
   carouselColumn?: string;    // ARRAY/IMAGE_ARRAY column slug for carousel
   detailColumns?: string[];   // Column slugs to show in detail view
-  variantColumn?: string;     // Column slug for color/variant display
+  variantColumn?: string;     // Column slug for variant display (sizes)
+  colorColumn?: string;       // Column slug for color swatches (COLOR type column)
   [key: string]: unknown;
 }
 
