@@ -178,3 +178,35 @@ Stage Summary:
 - Deactivation bug fixed: colorMap lookups include ALL colors regardless of isActive/visible status
 - isActive/visible filtering is now exclusively in admin UI (ColorCell dropdown), not in preview rendering
 - Compound color names can partially match via per-word fallback strategy
+
+---
+Task ID: 2+3+4+5+6
+Agent: Main + Subagents
+Task: Color system overhaul - normalization, checkerboard, stock removal, import/mapper, deactivation fix
+
+Work Log:
+- Removed stock display ("10 en stock") from ProductPage (admin-only info)
+- Rewrote resolveColorHex with 7-strategy lookup:
+  1. Normalized key (lowercase + strip accents)
+  2. Direct lowercase match
+  3. Collapsed key (spaces/commas/semicolons removed)
+  4. Per-word lookup for compound names
+  5. Fuzzy alias matching (BLANCHE→blanc, BORDO→bordeaux, Blue→bleu, MARON→marron, etc.)
+  6. COULEURS_DEFAULTS fallback (with alias support)
+  7. Hex color passthrough
+- Extracted resolveColorHex, buildColorLookupMap, normalizeCouleurKey to shared color-utils.ts
+- CatalogPreview now uses shared resolveColorHex (fixes ALL GRAY dots on cards)
+- Fixed deactivation bug: ColorMap lookup includes ALL colors (no isActive/visible filter)
+- Added checkerboard pattern for unrecognized colors (no more gray fallback)
+- Improved checkerboard contrast (#ccc/#bbb instead of subtle grays)
+- Added Import/Map from source in ColorCell (mapper with preview)
+- parseColorList treats 2+ consecutive spaces as separator
+- Deployed to Vercel: https://abaya-collection-catalogue-9dum.vercel.app/
+
+Stage Summary:
+- Stock display removed from client-facing ProductPage
+- 7-strategy color resolution with fuzzy aliases for Moroccan/French variants
+- Checkerboard pattern replaces gray fallback for unknown colors
+- Deactivation bug fixed (filtering only in admin UI)
+- Import/Map feature added to ColorCell dropdown
+- All changes deployed to production
