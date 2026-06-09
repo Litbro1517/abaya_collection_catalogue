@@ -68,3 +68,28 @@ Stage Summary:
 - Product cards now show color circles when colorColumn is configured
 - ColorCell in DataTable properly queries ColorMap, saves as comma-separated names
 - Full Triple-Flux system is operational: Flux A (ColorCell), Flux B (ColorMapManager), Flux C (ColorImportDialog)
+
+---
+Task ID: 1
+Agent: Main
+Task: Deploy ColorMap-driven color circles to Vercel production
+
+Work Log:
+- Analyzed current project state: ColorMap system exists but was disconnected from product display
+- Updated ProductPage.tsx: replaced 28x28px text+circle swatches with 40x40px color circles (no text names)
+- Updated CSS: new .product-page-color-circle styles with gold border on selection
+- Added 3-level color fallback in ProductPage: colorColumn → optionscouleurs → variantColumn
+- Added same fallback in CatalogPreview for color dots on cards
+- Fixed DB: changed __colors__ column type from TEXT to COLOR
+- Fixed DB: set section.colorColumn = "__colors__"
+- Fixed DB: removed optionscouleurs from detailColumns (now shown as circles)
+- Fixed db.ts: robust DATABASE_URL override for non-PostgreSQL system URLs
+- Fixed TDZ bug: moved colorMap useState before colorData computation
+- Deployed to Vercel: https://abaya-collection-catalogue-9dum.vercel.app/
+- Verified production: all checks pass (40x40px circles, gold border, no text, no errors)
+
+Stage Summary:
+- Color circles render correctly on ProductPage (40x40px, no text, gold selection border)
+- Color dots render on catalog cards with optionscouleurs fallback
+- ColorMap API working on production with 17 colors
+- Known: ~63% of raw color names from data have no ColorMap hex mapping (data issue, not code bug)
