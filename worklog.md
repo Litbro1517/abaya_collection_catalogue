@@ -146,3 +146,38 @@ Stage Summary:
 - Modified: src/app/globals.css (added ProductPage styles)
 - Key features: Color swatches with hex mapping, size selector chips, thumbnail strip, mobile sticky CTA, share button, keyboard nav, fade-in images
 - Note: Dev server is unstable in sandbox environment but code is verified clean
+
+---
+Task ID: 2
+Agent: Main Agent
+Task: Implement Slow Luxury Color Architecture (ColorMap + Triple-Flux + ProductPage restructure)
+
+Work Log:
+- Added ColorMap model to Prisma schema (id, name, slug, hex, ordre, visible, isActive)
+- Discovered color_map table already existed in Supabase DB with 10 rows from previous session
+- Added is_active column to existing table via Prisma $executeRawUnsafe
+- Added COLOR column type to types/index.ts + ColumnEditorDialog
+- Created /api/colormap CRUD routes with server-side normalization (Title Case, hyphen-aware)
+- Created /api/colormap/import for bulk color import (max 500, skip duplicates)
+- Created /api/colormap/lookup for color name→hex resolution
+- Created src/lib/color-utils.ts with normalizeColorName, generateColorSlug, parseColorList
+- Created ColorMapManager component (Flux B: Settings > Couleurs tab) with inline edit, visible toggle, safety delete
+- Created ColorCell component (Flux A: DataTable multi-select dropdown with quick-add)
+- Created ColorImportDialog component (Flux C: 3-step mass import with mandatory preview)
+- Restructured ProductPage: section titles (DESCRIPTION, COULEURS, TAILLES, DÉTAILS), single H1, ColorMap-driven color swatches
+- Added CSS classes for product-page-section-title and selected-value
+- Fixed db.ts to override system DATABASE_URL with dotenv when it points to wrong DB
+- Filtered technical/duplicate fields from ProductPage details (Options_*, __*, Prix_Revendeur, Description)
+- Added "Couleurs" tab to SettingsPillar (7th tab, grid-cols-7)
+- Integrated COLOR type into DataTable (COLUMN_TYPE_ICON, COLUMN_TYPE_LABEL, ColorCell rendering)
+- Committed and deployed to Vercel production
+
+Stage Summary:
+- Production URL: https://abaya-collection-catalogue-9dum.vercel.app
+- ColorMap: 17 colors in DB (10 original + 7 added via API)
+- All 3 Flux interfaces verified working on production:
+  - Flux A: ColorCell dropdown in DataTable
+  - Flux B: ColorMapManager in Settings > Couleurs
+  - Flux C: ColorImportDialog with preview
+- ProductPage restructured with clean section titles, no duplicates
+- API endpoints verified: /api/colormap, /api/colormap/import, /api/colormap/lookup
