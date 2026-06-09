@@ -343,7 +343,7 @@ export function RelationManager() {
                       <span className="flex items-center gap-2">
                         <span
                           className="h-2 w-2 rounded-full"
-                          style={{ backgroundColor: ds.color || '#C9A84C' }}
+                          style={{ backgroundColor: ds.color || 'var(--gold)' }}
                         />
                         {ds.name}
                       </span>

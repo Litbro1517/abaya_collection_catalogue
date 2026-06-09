@@ -224,10 +224,10 @@ export function ColumnEditorDialog({ open, onOpenChange, dataSourceId, columns, 
         {/* ── Header: gold + icon, clean ── */}
         <DialogHeader className="px-5 pt-5 pb-0">
           <DialogTitle className="flex items-center gap-2.5 text-base">
-            <div className="w-7 h-7 rounded-lg bg-[#C9A84C]/10 flex items-center justify-center">
+            <div className="w-7 h-7 rounded-lg bg-gold/10 flex items-center justify-center">
               {editingColumn
-                ? <Pencil className="w-3.5 h-3.5 text-[#C9A84C]" />
-                : <Plus className="w-3.5 h-3.5 text-[#C9A84C]" />
+                ? <Pencil className="w-3.5 h-3.5 text-gold" />
+                : <Plus className="w-3.5 h-3.5 text-gold" />
               }
             </div>
             {editingColumn ? 'Modifier la colonne' : 'Nouvelle colonne'}
@@ -255,7 +255,7 @@ export function ColumnEditorDialog({ open, onOpenChange, dataSourceId, columns, 
               value={name}
               onChange={e => setName(e.target.value)}
               placeholder="Ex: Prix, Couleur, Référence…"
-              className="h-9 text-sm border-border/60 focus:border-[#C9A84C] focus:ring-[#C9A84C]/20"
+              className="h-9 text-sm border-border/60 focus:border-gold focus:ring-gold/20"
               autoFocus
             />
             {editingColumn && (
@@ -274,10 +274,10 @@ export function ColumnEditorDialog({ open, onOpenChange, dataSourceId, columns, 
               <PopoverTrigger asChild>
                 <button
                   type="button"
-                  className="w-full flex items-center justify-between h-9 px-3 rounded-lg border border-border/60 bg-background text-sm hover:border-[#C9A84C]/50 focus:outline-none focus:ring-1 focus:ring-[#C9A84C]/30 transition-colors"
+                  className="w-full flex items-center justify-between h-9 px-3 rounded-lg border border-border/60 bg-background text-sm hover:border-gold/50 focus:outline-none focus:ring-1 focus:ring-gold/30 transition-colors"
                 >
                   <div className="flex items-center gap-2">
-                    <span className="text-[#C9A84C]">{currentTypeConfig?.icon}</span>
+                    <span className="text-gold">{currentTypeConfig?.icon}</span>
                     <span className="text-foreground">{currentTypeConfig?.label}</span>
                     <span className="text-muted-foreground/50 text-[10px]">{currentTypeConfig?.description}</span>
                   </div>
@@ -303,7 +303,7 @@ export function ColumnEditorDialog({ open, onOpenChange, dataSourceId, columns, 
                           className={cn(
                             "w-full flex items-center gap-2 px-3 py-2 text-xs transition-colors text-left",
                             isHovered
-                              ? "bg-[#C9A84C]/10 text-[#C9A84C] font-medium"
+                              ? "bg-gold/10 text-gold font-medium"
                               : hasSelectedType
                                 ? "text-foreground font-medium"
                                 : "text-muted-foreground hover:bg-muted/50"
@@ -311,7 +311,7 @@ export function ColumnEditorDialog({ open, onOpenChange, dataSourceId, columns, 
                           onMouseEnter={() => setHoveredCategory(cat.label)}
                           onClick={() => setHoveredCategory(cat.label)}
                         >
-                          <span className={cn(isHovered ? "text-[#C9A84C]" : "text-muted-foreground/60")}>{cat.icon}</span>
+                          <span className={cn(isHovered ? "text-gold" : "text-muted-foreground/60")}>{cat.icon}</span>
                           {cat.label}
                           <ChevronRight className={cn("w-3 h-3 ml-auto transition-opacity", isHovered ? "opacity-100" : "opacity-30")} />
                         </button>
@@ -334,7 +334,7 @@ export function ColumnEditorDialog({ open, onOpenChange, dataSourceId, columns, 
                           className={cn(
                             "w-full flex items-center gap-2.5 px-3 py-2 text-sm transition-colors",
                             isSelected
-                              ? "bg-[#1A3C34] text-white"
+                              ? "bg-primary text-white"
                               : "hover:bg-muted/40 text-foreground"
                           )}
                           onClick={() => {
@@ -342,14 +342,14 @@ export function ColumnEditorDialog({ open, onOpenChange, dataSourceId, columns, 
                             setTypePopoverOpen(false);
                           }}
                         >
-                          <span className={isSelected ? "text-[#C9A84C]" : "text-[#C9A84C]/60"}>{ct.icon}</span>
+                          <span className={isSelected ? "text-gold" : "text-gold/60"}>{ct.icon}</span>
                           <div className="flex-1 text-left">
                             <span className="text-xs font-medium">{ct.label}</span>
                             <span className={cn("text-[10px] ml-1.5", isSelected ? "text-white/50" : "text-muted-foreground/50")}>
                               {ct.description}
                             </span>
                           </div>
-                          {isSelected && <Check className="w-3.5 h-3.5 text-[#C9A84C]" />}
+                          {isSelected && <Check className="w-3.5 h-3.5 text-gold" />}
                         </button>
                       );
                     })}
@@ -380,7 +380,7 @@ export function ColumnEditorDialog({ open, onOpenChange, dataSourceId, columns, 
                         <Input
                           value={opt}
                           onChange={e => updateOption(i, e.target.value)}
-                          className="h-8 text-xs border-border/40 focus:border-[#C9A84C] focus:ring-[#C9A84C]/20"
+                          className="h-8 text-xs border-border/40 focus:border-gold focus:ring-gold/20"
                           placeholder={`Option ${i + 1}`}
                         />
                         <Button variant="ghost" size="icon" className="h-7 w-7 shrink-0 text-muted-foreground/40 hover:text-destructive" onClick={() => removeOption(i)}>
@@ -388,7 +388,7 @@ export function ColumnEditorDialog({ open, onOpenChange, dataSourceId, columns, 
                         </Button>
                       </div>
                     ))}
-                    <Button variant="outline" size="sm" onClick={addOption} className="h-7 text-[10px] gap-1 border-dashed border-[#C9A84C]/30 text-[#C9A84C] hover:bg-[#C9A84C]/5 hover:text-[#C9A84C]">
+                    <Button variant="outline" size="sm" onClick={addOption} className="h-7 text-[10px] gap-1 border-dashed border-gold/30 text-gold hover:bg-gold/5 hover:text-gold">
                       <Plus className="w-3 h-3" /> Ajouter
                     </Button>
                   </div>
@@ -410,7 +410,7 @@ export function ColumnEditorDialog({ open, onOpenChange, dataSourceId, columns, 
                               onCheckedChange={() => toggleSourceColumn(col.slug)}
                               className="h-3.5 w-3.5"
                             />
-                            <span className="text-[#C9A84C]/60">{COLUMN_TYPES.find(ct => ct.value === col.type)?.icon}</span>
+                            <span className="text-gold/60">{COLUMN_TYPES.find(ct => ct.value === col.type)?.icon}</span>
                             <span className="truncate flex-1">{col.name}</span>
                           </label>
                         ))
@@ -430,8 +430,8 @@ export function ColumnEditorDialog({ open, onOpenChange, dataSourceId, columns, 
                             className={cn(
                               "w-7 h-6 rounded text-[10px] font-mono transition-all border",
                               gallerySeparator === sep.v
-                                ? "border-[#C9A84C] bg-[#C9A84C]/10 text-[#C9A84C]"
-                                : "border-border/40 text-muted-foreground/50 hover:border-[#C9A84C]/30"
+                                ? "border-gold bg-gold/10 text-gold"
+                                : "border-border/40 text-muted-foreground/50 hover:border-gold/30"
                             )}
                             onClick={() => setGallerySeparator(sep.v)}
                           >
@@ -451,7 +451,7 @@ export function ColumnEditorDialog({ open, onOpenChange, dataSourceId, columns, 
                       value={config.imagePrefix || ''}
                       onChange={e => setConfig({ ...config, imagePrefix: e.target.value })}
                       placeholder="https://example.com/images/"
-                      className="h-8 text-xs border-border/40 focus:border-[#C9A84C]"
+                      className="h-8 text-xs border-border/40 focus:border-gold"
                     />
                   </div>
                 )}
@@ -488,8 +488,8 @@ export function ColumnEditorDialog({ open, onOpenChange, dataSourceId, columns, 
                           className={cn(
                             "h-7 px-2.5 rounded text-xs font-medium transition-all border",
                             (config.currencySymbol || 'DH') === sym
-                              ? "border-[#C9A84C] bg-[#C9A84C]/10 text-[#C9A84C]"
-                              : "border-border/40 text-muted-foreground/60 hover:border-[#C9A84C]/30"
+                              ? "border-gold bg-gold/10 text-gold"
+                              : "border-border/40 text-muted-foreground/60 hover:border-gold/30"
                           )}
                           onClick={() => setConfig({ ...config, currencySymbol: sym })}
                         >
@@ -505,11 +505,11 @@ export function ColumnEditorDialog({ open, onOpenChange, dataSourceId, columns, 
                   <div className="flex items-center gap-3">
                     <div className="flex-1">
                       <Label className="mb-0.5 text-[10px] text-muted-foreground/60">Vrai</Label>
-                      <Input value={config.trueLabel || 'Oui'} onChange={e => setConfig({ ...config, trueLabel: e.target.value })} className="h-7 text-xs border-border/40 focus:border-[#C9A84C]" />
+                      <Input value={config.trueLabel || 'Oui'} onChange={e => setConfig({ ...config, trueLabel: e.target.value })} className="h-7 text-xs border-border/40 focus:border-gold" />
                     </div>
                     <div className="flex-1">
                       <Label className="mb-0.5 text-[10px] text-muted-foreground/60">Faux</Label>
-                      <Input value={config.falseLabel || 'Non'} onChange={e => setConfig({ ...config, falseLabel: e.target.value })} className="h-7 text-xs border-border/40 focus:border-[#C9A84C]" />
+                      <Input value={config.falseLabel || 'Non'} onChange={e => setConfig({ ...config, falseLabel: e.target.value })} className="h-7 text-xs border-border/40 focus:border-gold" />
                     </div>
                   </div>
                 )}
@@ -518,7 +518,7 @@ export function ColumnEditorDialog({ open, onOpenChange, dataSourceId, columns, 
                 {type === 'RELATION' && (
                   <div className="space-y-2.5">
                     <p className="text-[10px] text-muted-foreground/60 flex items-center gap-1.5">
-                      <Link2 className="w-3 h-3 text-[#C9A84C]/50" />
+                      <Link2 className="w-3 h-3 text-gold/50" />
                       Configurez la relation entre les tables
                     </p>
                     {/* Relation name */}
@@ -528,7 +528,7 @@ export function ColumnEditorDialog({ open, onOpenChange, dataSourceId, columns, 
                         value={name}
                         onChange={e => setName(e.target.value)}
                         placeholder="Ex: Produits → Catégories"
-                        className="h-7 text-xs border-border/40 focus:border-[#C9A84C]"
+                        className="h-7 text-xs border-border/40 focus:border-gold"
                       />
                     </div>
                     {/* Source column */}
@@ -542,7 +542,7 @@ export function ColumnEditorDialog({ open, onOpenChange, dataSourceId, columns, 
                           {columns.map(col => (
                             <SelectItem key={col.id} value={col.slug}>
                               <span className="flex items-center gap-1.5">
-                                <span className="text-[#C9A84C]/60">{COLUMN_TYPES.find(ct => ct.value === col.type)?.icon}</span>
+                                <span className="text-gold/60">{COLUMN_TYPES.find(ct => ct.value === col.type)?.icon}</span>
                                 {col.name}
                               </span>
                             </SelectItem>
@@ -599,7 +599,7 @@ export function ColumnEditorDialog({ open, onOpenChange, dataSourceId, columns, 
             </Button>
             <Button
               size="sm"
-              className="h-8 text-xs gap-1.5 bg-[#C9A84C] hover:bg-[#C9A84C]/90 text-white"
+              className="h-8 text-xs gap-1.5 bg-gold hover:bg-gold/90 text-white"
               disabled={!name.trim() || saving}
               onClick={handleSaveClick}
             >
@@ -628,7 +628,7 @@ export function ColumnEditorDialog({ open, onOpenChange, dataSourceId, columns, 
             </AlertDialogHeader>
             <AlertDialogFooter>
               <AlertDialogCancel>Annuler</AlertDialogCancel>
-              <AlertDialogAction className="bg-[#C9A84C] hover:bg-[#C9A84C]/90 text-white" onClick={handleSave}>
+              <AlertDialogAction className="bg-gold hover:bg-gold/90 text-white" onClick={handleSave}>
                 Confirmer
               </AlertDialogAction>
             </AlertDialogFooter>

@@ -250,7 +250,7 @@ export function StockSourceModal({
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
-            <Link2 className="w-4 h-4 text-[#C9A84C]" />
+            <Link2 className="w-4 h-4 text-gold" />
             Connecter une source de stock
           </DialogTitle>
           <DialogDescription className="text-[11px] leading-relaxed">
@@ -298,7 +298,7 @@ export function StockSourceModal({
                       />
                       {ds.name}
                       {ds.id === currentDataSourceId && (
-                        <span className="text-[9px] text-[#C9A84C] font-medium ml-1">(actuelle)</span>
+                        <span className="text-[9px] text-gold font-medium ml-1">(actuelle)</span>
                       )}
                     </div>
                   </SelectItem>
@@ -455,7 +455,7 @@ export function StockSourceModal({
               "gap-1.5 text-white",
               !isValid && "opacity-50"
             )}
-            style={{ backgroundColor: '#1A3C34' }}
+            style={{ backgroundColor: 'var(--primary)' }}
             onClick={handleSave}
             disabled={!isValid || saving}
           >

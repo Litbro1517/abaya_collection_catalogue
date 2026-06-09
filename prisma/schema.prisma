@@ -153,6 +153,9 @@ model CatalogSettings {
   enableSharing     Boolean  @default(true) @map("enable_sharing")
   conversionChannel String   @default("whatsapp") @map("conversion_channel")
   conversionMessage String   @default("") @map("conversion_message")
+  brandGreenColor   String   @default("#1A3C34") @map("brand_green_color")
+  destructiveColor  String   @default("#800020") @map("destructive_color")
+  borderColor       String   @default("#E8E2D9") @map("border_color")
   customCSS         String   @default("") @map("custom_css")
   favicon           String?
   logo              String?

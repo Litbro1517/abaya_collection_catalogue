@@ -109,7 +109,7 @@ export function GoogleConnectPanel() {
           <Button
             size="sm"
             variant="ghost"
-            className="h-7 w-7 p-0 text-muted-foreground hover:text-[#C9A84C] hover:bg-[#C9A84C]/10"
+            className="h-7 w-7 p-0 text-muted-foreground hover:text-gold hover:bg-gold/10"
             onClick={handleOpenSheetsBrowser}
             title="Connecter une nouvelle source Google Sheets"
           >

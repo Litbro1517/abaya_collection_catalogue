@@ -39,6 +39,9 @@ export async function PUT(req: NextRequest) {
           enableSharing: body.enableSharing !== undefined ? body.enableSharing : true,
           conversionChannel: body.conversionChannel || 'whatsapp',
           conversionMessage: body.conversionMessage || '',
+          brandGreenColor: body.brandGreenColor || '#1A3C34',
+          destructiveColor: body.destructiveColor || '#800020',
+          borderColor: body.borderColor || '#E8E2D9',
           customCSS: body.customCSS || '',
         },
       });
@@ -51,7 +54,8 @@ export async function PUT(req: NextRequest) {
       'language', 'currency', 'whatsappNumber', 'messengerLink', 'emailContact',
       'instagramHandle', 'primaryColor', 'secondaryColor', 'accentColor', 'backgroundColor',
       'fontFamily', 'enableZoom', 'enableSearch', 'enableSharing', 'conversionChannel',
-      'conversionMessage', 'customCSS', 'favicon', 'logo',
+      'conversionMessage', 'brandGreenColor', 'destructiveColor', 'borderColor',
+      'customCSS', 'favicon', 'logo',
     ];
 
     for (const field of allowedFields) {

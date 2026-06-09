@@ -40,7 +40,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 
-// ── Brand Constants ──
+// ── Brand Constants (fallback — CSS vars are the source of truth) ──
 const BRAND = {
   vertFonce: '#1A3C34',
   dore: '#C9A84C',
@@ -49,6 +49,12 @@ const BRAND = {
   blanc: '#FFFFFF',
   bordeaux: '#800020',
 } as const;
+
+/** Resolve a CSS variable at runtime — returns fallback if var not set */
+function cssVar(name: string, fallback: string): string {
+  if (typeof document === 'undefined') return fallback;
+  return getComputedStyle(document.documentElement).getPropertyValue(name)?.trim() || fallback;
+}
 
 interface AdminDashboardProps {
   admin: {
@@ -358,7 +364,7 @@ export function AdminDashboard({ admin }: AdminDashboardProps) {
 
           {/* Logo + Title */}
           <div className="flex items-center gap-3 flex-1 min-w-0">
-            <div className="w-9 h-9 rounded-lg flex items-center justify-center shrink-0" style={{ background: 'linear-gradient(135deg, #C9A84C, #E8D48B, #C9A84C)' }}>
+            <div className="w-9 h-9 rounded-lg flex items-center justify-center shrink-0" style={{ background: `linear-gradient(135deg, var(--gold), #E8D48B, var(--gold))` }}>
               <LayoutDashboard className="w-5 h-5 text-white" />
             </div>
             <div className="min-w-0">

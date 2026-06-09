@@ -69,14 +69,14 @@ export function ColumnVisibilityDropdown({ columns, onToggleVisibility, onShowAl
           className={cn(
             "h-7 text-xs gap-1.5 transition-colors",
             hiddenCount > 0
-              ? "border-[#C9A84C]/40 bg-[#C9A84C]/5 text-[#C9A84C] hover:bg-[#C9A84C]/10"
+              ? "border-gold/40 bg-gold/5 text-gold hover:bg-gold/10"
               : "hover:bg-muted"
           )}
         >
           <Eye className="w-3.5 h-3.5" />
           <span className="hidden sm:inline">Masquer</span>
           {hiddenCount > 0 && (
-            <span className="ml-0.5 w-4 h-4 rounded-full bg-[#C9A84C]/20 text-[#C9A84C] text-[9px] font-bold flex items-center justify-center">
+            <span className="ml-0.5 w-4 h-4 rounded-full bg-gold/20 text-gold text-[9px] font-bold flex items-center justify-center">
               {hiddenCount}
             </span>
           )}
@@ -104,7 +104,7 @@ export function ColumnVisibilityDropdown({ columns, onToggleVisibility, onShowAl
               value={search}
               onChange={e => setSearch(e.target.value)}
               placeholder="Rechercher une colonne..."
-              className="h-7 text-xs pl-7 bg-muted/30 border-border/40 focus:border-[#C9A84C]/50 focus:ring-[#C9A84C]/20"
+              className="h-7 text-xs pl-7 bg-muted/30 border-border/40 focus:border-gold/50 focus:ring-gold/20"
             />
           </div>
         </div>
@@ -116,8 +116,8 @@ export function ColumnVisibilityDropdown({ columns, onToggleVisibility, onShowAl
           {/* All visible empty state */}
           {allVisible && !search.trim() && (
             <div className="px-3 py-4 text-center">
-              <div className="w-8 h-8 rounded-full bg-[#C9A84C]/10 flex items-center justify-center mx-auto mb-2">
-                <Eye className="w-4 h-4 text-[#C9A84C]" />
+              <div className="w-8 h-8 rounded-full bg-gold/10 flex items-center justify-center mx-auto mb-2">
+                <Eye className="w-4 h-4 text-gold" />
               </div>
               <p className="text-xs font-medium text-foreground">Toutes visibles</p>
               <p className="text-[10px] text-muted-foreground mt-0.5">
@@ -147,7 +147,7 @@ export function ColumnVisibilityDropdown({ columns, onToggleVisibility, onShowAl
                 >
                   <Checkbox
                     checked={col.visible}
-                    className="h-3.5 w-3.5 data-[state=checked]:bg-[#C9A84C] data-[state=checked]:border-[#C9A84C]"
+                    className="h-3.5 w-3.5 data-[state=checked]:bg-gold data-[state=checked]:border-gold"
                   />
                   <div className="w-5 h-5 rounded bg-primary/10 text-primary flex items-center justify-center shrink-0">
                     {COLUMN_TYPE_ICON[col.type] || <Type className="w-3 h-3" />}
@@ -215,7 +215,7 @@ export function ColumnVisibilityDropdown({ columns, onToggleVisibility, onShowAl
             <div className="p-2 flex gap-1">
               {hiddenCount > 0 && (
                 <button
-                  className="flex-1 flex items-center justify-center gap-1.5 px-3 py-1.5 text-xs font-medium text-[#C9A84C] hover:bg-[#C9A84C]/10 rounded-md transition-colors"
+                  className="flex-1 flex items-center justify-center gap-1.5 px-3 py-1.5 text-xs font-medium text-gold hover:bg-gold/10 rounded-md transition-colors"
                   onClick={() => {
                     onShowAll();
                     setOpen(false);

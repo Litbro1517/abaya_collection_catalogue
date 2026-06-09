@@ -878,7 +878,7 @@ export function DataTable({ columns, rows, dataSourceId, loading, onRefresh, onU
       if (isEditingStatus && !isLocked) {
         return (
           <select
-            className="h-6 text-xs bg-background border border-[#C9A84C]/40 rounded px-1 focus:border-[#C9A84C] focus:ring-1 focus:ring-[#C9A84C]/20 outline-none"
+            className="h-6 text-xs bg-background border border-gold/40 rounded px-1 focus:border-gold focus:ring-1 focus:ring-gold/20 outline-none"
             value={displayStatut || 'Courant'}
             onChange={(e) => handleLocalStatusChangeLocal(row.id, e.target.value)}
             onBlur={() => setEditingStatusCell(null)}
@@ -897,9 +897,9 @@ export function DataTable({ columns, rows, dataSourceId, loading, onRefresh, onU
             <span
               className={cn(
                 "inline-flex items-center rounded-md px-1.5 py-0.5 text-[10px] font-medium border transition-colors",
-                "bg-emerald-100 text-emerald-700 border-emerald-200",
+                "bg-emerald-100 text-[var(--dt-stock-ok-text)] border-emerald-200",
                 isLocked && "opacity-70",
-                hasPendingChange && "ring-2 ring-[#C9A84C]/50 ring-offset-1"
+                hasPendingChange && "ring-2 ring-gold/50 ring-offset-1"
               )}
               title={isLocked ? "🔒 Verrouillé — Double-clic bloqué" : "🔓 Déverrouillé — Double-cliquer pour modifier"}
             >
@@ -912,7 +912,7 @@ export function DataTable({ columns, rows, dataSourceId, loading, onRefresh, onU
                 "inline-flex items-center rounded-md px-1.5 py-0.5 text-[10px] font-medium border transition-colors",
                 "bg-gray-100 text-gray-600 border-gray-200",
                 isLocked && "opacity-70",
-                hasPendingChange && "ring-2 ring-[#C9A84C]/50 ring-offset-1"
+                hasPendingChange && "ring-2 ring-gold/50 ring-offset-1"
               )}
               title={isLocked ? "🔒 Verrouillé — Double-clic bloqué" : "🔓 Déverrouillé — Double-cliquer pour modifier"}
             >
@@ -928,8 +928,8 @@ export function DataTable({ columns, rows, dataSourceId, loading, onRefresh, onU
             className={cn(
               "p-0.5 rounded transition-colors shrink-0",
               isLocked
-                ? "text-red-400 hover:text-red-500 hover:bg-red-50"
-                : "text-[#C9A84C]/70 hover:text-[#C9A84C] hover:bg-[#C9A84C]/10"
+                ? "text-red-400 hover:text-destructive hover:bg-red-50"
+                : "text-gold/70 hover:text-gold hover:bg-gold/10"
             )
             }
             onClick={(e) => {
@@ -1010,14 +1010,14 @@ export function DataTable({ columns, rows, dataSourceId, loading, onRefresh, onU
             <div className="w-6 h-6 rounded bg-muted flex items-center justify-center shrink-0">
               <ImageIcon className="w-3 h-3 text-muted-foreground" />
             </div>
-            <span className="truncate text-xs text-emerald-700 max-w-[100px]">Image</span>
+            <span className="truncate text-xs text-[var(--dt-stock-ok-text)] max-w-[100px]">Image</span>
           </div>
         );
       }
     }
 
     if (col.type === 'CURRENCY') {
-      return <span className="font-medium text-emerald-700">{strVal}</span>;
+      return <span className="font-medium text-[var(--dt-stock-ok-text)]">{strVal}</span>;
     }
 
     // ━━━ Stock counter: Minimalist design with optimistic update + debounce ━━━
@@ -1028,7 +1028,7 @@ export function DataTable({ columns, rows, dataSourceId, loading, onRefresh, onU
       // Use optimistic value if available, otherwise fall back to DB value
       const dbVal = parseInt(strVal) || 0;
       const numVal = optimisticStock[row.id] ?? dbVal;
-      const stockColor = numVal > 0 ? 'text-emerald-600' : numVal === 0 ? 'text-red-500' : 'text-muted-foreground';
+      const stockColor = numVal > 0 ? 'text-[var(--dt-stock-ok-text)]' : numVal === 0 ? 'text-destructive' : 'text-muted-foreground';
       const isOpen = stockStepperOpen === row.id;
       const hasPending = optimisticStock[row.id] !== undefined;
 
@@ -1097,7 +1097,7 @@ export function DataTable({ columns, rows, dataSourceId, loading, onRefresh, onU
           {isOpen && (
             <div className="flex flex-col items-center gap-px ml-0.5 animate-in fade-in duration-150">
               <button
-                className="p-0 rounded-sm text-muted-foreground hover:text-emerald-600 hover:bg-emerald-50 transition-colors leading-none"
+                className="p-0 rounded-sm text-muted-foreground hover:text-[var(--dt-stock-ok-text)] hover:bg-emerald-50 transition-colors leading-none"
                 onClick={(e) => { e.stopPropagation(); handleStockChange(1); }}
                 title="Ajouter 1 au stock"
               >
@@ -1107,7 +1107,7 @@ export function DataTable({ columns, rows, dataSourceId, loading, onRefresh, onU
                 className={cn(
                   "p-0 rounded-sm transition-colors leading-none",
                   numVal > 0
-                    ? "text-muted-foreground hover:text-red-500 hover:bg-red-50"
+                    ? "text-muted-foreground hover:text-destructive hover:bg-red-50"
                     : "text-muted-foreground/20 cursor-not-allowed"
                 )}
                 onClick={(e) => { e.stopPropagation(); if (numVal > 0) handleStockChange(-1); }}
@@ -1123,7 +1123,7 @@ export function DataTable({ columns, rows, dataSourceId, loading, onRefresh, onU
             className={cn(
               "ml-0.5 p-0.5 rounded-sm transition-colors leading-none",
               numVal > 0
-                ? "text-amber-500 hover:text-amber-600 hover:bg-amber-50"
+                ? "text-amber-500 hover:text-[var(--dt-stock-low-text)] hover:bg-[var(--dt-pending-row-bg)]"
                 : "text-muted-foreground/20 cursor-not-allowed"
             )}
             onClick={(e) => { e.stopPropagation(); if (numVal > 0) handleStockChange(-1, true); }}
@@ -1195,7 +1195,7 @@ export function DataTable({ columns, rows, dataSourceId, loading, onRefresh, onU
           />
           <span className={cn(
             "text-[10px] font-medium",
-            isSurCommande ? "text-amber-600" : boolVal ? "text-emerald-600" : "text-red-500"
+            isSurCommande ? "text-[var(--dt-stock-low-text)]" : boolVal ? "text-[var(--dt-stock-ok-text)]" : "text-destructive"
           )}>
             {boolVal ? trueLabel : falseLabel}
           </span>
@@ -1207,7 +1207,7 @@ export function DataTable({ columns, rows, dataSourceId, loading, onRefresh, onU
     }
 
     if (col.type === 'URL' && strVal.startsWith('http')) {
-      return <a href={strVal} target="_blank" rel="noopener noreferrer" className="text-xs text-emerald-700 truncate max-w-[150px] block hover:underline">Lien ↗</a>;
+      return <a href={strVal} target="_blank" rel="noopener noreferrer" className="text-xs text-[var(--dt-stock-ok-text)] truncate max-w-[150px] block hover:underline">Lien ↗</a>;
     }
 
     if (col.type === 'SELECT' || col.type === 'MULTI_SELECT') {
@@ -1236,8 +1236,8 @@ export function DataTable({ columns, rows, dataSourceId, loading, onRefresh, onU
       <div className="h-full flex flex-col">
         {/* Bulk action bar */}
         {selectedRows.size > 0 && (
-          <div className="h-10 border-b border-border bg-amber-50 dark:bg-amber-950/20 flex items-center px-3 gap-2 shrink-0">
-            <Check className="w-3.5 h-3.5 text-amber-600" />
+          <div className="h-10 border-b border-border bg-[var(--dt-pending-row-bg)] dark:bg-amber-950/20 flex items-center px-3 gap-2 shrink-0">
+            <Check className="w-3.5 h-3.5 text-[var(--dt-stock-low-text)]" />
             <span className="text-xs font-medium">{selectedRows.size} ligne(s) sélectionnée(s)</span>
             <Button variant="ghost" size="sm" className="h-7 text-xs" onClick={() => setSelectedRows(new Set())}>
               <X className="w-3 h-3 mr-1" /> Désélectionner
@@ -1257,7 +1257,7 @@ export function DataTable({ columns, rows, dataSourceId, loading, onRefresh, onU
                 <Button
                   variant="outline"
                   size="sm"
-                  className="h-7 text-xs gap-1 border-emerald-200 text-emerald-600 hover:bg-emerald-50 hover:text-emerald-700"
+                  className="h-7 text-xs gap-1 border-emerald-200 text-[var(--dt-stock-ok-text)] hover:bg-emerald-50 hover:text-[var(--dt-stock-ok-text)]"
                   onClick={handleBulkUnlock}
                 >
                   <Unlock className="w-3 h-3" /> Déverrouiller
@@ -1274,8 +1274,8 @@ export function DataTable({ columns, rows, dataSourceId, loading, onRefresh, onU
 
         {/* Cell selection action bar */}
         {selectedCells.size > 0 && (
-          <div className="h-9 border-b border-border bg-amber-50/50 dark:bg-amber-950/10 flex items-center px-3 gap-3 shrink-0">
-            <SquareStack className="w-3.5 h-3.5 text-amber-600" />
+          <div className="h-9 border-b border-border bg-[var(--dt-pending-row-bg)]/50 dark:bg-amber-950/10 flex items-center px-3 gap-3 shrink-0">
+            <SquareStack className="w-3.5 h-3.5 text-[var(--dt-stock-low-text)]" />
             <span className="text-xs font-medium">{selectedCells.size} cellule(s) sélectionnée(s)</span>
             <Button variant="ghost" size="sm" className="h-6 text-xs" onClick={() => setSelectedCells(new Set())}>
               <X className="w-3 h-3 mr-1" /> Désélectionner
@@ -1338,7 +1338,7 @@ export function DataTable({ columns, rows, dataSourceId, loading, onRefresh, onU
                             <span
                               className={cn(
                                 "truncate cursor-pointer hover:text-foreground transition-colors text-[11px] font-medium block select-none",
-                                isSorted && "text-[#C9A84C]"
+                                isSorted && "text-gold"
                               )}
                               onClick={() => {
                                 if (onSortChange) onSortChange(col);
@@ -1361,7 +1361,7 @@ export function DataTable({ columns, rows, dataSourceId, loading, onRefresh, onU
                         {/* Sort indicator arrow on column — only when sorted */}
                         {isSorted && onSortChange && (
                           <button
-                            className="p-0.5 rounded transition-colors shrink-0 text-[#C9A84C] hover:bg-[#C9A84C]/10"
+                            className="p-0.5 rounded transition-colors shrink-0 text-gold hover:bg-gold/10"
                             onClick={() => onSortChange(col)}
                             title={sortConfig!.direction === 'asc' ? 'Tri croissant — cliquer pour décroissant' : 'Tri décroissant — cliquer pour annuler'}
                           >
@@ -1441,7 +1441,7 @@ export function DataTable({ columns, rows, dataSourceId, loading, onRefresh, onU
                                 <ChevronRight className={cn("w-3 h-3 text-muted-foreground transition-transform", colOptionsExpanded.has('sort') && "rotate-90")} />
                               </button>
                               {colOptionsExpanded.has('sort') && (
-                                <div className="ml-7 border-l-2 border-[#C9A84C]/20 pl-2 py-0.5">
+                                <div className="ml-7 border-l-2 border-gold/20 pl-2 py-0.5">
                                   <p className="text-[8px] text-muted-foreground/50 px-2 py-0.5">field: {col.slug}</p>
                                   <button
                                     className="w-full flex items-center gap-2 px-2 py-1 text-[10px] text-left hover:bg-secondary/60 rounded transition-colors"
@@ -1497,8 +1497,8 @@ export function DataTable({ columns, rows, dataSourceId, loading, onRefresh, onU
                                   className={cn(
                                     "w-full flex items-center gap-2 px-3 py-1.5 text-left text-xs transition-colors",
                                     stockSourceConfig
-                                      ? "bg-emerald-50 hover:bg-emerald-100/70 text-emerald-700"
-                                      : "hover:bg-[#C9A84C]/5 text-[#C9A84C] hover:text-[#b8963f]"
+                                      ? "bg-emerald-50 hover:bg-emerald-100/70 text-[var(--dt-stock-ok-text)]"
+                                      : "hover:bg-gold/5 text-gold hover:text-gold"
                                   )}
                                   onClick={() => { setShowStockSourceModal(true); setColOptionsOpen(null); }}
                                 >
@@ -1551,7 +1551,7 @@ export function DataTable({ columns, rows, dataSourceId, loading, onRefresh, onU
                                 <ChevronRight className={cn("w-3 h-3 text-muted-foreground transition-transform", colOptionsExpanded.has('visibility') && "rotate-90")} />
                               </button>
                               {colOptionsExpanded.has('visibility') && (
-                                <div className="ml-7 border-l-2 border-[#C9A84C]/20 pl-2 py-0.5">
+                                <div className="ml-7 border-l-2 border-gold/20 pl-2 py-0.5">
                                   <p className="text-[8px] text-muted-foreground/50 px-2 py-0.5">field: visible = {String(!col.visible)}</p>
                                   <button
                                     className="w-full flex items-center gap-2 px-2 py-1 text-[10px] text-left hover:bg-secondary/60 rounded transition-colors"
@@ -1576,7 +1576,7 @@ export function DataTable({ columns, rows, dataSourceId, loading, onRefresh, onU
                                 </button>
                               )}
                               {isNativeColumn(col.slug) && (
-                                <div className="px-3 py-1.5 text-[10px] text-amber-600/70 italic">
+                                <div className="px-3 py-1.5 text-[10px] text-[var(--dt-stock-low-text)]/70 italic">
                                   Colonne système — suppression désactivée
                                 </div>
                               )}
@@ -1590,7 +1590,7 @@ export function DataTable({ columns, rows, dataSourceId, loading, onRefresh, onU
                           {COLUMN_TYPE_LABEL[col.type]}
                         </span>
                         {isSorted && (
-                          <span className="text-[9px] text-[#C9A84C] font-medium">
+                          <span className="text-[9px] text-gold font-medium">
                             {sortConfig!.direction === 'asc' ? '↑ A-Z' : '↓ Z-A'}
                           </span>
                         )}
@@ -1603,7 +1603,7 @@ export function DataTable({ columns, rows, dataSourceId, loading, onRefresh, onU
                   <Tooltip>
                     <TooltipTrigger asChild>
                       <button
-                        className="w-7 h-7 rounded-full border border-dashed border-border hover:border-[#C9A84C] hover:bg-[#C9A84C]/5 text-muted-foreground hover:text-[#C9A84C] transition-colors flex items-center justify-center"
+                        className="w-7 h-7 rounded-full border border-dashed border-border hover:border-gold hover:bg-gold/5 text-muted-foreground hover:text-gold transition-colors flex items-center justify-center"
                         onClick={() => {
                           // Same action as the green "Colonne" button — both coexist
                           if (onAddColumn) onAddColumn();
@@ -1631,10 +1631,10 @@ export function DataTable({ columns, rows, dataSourceId, loading, onRefresh, onU
                 return (
                   <tr key={row.id} className={cn(
                     'border-b border-border/50 group hover:bg-muted/30 transition-colors',
-                    isSelected && 'bg-amber-50/50 dark:bg-amber-950/10 hover:bg-amber-50/70'
+                    isSelected && 'bg-[var(--dt-pending-row-bg)]/50 dark:bg-amber-950/10 hover:bg-[var(--dt-pending-row-bg)]/70'
                   )}>
                     {/* Row checkbox — sticky */}
-                    <td className="px-2 py-1.5 sticky left-0 bg-card z-10 border-r-2" style={{ borderRightColor: isSelected ? '#C9A84C' : 'transparent' }}>
+                    <td className="px-2 py-1.5 sticky left-0 bg-card z-10 border-r-2" style={{ borderRightColor: isSelected ? 'var(--gold)' : 'transparent' }}>
                       <Checkbox
                         checked={isSelected}
                         onCheckedChange={() => toggleRowSelect(row.id)}
@@ -1649,7 +1649,7 @@ export function DataTable({ columns, rows, dataSourceId, loading, onRefresh, onU
                           className={cn(
                             "p-0.5 rounded transition-colors shrink-0",
                             isVisible
-                              ? "text-emerald-500 hover:text-emerald-600 hover:bg-emerald-50"
+                              ? "text-emerald-500 hover:text-[var(--dt-stock-ok-text)] hover:bg-emerald-50"
                               : "text-muted-foreground/40 hover:text-muted-foreground hover:bg-muted"
                           )}
                           onClick={(e) => {
@@ -1698,7 +1698,7 @@ export function DataTable({ columns, rows, dataSourceId, loading, onRefresh, onU
                       return (
                         <td key={col.slug} className={cn(
                           "px-3 py-1.5 border-l border-border/30 relative",
-                          isCellSelected && "bg-amber-50 dark:bg-amber-950/20 ring-1 ring-[#C9A84C]/40 dark:ring-[#C9A84C]/30 ring-inset"
+                          isCellSelected && "bg-[var(--dt-pending-row-bg)] dark:bg-amber-950/20 ring-1 ring-gold/40 dark:ring-gold/30 ring-inset"
                         )}>
                           {isEditing ? (
                             <Input
@@ -1791,7 +1791,7 @@ export function DataTable({ columns, rows, dataSourceId, loading, onRefresh, onU
         {/* ── Footer: Pagination Bar ── */}
         <div className="h-11 border-t border-border bg-card/95 backdrop-blur-sm flex items-center px-3 gap-2 shrink-0">
           {/* Add row button */}
-          <Button variant="ghost" size="sm" className="h-7 text-xs gap-1 text-[#C9A84C] hover:text-[#C9A84C] hover:bg-[#C9A84C]/5" onClick={addRow}>
+          <Button variant="ghost" size="sm" className="h-7 text-xs gap-1 text-gold hover:text-gold hover:bg-gold/5" onClick={addRow}>
             <Plus className="w-3 h-3" /> Ligne
           </Button>
 
@@ -1810,21 +1810,21 @@ export function DataTable({ columns, rows, dataSourceId, loading, onRefresh, onU
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end" className="w-32">
                   <DropdownMenuItem
-                    className={cn("text-xs", pageSize === 20 && "font-bold text-[#C9A84C]")}
+                    className={cn("text-xs", pageSize === 20 && "font-bold text-gold")}
                     onClick={() => changePageSize(20)}
                   >
                     20 produits
                     {pageSize === 20 && <Check className="w-3 h-3 ml-auto" />}
                   </DropdownMenuItem>
                   <DropdownMenuItem
-                    className={cn("text-xs", pageSize === 50 && "font-bold text-[#C9A84C]")}
+                    className={cn("text-xs", pageSize === 50 && "font-bold text-gold")}
                     onClick={() => changePageSize(50)}
                   >
                     50 produits
                     {pageSize === 50 && <Check className="w-3 h-3 ml-auto" />}
                   </DropdownMenuItem>
                   <DropdownMenuItem
-                    className={cn("text-xs", pageSize === 0 && "font-bold text-[#C9A84C]")}
+                    className={cn("text-xs", pageSize === 0 && "font-bold text-gold")}
                     onClick={() => changePageSize(0)}
                   >
                     Tout afficher

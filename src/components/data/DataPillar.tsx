@@ -826,8 +826,8 @@ export function DataPillar() {
                           className={cn(
                             "h-7 w-7 shrink-0 transition-all",
                             syncingTableId === ds.id
-                              ? "text-[#C9A84C] bg-[#C9A84C]/10"
-                              : "text-[#C9A84C] hover:text-[#C9A84C]/80 hover:bg-[#C9A84C]/10"
+                              ? "text-gold bg-gold/10"
+                              : "text-gold hover:text-gold/80 hover:bg-gold/10"
                           )}
                           disabled={syncingTableId !== null}
                           onClick={(e) => {
@@ -969,7 +969,7 @@ export function DataPillar() {
                   value={searchQuery}
                   onChange={e => setSearchQuery(e.target.value)}
                   placeholder="Rechercher dans les données..."
-                  className="h-7 text-xs pl-7 pr-7 bg-muted/30 border-border/40 focus:border-[#C9A84C]/50 focus:ring-[#C9A84C]/20"
+                  className="h-7 text-xs pl-7 pr-7 bg-muted/30 border-border/40 focus:border-gold/50 focus:ring-gold/20"
                 />
                 {searchQuery && (
                   <button
@@ -996,14 +996,14 @@ export function DataPillar() {
                     className={cn(
                       "h-7 text-xs gap-1.5 transition-colors",
                       filters.length > 0
-                        ? "border-[#C9A84C]/40 bg-[#C9A84C]/5 text-[#C9A84C] hover:bg-[#C9A84C]/10"
+                        ? "border-gold/40 bg-gold/5 text-gold hover:bg-gold/10"
                         : "hover:bg-muted"
                     )}
                   >
                     <Filter className="w-3.5 h-3.5" />
                     <span className="hidden sm:inline">Filtrer</span>
                     {filters.length > 0 && (
-                      <span className="ml-0.5 w-4 h-4 rounded-full bg-[#C9A84C]/20 text-[#C9A84C] text-[9px] font-bold flex items-center justify-center">
+                      <span className="ml-0.5 w-4 h-4 rounded-full bg-gold/20 text-gold text-[9px] font-bold flex items-center justify-center">
                         {filters.length}
                       </span>
                     )}
@@ -1018,7 +1018,7 @@ export function DataPillar() {
                       </span>
                       {filters.length > 0 && (
                         <button
-                          className="text-[10px] text-[#C9A84C] hover:text-[#C9A84C]/80 font-medium transition-colors"
+                          className="text-[10px] text-gold hover:text-gold/80 font-medium transition-colors"
                           onClick={clearAllFilters}
                         >
                           Effacer tout
@@ -1032,7 +1032,7 @@ export function DataPillar() {
                         value={filterSearch}
                         onChange={e => setFilterSearch(e.target.value)}
                         placeholder="Rechercher une colonne..."
-                        className="h-7 text-xs pl-7 bg-muted/30 border-border/40 focus:border-[#C9A84C]/50 focus:ring-[#C9A84C]/20"
+                        className="h-7 text-xs pl-7 bg-muted/30 border-border/40 focus:border-gold/50 focus:ring-gold/20"
                       />
                     </div>
                   </div>
@@ -1049,7 +1049,7 @@ export function DataPillar() {
                             className={cn(
                               "w-full flex items-center gap-2 px-3 py-1.5 text-left transition-colors",
                               "hover:bg-secondary/60",
-                              (isActive || existingFilter) && "bg-[#C9A84C]/5"
+                              (isActive || existingFilter) && "bg-gold/5"
                             )}
                             onClick={() => {
                               if (activeFilterColSlug === col.slug) {
@@ -1069,7 +1069,7 @@ export function DataPillar() {
                               {col.name}
                             </span>
                             {existingFilter && (
-                              <Badge className="text-[9px] bg-[#C9A84C]/15 text-[#C9A84C] border-[#C9A84C]/30 hover:bg-[#C9A84C]/25">
+                              <Badge className="text-[9px] bg-gold/15 text-gold border-gold/30 hover:bg-gold/25">
                                 {getOperatorLabel(col.type, existingFilter.operator)}
                                 {existingFilter.value ? ` ${existingFilter.value}` : (getOperatorsForType(col.type).find(o => o.value === existingFilter.operator)?.needsValue ? ' …' : '')}
                               </Badge>
@@ -1082,7 +1082,7 @@ export function DataPillar() {
 
                           {/* Expanded filter section for this column */}
                           {isActive && (
-                            <div className="px-3 pb-2 ml-5 border-l-2 border-[#C9A84C]/20">
+                            <div className="px-3 pb-2 ml-5 border-l-2 border-gold/20">
                               {/* Operator chips — clickable buttons */}
                               <div className="mt-1 mb-1.5 flex flex-wrap gap-1">
                                 {getOperatorsForType(col.type).map(op => {
@@ -1093,7 +1093,7 @@ export function DataPillar() {
                                       className={cn(
                                         "px-2 py-0.5 rounded text-[10px] font-medium transition-all cursor-pointer border",
                                         isActiveOp
-                                          ? "bg-[#C9A84C]/15 text-[#C9A84C] border-[#C9A84C]/40 shadow-sm"
+                                          ? "bg-gold/15 text-gold border-gold/40 shadow-sm"
                                           : "bg-muted/30 text-muted-foreground border-border/40 hover:bg-muted/60 hover:text-foreground hover:border-border"
                                       )}
                                       onClick={() => {
@@ -1131,7 +1131,7 @@ export function DataPillar() {
                                       value={existingFilter?.value || ''}
                                       onChange={e => addOrUpdateFilter(col, currentOp, e.target.value)}
                                       placeholder={`Valeur pour ${col.name}...`}
-                                      className="h-7 text-xs pl-7 bg-muted/30 border-[#C9A84C]/30 focus:border-[#C9A84C]/50 focus:ring-[#C9A84C]/20"
+                                      className="h-7 text-xs pl-7 bg-muted/30 border-gold/30 focus:border-gold/50 focus:ring-gold/20"
                                       autoFocus
                                     />
                                   </div>
@@ -1173,7 +1173,7 @@ export function DataPillar() {
                     className={cn(
                       "h-7 text-xs gap-1.5 transition-colors",
                       sortConfig
-                        ? "border-[#C9A84C]/40 bg-[#C9A84C]/5 text-[#C9A84C] hover:bg-[#C9A84C]/10"
+                        ? "border-gold/40 bg-gold/5 text-gold hover:bg-gold/10"
                         : "hover:bg-muted"
                     )}
                   >
@@ -1195,7 +1195,7 @@ export function DataPillar() {
                       </span>
                       {sortConfig && (
                         <button
-                          className="text-[10px] text-[#C9A84C] hover:text-[#C9A84C]/80 font-medium transition-colors"
+                          className="text-[10px] text-gold hover:text-gold/80 font-medium transition-colors"
                           onClick={clearSort}
                         >
                           Effacer
@@ -1209,7 +1209,7 @@ export function DataPillar() {
                         value={sortSearch}
                         onChange={e => setSortSearch(e.target.value)}
                         placeholder="Rechercher une colonne..."
-                        className="h-7 text-xs pl-7 bg-muted/30 border-border/40 focus:border-[#C9A84C]/50 focus:ring-[#C9A84C]/20"
+                        className="h-7 text-xs pl-7 bg-muted/30 border-border/40 focus:border-gold/50 focus:ring-gold/20"
                       />
                     </div>
                   </div>
@@ -1227,37 +1227,37 @@ export function DataPillar() {
                       <button
                         className={cn(
                           "w-full flex items-center gap-2 px-3 py-1.5 text-left transition-colors hover:bg-secondary/60",
-                          sortConfig?.columnSlug === '__statut__' && sortConfig?.direction === 'asc' && "bg-[#C9A84C]/5"
+                          sortConfig?.columnSlug === '__statut__' && sortConfig?.direction === 'asc' && "bg-gold/5"
                         )}
                         onClick={() => setSortConfig({ columnSlug: '__statut__', columnName: 'Statut (Nouveau)', direction: 'asc' })}
                       >
                         <span className="w-3.5 h-3.5 shrink-0 flex items-center justify-center text-emerald-500 text-[10px]">🟢</span>
                         <span className={cn(
                           "text-xs flex-1",
-                          sortConfig?.columnSlug === '__statut__' && sortConfig?.direction === 'asc' ? "text-[#C9A84C] font-medium" : "text-foreground"
+                          sortConfig?.columnSlug === '__statut__' && sortConfig?.direction === 'asc' ? "text-gold font-medium" : "text-foreground"
                         )}>
                           Nouveau
                         </span>
                         {sortConfig?.columnSlug === '__statut__' && sortConfig?.direction === 'asc' && (
-                          <ArrowUp className="w-3 h-3 text-[#C9A84C]" />
+                          <ArrowUp className="w-3 h-3 text-gold" />
                         )}
                       </button>
                       <button
                         className={cn(
                           "w-full flex items-center gap-2 px-3 py-1.5 text-left transition-colors hover:bg-secondary/60",
-                          sortConfig?.columnSlug === '__statut__' && sortConfig?.direction === 'desc' && "bg-[#C9A84C]/5"
+                          sortConfig?.columnSlug === '__statut__' && sortConfig?.direction === 'desc' && "bg-gold/5"
                         )}
                         onClick={() => setSortConfig({ columnSlug: '__statut__', columnName: 'Statut (Courant)', direction: 'desc' })}
                       >
                         <span className="w-3.5 h-3.5 shrink-0 flex items-center justify-center text-gray-400 text-[10px]">🔵</span>
                         <span className={cn(
                           "text-xs flex-1",
-                          sortConfig?.columnSlug === '__statut__' && sortConfig?.direction === 'desc' ? "text-[#C9A84C] font-medium" : "text-foreground"
+                          sortConfig?.columnSlug === '__statut__' && sortConfig?.direction === 'desc' ? "text-gold font-medium" : "text-foreground"
                         )}>
                           Courant
                         </span>
                         {sortConfig?.columnSlug === '__statut__' && sortConfig?.direction === 'desc' && (
-                          <ArrowDown className="w-3 h-3 text-[#C9A84C]" />
+                          <ArrowDown className="w-3 h-3 text-gold" />
                         )}
                       </button>
 
@@ -1270,37 +1270,37 @@ export function DataPillar() {
                       <button
                         className={cn(
                           "w-full flex items-center gap-2 px-3 py-1.5 text-left transition-colors hover:bg-secondary/60",
-                          sortConfig?.columnSlug === '__created_desc__' && "bg-[#C9A84C]/5"
+                          sortConfig?.columnSlug === '__created_desc__' && "bg-gold/5"
                         )}
                         onClick={() => setSortConfig({ columnSlug: '__created_desc__', columnName: 'Plus récent', direction: 'desc' })}
                       >
                         <Clock className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
                         <span className={cn(
                           "text-xs flex-1",
-                          sortConfig?.columnSlug === '__created_desc__' ? "text-[#C9A84C] font-medium" : "text-foreground"
+                          sortConfig?.columnSlug === '__created_desc__' ? "text-gold font-medium" : "text-foreground"
                         )}>
                           Plus récent
                         </span>
                         {sortConfig?.columnSlug === '__created_desc__' && (
-                          <ArrowDown className="w-3 h-3 text-[#C9A84C]" />
+                          <ArrowDown className="w-3 h-3 text-gold" />
                         )}
                       </button>
                       <button
                         className={cn(
                           "w-full flex items-center gap-2 px-3 py-1.5 text-left transition-colors hover:bg-secondary/60",
-                          sortConfig?.columnSlug === '__created_asc__' && "bg-[#C9A84C]/5"
+                          sortConfig?.columnSlug === '__created_asc__' && "bg-gold/5"
                         )}
                         onClick={() => setSortConfig({ columnSlug: '__created_asc__', columnName: 'Plus ancien', direction: 'asc' })}
                       >
                         <Calendar className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
                         <span className={cn(
                           "text-xs flex-1",
-                          sortConfig?.columnSlug === '__created_asc__' ? "text-[#C9A84C] font-medium" : "text-foreground"
+                          sortConfig?.columnSlug === '__created_asc__' ? "text-gold font-medium" : "text-foreground"
                         )}>
                           Plus ancien
                         </span>
                         {sortConfig?.columnSlug === '__created_asc__' && (
-                          <ArrowUp className="w-3 h-3 text-[#C9A84C]" />
+                          <ArrowUp className="w-3 h-3 text-gold" />
                         )}
                       </button>
 
@@ -1318,37 +1318,37 @@ export function DataPillar() {
                             <button
                               className={cn(
                                 "w-full flex items-center gap-2 px-3 py-1.5 text-left transition-colors hover:bg-secondary/60",
-                                sortConfig?.columnSlug === firstTextCol.slug && sortConfig?.direction === 'asc' && sortConfig?.columnName === 'A→Z' && "bg-[#C9A84C]/5"
+                                sortConfig?.columnSlug === firstTextCol.slug && sortConfig?.direction === 'asc' && sortConfig?.columnName === 'A→Z' && "bg-gold/5"
                               )}
                               onClick={() => setSortConfig({ columnSlug: firstTextCol.slug, columnName: 'A→Z', direction: 'asc' })}
                             >
                               <ArrowRightLeft className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
                               <span className={cn(
                                 "text-xs flex-1",
-                                sortConfig?.columnSlug === firstTextCol.slug && sortConfig?.direction === 'asc' && sortConfig?.columnName === 'A→Z' ? "text-[#C9A84C] font-medium" : "text-foreground"
+                                sortConfig?.columnSlug === firstTextCol.slug && sortConfig?.direction === 'asc' && sortConfig?.columnName === 'A→Z' ? "text-gold font-medium" : "text-foreground"
                               )}>
                                 A → Z
                               </span>
                               {sortConfig?.columnSlug === firstTextCol.slug && sortConfig?.direction === 'asc' && sortConfig?.columnName === 'A→Z' && (
-                                <ArrowUp className="w-3 h-3 text-[#C9A84C]" />
+                                <ArrowUp className="w-3 h-3 text-gold" />
                               )}
                             </button>
                             <button
                               className={cn(
                                 "w-full flex items-center gap-2 px-3 py-1.5 text-left transition-colors hover:bg-secondary/60",
-                                sortConfig?.columnSlug === firstTextCol.slug && sortConfig?.direction === 'desc' && sortConfig?.columnName === 'Z→A' && "bg-[#C9A84C]/5"
+                                sortConfig?.columnSlug === firstTextCol.slug && sortConfig?.direction === 'desc' && sortConfig?.columnName === 'Z→A' && "bg-gold/5"
                               )}
                               onClick={() => setSortConfig({ columnSlug: firstTextCol.slug, columnName: 'Z→A', direction: 'desc' })}
                             >
                               <ArrowRightLeft className="w-3.5 h-3.5 text-muted-foreground shrink-0 rotate-180" />
                               <span className={cn(
                                 "text-xs flex-1",
-                                sortConfig?.columnSlug === firstTextCol.slug && sortConfig?.direction === 'desc' && sortConfig?.columnName === 'Z→A' ? "text-[#C9A84C] font-medium" : "text-foreground"
+                                sortConfig?.columnSlug === firstTextCol.slug && sortConfig?.direction === 'desc' && sortConfig?.columnName === 'Z→A' ? "text-gold font-medium" : "text-foreground"
                               )}>
                                 Z → A
                               </span>
                               {sortConfig?.columnSlug === firstTextCol.slug && sortConfig?.direction === 'desc' && sortConfig?.columnName === 'Z→A' && (
-                                <ArrowDown className="w-3 h-3 text-[#C9A84C]" />
+                                <ArrowDown className="w-3 h-3 text-gold" />
                               )}
                             </button>
                           </>
@@ -1376,7 +1376,7 @@ export function DataPillar() {
                           className={cn(
                             "w-full flex items-center gap-2 px-3 py-1.5 text-left transition-colors",
                             "hover:bg-secondary/60",
-                            isSorted && "bg-[#C9A84C]/5"
+                            isSorted && "bg-gold/5"
                           )}
                           onClick={() => cycleSort(col)}
                         >
@@ -1385,7 +1385,7 @@ export function DataPillar() {
                           </div>
                           <span className={cn(
                             "text-xs truncate flex-1",
-                            isSorted ? "text-[#C9A84C] font-medium" : "text-foreground"
+                            isSorted ? "text-gold font-medium" : "text-foreground"
                           )}>
                             {col.name}
                           </span>
@@ -1394,7 +1394,7 @@ export function DataPillar() {
                             className={cn(
                               "p-0.5 rounded transition-colors shrink-0",
                               isSorted
-                                ? "text-[#C9A84C] hover:bg-[#C9A84C]/10"
+                                ? "text-gold hover:bg-gold/10"
                                 : "text-muted-foreground/30 hover:text-muted-foreground"
                             )}
                             onClick={(e) => {
@@ -1452,7 +1452,7 @@ export function DataPillar() {
                     className={cn(
                       "transition-all relative",
                       Object.keys(pendingStatusChanges).length > 0
-                        ? "h-8 bg-[#C9A84C] hover:bg-[#C9A84C]/90 text-white animate-pulse gap-1.5 px-2.5"
+                        ? "h-8 bg-gold hover:bg-gold/90 text-white animate-pulse gap-1.5 px-2.5"
                         : "h-7 w-7 hover:bg-secondary"
                     )}
                     onClick={async () => {
@@ -1490,7 +1490,7 @@ export function DataPillar() {
                     {Object.keys(pendingStatusChanges).length > 0 ? (
                       <>
                         <span className="text-[11px] font-semibold">Sync ({Object.keys(pendingStatusChanges).length})</span>
-                        <span className="absolute -top-1.5 -right-1.5 w-5 h-5 rounded-full bg-white text-[#C9A84C] text-[10px] font-bold flex items-center justify-center border border-[#C9A84C]/30 shadow-sm">
+                        <span className="absolute -top-1.5 -right-1.5 w-5 h-5 rounded-full bg-white text-gold text-[10px] font-bold flex items-center justify-center border border-gold/30 shadow-sm">
                           {Object.keys(pendingStatusChanges).length}
                         </span>
                       </>
@@ -1512,11 +1512,11 @@ export function DataPillar() {
                   {filters.map(f => (
                     <Badge
                       key={f.columnSlug}
-                      className="text-[9px] gap-1 bg-[#C9A84C]/10 text-[#C9A84C] border-[#C9A84C]/30 hover:bg-[#C9A84C]/20 pr-0.5"
+                      className="text-[9px] gap-1 bg-gold/10 text-gold border-gold/30 hover:bg-gold/20 pr-0.5"
                     >
                       {f.columnName} {getOperatorLabel(f.columnType, f.operator)}{f.value ? ` ${f.value}` : (getOperatorsForType(f.columnType).find(o => o.value === f.operator)?.needsValue ? ' …' : '')}
                       <button
-                        className="w-3.5 h-3.5 rounded-full hover:bg-[#C9A84C]/30 flex items-center justify-center"
+                        className="w-3.5 h-3.5 rounded-full hover:bg-gold/30 flex items-center justify-center"
                         onClick={() => removeFilter(f.columnSlug)}
                       >
                         <X className="w-2 h-2" />
@@ -1534,7 +1534,7 @@ export function DataPillar() {
 
               {/* Sort badge */}
               {sortConfig && filters.length === 0 && (
-                <Badge className="text-[9px] gap-1 bg-[#C9A84C]/10 text-[#C9A84C] border-[#C9A84C]/30">
+                <Badge className="text-[9px] gap-1 bg-gold/10 text-gold border-gold/30">
                   {sortConfig.direction === 'asc' ? <ArrowUp className="w-2.5 h-2.5" /> : <ArrowDown className="w-2.5 h-2.5" />}
                   {sortConfig.columnName}
                 </Badge>
@@ -1555,8 +1555,8 @@ export function DataPillar() {
           {activeDataSourceId ? (
             <>
               {Object.keys(pendingStatusChanges).length > 0 && (
-                <div className="h-8 border-b border-[#C9A84C]/30 bg-[#C9A84C]/5 flex items-center px-3 gap-2 shrink-0">
-                  <span className="text-[10px] font-medium text-[#C9A84C]">
+                <div className="h-8 border-b border-gold/30 bg-gold/5 flex items-center px-3 gap-2 shrink-0">
+                  <span className="text-[10px] font-medium text-gold">
                     ⏳ {Object.keys(pendingStatusChanges).length} modification(s) en attente — Cliquez sur Synchroniser pour appliquer
                   </span>
                 </div>

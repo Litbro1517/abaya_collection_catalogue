@@ -3,6 +3,7 @@ import { Playfair_Display, Inter } from "next/font/google";
 import "./globals.css";
 import { Toaster } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
+import { ThemeInjector } from "@/components/ThemeInjector";
 
 const playfair = Playfair_Display({
   variable: "--font-playfair",
@@ -34,6 +35,7 @@ export default function RootLayout({
       <body
         className={`${playfair.variable} ${inter.variable} antialiased bg-background text-foreground`}
       >
+        <ThemeInjector />
         <TooltipProvider>
           {children}
         </TooltipProvider>

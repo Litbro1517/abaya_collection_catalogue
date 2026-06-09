@@ -197,6 +197,9 @@ export interface CatalogSettings {
   enableSharing: boolean;
   conversionChannel: string;
   conversionMessage: string;
+  brandGreenColor: string;
+  destructiveColor: string;
+  borderColor: string;
   customCSS: string;
   favicon: string | null;
   logo: string | null;
