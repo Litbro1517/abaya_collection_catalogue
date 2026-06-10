@@ -1,11 +1,25 @@
 'use client';
 
 import { useEffect, useCallback, useState, ComponentType } from 'react';
+import dynamic from 'next/dynamic';
 import { useAppStore } from '@/lib/store';
-import { BuilderShell } from '@/components/BuilderShell';
 import { CatalogPreview } from '@/components/preview/CatalogPreview';
-import { AdminDashboard } from '@/components/admin/AdminDashboard';
-import { LoginModal } from '@/components/LoginModal';
+
+// ── Code Splitting: Admin components lazy-loaded ──
+// These are ONLY needed for authenticated admins, never for public visitors.
+// dynamic() with ssr:false ensures zero admin code in the public bundle.
+const BuilderShell = dynamic(
+  () => import('@/components/BuilderShell').then(m => m.BuilderShell),
+  { ssr: false, loading: () => null }
+);
+const AdminDashboard = dynamic(
+  () => import('@/components/admin/AdminDashboard').then(m => m.AdminDashboard),
+  { ssr: false, loading: () => null }
+);
+const LoginModal = dynamic(
+  () => import('@/components/LoginModal').then(m => m.LoginModal),
+  { ssr: false, loading: () => null }
+);
 import { Loader2, AlertTriangle, RefreshCw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import type { Pillar, AppView, SettingsTab } from '@/types';
@@ -206,28 +220,22 @@ function HomeContent() {
   }, [setGoogleSession]);
 
   // Load initial data (always, for both public and admin)
+  // Promise.all: both requests fire simultaneously → ~2× faster than sequential
   const loadData = useCallback(async () => {
     setLoading(true);
     try {
-      // Load data sources
-      const dsRes = await fetch('/api/datasources');
-      if (dsRes.ok) {
-        const dsJson = await dsRes.json();
-        if (dsJson.data) {
-          setDataSources(dsJson.data);
-        }
-      }
-
-      // Load catalog
-      const catRes = await fetch('/api/catalog');
-      if (catRes.ok) {
-        const catJson = await catRes.json();
-        if (catJson.data) {
-          setCatalog(catJson.data);
-          if (catJson.data.settings) {
-            setSettings(catJson.data.settings);
-          }
-        }
+      const [dsRes, catRes] = await Promise.all([
+        fetch('/api/datasources'),
+        fetch('/api/catalog'),
+      ]);
+      const [dsJson, catJson] = await Promise.all([
+        dsRes.ok ? dsRes.json() : Promise.resolve(null),
+        catRes.ok ? catRes.json() : Promise.resolve(null),
+      ]);
+      if (dsJson?.data) setDataSources(dsJson.data);
+      if (catJson?.data) {
+        setCatalog(catJson.data);
+        if (catJson.data.settings) setSettings(catJson.data.settings);
       }
     } catch (e) {
       console.error('Failed to load data:', e);

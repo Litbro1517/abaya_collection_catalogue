@@ -69,7 +69,10 @@ export async function GET() {
       })),
     };
 
-    return NextResponse.json({ data: parsedCatalog, error: null });
+    return NextResponse.json(
+      { data: parsedCatalog, error: null },
+      { headers: { 'Cache-Control': 's-maxage=60, stale-while-revalidate=300' } }
+    );
   } catch (e) {
     console.error('Catalog fetch error:', e);
     return NextResponse.json({ data: null, error: 'Failed to fetch catalog' }, { status: 500 });
