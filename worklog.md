@@ -250,3 +250,30 @@ Stage Summary:
 - Promise.all: Data fetching parallelized ✅
 - Edge Cache: /api/catalog CDN-cached with HIT confirmation ✅
 - Latest SHA: fde54be
+---
+Task ID: 1
+Agent: Main
+Task: Phase 0 (Promise.all parallelisation) + Phase 1 (useMemo memoization) in CatalogPreview.tsx
+
+Work Log:
+- Read full CatalogPreview.tsx (1233 lines) to understand current code structure
+- Identified sequential for...of loop in loadSections() as Phase 0 target
+- Identified 4 inline calculation functions as Phase 1 targets: getCategoryProductCounts(), getSubCategoryProductCounts(), filterRows(), allProducts IIFE
+- Extracted getCellValue, StockState type, and computeStockState to module scope for stable hook references
+- Phase 0: Replaced sequential for...of + await with Promise.all over all sections (each section still uses inner Promise.all for meta+rows)
+- Phase 1a: getCategoryProductCounts() → categoryProductCounts useMemo([sections])
+- Phase 1b: getSubCategoryProductCounts(slug) → subCategoryProductCounts useMemo([sections, activeMacroFilter])
+- Phase 1c: filterRows() → useCallback([dynamicCategories, activeMacroFilter, activeMicroFilter, activeFilter, searchQuery])
+- Phase 1d: allProducts IIFE → useMemo([sections, filterRows])
+- Updated JSX references: getCategoryProductCounts() → categoryProductCounts, getSubCategoryProductCounts() → subCategoryProductCounts
+- Ran bun run lint — passed clean
+- Committed as c37cf20 and pushed to GitHub main
+- Browser verification: page renders with 200, header "Abaya Chic Collection" displays, zero React/hydration errors
+
+Stage Summary:
+- Commit SHA: c37cf20
+- Net code change: 72 insertions, 84 deletions (negative — cleaner code)
+- Phase 0 eliminates sequential section loading bottleneck
+- Phase 1 eliminates 4 redundant recalculations on every render
+- No schema/DB changes — rule respected
+- Local DB errors (PostgreSQL vs SQLite) are pre-existing, not from this change
