@@ -152,3 +152,45 @@ Stage Summary:
 - Ghost route pipeline: middleware bot detection → rewrite → SSR meta tags ✅
 - URL stays at /?product=slug for human visitors
 - NEXT_PUBLIC_BASE_URL must be set manually on Vercel Dashboard
+---
+Task ID: 5
+Agent: Main
+Task: Fix ghost route for production — image proxy URL handling + base URL fallback + production certification
+
+Work Log:
+- Tested production SEO on abaya-collection-catalogue-9dum.vercel.app
+- Found 3 critical issues:
+  1. og:image was empty — extractFirstImageUrl() couldn't handle /api/google/image-proxy?id=... relative URLs
+  2. og:url pointed to anakatok.vercel.app (404) — fallback was wrong
+  3. No Vercel credentials available in this environment
+- Fixed extractFirstImageUrl() to detect relative proxy URLs via regex
+  • /api/google/image-proxy?id=FILE_ID&sz=N → https://lh3.googleusercontent.com/d/FILE_ID=w1200
+  • Added resolveImageUrl() helper for proxy URLs inside JSON arrays
+  • Added /drive.google.com/thumbnail pattern to resolveDriveUrl()
+- Fixed base URL fallback from anakatok.vercel.app (404) to abaya-collection-catalogue-9dum.vercel.app (working)
+- Added OG metadata for "product not found" fallback case (site-level OG tags)
+- Pushed fix: commit 98e2478 → GitHub → Vercel auto-deploy
+- Waited for deploy, then ran full certification test suite:
+
+CERTIFICATION RESULTS (production):
+✅ facebookexternalhit (WhatsApp/Facebook server) → og:title, og:description, og:image (lh3 CDN), og:url
+✅ Normal visitors → Regular SPA (no ghost route leak)
+✅ Non-existent products → Graceful fallback with site-level OG tags
+ℹ️ WhatsApp/2.x UA not intercepted (correct: phone app doesn't crawl, servers use facebookexternalhit)
+
+Production cURL log:
+<meta property="og:title" content="Kitma montoni | Mon Catalogue"/>
+<meta property="og:description" content="Kitma montoni — 280.00 DH | Mon Catalogue"/>
+<meta property="og:image" content="https://lh3.googleusercontent.com/d/1KY9bf9oSCjFrUXSRh-Iy7JpAlAV0xTJk=w1200"/>
+<meta property="og:image:width" content="1200"/>
+<meta property="og:image:height" content="630"/>
+<meta property="og:image:alt" content="Kitma montoni"/>
+<meta property="og:type" content="website"/>
+<meta name="twitter:card" content="summary_large_image"/>
+
+Stage Summary:
+- Ghost route fully functional on production with og:image ✅
+- Commit 98e2478 pushed to GitHub
+- NEXT_PUBLIC_BASE_URL env var NOT yet set on Vercel (no credentials in this environment)
+- Custom domain anakatok.vercel.app returns 404 (not configured in Vercel Dashboard)
+- User must manually: (1) add env var on Vercel, (2) configure custom domain
