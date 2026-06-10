@@ -1,47 +1,72 @@
 ---
 Task ID: 1
-Agent: Main Agent
-Task: Industrialisation du Design System — Active Theme Engine
+Agent: Main
+Task: Schema update — Add clientOverrides (JSON) field to CatalogSettings
 
 Work Log:
-- Created theme.config.ts with 4 pivots (primaryColor, secondaryColor, accentColor, backgroundColor) + 3 exceptions (brandGreenColor, destructiveColor, borderColor) + derivation engine computing 85+ CSS variables
-- Added 3 exception fields to Prisma CatalogSettings schema (brandGreenColor, destructiveColor, borderColor)
-- Generated Prisma client with `npx prisma generate`
-- Created ThemeProvider component that reads settings from DB, computes derived variables, and injects into :root
-- Created ThemeInjector client component that bridges server layout with ThemeProvider
-- Updated layout.tsx to include ThemeInjector
-- Updated API route /api/catalog/settings to handle 3 new exception fields
-- Redesigned SettingsPillar Style tab with:
-  - Palette Officielle (4 pivot colors with reference circles, hex input, reset button, live preview)
-  - Couleurs Avancées (3 exception colors with same UI pattern)
-  - Aperçu en Temps Réel (live preview panel showing buttons, badges, text, cards with current colors)
-  - Typographie & CSS section
-- Migrated globals.css:
-  - Replaced ~24 hardcoded hex/rgba values with CSS variable references
-  - Added ~120 derived CSS variable definitions to :root as fallbacks
-- Migrated #C9A84C (brand gold) across 15+ components:
-  - DataTable.tsx: ~17 instances → text-gold, bg-gold, border-gold, ring-gold
-  - DataPillar.tsx: ~45 instances → gold Tailwind tokens
-  - ColumnEditorDialog.tsx: ~27 instances → gold tokens + bg-primary for selected type
-  - ColumnVisibilityDropdown.tsx: ~7 instances → gold tokens
-  - StockSourceModal.tsx: 2 instances → gold + var(--primary)
-  - GoogleConnectPanel.tsx: 1 instance → hover:text-gold
-  - CatalogPreview.tsx: ~26 BRAND inline style refs → var(--primary), var(--foreground), etc.
-  - ProductPage.tsx: ~20 BRAND inline style refs → CSS variables
-  - AdminDashboard.tsx: gradient + BRAND constant updated
-  - RelationManager.tsx: 1 inline style → var(--gold)
-- Also migrated status colors in DataTable:
-  - text-emerald-600/700 → text-[var(--dt-stock-ok-text)]
-  - text-amber-600 → text-[var(--dt-stock-low-text)]
-  - text-red-500 → text-destructive
-  - bg-amber-50 → bg-[var(--dt-pending-row-bg)]
-- Committed and pushed to main branch for Vercel deployment
+- Added `clientOverrides Json? @map("client_overrides")` to CatalogSettings in prisma/schema.prisma
+- Added `clientOverrides: Record<string, string> | null` to CatalogSettings interface in types/index.ts
+- Added `'clientOverrides'` to allowedFields in API route settings/route.ts
+- Pushed schema to local SQLite DB (temporarily switched provider to sqlite, pushed, reverted to postgresql)
+- Regenerated Prisma client
 
 Stage Summary:
-- Active Theme Engine fully operational with 4 pivots + 3 exceptions driving 85+ derived CSS variables
-- ThemeProvider injects computed variables into :root on every page load
-- Style panel redesigned with Palette Officielle, Couleurs Avancées, and Live Preview
-- ~80+ hardcoded #C9A84C instances replaced with CSS variable references across 15+ components
-- BRAND inline style references replaced with var() references in CatalogPreview and ProductPage
-- All CSS variables verified in browser via getComputedStyle
-- Push deployed: ab0015e → main (Vercel build triggered)
+- New `client_overrides` column available in database
+- API accepts and returns clientOverrides field
+- TypeScript types updated
+- Local DB synced; production DB will sync on next Vercel deploy
+
+---
+Task ID: 2
+Agent: Main
+Task: CSS Engine Refactor — Implement --client-* namespace with auto/custom inheritance
+
+Work Log:
+- Added CLIENT_VARIABLES mapping (45 entries) to theme.config.ts covering 6 groups: backgrounds, text, buttons, badges, product-page, misc
+- Added CLIENT_GROUP_LABELS for French UI labels per group
+- Added computeClientVariables() function with auto/custom override logic
+- Refactored ThemeProvider.tsx to accept clientOverrides prop and merge admin+client vars
+- Updated ThemeInjector.tsx to fetch and pass clientOverrides from DB
+- Updated generateThemeCSS() server-side helper to accept clientOverrides
+
+Stage Summary:
+- ~130 CSS variables now injected (85 admin + 45 client)
+- Client variables inherit from admin by default (auto mode)
+- clientOverrides JSON overrides individual --client-* vars (custom mode)
+- Zero lint errors
+
+---
+Task ID: 3
+Agent: Sub-agent (general-purpose)
+Task: Migrate globals.css hardcoded hex values to var(--client-...)
+
+Work Log:
+- Replaced 58 hardcoded hex values in CSS rules with var(--client-...) references
+- Categories: dividers (6), backgrounds (7), text colors (16), CTA buttons (3), badges (5), chips/selectors (6), scrollbar (2), gradients (2)
+- Preserved structural colors (white, rgba overlays, status-specific colors)
+- Did NOT touch :root or .dark blocks (fallback declarations)
+- Lint passed with zero errors
+
+Stage Summary:
+- All theme-driven colors in CSS rules now use CSS variables
+- Design is fully dynamic — changing pivots or clientOverrides changes the catalog appearance
+- No visual regression expected (fallbacks in :root match previous hardcoded values)
+
+---
+Task ID: 4
+Agent: Main + Sub-agent (full-stack-developer)
+Task: UI Style — New Settings > Style panel with Admin/Client separation and auto/custom toggles
+
+Work Log:
+- Created ClientStylePanel.tsx component with grouped layout, auto/custom switches, color preview, hex input, reset buttons
+- Imported ClientStylePanel into SettingsPillar.tsx
+- Added "Espace Client" card in the appearance tab between "Couleurs Avancées" and "Police & CSS"
+- Connected clientOverrides to updateField('clientOverrides', overrides) for save persistence
+- Lint passed, dev server running (200 OK)
+
+Stage Summary:
+- Settings > Style tab now has 4 sections: Palette Principale (Admin), Couleurs Avancées (Admin), Espace Client (Client auto/custom), Police & CSS
+- Espace Client shows 45 variables in 6 collapsible groups
+- Each variable has Auto/Custom toggle with live color preview
+- Custom mode allows per-variable color override stored in clientOverrides JSON
+- Auto mode inherits from admin-derived values

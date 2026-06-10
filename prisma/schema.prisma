@@ -157,6 +157,7 @@ model CatalogSettings {
   destructiveColor  String   @default("#800020") @map("destructive_color")
   borderColor       String   @default("#E8E2D9") @map("border_color")
   customCSS         String   @default("") @map("custom_css")
+  clientOverrides   Json?    @map("client_overrides")
   favicon           String?
   logo              String?
   createdAt         DateTime @default(now()) @map("created_at")

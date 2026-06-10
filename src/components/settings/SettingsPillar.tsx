@@ -15,6 +15,7 @@ import { Badge } from '@/components/ui/badge';
 import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
 import { AdminUserManager } from '@/components/settings/AdminUserManager';
 import { ColorMapManager } from '@/components/settings/ColorMapManager';
+import { ClientStylePanel } from '@/components/settings/ClientStylePanel';
 import {
   Globe, Palette, Share2, Monitor, Shield, Save, Loader2,
   MessageCircle, ExternalLink, Mail, Instagram, Copy, Check, Key,
@@ -787,6 +788,27 @@ export function SettingsPillar() {
                       </div>
                     );
                   })}
+                </CardContent>
+              </Card>
+
+              {/* ═══ Espace Client — Variables --client-* (auto/custom) ═══ */}
+              <Card>
+                <CardHeader>
+                  <div>
+                    <CardTitle className="text-sm flex items-center gap-2">
+                      <Palette className="w-4 h-4" style={{ color: 'var(--cream)' }} />
+                      Espace Client
+                    </CardTitle>
+                    <p className="text-xs text-muted-foreground mt-0.5">
+                      Variables visibles sur le catalogue public — mode Auto (hérite de l'Admin) ou Custom (valeur propre)
+                    </p>
+                  </div>
+                </CardHeader>
+                <CardContent>
+                  <ClientStylePanel
+                    clientOverrides={local.clientOverrides || null}
+                    onChange={(overrides) => updateField('clientOverrides', overrides)}
+                  />
                 </CardContent>
               </Card>
 

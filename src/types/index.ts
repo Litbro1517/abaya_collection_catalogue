@@ -201,6 +201,7 @@ export interface CatalogSettings {
   destructiveColor: string;
   borderColor: string;
   customCSS: string;
+  clientOverrides: Record<string, string> | null;
   favicon: string | null;
   logo: string | null;
   createdAt: string;

@@ -338,7 +338,125 @@ export function computeThemeVariables(
 }
 
 // ─────────────────────────────────────────────────────────────
-// 6. VARIABLE NAME LIST (for Style panel reference)
+// 6. CLIENT VARIABLE MAPPING — Admin → Client namespace bridge
+// ─────────────────────────────────────────────────────────────
+
+/**
+ * CLIENT_VARIABLES maps each --client-* variable to the admin
+ * derived variable it inherits from by default.
+ *
+ * When a clientOverrides[key] exists, it replaces the derived value.
+ * When no override exists, --client-foo == var(--foo) (auto mode).
+ *
+ * Grouped by functional block for the Settings UI.
+ */
+export const CLIENT_VARIABLES: Record<string, {
+  /** The admin-derived variable this inherits from by default */
+  inherits: string;
+  /** French label for the Settings UI */
+  label: string;
+  /** Functional group for visual grouping */
+  group: 'backgrounds' | 'text' | 'buttons' | 'badges' | 'product-page' | 'misc';
+}> = {
+  // ═══ BACKGROUNDS ═══
+  '--client-bg-page':       { inherits: '--bg-page',       label: 'Fond de page',             group: 'backgrounds' },
+  '--client-bg-card':       { inherits: '--bg-card',       label: 'Fond des cartes',          group: 'backgrounds' },
+  '--client-bg-secondary':  { inherits: '--bg-secondary',  label: 'Surface secondaire',       group: 'backgrounds' },
+  '--client-bg-carousel':   { inherits: '--bg-carousel',   label: 'Fond carrousel',           group: 'backgrounds' },
+
+  // ═══ TEXT ═══
+  '--client-text-heading':    { inherits: '--text-heading',    label: 'Titres produits',        group: 'text' },
+  '--client-text-subtitle':   { inherits: '--text-subtitle',   label: 'Sous-titres / description', group: 'text' },
+  '--client-text-price':      { inherits: '--text-price',      label: 'Prix',                   group: 'text' },
+  '--client-text-label':      { inherits: '--text-label',      label: 'Labels (champs)',        group: 'text' },
+  '--client-text-value':      { inherits: '--text-value',      label: 'Valeurs (champs)',       group: 'text' },
+  '--client-text-muted':      { inherits: '--text-muted',      label: 'Texte secondaire',       group: 'text' },
+  '--client-text-link':       { inherits: '--text-link',       label: 'Liens fil d\'Ariane',    group: 'text' },
+  '--client-text-separator':  { inherits: '--text-separator',  label: 'Séparateurs',            group: 'text' },
+
+  // ═══ BUTTONS ═══
+  '--client-btn-catalog-bg':         { inherits: '--btn-catalog-bg',         label: 'Bouton filtre (fond)',       group: 'buttons' },
+  '--client-btn-catalog-text':       { inherits: '--btn-catalog-text',       label: 'Bouton filtre (texte)',      group: 'buttons' },
+  '--client-btn-detail-bg':          { inherits: '--btn-detail-bg',          label: 'Bouton détail (fond)',       group: 'buttons' },
+  '--client-btn-cta-bg':             { inherits: '--btn-cta-bg',             label: 'Micro-CTA actif (fond)',     group: 'buttons' },
+  '--client-btn-cta-hover-bg':       { inherits: '--btn-cta-hover-bg',       label: 'Micro-CTA actif (survol)',   group: 'buttons' },
+  '--client-btn-cta-disabled-bg':    { inherits: '--btn-cta-disabled-bg',    label: 'Micro-CTA inactif (fond)',   group: 'buttons' },
+  '--client-btn-cta-disabled-text':  { inherits: '--btn-cta-disabled-text',  label: 'Micro-CTA inactif (texte)',  group: 'buttons' },
+
+  // ═══ BADGES ═══
+  '--client-badge-new-bg':            { inherits: '--badge-new-bg',            label: 'Badge "Nouveau" (fond)',     group: 'badges' },
+  '--client-badge-new-dot':           { inherits: '--badge-new-dot',           label: 'Badge "Nouveau" (point)',    group: 'badges' },
+  '--client-badge-epuise-bg':         { inherits: '--badge-epuise-bg',         label: 'Badge "Épuisé" (fond)',      group: 'badges' },
+  '--client-badge-epuise-text':       { inherits: '--badge-epuise-text',       label: 'Badge "Épuisé" (texte)',     group: 'badges' },
+  '--client-badge-epuise-border':     { inherits: '--badge-epuise-border',     label: 'Badge "Épuisé" (bordure)',   group: 'badges' },
+  '--client-badge-surcommande-bg':    { inherits: '--badge-surcommande-bg',    label: 'Badge "Sur commande" (fond)',group: 'badges' },
+  '--client-badge-surcommande-text':  { inherits: '--badge-surcommande-text',  label: 'Badge "Sur commande" (txt)', group: 'badges' },
+  '--client-badge-surcommande-border':{ inherits: '--badge-surcommande-border',label: 'Badge "Sur commande" (bord)',group: 'badges' },
+  '--client-badge-filter-border':     { inherits: '--badge-filter-border',     label: 'Badge filtre (bordure)',     group: 'badges' },
+  '--client-badge-filter-bg':         { inherits: '--badge-filter-bg',         label: 'Badge filtre (fond)',        group: 'badges' },
+  '--client-badge-filter-text':       { inherits: '--badge-filter-text',       label: 'Badge filtre (texte)',       group: 'badges' },
+  '--client-badge-count-bg':          { inherits: '--badge-count-bg',          label: 'Badge compteur (fond)',      group: 'badges' },
+  '--client-badge-count-text':        { inherits: '--badge-count-text',        label: 'Badge compteur (texte)',     group: 'badges' },
+  '--client-badge-product-bg':        { inherits: '--badge-product-bg',        label: 'Badge produit (fond)',       group: 'badges' },
+
+  // ═══ PRODUCT PAGE ═══
+  '--client-pp-chip-border':                { inherits: '--pp-chip-border',                label: 'Chip taille (bordure)',       group: 'product-page' },
+  '--client-pp-chip-selected-bg':           { inherits: '--pp-chip-selected-bg',           label: 'Chip taille sélectionné (fd)', group: 'product-page' },
+  '--client-pp-chip-selected-border':       { inherits: '--pp-chip-selected-border',       label: 'Chip taille sélectionné (bd)', group: 'product-page' },
+  '--client-pp-chip-hover-border':          { inherits: '--pp-chip-hover-border',          label: 'Chip taille survol (bordure)',group: 'product-page' },
+  '--client-pp-chip-hover-bg':              { inherits: '--pp-chip-hover-bg',              label: 'Chip taille survol (fond)',   group: 'product-page' },
+  '--client-pp-divider':                    { inherits: '--pp-divider',                    label: 'Séparateur sections',         group: 'product-page' },
+  '--client-pp-color-circle-selected-border':{ inherits: '--pp-color-circle-selected-border',label: 'Cercle couleur sélectionné', group: 'product-page' },
+  '--client-pp-color-circle-selected-shadow':{ inherits: '--pp-color-circle-selected-shadow',label: 'Cercle couleur (ombre)',     group: 'product-page' },
+  '--client-pp-detail-label':               { inherits: '--pp-detail-label',               label: 'Détail label',               group: 'product-page' },
+  '--client-pp-detail-value':               { inherits: '--pp-detail-value',               label: 'Détail valeur',              group: 'product-page' },
+
+  // ═══ MISC ═══
+  '--client-scrollbar-thumb':       { inherits: '--scrollbar-thumb',       label: 'Scrollbar (thumb)',       group: 'misc' },
+  '--client-scrollbar-thumb-hover': { inherits: '--scrollbar-thumb-hover', label: 'Scrollbar (thumb survol)', group: 'misc' },
+};
+
+/** Group labels for the Settings UI */
+export const CLIENT_GROUP_LABELS: Record<string, string> = {
+  backgrounds: 'Fonds & Surfaces',
+  text: 'Textes & Typographie',
+  buttons: 'Boutons & CTAs',
+  badges: 'Badges & Statuts',
+  'product-page': 'Page Produit',
+  misc: 'Divers',
+};
+
+/**
+ * Compute --client-* CSS variables with auto/custom inheritance.
+ * - If clientOverrides[key] exists → use the override value (custom mode)
+ * - Otherwise → use the derived admin value (auto mode, inherits from parent var)
+ */
+export function computeClientVariables(
+  adminVars: ThemeVariables,
+  clientOverrides: Record<string, string> | null
+): ThemeVariables {
+  const result: ThemeVariables = {};
+  const overrides = clientOverrides || {};
+
+  for (const [clientVar, config] of Object.entries(CLIENT_VARIABLES)) {
+    // Strip the leading '--' to use as override key
+    const overrideKey = clientVar; // e.g. "--client-bg-page"
+    const adminValue = adminVars[config.inherits] || '';
+
+    if (overrides[overrideKey] && overrides[overrideKey].trim() !== '') {
+      // Custom mode: use the override value
+      result[clientVar] = overrides[overrideKey];
+    } else {
+      // Auto mode: inherit from admin derived variable
+      result[clientVar] = adminValue;
+    }
+  }
+
+  return result;
+}
+
+// ─────────────────────────────────────────────────────────────
+// 7. VARIABLE NAME LIST (for Style panel reference)
 // ─────────────────────────────────────────────────────────────
 
 export const PIVOT_LABELS: Record<keyof ThemePivots, string> = {

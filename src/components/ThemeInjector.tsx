@@ -18,6 +18,7 @@ export function ThemeInjector() {
     pivots: ThemePivots;
     exceptions: ThemeExceptions;
     customCSS: string;
+    clientOverrides: Record<string, string> | null;
   } | null>(null);
   const [refreshKey, setRefreshKey] = useState(0);
 
@@ -43,6 +44,7 @@ export function ThemeInjector() {
                 borderColor: data.borderColor || THEME_DEFAULTS.borderColor,
               },
               customCSS: data.customCSS || '',
+              clientOverrides: data.clientOverrides || null,
             });
           }
         }
@@ -70,6 +72,7 @@ export function ThemeInjector() {
       pivots={themeData.pivots}
       exceptions={themeData.exceptions}
       customCSS={themeData.customCSS}
+      clientOverrides={themeData.clientOverrides}
     />
   );
 }

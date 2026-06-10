@@ -55,7 +55,7 @@ export async function PUT(req: NextRequest) {
       'instagramHandle', 'primaryColor', 'secondaryColor', 'accentColor', 'backgroundColor',
       'fontFamily', 'enableZoom', 'enableSearch', 'enableSharing', 'conversionChannel',
       'conversionMessage', 'brandGreenColor', 'destructiveColor', 'borderColor',
-      'customCSS', 'favicon', 'logo',
+      'customCSS', 'clientOverrides', 'favicon', 'logo',
     ];
 
     for (const field of allowedFields) {
