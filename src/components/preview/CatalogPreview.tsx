@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { useAppStore } from '@/lib/store';
 import type { Section, SectionConfig, Column, ColumnConfig, Row, CatalogSettings } from '@/types';
 import { Button } from '@/components/ui/button';
@@ -220,6 +220,30 @@ function Pagination({
   );
 }
 
+// ── Pure utility functions (extracted for stable references in hooks) ──
+
+function getCellValue(row: Row, slug: string): string {
+  const data = row.data as Record<string, unknown>;
+  const val = data[slug];
+  if (val === undefined || val === null) return '';
+  if (typeof val === 'string') return val;
+  if (typeof val === 'number' || typeof val === 'boolean') return String(val);
+  if (Array.isArray(val)) return val.join(', ');
+  return String(val);
+}
+
+type StockState = 'en_stock' | 'epuise' | 'sur_commande';
+
+function computeStockState(rawData: Record<string, unknown>): StockState {
+  const isDisponible = String(rawData.__disponibilite__) !== 'false';
+  const stock = typeof rawData.__stock__ === 'number'
+    ? rawData.__stock__
+    : parseInt(String(rawData.__stock__)) || 0;
+  if (stock > 0) return 'en_stock';
+  if (stock === 0 && isDisponible) return 'sur_commande';
+  return 'epuise';
+}
+
 // ═══════════════════════════════════════════════════════════════════════════
 // ── Main Catalog Component ──
 // ═══════════════════════════════════════════════════════════════════════════
@@ -317,48 +341,40 @@ export function CatalogPreview({ onAdminLogin }: CatalogPreviewProps) {
     if (!catalog?.sections || sectionsLoaded) return;
     let cancelled = false;
 
+    // ━━━ Phase 0: Promise.all — all sections load in parallel, not sequentially ━━━
     const loadSections = async () => {
-      const loaded: { section: Section; columns: Column[]; rows: Row[] }[] = [];
-
-      for (const section of catalog.sections) {
-        if (!section.visible) continue;
-        const config = section.config as SectionConfig;
-        const dsId = config.dataSourceId;
-        if (!dsId) {
-          loaded.push({ section, columns: [], rows: [] });
-          continue;
+      try {
+        const results = await Promise.all(
+          catalog.sections
+            .filter(s => s.visible)
+            .map(async section => {
+              const config = section.config as SectionConfig;
+              const dsId = config.dataSourceId;
+              if (!dsId) return { section, columns: [], rows: [] };
+              const [metaRes, rowsRes] = await Promise.all([
+                fetch(`/api/datasources/${dsId}?mode=meta`),
+                fetch(`/api/datasources/${dsId}/rows?limit=200`),
+              ]);
+              const metaJson = metaRes.ok ? await metaRes.json() : null;
+              const rowsJson = rowsRes.ok ? await rowsRes.json() : null;
+              return {
+                section,
+                columns: metaJson?.data?.columns || [],
+                rows: rowsJson?.data || []
+              };
+            })
+        );
+        if (!cancelled) {
+          setSections(results.filter(Boolean));
+          setSectionsLoaded(true);
+          setLoadError(null);
         }
-
-        try {
-          const [metaRes, rowsRes] = await Promise.all([
-            fetch(`/api/datasources/${dsId}?mode=meta`),
-            fetch(`/api/datasources/${dsId}/rows?limit=200`),
-          ]);
-
-          let columns: Column[] = [];
-          let rows: Row[] = [];
-
-          if (metaRes.ok) {
-            const metaJson = await metaRes.json();
-            columns = metaJson.data?.columns || [];
-          }
-
-          if (rowsRes.ok) {
-            const rowsJson = await rowsRes.json();
-            rows = rowsJson.data || [];
-          }
-
-          loaded.push({ section, columns, rows });
-        } catch (err) {
-          console.error('Failed to load section data:', err);
-          loaded.push({ section, columns: [], rows: [] });
+      } catch (err) {
+        console.error('Section loading failed:', err);
+        if (!cancelled) {
+          setLoadError('Erreur de chargement des données');
+          setSectionsLoaded(true);
         }
-      }
-
-      if (!cancelled) {
-        setSections(loaded);
-        setSectionsLoaded(true);
-        setLoadError(null);
       }
     };
 
@@ -371,16 +387,6 @@ export function CatalogPreview({ onAdminLogin }: CatalogPreviewProps) {
     });
     return () => { cancelled = true; };
   }, [catalog, sectionsLoaded]);
-
-  const getCellValue = (row: Row, slug: string): string => {
-    const data = row.data as Record<string, unknown>;
-    const val = data[slug];
-    if (val === undefined || val === null) return '';
-    if (typeof val === 'string') return val;
-    if (typeof val === 'number' || typeof val === 'boolean') return String(val);
-    if (Array.isArray(val)) return val.join(', ');
-    return String(val);
-  };
 
   // ━━━ SEO: Update browser URL when product is selected/deselected ━━━
   // Uses window.history.pushState() exclusively — NEVER router.push()
@@ -532,8 +538,8 @@ export function CatalogPreview({ onAdminLogin }: CatalogPreviewProps) {
     return Array.from(options.entries()).map(([value, label]) => ({ value, label }));
   };
 
-  // Compute product counts per category slug (from __category__ field in row data)
-  const getCategoryProductCounts = (): Map<string, number> => {
+  // ━━━ Phase 1: Memoized category product counts — zero recalc on every render ━━━
+  const categoryProductCounts = useMemo(() => {
     const counts = new Map<string, number>();
     sections.forEach(({ rows }) => {
       rows.forEach(r => {
@@ -546,17 +552,18 @@ export function CatalogPreview({ onAdminLogin }: CatalogPreviewProps) {
       });
     });
     return counts;
-  };
+  }, [sections]);
 
-  // Compute product counts per subcategory slug for a given category
-  const getSubCategoryProductCounts = (categorySlug: string): Map<string, number> => {
+  // ━━━ Phase 1: Memoized subcategory counts — only recalcs when macro filter changes ━━━
+  const subCategoryProductCounts = useMemo(() => {
     const counts = new Map<string, number>();
+    if (activeMacroFilter === 'all') return counts;
     sections.forEach(({ rows }) => {
       rows.forEach(r => {
         const data = r.data as Record<string, unknown>;
         if (data.__is_visible__ === false) return;
         const catSlug = String(data.__category__ || '').trim();
-        if (catSlug !== categorySlug) return;
+        if (catSlug !== activeMacroFilter) return;
         const subSlug = String(data.__sub_category__ || '').trim();
         if (subSlug) {
           counts.set(subSlug, (counts.get(subSlug) || 0) + 1);
@@ -564,9 +571,10 @@ export function CatalogPreview({ onAdminLogin }: CatalogPreviewProps) {
       });
     });
     return counts;
-  };
+  }, [sections, activeMacroFilter]);
 
-  const filterRows = (rows: Row[], config: SectionConfig): Row[] => {
+  // ━━━ Phase 1: Memoized filterRows — stable reference, only changes when filter state changes ━━━
+  const filterRows = useCallback((rows: Row[], config: SectionConfig): Row[] => {
     let filtered = rows.filter(r => {
       const data = r.data as Record<string, unknown>;
       // ── Visibility filter: hide products marked as not visible ──
@@ -609,7 +617,7 @@ export function CatalogPreview({ onAdminLogin }: CatalogPreviewProps) {
       const data = r.data as Record<string, unknown>;
       return Object.values(data).some(v => String(v).toLowerCase().includes(q));
     });
-  };
+  }, [dynamicCategories, activeMacroFilter, activeMicroFilter, activeFilter, searchQuery]);
 
   const toggleLike = (rowId: string, e: React.MouseEvent) => {
     e.stopPropagation();
@@ -621,27 +629,8 @@ export function CatalogPreview({ onAdminLogin }: CatalogPreviewProps) {
     });
   };
 
-  // ━━━ REACTIVE 3-DIMENSIONAL STATE ENGINE ━━━━━━━━━━━━━━━━━━━━━━━━━
-  // Scenario A: stock > 0 + switch ON → "En stock" (normal, buyable)
-  // Scenario B: stock == 0 + switch OFF → "Épuisé" (SOLD OUT, buy disabled)
-  // Scenario C: stock == 0 + switch ON → "Sur commande" (buyable, special badge)
-  type StockState = 'en_stock' | 'epuise' | 'sur_commande';
-
-  function computeStockState(rawData: Record<string, unknown>): StockState {
-    const isDisponible = String(rawData.__disponibilite__) !== 'false';
-    const stock = typeof rawData.__stock__ === 'number'
-      ? rawData.__stock__
-      : parseInt(String(rawData.__stock__)) || 0;
-
-    // ━━━ SAFETY NET: stock > 0 always implies "Disponible" ━━━
-    // If stock > 0 but __disponibilite__ is somehow 'false', that's an
-    // invalid state (likely from a bulk import bug). Correct it on-the-fly.
-    if (stock > 0) return 'en_stock';                       // Scenario A (+ safety net)
-    if (stock === 0 && isDisponible) return 'sur_commande'; // Scenario C
-    return 'epuise';                                        // Scenario B
-  }
-
-  const allProducts = (() => {
+  // ━━━ Phase 1: Memoized allProducts — expensive flatMap+filter+sort only runs on data/filter change ━━━
+  const allProducts = useMemo(() => {
     const items = sections.flatMap(({ section, columns, rows }) => {
       const config = section.config as SectionConfig;
       return filterRows(rows, config).map(row => {
@@ -665,7 +654,7 @@ export function CatalogPreview({ onAdminLogin }: CatalogPreviewProps) {
       return a.row.order - b.row.order;
     });
     return items;
-  })();
+  }, [sections, filterRows]);
 
   const totalPages = Math.ceil(allProducts.length / ITEMS_PER_PAGE);
   const paginatedProducts = allProducts.slice(
@@ -854,11 +843,10 @@ export function CatalogPreview({ onAdminLogin }: CatalogPreviewProps) {
             </button>
             {/* Dynamic category pills with product count */}
             {(() => {
-              const catCounts = getCategoryProductCounts();
               return dynamicCategories
                 .filter(cat => cat.visible)
                 .map(cat => {
-                  const count = catCounts.get(cat.slug) || 0;
+                  const count = categoryProductCounts.get(cat.slug) || 0;
                   return (
                     <button
                       key={cat.slug}
@@ -887,7 +875,7 @@ export function CatalogPreview({ onAdminLogin }: CatalogPreviewProps) {
             if (!selectedCat || !selectedCat.subCategories?.length) return null;
             const visibleSubs = selectedCat.subCategories.filter(sub => sub.visible);
             if (visibleSubs.length === 0) return null;
-            const subCounts = getSubCategoryProductCounts(activeMacroFilter);
+            const subCounts = subCategoryProductCounts;
             // Micro filter: uses global CSS classes .btn-filter-sub-active / .btn-filter-sub-inactive
             return (
               <div className="catalog-filter-bar no-scrollbar" style={{ paddingTop: '4px', paddingBottom: '8px' }}>
