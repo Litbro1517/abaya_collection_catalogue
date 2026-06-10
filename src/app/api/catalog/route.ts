@@ -69,9 +69,9 @@ export async function GET() {
       })),
     };
 
-    const response = NextResponse.json({ data: parsedCatalog, error: null });
-    response.headers.set('Cache-Control', 'public, s-maxage=60, stale-while-revalidate=300');
-    return response;
+    // Cache-Control is handled by vercel.json at CDN level
+    // s-maxage=60, stale-while-revalidate=300
+    return NextResponse.json({ data: parsedCatalog, error: null });
   } catch (e) {
     console.error('Catalog fetch error:', e);
     return NextResponse.json({ data: null, error: 'Failed to fetch catalog' }, { status: 500 });
