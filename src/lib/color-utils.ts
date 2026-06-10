@@ -235,6 +235,38 @@ export function buildColorLookupMap(data: Array<{ name: string; slug: string; he
  * Accepts formats: #RGB, #RRGGBB, RGB, RRGGBB
  * Returns normalized format: #RRGGBB or null if invalid.
  */
+/** Alias for generateColorSlug — used by colormap API routes */
+export const colorNameToSlug = generateColorSlug;
+
+/** Validate hex color — returns boolean */
+export function isValidHex(hex: string): boolean {
+  return validateAndNormalizeHex(hex) !== null;
+}
+
+/** Generate a default hex from a color name using COULEURS_DEFAULTS */
+export function generateDefaultHex(colorName: string): string {
+  const key = normalizeCouleurKey(colorName);
+  return COULEURS_DEFAULTS[key] || '#808080';
+}
+
+/** Default seed colors for initial ColorMap population */
+export const DEFAULT_SEED_COLORS = [
+  { name: 'Noir', hex: '#000000' },
+  { name: 'Blanc', hex: '#FFFFFF' },
+  { name: 'Gris', hex: '#808080' },
+  { name: 'Beige', hex: '#F5F0E8' },
+  { name: 'Caramel', hex: '#C9A84C' },
+  { name: 'Marron', hex: '#8B4513' },
+  { name: 'Bleu', hex: '#1565C0' },
+  { name: 'Rouge', hex: '#D32F2F' },
+  { name: 'Rose', hex: '#F48FB1' },
+  { name: 'Vert', hex: '#2E7D32' },
+  { name: 'Bordeaux', hex: '#800020' },
+  { name: 'Crème', hex: '#FFFDD0' },
+  { name: 'Marine', hex: '#1A237E' },
+  { name: 'Taupe', hex: '#483C32' },
+];
+
 export function validateAndNormalizeHex(hex: string): string | null {
   const cleaned = hex.trim().replace(/^#/, '');
 
