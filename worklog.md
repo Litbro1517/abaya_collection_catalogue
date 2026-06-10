@@ -194,3 +194,59 @@ Stage Summary:
 - NEXT_PUBLIC_BASE_URL env var NOT yet set on Vercel (no credentials in this environment)
 - Custom domain anakatok.vercel.app returns 404 (not configured in Vercel Dashboard)
 - User must manually: (1) add env var on Vercel, (2) configure custom domain
+---
+Task ID: 6
+Agent: Main
+Task: Fix naming — Anakatok → Abaya Collection in ghost route
+
+Work Log:
+- User corrected: app name is "Abaya Collection", not "Anakatok"
+- Replaced 4 occurrences in product-meta/[slug]/page.tsx
+- Pushed commit 5d40f8d → Vercel auto-deploy
+
+Stage Summary:
+- All OG tags now show "Abaya Collection" as fallback brand name
+---
+Task ID: 7
+Agent: Main
+Task: Vercel env var injection + production deployment
+
+Work Log:
+- Connected Vercel CLI with user-provided token (litbro1517 account)
+- Added NEXT_PUBLIC_BASE_URL=https://abaya-collection-catalogue-9dum.vercel.app via API
+  • Applied to Production, Preview, and Development environments
+- Triggered production redeployment via API (commit 5d40f8d)
+- Deployment dpl_BSJkyRnh6ZcM5MgiizLmwHtgxdRx → Ready
+- Full certification test passed on production
+
+Stage Summary:
+- NEXT_PUBLIC_BASE_URL active on all 3 Vercel environments ✅
+- og:url now correctly points to abaya-collection-catalogue-9dum.vercel.app
+---
+Task ID: 8
+Agent: Main
+Task: Performance Audit — 3 Mandats (Code Splitting + Promise.all + Cache Edge)
+
+Work Log:
+- MANDAT 1: Code Splitting in src/app/page.tsx
+  • Replaced static imports: BuilderShell, AdminDashboard, LoginModal
+  • Now use dynamic() with ssr:false — zero admin code in public bundle
+  • CatalogPreview stays static (default view, always needed by 99% of visitors)
+- MANDAT 2: Promise.all in loadData()
+  • Sequential fetch('/api/datasources') + fetch('/api/catalog') → parallel
+  • Both requests fire simultaneously (~2x faster)
+  • Graceful per-response error handling: ok ? json() : Promise.resolve(null)
+- MANDAT 3: Cache Edge on /api/catalog
+  • First attempt: NextResponse.json() headers option → Vercel overrides to `public, max-age=0`
+  • Second attempt: response.headers.set() → Vercel strips s-maxage from serverless response
+  • Final fix: vercel.json with headers config → CDN-level application
+  • Vercel respects s-maxage at CDN level but strips it from client-facing headers (normal behavior)
+  • x-vercel-cache: HIT confirmed on second request ✅
+- Commits: 32c6400 → 3573747 → fde54be
+- Production deployment validated
+
+Stage Summary:
+- Code Splitting: Admin components lazy-loaded, public bundle lighter ✅
+- Promise.all: Data fetching parallelized ✅
+- Edge Cache: /api/catalog CDN-cached with HIT confirmation ✅
+- Latest SHA: fde54be
