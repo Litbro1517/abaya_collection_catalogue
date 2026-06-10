@@ -291,7 +291,6 @@ export function CatalogPreview({ onAdminLogin }: CatalogPreviewProps) {
   const s = settings || catalog?.settings;
   const primaryColor = s?.primaryColor || BRAND.dore;
   const secondaryColor = s?.secondaryColor || BRAND.vertFonce;
-  const brandGreenColor = s?.brandGreenColor || BRAND.vertFonce;
   const accentColor = s?.accentColor || BRAND.beige;
   const bgColor = s?.backgroundColor || BRAND.blanc;
 
@@ -822,7 +821,7 @@ export function CatalogPreview({ onAdminLogin }: CatalogPreviewProps) {
                 activeMacroFilter === 'all' ? 'shadow-sm' : 'hover:opacity-80'
               )}
               style={{
-                backgroundColor: activeMacroFilter === 'all' ? brandGreenColor : 'transparent',
+                backgroundColor: activeMacroFilter === 'all' ? secondaryColor : 'transparent',
                 color: activeMacroFilter === 'all' ? BRAND.blanc : BRAND.noir,
                 border: activeMacroFilter === 'all' ? 'none' : `1px solid ${primaryColor}30`,
               }}
@@ -845,7 +844,7 @@ export function CatalogPreview({ onAdminLogin }: CatalogPreviewProps) {
                         activeMacroFilter === cat.slug ? 'shadow-sm' : 'hover:opacity-80'
                       )}
                       style={{
-                        backgroundColor: activeMacroFilter === cat.slug ? brandGreenColor : 'transparent',
+                        backgroundColor: activeMacroFilter === cat.slug ? secondaryColor : 'transparent',
                         color: activeMacroFilter === cat.slug ? BRAND.blanc : BRAND.noir,
                         border: activeMacroFilter === cat.slug ? 'none' : `1px solid ${primaryColor}30`,
                       }}
@@ -928,7 +927,7 @@ export function CatalogPreview({ onAdminLogin }: CatalogPreviewProps) {
                   activeFilter === opt.value ? 'shadow-sm' : 'hover:opacity-80'
                 )}
                 style={{
-                  backgroundColor: activeFilter === opt.value ? brandGreenColor : 'transparent',
+                  backgroundColor: activeFilter === opt.value ? secondaryColor : 'transparent',
                   color: activeFilter === opt.value ? BRAND.blanc : BRAND.noir,
                   border: activeFilter === opt.value ? 'none' : `1px solid ${primaryColor}30`,
                 }}
