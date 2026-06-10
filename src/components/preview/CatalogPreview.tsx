@@ -290,7 +290,7 @@ export function CatalogPreview({ onAdminLogin }: CatalogPreviewProps) {
 
   const s = settings || catalog?.settings;
   const primaryColor = s?.primaryColor || BRAND.dore;
-  const secondaryColor = s?.secondaryColor || BRAND.vertFonce;
+  const secondaryColor = s?.secondaryColor || '#1A1A1A';
   const accentColor = s?.accentColor || BRAND.beige;
   const bgColor = s?.backgroundColor || BRAND.blanc;
 
