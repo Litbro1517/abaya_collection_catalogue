@@ -52,3 +52,21 @@ skills/
 
 # Root-level temp files
 cat-btn.png
+
+# ── Logs et Backups ──
+dev.log
+*.log
+*.bak
+
+# ── Legacy VPS Scripts (infra Vercel now) ──
+daemon.js
+daemon.sh
+keep-alive*.sh
+serve*.sh
+respawn-server.sh
+launch-server.sh
+run-*.sh
+start-*.sh
+dev-daemon.sh
+start.sh
+run-server.sh
