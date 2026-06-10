@@ -74,7 +74,7 @@ async function resolveProduct(slug: string) {
 
           const settings = catalog.settings;
           const currency = settings?.currency || 'MAD';
-          const catalogName = catalog.name || 'Anakatok';
+          const catalogName = catalog.name || 'Abaya Collection';
 
           return {
             title,
@@ -189,13 +189,13 @@ export async function generateMetadata({
 
   if (!product) {
     return {
-      title: 'Produit non trouvé — Anakatok',
+      title: 'Produit non trouvé — Abaya Collection',
       description: 'Ce produit n\'existe pas ou a été retiré.',
       openGraph: {
-        title: 'Anakatok — Collection',
+        title: 'Abaya Collection',
         description: 'Découvrez notre collection exclusive d\'abayas, robes et ensembles.',
         url: baseUrl,
-        siteName: 'Anakatok',
+        siteName: 'Abaya Collection',
         type: 'website',
         locale: 'fr_MA',
       },
