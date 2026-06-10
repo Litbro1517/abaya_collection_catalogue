@@ -18,6 +18,19 @@ import { ProductPage } from './ProductPage';
 
 const ITEMS_PER_PAGE = 16;
 
+// ── Slugify: product title → URL-safe slug ──
+// Used for SEO-friendly URLs: /?product=abaya-chic-noir
+// MUST match the server-side slugify() in product-meta/[slug]/page.tsx
+function slugify(text: string): string {
+  return text
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '') // strip accents
+    .replace(/[^a-z0-9]+/g, '-')     // non-alphanumeric → hyphen
+    .replace(/^-+|-+$/g, '')         // trim leading/trailing hyphens
+    .slice(0, 80);                   // reasonable max length
+}
+
 // ── Image URL Resolution ──
 
 // Direct CDN URL — for <img> src (no CORS proxy needed, instant loading)
@@ -368,6 +381,30 @@ export function CatalogPreview({ onAdminLogin }: CatalogPreviewProps) {
     if (Array.isArray(val)) return val.join(', ');
     return String(val);
   };
+
+  // ━━━ SEO: Update browser URL when product is selected/deselected ━━━
+  // Uses window.history.pushState() exclusively — NEVER router.push()
+  // This ensures no page flash/reload while keeping the URL shareable
+  // for social media crawlers (WhatsApp, Facebook, Twitter, etc.)
+  useEffect(() => {
+    if (selectedProduct) {
+      const config = selectedProduct.section.config as SectionConfig;
+      const title = config.titleColumn
+        ? getCellValue(selectedProduct.row, config.titleColumn)
+        : '';
+      const slug = slugify(title || 'produit');
+      const url = new URL(window.location.href);
+      url.searchParams.set('product', slug);
+      window.history.pushState({ productSlug: slug }, '', url.toString());
+    } else {
+      // Remove ?product= when going back to catalog grid
+      const url = new URL(window.location.href);
+      if (url.searchParams.has('product')) {
+        url.searchParams.delete('product');
+        window.history.pushState({}, '', url.toString());
+      }
+    }
+  }, [selectedProduct]);
 
   const getCarouselImages = useCallback((row: Row, config: SectionConfig, columns?: Column[]): string[] => {
     const images: string[] = [];
