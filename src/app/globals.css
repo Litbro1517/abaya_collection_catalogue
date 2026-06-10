@@ -373,10 +373,25 @@
 }
 
 /* ── Category Filter Buttons ── */
+/* Level 1 — Macro: Noir (active state) */
 .btn-filter-active {
   background-color: #1A1A1A;
   color: #FFFFFF;
   border: none;
+}
+
+/* Level 2 — Micro: Doré (active state) */
+.btn-filter-sub-active {
+  background-color: var(--pivot-gold);
+  color: #FFFFFF;
+  border: none;
+}
+
+/* Level 2 — Micro: Inactive state */
+.btn-filter-sub-inactive {
+  background-color: rgba(201,168,76,0.08);
+  color: #8B4513;
+  border: 1px solid rgba(201,168,76,0.25);
 }
 
 /* ── Catalog Toolbar (section title) ── */

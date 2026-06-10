@@ -14,17 +14,7 @@ import { cn } from '@/lib/utils';
 import { resolveColorHex, buildColorLookupMap, normalizeCouleurKey } from '@/lib/color-utils';
 import { ProductPage } from './ProductPage';
 
-// ── Brand Constants ──
-const BRAND = {
-  vertFonce: '#1A3C34',
-  dore: '#C9A84C',
-  beige: '#F5F0E8',
-  noir: '#1F1F1F',
-  blanc: '#FFFFFF',
-  grisClair: '#F0F0F0',
-  grisMoyen: '#808080',
-  bordeaux: '#800020',
-} as const;
+// ── Brand Constants removed — all values migrated to CSS pivot variables & global classes ──
 
 const ITEMS_PER_PAGE = 16;
 
@@ -182,7 +172,7 @@ function Pagination({
     <div className="flex items-center justify-center gap-1.5 mt-8 pb-4">
       <button
         className="p-2 rounded-xl transition disabled:opacity-30"
-        style={{ color: BRAND.vertFonce }}
+        style={{ color: 'var(--pivot-brand)' }}
         onClick={() => onPageChange(currentPage - 1)}
         disabled={currentPage === 1}
       >
@@ -190,14 +180,14 @@ function Pagination({
       </button>
       {getPages().map((p, i) =>
         p === '...' ? (
-          <span key={`dots-${i}`} className="px-2" style={{ color: BRAND.grisMoyen }}>...</span>
+          <span key={`dots-${i}`} className="px-2" style={{ color: 'var(--muted-foreground)' }}>...</span>
         ) : (
           <button
             key={p}
             className="w-10 h-10 rounded-xl text-sm font-semibold transition-all duration-200"
             style={{
               backgroundColor: p === currentPage ? primaryColor : 'transparent',
-              color: p === currentPage ? BRAND.blanc : BRAND.noir,
+              color: p === currentPage ? '#FFFFFF' : 'var(--pivot-text)',
             }}
             onClick={() => onPageChange(p as number)}
           >
@@ -207,7 +197,7 @@ function Pagination({
       )}
       <button
         className="p-2 rounded-xl transition disabled:opacity-30"
-        style={{ color: BRAND.vertFonce }}
+        style={{ color: 'var(--pivot-brand)' }}
         onClick={() => onPageChange(currentPage + 1)}
         disabled={currentPage === totalPages}
       >
@@ -289,10 +279,10 @@ export function CatalogPreview({ onAdminLogin }: CatalogPreviewProps) {
   }, []);
 
   const s = settings || catalog?.settings;
-  const primaryColor = s?.primaryColor || BRAND.dore;
-  const secondaryColor = s?.secondaryColor || BRAND.vertFonce;
-  const accentColor = s?.accentColor || BRAND.beige;
-  const bgColor = s?.backgroundColor || BRAND.blanc;
+  const primaryColor = s?.primaryColor || '#C9A84C';
+  const secondaryColor = s?.secondaryColor || '#1A3C34';
+  const accentColor = s?.accentColor || '#F5F0E8';
+  const bgColor = s?.backgroundColor || '#FFFFFF';
 
   const [sectionsLoaded, setSectionsLoaded] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -658,7 +648,7 @@ export function CatalogPreview({ onAdminLogin }: CatalogPreviewProps) {
   // ── PERSISTENT HEADER (sticky top bar — always visible) ──
   // ═══════════════════════════════════════════════════════════════════════
   const renderHeader = () => (
-    <header className="catalog-header sticky top-0 z-30 border-b bg-white/95" style={{ borderColor: `${BRAND.dore}15` }}>
+    <header className="catalog-header sticky top-0 z-30 border-b bg-white/95" style={{ borderColor: 'rgba(201,168,76,0.08)' }}>
       <div className="catalog-header-inner">
         {/* Back arrow — only visible on detail view */}
         {isDetailView ? (
@@ -667,7 +657,7 @@ export function CatalogPreview({ onAdminLogin }: CatalogPreviewProps) {
             className="flex items-center justify-center w-9 h-9 rounded-full hover:bg-gray-100 transition-colors shrink-0"
             aria-label="Retour au catalogue"
           >
-            <ArrowLeft className="w-5 h-5" style={{ color: BRAND.noir }} />
+            <ArrowLeft className="w-5 h-5" style={{ color: 'var(--pivot-text)' }} />
           </button>
         ) : (
           <div className="w-9 h-9 shrink-0" />
@@ -676,9 +666,9 @@ export function CatalogPreview({ onAdminLogin }: CatalogPreviewProps) {
         {/* Logo badge + Catalog Name */}
         <div className="flex-1 min-w-0 flex items-center gap-2.5">
           <div className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0" style={{ background: 'linear-gradient(135deg, #C9A84C, #E8D48B, #C9A84C)' }}>
-            <span className="text-sm font-bold" style={{ color: BRAND.noir }}>A</span>
+            <span className="text-sm font-bold" style={{ color: 'var(--pivot-text)' }}>A</span>
           </div>
-          <h1 className="font-bold text-sm sm:text-base truncate" style={{ color: BRAND.noir, fontFamily: "'Playfair Display', serif" }}>
+          <h1 className="font-bold text-sm sm:text-base truncate" style={{ color: 'var(--pivot-text)', fontFamily: "'Playfair Display', serif" }}>
             {catalogName}
           </h1>
         </div>
@@ -691,8 +681,8 @@ export function CatalogPreview({ onAdminLogin }: CatalogPreviewProps) {
             title="Retour au Dashboard"
             aria-label="Dashboard"
           >
-            <LayoutDashboard className="w-4 h-4" style={{ color: BRAND.vertFonce }} />
-            <span className="text-[11px] font-medium hidden sm:inline" style={{ color: BRAND.vertFonce }}>Dashboard</span>
+            <LayoutDashboard className="w-4 h-4" style={{ color: 'var(--pivot-brand)' }} />
+            <span className="text-[11px] font-medium hidden sm:inline" style={{ color: 'var(--pivot-brand)' }}>Dashboard</span>
           </button>
         ) : (
           <button
@@ -701,7 +691,7 @@ export function CatalogPreview({ onAdminLogin }: CatalogPreviewProps) {
             title="Accès administrateur"
             aria-label="Connexion admin"
           >
-            <Lock className="w-4 h-4" style={{ color: BRAND.grisMoyen }} />
+            <Lock className="w-4 h-4" style={{ color: 'var(--muted-foreground)' }} />
           </button>
         )}
       </div>
@@ -728,35 +718,35 @@ export function CatalogPreview({ onAdminLogin }: CatalogPreviewProps) {
             className="flex items-center justify-center shrink-0 hover:opacity-60 transition-opacity"
             aria-label="Retour"
           >
-            <ArrowLeft className="w-3.5 h-3.5" style={{ color: BRAND.grisMoyen }} />
+            <ArrowLeft className="w-3.5 h-3.5" style={{ color: 'var(--muted-foreground)' }} />
           </button>
 
           {/* Catalog Name segment */}
           <button
             className="breadcrumb-segment"
-            style={{ color: BRAND.grisMoyen }}
+            style={{ color: 'var(--muted-foreground)' }}
             onClick={() => setSelectedProduct(null)}
           >
             {catalogName}
           </button>
 
-          <span style={{ color: BRAND.grisMoyen }} className="shrink-0">/</span>
+          <span style={{ color: 'var(--muted-foreground)' }} className="shrink-0">/</span>
 
           {/* Section Title segment */}
           <button
             className="breadcrumb-segment"
-            style={{ color: BRAND.grisMoyen }}
+            style={{ color: 'var(--muted-foreground)' }}
             onClick={() => setSelectedProduct(null)}
           >
             {sectionTitle}
           </button>
 
-          <span style={{ color: BRAND.grisMoyen }} className="shrink-0">/</span>
+          <span style={{ color: 'var(--muted-foreground)' }} className="shrink-0">/</span>
 
           {/* Current product — bolder, not clickable */}
           <span
             className="breadcrumb-segment font-medium truncate"
-            style={{ color: BRAND.noir, cursor: 'default' }}
+            style={{ color: 'var(--pivot-text)', cursor: 'default' }}
           >
             {productTitle}
           </span>
@@ -798,7 +788,7 @@ export function CatalogPreview({ onAdminLogin }: CatalogPreviewProps) {
       {s?.enableSearch && (
         <div className="mx-auto max-w-[1270px] px-4 sm:px-8 pt-4">
           <div className="relative w-full max-w-md mx-auto">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4" style={{ color: BRAND.grisMoyen }} />
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4" style={{ color: 'var(--muted-foreground)' }} />
             <Input
               value={searchQuery}
               onChange={e => setSearchQuery(e.target.value)}
@@ -818,13 +808,9 @@ export function CatalogPreview({ onAdminLogin }: CatalogPreviewProps) {
             <button
               className={cn(
                 'px-4 py-1.5 rounded-full text-xs sm:text-sm font-medium whitespace-nowrap transition-all duration-200',
-                activeMacroFilter === 'all' ? 'shadow-sm' : 'hover:opacity-80'
+                activeMacroFilter === 'all' ? 'btn-filter-active shadow-sm' : 'text-foreground hover:opacity-80'
               )}
-              style={{
-                backgroundColor: activeMacroFilter === 'all' ? '#1A1A1A' : 'transparent',
-                color: activeMacroFilter === 'all' ? BRAND.blanc : BRAND.noir,
-                border: activeMacroFilter === 'all' ? 'none' : `1px solid ${primaryColor}30`,
-              }}
+              style={activeMacroFilter !== 'all' ? { border: `1px solid ${primaryColor}30` } : undefined}
               onClick={() => { setActiveMacroFilter('all'); setActiveMicroFilter('all'); setCurrentPage(1); }}
             >
               Tout
@@ -841,13 +827,9 @@ export function CatalogPreview({ onAdminLogin }: CatalogPreviewProps) {
                       key={cat.slug}
                       className={cn(
                         'px-4 py-1.5 rounded-full text-xs sm:text-sm font-medium whitespace-nowrap transition-all duration-200',
-                        activeMacroFilter === cat.slug ? 'shadow-sm' : 'hover:opacity-80'
+                        activeMacroFilter === cat.slug ? 'btn-filter-active shadow-sm' : 'text-foreground hover:opacity-80'
                       )}
-                      style={{
-                        backgroundColor: activeMacroFilter === cat.slug ? '#1A1A1A' : 'transparent',
-                        color: activeMacroFilter === cat.slug ? BRAND.blanc : BRAND.noir,
-                        border: activeMacroFilter === cat.slug ? 'none' : `1px solid ${primaryColor}30`,
-                      }}
+                      style={activeMacroFilter !== cat.slug ? { border: `1px solid ${primaryColor}30` } : undefined}
                       onClick={() => {
                         setActiveMacroFilter(cat.slug);
                         setActiveMicroFilter('all');
@@ -869,25 +851,15 @@ export function CatalogPreview({ onAdminLogin }: CatalogPreviewProps) {
             const visibleSubs = selectedCat.subCategories.filter(sub => sub.visible);
             if (visibleSubs.length === 0) return null;
             const subCounts = getSubCategoryProductCounts(activeMacroFilter);
-            // Brand chart palette for sub-category row
-            const CHART_ACTIVE_BG = BRAND.dore;       // #C9A84C — chart-1 gold
-            const CHART_ACTIVE_TEXT = BRAND.blanc;      // #FFFFFF
-            const CHART_INACTIVE_TEXT = '#8B4513';      // chart-3 warm brown
-            const CHART_INACTIVE_BG = 'rgba(201,168,76,0.08)'; // subtle gold tint
-            const CHART_INACTIVE_BORDER = 'rgba(201,168,76,0.25)';
+            // Micro filter: uses global CSS classes .btn-filter-sub-active / .btn-filter-sub-inactive
             return (
               <div className="catalog-filter-bar no-scrollbar" style={{ paddingTop: '4px', paddingBottom: '8px' }}>
                 {/* "Tous" sub-pill */}
                 <button
                   className={cn(
                     'px-3.5 py-1 rounded-full text-[11px] sm:text-xs font-medium whitespace-nowrap transition-all duration-200',
-                    activeMicroFilter === 'all' ? 'shadow-sm' : 'hover:opacity-80'
+                    activeMicroFilter === 'all' ? 'btn-filter-sub-active shadow-sm' : 'btn-filter-sub-inactive hover:opacity-80'
                   )}
-                  style={{
-                    backgroundColor: activeMicroFilter === 'all' ? CHART_ACTIVE_BG : CHART_INACTIVE_BG,
-                    color: activeMicroFilter === 'all' ? CHART_ACTIVE_TEXT : CHART_INACTIVE_TEXT,
-                    border: activeMicroFilter === 'all' ? 'none' : `1px solid ${CHART_INACTIVE_BORDER}`,
-                  }}
                   onClick={() => { setActiveMicroFilter('all'); setCurrentPage(1); }}
                 >
                   Tous
@@ -899,13 +871,8 @@ export function CatalogPreview({ onAdminLogin }: CatalogPreviewProps) {
                       key={sub.slug}
                       className={cn(
                         'px-3.5 py-1 rounded-full text-[11px] sm:text-xs font-medium whitespace-nowrap transition-all duration-200',
-                        activeMicroFilter === sub.slug ? 'shadow-sm' : 'hover:opacity-80'
+                        activeMicroFilter === sub.slug ? 'btn-filter-sub-active shadow-sm' : 'btn-filter-sub-inactive hover:opacity-80'
                       )}
-                      style={{
-                        backgroundColor: activeMicroFilter === sub.slug ? CHART_ACTIVE_BG : CHART_INACTIVE_BG,
-                        color: activeMicroFilter === sub.slug ? CHART_ACTIVE_TEXT : CHART_INACTIVE_TEXT,
-                        border: activeMicroFilter === sub.slug ? 'none' : `1px solid ${CHART_INACTIVE_BORDER}`,
-                      }}
                       onClick={() => { setActiveMicroFilter(sub.slug); setCurrentPage(1); }}
                     >
                       {sub.label}{count > 0 ? ` (${count})` : ''}
@@ -924,13 +891,9 @@ export function CatalogPreview({ onAdminLogin }: CatalogPreviewProps) {
                 key={opt.value}
                 className={cn(
                   'px-4 py-1.5 rounded-full text-xs sm:text-sm font-medium whitespace-nowrap transition-all duration-200',
-                  activeFilter === opt.value ? 'shadow-sm' : 'hover:opacity-80'
+                  activeFilter === opt.value ? 'btn-filter-active shadow-sm' : 'text-foreground hover:opacity-80'
                 )}
-                style={{
-                  backgroundColor: activeFilter === opt.value ? '#1A1A1A' : 'transparent',
-                  color: activeFilter === opt.value ? BRAND.blanc : BRAND.noir,
-                  border: activeFilter === opt.value ? 'none' : `1px solid ${primaryColor}30`,
-                }}
+                style={activeFilter !== opt.value ? { border: `1px solid ${primaryColor}30` } : undefined}
                 onClick={() => { setActiveFilter(opt.value); setCurrentPage(1); }}
               >
                 {opt.label}
@@ -946,7 +909,7 @@ export function CatalogPreview({ onAdminLogin }: CatalogPreviewProps) {
         if (!selectedCat) return null;
         return (
           <div className="mx-auto max-w-[1270px] px-4 sm:px-8 pt-6 pb-2">
-            <h2 className="text-2xl sm:text-3xl font-bold" style={{ color: BRAND.noir, fontFamily: "'Playfair Display', serif" }}>
+            <h2 className="text-2xl sm:text-3xl font-bold" style={{ color: 'var(--pivot-text)', fontFamily: "'Playfair Display', serif" }}>
               {selectedCat.label}
             </h2>
           </div>
@@ -956,9 +919,9 @@ export function CatalogPreview({ onAdminLogin }: CatalogPreviewProps) {
       {/* Error */}
       {loadError && (
         <div className="catalog-container">
-          <div className="rounded-xl p-4 text-center" style={{ backgroundColor: `${BRAND.bordeaux}10`, border: `1px solid ${BRAND.bordeaux}30` }}>
-            <p className="text-sm" style={{ color: BRAND.bordeaux }}>{loadError}</p>
-            <button onClick={() => { setSectionsLoaded(false); setLoadError(null); }} className="text-xs underline mt-1" style={{ color: BRAND.bordeaux }}>Réessayer</button>
+          <div className="rounded-xl p-4 text-center" style={{ backgroundColor: 'rgba(128,0,32,0.06)', border: '1px solid rgba(128,0,32,0.19)' }}>
+            <p className="text-sm" style={{ color: 'var(--pivot-danger)' }}>{loadError}</p>
+            <button onClick={() => { setSectionsLoaded(false); setLoadError(null); }} className="text-xs underline mt-1" style={{ color: 'var(--pivot-danger)' }}>Réessayer</button>
           </div>
         </div>
       )}
@@ -1055,8 +1018,8 @@ export function CatalogPreview({ onAdminLogin }: CatalogPreviewProps) {
                   {/* Nouveau badge — STRICTLY preserved, only shown for in-stock products */}
                   {statut === 'Nouveau' && stockState === 'en_stock' && (
                     <span
-                      className="absolute left-2.5 top-2.5 z-10 rounded-sm px-2.5 py-1 text-[9px] font-medium tracking-[0.15em] uppercase text-white/90"
-                      style={{ backgroundColor: BRAND.vertFonce, backdropFilter: 'blur(4px)' }}
+                      className="absolute left-2.5 top-2.5 z-10 rounded-sm px-2.5 py-1 text-[9px] font-medium tracking-[0.15em] uppercase text-white/90 badge-nouveau"
+                      style={{ backdropFilter: 'blur(4px)' }}
                     >
                       Nouveau
                     </span>
@@ -1190,7 +1153,7 @@ export function CatalogPreview({ onAdminLogin }: CatalogPreviewProps) {
         <div style={{ maxWidth: 1270, margin: '0 auto', padding: '0 32px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
             <div className="w-6 h-6 rounded-md flex items-center justify-center" style={{ background: 'linear-gradient(135deg, #C9A84C, #E8D48B)' }}>
-              <span className="text-[10px] font-bold" style={{ color: BRAND.noir }}>A</span>
+              <span className="text-[10px] font-bold" style={{ color: 'var(--pivot-text)' }}>A</span>
             </div>
             <span className="font-semibold text-xs sm:text-sm text-white" style={{ fontFamily: "'Playfair Display', serif" }}>
               {catalogName}
