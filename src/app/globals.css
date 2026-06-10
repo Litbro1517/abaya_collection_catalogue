@@ -367,22 +367,13 @@
 }
 
 /* ── Category Filter Buttons: force black active state ── */
-.catalog-filter-bar button.inline-flex {
-  border-radius: 9999px;
-  transition: all 0.2s;
-}
-.catalog-filter-bar button.inline-flex[style*="background-color"] {
+.catalog-filter-bar button[style*="background-color: rgb(26, 60, 52)"],
+.catalog-filter-bar button[style*="background-color: rgb(26,60,52)"],
+.catalog-filter-bar button[style*="background-color:#1A3C34"],
+.catalog-filter-bar button[style*="background-color: #1A3C34"] {
   background-color: #1A1A1A !important;
   color: #FFFFFF !important;
   border: none !important;
-}
-.catalog-filter-bar button.inline-flex[style*="transparent"] {
-  background-color: transparent !important;
-  color: #1F1F1F !important;
-  border: 1px solid rgba(201, 168, 76, 0.3) !important;
-}
-.catalog-filter-bar button.inline-flex[style*="transparent"]:hover {
-  opacity: 0.8;
 }
 
 /* ── Catalog Toolbar (section title) ── */
