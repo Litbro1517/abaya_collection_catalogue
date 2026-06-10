@@ -821,7 +821,7 @@ export function CatalogPreview({ onAdminLogin }: CatalogPreviewProps) {
                 activeMacroFilter === 'all' ? 'shadow-sm' : 'hover:opacity-80'
               )}
               style={{
-                backgroundColor: activeMacroFilter === 'all' ? secondaryColor : 'transparent',
+                backgroundColor: activeMacroFilter === 'all' ? '#1A1A1A' : 'transparent',
                 color: activeMacroFilter === 'all' ? BRAND.blanc : BRAND.noir,
                 border: activeMacroFilter === 'all' ? 'none' : `1px solid ${primaryColor}30`,
               }}
@@ -844,7 +844,7 @@ export function CatalogPreview({ onAdminLogin }: CatalogPreviewProps) {
                         activeMacroFilter === cat.slug ? 'shadow-sm' : 'hover:opacity-80'
                       )}
                       style={{
-                        backgroundColor: activeMacroFilter === cat.slug ? secondaryColor : 'transparent',
+                        backgroundColor: activeMacroFilter === cat.slug ? '#1A1A1A' : 'transparent',
                         color: activeMacroFilter === cat.slug ? BRAND.blanc : BRAND.noir,
                         border: activeMacroFilter === cat.slug ? 'none' : `1px solid ${primaryColor}30`,
                       }}
@@ -927,7 +927,7 @@ export function CatalogPreview({ onAdminLogin }: CatalogPreviewProps) {
                   activeFilter === opt.value ? 'shadow-sm' : 'hover:opacity-80'
                 )}
                 style={{
-                  backgroundColor: activeFilter === opt.value ? secondaryColor : 'transparent',
+                  backgroundColor: activeFilter === opt.value ? '#1A1A1A' : 'transparent',
                   color: activeFilter === opt.value ? BRAND.blanc : BRAND.noir,
                   border: activeFilter === opt.value ? 'none' : `1px solid ${primaryColor}30`,
                 }}
