@@ -271,7 +271,9 @@ html {
     background: var(--bg);
     color: var(--text);
     font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-    overflow-x: hidden;
+    /* overflow-x: hidden removed — html already has it, and overflow on body creates a scroll
+       context that breaks position:sticky on descendants (sticky tries to stick relative to
+       body's scrollport, but body doesn't actually scroll — html does) */
   }
   h1, h2, h3 {
     font-family: 'Playfair Display', serif;
