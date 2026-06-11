@@ -2,7 +2,9 @@
 
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useAppStore } from '@/lib/store';
-import type { DataSource, Column } from '@/types';
+import type { DataSource, Column, Row } from '@/types';
+import { readCache, writeCache, isCacheStale, CACHE_KEYS } from '@/lib/cache';
+import { buildColorLookupMap } from '@/lib/color-utils';
 import { DataTable } from './DataTable';
 import { ImportCSVDialog } from './ImportCSVDialog';
 import { ColumnEditorDialog } from './ColumnEditorDialog';
@@ -153,6 +155,39 @@ function getOperatorsForType(colType: string): OperatorDef[] {
   return OPERATORS_BY_TYPE[colType] || OPERATORS_BY_TYPE.TEXT;
 }
 
+// ── Admin cache helpers — per-datasource keys ──
+function adminRowsKey(dsId: string): string { return `abaya_cache_admin_rows_${dsId}`; }
+function adminColsKey(dsId: string): string { return `abaya_cache_admin_cols_${dsId}`; }
+
+// Extend CacheKey-like behavior for dynamic admin keys
+function readAdminCache<T>(key: string): T | null {
+  if (typeof window === 'undefined') return null;
+  try {
+    const raw = localStorage.getItem(key);
+    if (!raw) return null;
+    return JSON.parse(raw) as T;
+  } catch { return null; }
+}
+
+function writeAdminCache<T>(key: string, data: T): void {
+  if (typeof window === 'undefined') return;
+  try {
+    const serialized = JSON.stringify(data);
+    if (serialized.length > 4_000_000) return; // size guard
+    localStorage.setItem(key, serialized);
+    localStorage.setItem(`${key}_ts`, String(Date.now()));
+  } catch { /* silent */ }
+}
+
+function isAdminCacheStale(key: string): boolean {
+  if (typeof window === 'undefined') return true;
+  try {
+    const ts = localStorage.getItem(`${key}_ts`);
+    if (!ts) return true;
+    return Date.now() - parseInt(ts) > 2 * 60 * 1000; // 2 min TTL
+  } catch { return true; }
+}
+
 // ── Filter / Sort types ────────────────────────────────────────────────────
 export interface FilterConfig {
   columnSlug: string;
@@ -265,6 +300,16 @@ export function DataPillar() {
 
   // Pending status changes (local only, not yet synced to DB)
   const [pendingStatusChanges, setPendingStatusChanges] = useState<Record<string, { statut: string; locked: boolean }>>({});
+
+  // ── Colormap: loaded once, shared with all ColorCell instances ──
+  type ColormapItem = { id: string; name: string; slug: string; hex: string; ordre: number; visible: boolean; isActive: boolean };
+  const [colormapItems, setColormapItems] = useState<ColormapItem[]>([]);
+  useEffect(() => {
+    fetch('/api/colormap')
+      .then(r => r.ok ? r.json() : null)
+      .then(json => { if (json?.data) setColormapItems(json.data); })
+      .catch(() => {});
+  }, []);
 
   const colors = ['#C9A84C', '#1A1A1A', '#D32F2F', '#2E7D32', '#1565C0', '#8B4513', '#F48FB1', '#483C32'];
 
@@ -506,19 +551,45 @@ export function DataPillar() {
   // Load columns and rows when active data source changes
   const loadDataSourceData = useCallback(async () => {
     if (!activeDataSourceId) return;
+
+    const rKey = adminRowsKey(activeDataSourceId);
+    const cKey = adminColsKey(activeDataSourceId);
+
+    // ── Cache-first: read admin cache and inject instantly ──
+    const cachedRows = readAdminCache<Row[]>(rKey);
+    const cachedCols = readAdminCache<Column[]>(cKey);
+
+    if (cachedRows) setRows(cachedRows);
+    if (cachedCols) setColumns(cachedCols);
+
+    // ── If both caches are fresh, skip network entirely ──
+    const rowsFresh = !isAdminCacheStale(rKey);
+    const colsFresh = !isAdminCacheStale(cKey);
+    if (rowsFresh && colsFresh && (cachedRows || cachedCols)) {
+      setLoading(false);
+      return;
+    }
+
+    // ── Network fetch: Promise.all for parallel loading ──
     setLoading(true);
     try {
-      const metaRes = await fetch(`/api/datasources/${activeDataSourceId}?mode=meta`);
-      if (metaRes.ok) {
-        const metaJson = await metaRes.json();
-        if (metaJson.data) {
-          setColumns(metaJson.data.columns || []);
-        }
+      const [metaRes, rowsRes] = await Promise.all([
+        fetch(`/api/datasources/${activeDataSourceId}?mode=meta`),
+        fetch(`/api/datasources/${activeDataSourceId}/rows?limit=1000`),
+      ]);
+      const [metaJson, rowsJson] = await Promise.all([
+        metaRes.ok ? metaRes.json() : Promise.resolve(null),
+        rowsRes.ok ? rowsRes.json() : Promise.resolve(null),
+      ]);
+      if (metaJson?.data) {
+        const freshCols = metaJson.data.columns || [];
+        setColumns(freshCols);
+        writeAdminCache(cKey, freshCols);
       }
-      const rowsRes = await fetch(`/api/datasources/${activeDataSourceId}/rows?limit=1000`);
-      if (rowsRes.ok) {
-        const rowsJson = await rowsRes.json();
-        setRows(rowsJson.data || []);
+      if (rowsJson?.data) {
+        const freshRows = rowsJson.data;
+        setRows(freshRows);
+        writeAdminCache(rKey, freshRows);
       }
     } catch (err) {
       console.error('Failed to load data source:', err);
@@ -1575,6 +1646,7 @@ export function DataPillar() {
               onLocalLockToggle={handleLocalLockToggle}
               pendingStatusChanges={pendingStatusChanges}
               onAddColumn={() => setShowColumnModal(true)}
+              colormapItems={colormapItems}
             />
             </>
           ) : (

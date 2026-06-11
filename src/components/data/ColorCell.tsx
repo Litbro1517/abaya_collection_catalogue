@@ -31,6 +31,9 @@ interface ColorCellProps {
   rowData: Record<string, unknown>;
   onUpdateRow: (rowId: string, newData: Record<string, unknown>) => void;
   onRefresh: () => void;
+  colormapItems?: Array<{
+    id: string; name: string; slug: string; hex: string; ordre: number; visible: boolean; isActive: boolean;
+  }>;
 }
 
 // ━━━ Helper ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -93,6 +96,7 @@ export function ColorCell({
   rowData,
   onUpdateRow,
   onRefresh,
+  colormapItems,
 }: ColorCellProps) {
   const [open, setOpen] = useState(false);
   const [colors, setColors] = useState<ColorMapItem[]>([]);
@@ -114,22 +118,29 @@ export function ColorCell({
     ? value.split(',').map(s => s.trim()).filter(Boolean)
     : [];
 
-  // Load ColorMap data on mount
+  // ━━━ Colormap: use injected dict from DataPillar (loaded once, shared by all cells) ━━━
+  // Falls back to individual fetch only if prop is not provided (backward compat)
   useEffect(() => {
-    fetch('/api/colormap')
-      .then(res => (res.ok ? res.json() : null))
-      .then(json => {
-        if (json?.data) {
-          setColors(json.data);
-        }
-      })
-      .catch(() => {
-        toast.error('Erreur de chargement des couleurs');
-      })
-      .finally(() => {
-        setLoading(false);
-      });
-  }, []);
+    if (colormapItems && colormapItems.length > 0) {
+      setColors(colormapItems);
+      setLoading(false);
+    } else {
+      // Fallback: fetch individually (for standalone use outside DataPillar)
+      fetch('/api/colormap')
+        .then(res => (res.ok ? res.json() : null))
+        .then(json => {
+          if (json?.data) {
+            setColors(json.data);
+          }
+        })
+        .catch(() => {
+          toast.error('Erreur de chargement des couleurs');
+        })
+        .finally(() => {
+          setLoading(false);
+        });
+    }
+  }, [colormapItems]);
 
   // Focus the name input when quick-add form appears
   useEffect(() => {

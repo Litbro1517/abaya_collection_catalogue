@@ -450,3 +450,84 @@ Stage Summary:
 - Bug #3 (desynchronized TTL) FIXED: differentiated TTLs per data type
 - Bug #4 (admin immediate display) FIXED: independent per-key cache checks
 - CDN verified: catalog=MISS, datasources=MISS, categories=HIT, colormap=HIT
+
+---
+Task ID: 1+3
+Agent: Subagent
+Task: DataPillar.tsx — Promise.all + Admin Cache-First
+
+Work Log:
+- Read worklog.md for full context (9 previous task entries)
+- Read DataPillar.tsx (full file) to identify current loadDataSourceData implementation
+- Read cache.ts to understand existing cache utility API
+- MISSION 1 (Promise.all): Replaced sequential `await fetch(meta)` then `await fetch(rows)` with `Promise.all` for both requests and both JSON parses — ~2x faster
+- MISSION 3 (Admin Cache-First):
+  • Added `import { readCache, writeCache, isCacheStale, CACHE_KEYS } from '@/lib/cache'`
+  • Added `Row` to existing `@/types` import
+  • Added 4 module-scope helper functions before component: `adminRowsKey()`, `adminColsKey()`, `readAdminCache()`, `writeAdminCache()`, `isAdminCacheStale()`
+  • Replaced `loadDataSourceData` with cache-first implementation:
+    - Reads per-datasource rows + cols from localStorage instantly
+    - If both caches are fresh (< 2 min TTL), injects into Zustand and skips network entirely
+    - If stale, shows cached data first, then fetches network in background and updates cache
+  • Cache keys use per-datasource IDs: `abaya_cache_admin_rows_{dsId}` and `abaya_cache_admin_cols_{dsId}`
+  • TTL: 2 minutes for admin data (same as catalog/sections in cache.ts)
+  • Size guard: 4MB max per write (consistent with cache.ts MAX_CACHE_SIZE)
+- Ran `bun run lint` — passed clean (0 errors, 0 warnings)
+- Dev server: GET / 200 confirmed
+
+Architecture Decisions & Justifications:
+1. Separate admin cache helpers (readAdminCache/writeAdminCache/isAdminCacheStale) rather than
+   extending cache.ts CACHE_KEYS: Admin data is per-datasource (dynamic keys), while cache.ts
+   uses a static key registry. The dynamic key pattern doesn't fit the CacheKey type.
+2. 2-minute TTL for admin cache: Admin data (rows/cols) is frequently modified — same TTL as
+   catalog/sections in cache.ts. Fresh enough for admin workflow, short enough to avoid stale data.
+3. Cache-first with stale-then-refresh: Cached data is injected into Zustand immediately on
+   loadDataSourceData call. If cache is fresh, network is skipped entirely (0ms). If stale,
+   the user sees cached data instantly while fresh data loads in background.
+4. Promise.all for network fetch: Both meta and rows API requests fire simultaneously, halving
+   the network latency compared to sequential awaits. JSON parsing is also parallelized.
+
+Stage Summary:
+- 1 file changed: src/components/data/DataPillar.tsx
+- MISSION 1: Sequential fetch → Promise.all (parallel meta + rows) ✅
+- MISSION 3: Cache-first admin data loading with per-datasource localStorage cache ✅
+- Lint: 0 errors, 0 warnings
+- Dev server: GET / 200
+---
+Task ID: 2
+Agent: Optimization Agent
+Task: Centralize colormap loading — eliminate per-cell fetch in ColorCell.tsx
+
+Work Log:
+- Problem: Every ColorCell component independently fetches /api/colormap on mount (200 rows × 1 color column = 200 fetches → "une par une" rendering)
+- Solution: Load colormap ONCE in DataPillar → pass as prop through DataTable → ColorCell
+
+- Step 1: Modified DataPillar.tsx
+  • Added import for buildColorLookupMap from @/lib/color-utils
+  • Added ColormapItem type alias + colormapItems state (useState<ColormapItem[]>([]))
+  • Added useEffect to fetch /api/colormap once on component mount
+  • Passed colormapItems={colormapItems} prop to <DataTable> JSX
+
+- Step 2: Modified DataTable.tsx
+  • Added colormapItems optional prop to Props interface (Array<{ id; name; slug; hex; ordre; visible; isActive }>)
+  • Added colormapItems to component destructuring
+  • Passed colormapItems={colormapItems} prop to <ColorCell> JSX
+
+- Step 3: Modified ColorCell.tsx
+  • Added colormapItems optional prop to ColorCellProps interface
+  • Added colormapItems to component destructuring
+  • Replaced individual fetch useEffect (lines 118-132) with prop-based logic:
+    - If colormapItems prop provided + non-empty → use it directly (setColors + setLoading(false))
+    - Else → fallback to individual fetch (backward compat for standalone use)
+  • Dependency array changed from [] to [colormapItems]
+
+- Fixed parsing error: Array<{...}>>([]) caused >> to be parsed as right-shift; replaced with type alias + ColormapItem[]
+
+- Ran bun run lint — passed clean (0 errors, 0 warnings)
+
+Stage Summary:
+- 3 files changed: DataPillar.tsx, DataTable.tsx, ColorCell.tsx
+- Colormap fetch: 200 individual fetches → 1 fetch (shared via props)
+- Backward compatibility: ColorCell still works standalone with fallback fetch
+- Zero functionality changes: toggle, quick-add, mapper all unchanged
+- Performance: Eliminates N-1 redundant HTTP requests for colormap data

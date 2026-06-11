@@ -99,6 +99,9 @@ interface Props {
   onLocalLockToggle?: (rowId: string, currentLocked: boolean) => void;
   pendingStatusChanges?: Record<string, { statut: string; locked: boolean }>;
   onAddColumn?: () => void;
+  colormapItems?: Array<{
+    id: string; name: string; slug: string; hex: string; ordre: number; visible: boolean; isActive: boolean;
+  }>;
 }
 
 // ━━━ CategoryCell — Inline select for __category__ / __sub_category__ ━━━━━━━
@@ -182,7 +185,7 @@ function CategoryCell({
   );
 }
 
-export function DataTable({ columns, rows, dataSourceId, loading, onRefresh, onUpdateRow, sortConfig, onSortChange, onSetSortDirect, onLocalStatusChange, onLocalLockToggle, pendingStatusChanges, onAddColumn }: Props) {
+export function DataTable({ columns, rows, dataSourceId, loading, onRefresh, onUpdateRow, sortConfig, onSortChange, onSetSortDirect, onLocalStatusChange, onLocalLockToggle, pendingStatusChanges, onAddColumn, colormapItems }: Props) {
   const [editingCell, setEditingCell] = useState<string | null>(null); // `${rowId}-${colSlug}`
   const [editValue, setEditValue] = useState('');
   const [showColumnEditor, setShowColumnEditor] = useState(false);
@@ -971,6 +974,7 @@ export function DataTable({ columns, rows, dataSourceId, loading, onRefresh, onU
           rowData={row.data as Record<string, unknown>}
           onUpdateRow={onUpdateRow}
           onRefresh={onRefresh}
+          colormapItems={colormapItems}
         />
       );
     }
