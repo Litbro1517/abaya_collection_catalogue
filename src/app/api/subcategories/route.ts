@@ -12,25 +12,16 @@ function generateSlug(label: string): string {
 }
 
 // ─── Zero-product constraint: count rows referencing a slug ──────────────────
+// ━━━ Phase 3: Native SQL — PostgreSQL counts at the engine level, zero RAM loading ━━━
+// Before: Loaded ALL rows into Node.js RAM, iterated with JS — O(N×M) with full JSONB transfer
+// After: Single COUNT query with JSONB path filter — engine-only, zero rows transferred
 async function countProductReferences(field: '__category__' | '__sub_category__', slug: string): Promise<number> {
-  const dataSources = await db.dataSource.findMany({
-    select: { id: true },
-  });
-
-  let count = 0;
-  for (const ds of dataSources) {
-    const rows = await db.row.findMany({
-      where: { dataSourceId: ds.id },
-      select: { data: true },
-    });
-    for (const row of rows) {
-      const data = row.data as Record<string, unknown> | null;
-      if (data && data[field] === slug) {
-        count++;
-      }
-    }
-  }
-  return count;
+  const result = await db.$queryRaw<Array<{ count: bigint }>>`
+    SELECT COUNT(*)::int AS count
+    FROM rows
+    WHERE data->>${field} = ${slug}
+  `;
+  return Number(result[0]?.count ?? 0);
 }
 
 // GET /api/subcategories — Return subcategories, optionally filtered by categoryId

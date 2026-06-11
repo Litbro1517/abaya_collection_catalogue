@@ -246,36 +246,22 @@ export async function DELETE(req: NextRequest) {
     }
 
     // ── Safety check: count product references ──
-    // Check all DataSources for rows referencing this color slug or name
-    const dataSources = await db.dataSource.findMany({
-      select: { id: true },
-    });
+    // ━━━ Phase 3: Native SQL — PostgreSQL counts at the engine level, zero RAM loading ━━━
+    // Before: Loaded ALL rows into Node.js RAM, iterated with JS triple loop — O(N×M×K)
+    // After: Single COUNT query with JSONB traversal — engine-only, zero rows transferred
+    const slugPattern = `%${color.slug}%`;
+    const namePattern = `%${color.name}%`;
 
-    let productCount = 0;
-    for (const ds of dataSources) {
-      const rows = await db.row.findMany({
-        where: { dataSourceId: ds.id },
-        select: { data: true },
-      });
-      for (const row of rows) {
-        const data = row.data as Record<string, unknown> | null;
-        if (data) {
-          // Check all values in the row data for this color slug or name
-          const values = Object.values(data);
-          if (
-            values.some(
-              v =>
-                v === color.slug ||
-                v === color.name ||
-                (typeof v === 'string' &&
-                  v.split(/[,;]/).some(s => s.trim().toLowerCase() === color.slug.toLowerCase() || s.trim().toLowerCase() === color.name.toLowerCase()))
-            )
-          ) {
-            productCount++;
-          }
-        }
-      }
-    }
+    const refResult = await db.$queryRaw<Array<{ count: bigint }>>`
+      SELECT COUNT(*)::int AS count
+      FROM rows
+      WHERE EXISTS (
+        SELECT 1 FROM jsonb_each_text(data) AS kv
+        WHERE kv.value ILIKE ${slugPattern}
+           OR kv.value ILIKE ${namePattern}
+      )
+    `;
+    const productCount = Number(refResult[0]?.count ?? 0);
 
     if (productCount > 0) {
       return NextResponse.json(
