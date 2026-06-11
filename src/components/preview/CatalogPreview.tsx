@@ -12,7 +12,7 @@ import {
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { resolveColorHex, buildColorLookupMap, normalizeCouleurKey } from '@/lib/color-utils';
-import { readCache, writeCache, clearAllCache, sanitizeSections, isCacheStale, CACHE_KEYS } from '@/lib/cache';
+import { readCache, writeCache, clearAllCache, sanitizeSections, CACHE_KEYS } from '@/lib/cache';
 import type { CachedSectionData } from '@/lib/cache';
 import { ProductPage } from './ProductPage';
 
@@ -273,26 +273,29 @@ export function CatalogPreview({ onAdminLogin }: CatalogPreviewProps) {
 
   // ── ColorMap for color dots on cards (include ALL colors — no isActive/visible filter;
   // filtering is for admin UI only, not for hex resolution) ──
-  // ━━━ Offline-First: lazy initializer reads cache before first paint ━━━
-  const [colorMapData, setColorMapData] = useState<Record<string, string>>(() => {
-    const cached = readCache<Record<string, string>>(CACHE_KEYS.colormap);
-    return cached && Object.keys(cached).length > 0 ? cached : {};
-  });
+  // NOTE: useState lazy initializer can't read localStorage during SSR (window undefined),
+  // so we always start with {}. The useEffect below populates from cache on mount.
+  const [colorMapData, setColorMapData] = useState<Record<string, string>>({});
   useEffect(() => {
-    // ━━━ Per-key stale-aware sync: colormap (30 min TTL) ━━━
-    // Fresh cache → 0ms latency, no network request at all
-    // Stale/no cache → fetch from network, update silently
-    if (!isCacheStale(CACHE_KEYS.colormap)) return;
-    fetch('/api/colormap')
-      .then(r => r.ok ? r.json() : null)
-      .then(json => {
-        if (json?.data) {
-          const fresh = buildColorLookupMap(json.data);
-          setColorMapData(fresh);
-          writeCache(CACHE_KEYS.colormap, fresh);
-        }
-      })
-      .catch(() => {});
+    // Cache-first: read directly from localStorage (instant, no network)
+    // CRITICAL: Do NOT use isCacheStale() as a gate — with FROZEN_MODE it always
+    // returns false when data exists, but after SSR hydration the state is empty.
+    const loadColorMap = async () => {
+      const cached = readCache<Array<{ name: string; slug: string; hex: string }>>(CACHE_KEYS.colormap);
+      if (cached && Array.isArray(cached) && cached.length > 0) {
+        setColorMapData(prev => Object.keys(prev).length > 0 ? prev : buildColorLookupMap(cached));
+        return; // Cache hit → zero network request
+      }
+      // No cache (first visit) → fetch from API
+      const r = await fetch('/api/colormap');
+      if (!r.ok) return;
+      const json = await r.json();
+      if (json?.data) {
+        setColorMapData(buildColorLookupMap(json.data));
+        writeCache(CACHE_KEYS.colormap, json.data);
+      }
+    };
+    loadColorMap().catch(() => {});
   }, []);
 
   // ━━━ Two-Level Dynamic Category Filter ━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -300,17 +303,19 @@ export function CatalogPreview({ onAdminLogin }: CatalogPreviewProps) {
   // Level 2: Micro sub-filters (Nouveau, Saison, Discount) — contextual
   const [activeMacroFilter, setActiveMacroFilter] = useState<string>('all'); // category slug or 'all'
   const [activeMicroFilter, setActiveMicroFilter] = useState<string>('all'); // subcategory slug or 'all'
-  // ━━━ Offline-First: lazy initializer reads categories cache before first paint ━━━
-  const [dynamicCategories, setDynamicCategories] = useState<DynamicCategory[]>(() => {
-    const cached = readCache<DynamicCategory[]>(CACHE_KEYS.categories);
-    return cached && cached.length > 0 ? cached : [];
-  });
-  // ━━━ Per-key stale-aware sync: categories (30 min TTL) ━━━
-  // Fresh cache → 0ms latency, no network request at all
-  // Stale/no cache → fetch from network, update silently
+  // ━━━ Categories: useState starts empty (SSR can't read localStorage) ━━━
+  const [dynamicCategories, setDynamicCategories] = useState<DynamicCategory[]>([]);
+  // ━━━ Cache-first categories sync ━━━
+  // CRITICAL: Do NOT use isCacheStale() — with FROZEN_MODE it blocks loading after SSR.
   useEffect(() => {
-    if (!isCacheStale(CACHE_KEYS.categories)) return;
     const loadCategories = async () => {
+      // Try cache first (instant from localStorage)
+      const cached = readCache<DynamicCategory[]>(CACHE_KEYS.categories);
+      if (cached && cached.length > 0) {
+        setDynamicCategories(prev => prev.length > 0 ? prev : cached);
+        return; // Cache hit → zero network request
+      }
+      // No cache → fetch from API
       try {
         const res = await fetch('/api/categories');
         if (!res.ok) return;
@@ -345,15 +350,9 @@ export function CatalogPreview({ onAdminLogin }: CatalogPreviewProps) {
   const accentColor = s?.accentColor || '#F5F0E8';
   const bgColor = s?.backgroundColor || '#FFFFFF';
 
-  // ━━━ Offline-First: lazy initializer reads sections cache before first paint ━━━
-  const [sections, setSections] = useState<{ section: Section; columns: Column[]; rows: Row[] }[]>(() => {
-    const cached = readCache<CachedSectionData[]>(CACHE_KEYS.sections);
-    return cached && cached.length > 0 ? (cached as unknown as { section: Section; columns: Column[]; rows: Row[] }[]) : [];
-  });
-  const [sectionsLoaded, setSectionsLoaded] = useState(() => {
-    const cached = readCache<CachedSectionData[]>(CACHE_KEYS.sections);
-    return cached && cached.length > 0;
-  });
+  // ━━━ Sections: useState starts empty (SSR can't read localStorage) ━━━
+  const [sections, setSections] = useState<{ section: Section; columns: Column[]; rows: Row[] }[]>([]);
+  const [sectionsLoaded, setSectionsLoaded] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
   // Track whether network sync has been triggered (ref, not state — no re-render)
   const networkSyncDone = useRef(false);
@@ -380,15 +379,20 @@ export function CatalogPreview({ onAdminLogin }: CatalogPreviewProps) {
 
   useEffect(() => {
     if (!catalogReady || networkSyncDone.current) return;
-    // FROZEN MODE: isCacheStale returns false when data exists → skip network entirely
-    if (!isCacheStale(CACHE_KEYS.sections)) {
-      networkSyncDone.current = true;
-      return;
-    }
     networkSyncDone.current = true;
-    let cancelled = false;
 
-    const loadSections = async () => {
+    // Cache-first: try localStorage before network
+    // CRITICAL: Do NOT use isCacheStale() — with FROZEN_MODE it always returns false
+    // when data exists, but after SSR hydration the React state is empty.
+    const loadFromCacheOrNetwork = async () => {
+      const cachedSections = readCache<CachedSectionData[]>(CACHE_KEYS.sections);
+      if (cachedSections && cachedSections.length > 0) {
+        setSections(cachedSections as unknown as { section: Section; columns: Column[]; rows: Row[] }[]);
+        setSectionsLoaded(true);
+        return; // Cache hit → zero network request
+      }
+
+      // No cache → fetch from network
       try {
         // Read fresh catalog from Zustand store — avoids stale closure over [catalog]
         const freshCatalog = useAppStore.getState().catalog;
@@ -414,36 +418,25 @@ export function CatalogPreview({ onAdminLogin }: CatalogPreviewProps) {
               };
             })
         );
-        if (!cancelled) {
-          const filtered = results.filter(Boolean);
-          setSections(filtered);
-          setSectionsLoaded(true);
-          setLoadError(null);
-          writeCache(CACHE_KEYS.sections, filtered, sanitizeSections);
-        }
+        const filtered = results.filter(Boolean);
+        setSections(filtered);
+        setSectionsLoaded(true);
+        setLoadError(null);
+        writeCache(CACHE_KEYS.sections, filtered, sanitizeSections);
       } catch (err) {
         console.error('Section loading failed:', err);
-        if (!cancelled) {
-          const cachedSections = readCache<CachedSectionData[]>(CACHE_KEYS.sections);
-          if (!cachedSections || cachedSections.length === 0) {
-            setLoadError('Erreur de chargement des données');
-          }
-          setSectionsLoaded(true);
-        }
-      }
-    };
-
-    loadSections().catch(err => {
-      console.error('Section loading failed:', err);
-      if (!cancelled) {
         const cachedSections = readCache<CachedSectionData[]>(CACHE_KEYS.sections);
         if (!cachedSections || cachedSections.length === 0) {
           setLoadError('Erreur de chargement des données');
         }
         setSectionsLoaded(true);
       }
+    };
+
+    loadFromCacheOrNetwork().catch(err => {
+      console.error('Section loading failed:', err);
+      setSectionsLoaded(true);
     });
-    return () => { cancelled = true; };
   }, [catalogReady]);
 
   // ━━━ SEO: Update browser URL when product is selected/deselected ━━━

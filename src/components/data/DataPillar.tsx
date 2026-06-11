@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useAppStore } from '@/lib/store';
 import type { DataSource, Column, Row } from '@/types';
-import { readCache, writeCache, isCacheStale, CACHE_KEYS } from '@/lib/cache';
+import { readCache, writeCache, CACHE_KEYS } from '@/lib/cache';
 import { buildColorLookupMap } from '@/lib/color-utils';
 import { DataTable } from './DataTable';
 import { ImportCSVDialog } from './ImportCSVDialog';
@@ -316,11 +316,13 @@ export function DataPillar() {
   type CatOption = { id: string; slug: string; label: string; subCategories: { slug: string; label: string }[] };
   const [catOptions, setCatOptions] = useState<CatOption[]>([]);
   useEffect(() => {
-    // Cache-first: read from localStorage if fresh (30min TTL)
+    // Cache-first: read from localStorage (instant, no network)
+    // NOTE: Removed isCacheStale check — with FROZEN_MODE it always returns false
+    // when data exists, blocking loading after SSR hydration.
     const cached = readCache<CatOption[]>(CACHE_KEYS.categories);
-    if (cached && cached.length > 0 && !isCacheStale(CACHE_KEYS.categories)) {
+    if (cached && cached.length > 0) {
       setCatOptions(cached);
-      return;
+      return; // Cache hit → zero network request
     }
     // Fallback: fetch from network
     fetch('/api/categories')
