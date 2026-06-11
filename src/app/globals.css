@@ -1203,7 +1203,8 @@ img {
   gap: 48px;
   align-items: start;
   min-width: 0;
-  contain: layout paint;   /* Bug #4 fix: contains overflow WITHOUT creating scroll context — sticky works */
+  /* No overflow/contain property — sticky requires ancestors without scroll context or containment.
+     The carousel inside .product-page-gallery already has its own overflow:hidden. */
 }
 
 @media (min-width: 1280px) {
@@ -1224,7 +1225,8 @@ img {
 .product-page-gallery {
   position: relative;
   min-width: 0;
-  contain: layout paint;   /* Bug #4 fix: contains overflow without scroll context — sticky preserved */
+  /* No overflow/contain — sticky on sibling .product-page-info requires clean ancestor chain.
+     The carousel inside has its own overflow:hidden for image clipping. */
 }
 
 /* ── Carousel ── */
