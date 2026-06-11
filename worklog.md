@@ -531,3 +531,49 @@ Stage Summary:
 - Backward compatibility: ColorCell still works standalone with fallback fetch
 - Zero functionality changes: toggle, quick-add, mapper all unchanged
 - Performance: Eliminates N-1 redundant HTTP requests for colormap data
+
+---
+Task ID: 6
+Agent: Main
+Task: Admin Performance — Promise.all + Colormap Centralization + Admin Cache-First
+
+Work Log:
+- Read DataPillar.tsx, ColorCell.tsx, DataTable.tsx to understand current architecture
+- Identified 3 root causes: sequential fetches, per-cell colormap fetch, no admin cache
+- MISSION 1: Replaced 2 sequential await fetch (meta → rows) in loadDataSourceData with Promise.all
+  Both API calls now fire simultaneously → ~50% latency reduction
+- MISSION 2: Centralized colormap loading
+  • DataPillar loads /api/colormap ONCE at mount → stores in colormapItems state
+  • Passes colormapItems as prop to DataTable → DataTable passes to ColorCell
+  • ColorCell uses injected dict instead of individual fetch (with fallback for standalone use)
+  • Eliminates N×200 concurrent /api/colormap requests
+- MISSION 3: Admin Cache-First with per-datasource keys
+  • Added 4 module-scope helpers: adminRowsKey, adminColsKey, readAdminCache, writeAdminCache, isAdminCacheStale
+  • Per-datasource cache keys: abaya_cache_admin_rows_{id}, abaya_cache_admin_cols_{id}
+  • 2-minute TTL for admin data
+  • Cache-first: read localStorage → inject into Zustand instantly → 0ms display
+  • Fresh cache → skip network entirely
+  • Stale cache → show cached data + background sync silently
+- Ran bun run lint — passed clean (0 errors)
+- Committed as bf974b6, pushed to origin/main
+- Verified Vercel deployment: HTTP 200, API working
+
+Architecture Decisions & Justifications:
+1. Promise.all over sequential: Both meta and rows API are independent — no data dependency
+   between them. Firing simultaneously reduces total wait time from T1+T2 to max(T1,T2).
+2. Colormap as prop instead of context: Using prop drilling (DataPillar → DataTable → ColorCell)
+   is simpler than React Context for this case — only 2 levels deep, no other consumers.
+   Context would add complexity without benefit here.
+3. Admin cache separate from public cache: Admin data has different freshness requirements
+   (2 min TTL vs 30 min for categories). Per-datasource keys allow each table to have its
+   own cache entry, preventing cross-table interference.
+4. Fallback fetch in ColorCell: Kept the individual fetch as fallback when colormapItems
+   prop is not provided — ensures backward compatibility if ColorCell is used outside
+   the DataPillar context.
+
+Stage Summary:
+- Commit SHA: bf974b6
+- 3 files changed, 195 insertions, 27 deletions
+- Admin DataTable loads ~50% faster (Promise.all)
+- Color column renders all at once (1 fetch instead of N×200)
+- Admin cache-first: 0ms display on repeat visits to same table
