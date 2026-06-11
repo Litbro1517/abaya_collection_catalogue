@@ -620,3 +620,28 @@ Stage Summary:
 - Root cause: isCacheStale() with FROZEN_MODE blocked all data loading after SSR hydration
 - Fix: All data loading now uses readCache() directly in useEffects instead of isCacheStale() gates
 - CSS fixes still intact: overflow-y:scroll, overflow:clip, removed overflow:hidden on product-page-info
+---
+Task ID: 1
+Agent: Z.ai Code (main)
+Task: Apply 3 surgical CSS fixes for sticky, Safari compatibility, and scrollbar anti-vibration
+
+Work Log:
+- Read globals.css to verify current state of all CSS rules
+- Fix #1: Added `max-height: calc(100vh - 96px)` and `overflow-y: auto` to `.product-page-info` — sticky now works because the block can't exceed viewport height
+- Fix #2: Added `overflow: hidden` fallback before `overflow: clip` on `.product-page-layout` and `.product-page-gallery` — Safari/iOS 15 uses hidden, modern browsers override with clip
+- Fix #3: Moved `html { overflow-y: scroll }` out of `@layer base` to root CSS level — viewport scrollbar is controlled by `<html>` root element, not by @layer rules
+- Bonus: Added `max-height: none` and `overflow-y: visible` to mobile breakpoint (max-width: 900px) for `.product-page-info` so content flows naturally on mobile
+- Committed as e7ae577 and pushed to GitHub main
+- Vercel auto-deploy triggered from GitHub push
+- Browser verification on production confirmed all 3 fixes are active:
+  - html overflow-y: "scroll" ✅
+  - .product-page-info position: "sticky", max-height: "481px", overflow-y: "auto" ✅
+  - .product-page-layout overflow: "clip" (with hidden fallback) ✅
+  - .product-page-gallery overflow: "clip" (with hidden fallback) ✅
+
+Stage Summary:
+- Commit SHA: e7ae577
+- All 3 CSS fixes are live on production (abaya-collection-catalogue-9dum.vercel.app)
+- The sticky product info block now has proper height constraints
+- Safari/iOS 15 fallback ensures no visual overflow on older browsers
+- Scrollbar anti-vibration fix targets the correct root html element
