@@ -598,3 +598,25 @@ Stage Summary:
 - Bug #2 fix: html overflow-y:scroll → permanent scrollbar space → zero CLS on category filter
 - Bug #3 fix: overflow:clip on ancestors → sticky works on .product-page-info
 - Colormap fetch now cache-first (0 network request on repeat visits in FROZEN_MODE)
+---
+Task ID: 5
+Agent: Main Agent
+Task: Fix critical FROZEN_MODE + SSR hydration bug causing empty site
+
+Work Log:
+- Investigated why user couldn't see any changes on the live site
+- Found ROOT CAUSE: FROZEN_MODE + SSR incompatibility — isCacheStale() always returns false when localStorage has data, but useState initializers can't read localStorage during SSR (window undefined). After hydration, useEffect sees isCacheStale=false → skips fetch → data stays empty FOREVER
+- Fixed CatalogPreview.tsx: replaced isCacheStale gates with direct readCache() inside useEffects
+- Fixed ProductPage.tsx: same pattern, removed isCacheStale gate
+- Fixed DataPillar.tsx: removed isCacheStale gate for categories
+- Also fixed cache format mismatch: CatalogPreview was writing Record<string,string> to colormap cache but ProductPage was writing raw array — standardized both to write raw API data
+- Wrapped all cache reads in async functions for lint compliance (react-hooks/set-state-in-effect rule)
+- Removed broken useState lazy initializers that couldn't work with SSR
+- Lint passed clean, committed as 0d95ba2, pushed to main
+- Verified new Vercel deployment is live (new JS chunk hashes visible)
+
+Stage Summary:
+- Commit: 0d95ba2 "fix(critical): FROZEN_MODE + SSR hydration bug — data never loaded on client"
+- Root cause: isCacheStale() with FROZEN_MODE blocked all data loading after SSR hydration
+- Fix: All data loading now uses readCache() directly in useEffects instead of isCacheStale() gates
+- CSS fixes still intact: overflow-y:scroll, overflow:clip, removed overflow:hidden on product-page-info
