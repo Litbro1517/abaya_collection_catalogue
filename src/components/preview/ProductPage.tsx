@@ -3,6 +3,7 @@
 import { useState, useRef, useCallback, useEffect } from 'react';
 import type { Section, SectionConfig, Column, ColumnConfig, Row } from '@/types';
 import { resolveColorHex, buildColorLookupMap, normalizeCouleurKey } from '@/lib/color-utils';
+import { readCache, writeCache, isCacheStale, CACHE_KEYS } from '@/lib/cache';
 import {
   ArrowLeft,
   MessageCircle,
@@ -171,8 +172,19 @@ export function ProductPage({
   const variants = config.variantColumn ? getCellValue(config.variantColumn) : '';
   const statut = (rawData.__statut__ as string) || 'Courant';
 
-  // ── ColorMap state (must be declared BEFORE colorData computation) ──
-  const [colorMap, setColorMap] = useState<Record<string, string>>({});
+  // ── ColorMap state — lazy-initialize from localStorage cache to prevent re-render flicker ──
+  // Bug #1 fix: reading from cache on init means colorMap is populated on first render,
+  // eliminating the re-render caused by setColorMap() after fetch('/api/colormap') completes.
+  // This prevents the image opacity:0→1 transition from re-triggering.
+  const [colorMap, setColorMap] = useState<Record<string, string>>(() => {
+    try {
+      const cached = readCache(CACHE_KEYS.colormap);
+      if (cached && Array.isArray(cached)) {
+        return buildColorLookupMap(cached);
+      }
+    } catch { /* cache miss — will be populated by fetch below */ }
+    return {};
+  });
 
   // ── Parse colors: colorColumn (ColorMap) → optionscouleurs fallback → variantColumn fallback ──
   // Priority 1: dedicated colorColumn (ColorMap-driven, COLOR type)
@@ -326,14 +338,17 @@ export function ProductPage({
     window.scrollTo({ top: 0, behavior: 'smooth' });
   }, []);
 
-  // Fetch color map from API (include ALL colors — no isActive/visible filter;
-  // filtering is for admin UI only, not for hex resolution)
+  // Fetch color map — cache-first: skip network if cache is fresh (FROZEN_MODE = always fresh)
+  // Only fetch on first visit (no cache) or when admin explicitly clears cache.
   useEffect(() => {
+    if (!isCacheStale(CACHE_KEYS.colormap)) return; // Cache is fresh → skip network fetch entirely
     fetch('/api/colormap')
       .then(r => r.ok ? r.json() : null)
       .then(json => {
         if (json?.data) {
-          setColorMap(buildColorLookupMap(json.data));
+          const map = buildColorLookupMap(json.data);
+          setColorMap(map);
+          writeCache(CACHE_KEYS.colormap, json.data);
         }
       })
       .catch(() => {});

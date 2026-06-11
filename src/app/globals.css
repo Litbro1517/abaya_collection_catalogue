@@ -270,6 +270,7 @@
   }
   html {
     overflow-x: hidden;
+    overflow-y: scroll;   /* Bug #2 fix: force scrollbar space always — prevents CLS on category filter */
   }
   h1, h2, h3 {
     font-family: 'Playfair Display', serif;
@@ -1193,7 +1194,7 @@ img {
   gap: 48px;
   align-items: start;
   min-width: 0;
-  overflow: hidden;
+  overflow: clip;    /* Bug #3 fix: clip cuts overflow WITHOUT creating scroll context — sticky works */
 }
 
 @media (min-width: 1280px) {
@@ -1214,7 +1215,7 @@ img {
 .product-page-gallery {
   position: relative;
   min-width: 0;
-  overflow: hidden;
+  overflow: clip;    /* Bug #3 fix: clip instead of hidden — preserves sticky on child .product-page-info */
 }
 
 /* ── Carousel ── */
@@ -1343,7 +1344,7 @@ img {
   top: 80px;
   padding-top: 0;
   min-width: 0;
-  overflow: hidden;
+  /* overflow: hidden removed — Bug #3 fix: sticky requires no overflow on ancestors or self */
 }
 
 @media (max-width: 900px) {
