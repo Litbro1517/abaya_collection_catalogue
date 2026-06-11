@@ -397,3 +397,56 @@ Stage Summary:
 - CDN caching verified on all 4 endpoints (HIT confirmed)
 - Stale-aware sync: fresh cache → 0ms latency, no network request
 - TTL extended to 30 min for production stability
+
+---
+Task ID: 5
+Agent: Main
+Task: Bug Fix — Per-key cache timestamps + remove CDN cache on admin-modifiable routes
+
+Work Log:
+- Analyzed audit identifying 4 bugs: catalog disappearing, categories slow on first click, desynchronized TTL, admin not seeing edits
+- CORRECTION 1 (vercel.json): Removed /api/catalog and /api/datasources from CDN cache headers. These are admin-modifiable dynamic routes — CDN caching was serving stale data after admin saves, causing catalog to "disappear" on F5. Only /api/categories and /api/colormap remain CDN-cached (rarely change).
+- CORRECTION 2 (cache.ts): Replaced single global timestamp (abaya_cache_ts) with per-key timestamps (${key}_ts). Writing sections no longer makes categories appear stale. isCacheStale() now takes a CacheKey parameter: isCacheStale(CACHE_KEYS.categories). isCacheFresh() similarly takes a key parameter.
+- CORRECTION 3 (cache.ts): Differentiated TTLs by data type via TTL_BY_KEY dictionary:
+  • catalog: 2 min (admin-modifiable)
+  • sections: 2 min (admin-modifiable)
+  • datasources: 5 min (semi-static)
+  • categories: 30 min (rarely change)
+  • colormap: 30 min (rarely change)
+- CORRECTION 4 (CatalogPreview.tsx): All 3 useEffects now use per-key isCacheStale(CACHE_KEYS.xxx). Categories load instantly from their own cache independent of sections sync.
+- Updated page.tsx: loadData() checks per-key freshness for both catalog and datasources.
+- clearAllCache() now also cleans per-key timestamps and legacy global ts (migration).
+- Ran bun run lint — passed clean (0 errors)
+- Committed as 9278a1e, pushed to origin/main
+- Verified Vercel deployment:
+  • /api/catalog → x-vercel-cache: MISS ✅ (no CDN — always fresh)
+  • /api/categories → x-vercel-cache: HIT ✅ (CDN cached)
+  • /api/colormap → x-vercel-cache: HIT ✅ (CDN cached)
+  • /api/datasources → x-vercel-cache: MISS ✅ (no CDN — always fresh)
+
+Architecture Decisions & Justifications:
+1. CDN cache REMOVED for catalog/datasources: These endpoints return data that admins can modify
+   at any time (add/remove products, change settings, sync Google Sheets). CDN caching with
+   s-maxage=120 would serve stale data for up to 2 minutes after an admin save, causing the
+   "catalogue qui disparaît" bug. The localStorage per-key TTL (2 min) provides sufficient
+   client-side caching without the desync risk.
+2. CDN cache KEPT for categories/colormap: These are structural data that rarely changes in
+   production. The admin can still force-refresh via the hard-refresh button (RefreshCw) which
+   clears all localStorage caches.
+3. Per-key timestamps over global timestamp: The global abaya_cache_ts created cross-key
+   desynchronization — writing sections would update the global timestamp, making categories
+   appear "fresh" even if they were actually stale (or vice versa). Per-key timestamps ensure
+   each cache entry tracks its own freshness independently.
+4. Differentiated TTLs: A single 30-minute TTL was too aggressive for admin-modifiable data
+   (catalog, sections) but appropriate for structural data (categories, colormap). The 2-minute
+   TTL for catalog/sections ensures admins see their changes within 2 minutes of a page refresh,
+   while the 30-minute TTL for categories/colormap eliminates unnecessary network requests.
+
+Stage Summary:
+- Commit SHA: 9278a1e
+- 4 files changed, 62 insertions, 65 deletions
+- Bug #1 (catalog disappearing) FIXED: no CDN cache on dynamic routes
+- Bug #2 (categories slow first click) FIXED: per-key timestamps prevent false stale
+- Bug #3 (desynchronized TTL) FIXED: differentiated TTLs per data type
+- Bug #4 (admin immediate display) FIXED: independent per-key cache checks
+- CDN verified: catalog=MISS, datasources=MISS, categories=HIT, colormap=HIT
