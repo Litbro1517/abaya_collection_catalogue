@@ -277,3 +277,29 @@ Stage Summary:
 - Phase 1 eliminates 4 redundant recalculations on every render
 - No schema/DB changes — rule respected
 - Local DB errors (PostgreSQL vs SQLite) are pre-existing, not from this change
+---
+Task ID: 2
+Agent: Main
+Task: Phase 3 — Replace RAM-bomb countProductReferences() with native SQL + Force Redeploy Vercel
+
+Work Log:
+- Analyzed uploaded video (justif3.mp4) — extracted 5 frames, identified loading spinner in admin data table view
+- Read categories/route.ts — found countProductReferences() with triple JS loop (DataSources → Rows → JSON parse)
+- Read subcategories/route.ts — found IDENTICAL countProductReferences() bomb
+- Read colormap/route.ts — found even worse variant in DELETE handler (loads ALL rows, iterates ALL values)
+- Replaced countProductReferences() in categories/route.ts with single SQL: `SELECT COUNT(*) FROM rows WHERE data->>${field} = ${slug}`
+- Replaced countProductReferences() in subcategories/route.ts with same native SQL
+- Replaced colormap DELETE color check with: `SELECT COUNT(*) with jsonb_each_text + ILIKE`
+- Ran bun run lint — passed clean
+- Committed as 2e5d646, pushed to GitHub main
+- Vercel auto-deploy detected and built (39.7s)
+- Triggered 2 additional clean production deploys via Vercel API v13/deployments
+- All 5 deployments with SHA 2e5d646 are READY PROMOTED
+- Production site returns HTTP 200 with x-vercel-cache: HIT
+
+Stage Summary:
+- Commit SHA: 2e5d646
+- 3 files changed, 34 insertions, 66 deletions (net -32 lines — simpler AND faster)
+- RAM-bomb eradicated: ZERO rows loaded into Node.js for counting operations
+- PostgreSQL does ALL counting with JSONB path operators (data->>) and jsonb_each_text
+- Clean build deployed and live on production
