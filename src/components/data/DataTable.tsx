@@ -102,10 +102,14 @@ interface Props {
   colormapItems?: Array<{
     id: string; name: string; slug: string; hex: string; ordre: number; visible: boolean; isActive: boolean;
   }>;
+  catOptions?: Array<{
+    id: string; slug: string; label: string; subCategories: { slug: string; label: string }[];
+  }>;
 }
 
 // ━━━ CategoryCell — Inline select for __category__ / __sub_category__ ━━━━━━━
-// Separate component because it uses hooks (useState, useEffect)
+// Receives catOptions as prop from DataPillar (loaded ONCE, shared by all instances)
+// ZERO per-instance fetch — instant rendering
 function CategoryCell({
   colSlug,
   rowData,
@@ -113,6 +117,7 @@ function CategoryCell({
   dataSourceId,
   onUpdateRow,
   onRefresh,
+  catOptions: catOptionsProp,
 }: {
   colSlug: string;
   rowData: Record<string, unknown>;
@@ -120,21 +125,13 @@ function CategoryCell({
   dataSourceId: string;
   onUpdateRow: (rowId: string, newData: Record<string, unknown>) => void;
   onRefresh: () => void;
+  catOptions: Array<{ id: string; slug: string; label: string; subCategories: { slug: string; label: string }[] }>;
 }) {
   const isCategory = colSlug === '__category__';
   const currentVal = String(rowData[colSlug] || '').trim();
 
-  const [catOptions, setCatOptions] = useState<{ id: string; slug: string; label: string; subCategories: { slug: string; label: string }[] }[]>([]);
-
-  // Fetch all categories (with subCategories) once on mount
-  useEffect(() => {
-    fetch('/api/categories')
-      .then(r => r.ok ? r.json() : null)
-      .then(json => {
-        if (json?.data) setCatOptions(json.data);
-      })
-      .catch(() => {});
-  }, []);
+  // Use the injected catOptions from DataPillar — ZERO fetch, ZERO useEffect
+  const catOptions = catOptionsProp;
 
   const handleChange = (newSlug: string) => {
     const data = { ...rowData };
@@ -185,7 +182,7 @@ function CategoryCell({
   );
 }
 
-export function DataTable({ columns, rows, dataSourceId, loading, onRefresh, onUpdateRow, sortConfig, onSortChange, onSetSortDirect, onLocalStatusChange, onLocalLockToggle, pendingStatusChanges, onAddColumn, colormapItems }: Props) {
+export function DataTable({ columns, rows, dataSourceId, loading, onRefresh, onUpdateRow, sortConfig, onSortChange, onSetSortDirect, onLocalStatusChange, onLocalLockToggle, pendingStatusChanges, onAddColumn, colormapItems, catOptions }: Props) {
   const [editingCell, setEditingCell] = useState<string | null>(null); // `${rowId}-${colSlug}`
   const [editValue, setEditValue] = useState('');
   const [showColumnEditor, setShowColumnEditor] = useState(false);
@@ -958,6 +955,7 @@ export function DataTable({ columns, rows, dataSourceId, loading, onRefresh, onU
           dataSourceId={dataSourceId}
           onUpdateRow={onUpdateRow}
           onRefresh={onRefresh}
+          catOptions={catOptions || []}
         />
       );
     }

@@ -311,6 +311,29 @@ export function DataPillar() {
       .catch(() => {});
   }, []);
 
+  // ── Categories: loaded once, shared with all CategoryCell instances ──
+  // Same pattern as colormapItems — cache-first (30min TTL), single fetch, passed as prop
+  type CatOption = { id: string; slug: string; label: string; subCategories: { slug: string; label: string }[] };
+  const [catOptions, setCatOptions] = useState<CatOption[]>([]);
+  useEffect(() => {
+    // Cache-first: read from localStorage if fresh (30min TTL)
+    const cached = readCache<CatOption[]>(CACHE_KEYS.categories);
+    if (cached && cached.length > 0 && !isCacheStale(CACHE_KEYS.categories)) {
+      setCatOptions(cached);
+      return;
+    }
+    // Fallback: fetch from network
+    fetch('/api/categories')
+      .then(r => r.ok ? r.json() : null)
+      .then(json => {
+        if (json?.data) {
+          setCatOptions(json.data);
+          writeCache(CACHE_KEYS.categories, json.data);
+        }
+      })
+      .catch(() => {});
+  }, []);
+
   const colors = ['#C9A84C', '#1A1A1A', '#D32F2F', '#2E7D32', '#1565C0', '#8B4513', '#F48FB1', '#483C32'];
 
   // Active data source
@@ -1647,6 +1670,7 @@ export function DataPillar() {
               pendingStatusChanges={pendingStatusChanges}
               onAddColumn={() => setShowColumnModal(true)}
               colormapItems={colormapItems}
+              catOptions={catOptions}
             />
             </>
           ) : (
