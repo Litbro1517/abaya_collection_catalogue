@@ -9,6 +9,7 @@ import {
   writeCache,
   sanitizeCatalog,
   sanitizeDatasources,
+  isCacheFresh,
   CACHE_KEYS,
 } from '@/lib/cache';
 
@@ -256,11 +257,20 @@ function HomeContent() {
     }
   }, [setGoogleSession]);
 
-  // ━━━ Background sync: always fetch fresh data, but NEVER block the UI ━━━
-  // On first visit (cache cold): spinner shows, then data loads
-  // On subsequent visits (cache warm): data is already in Zustand from module-level
-  //   hydration; this fetch runs silently in the background and updates cache
+  // ━━━ Stale-aware background sync ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  // Fresh cache (within 30 min TTL) → SKIP network fetch entirely → 0ms latency
+  // Stale cache (past TTL) → display cached data + sync in background
+  // First visit (no cache) → spinner → network fetch → cache write
   const loadData = useCallback(async () => {
+    // ── If cache is fresh, skip network fetch entirely ──
+    // This is the key optimization: within 30 min, NO network request is made.
+    // The data is already in Zustand from module-level cache hydration.
+    if (isCacheFresh() && hasCachedData) {
+      setInitializing(false);
+      setLoading(false);
+      return;
+    }
+
     setLoading(true);
     try {
       const [dsRes, catRes] = await Promise.all([
@@ -286,7 +296,7 @@ function HomeContent() {
       setLoading(false);
       setInitializing(false);
     }
-  }, [setDataSources, setCatalog, setSettings, setLoading]);
+  }, [setDataSources, setCatalog, setSettings, setLoading, hasCachedData]);
 
   useEffect(() => {
     loadData();

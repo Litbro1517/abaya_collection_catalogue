@@ -12,7 +12,7 @@ import {
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { resolveColorHex, buildColorLookupMap, normalizeCouleurKey } from '@/lib/color-utils';
-import { readCache, writeCache, clearAllCache, sanitizeSections, CACHE_KEYS } from '@/lib/cache';
+import { readCache, writeCache, clearAllCache, sanitizeSections, isCacheStale, CACHE_KEYS } from '@/lib/cache';
 import type { CachedSectionData } from '@/lib/cache';
 import { ProductPage } from './ProductPage';
 
@@ -279,7 +279,10 @@ export function CatalogPreview({ onAdminLogin }: CatalogPreviewProps) {
     return cached && Object.keys(cached).length > 0 ? cached : {};
   });
   useEffect(() => {
-    // Background sync — always fetch fresh data
+    // ━━━ Stale-aware sync: skip network if cache is fresh (within 30 min TTL) ━━━
+    // Fresh cache → 0ms latency, no network request at all
+    // Stale/no cache → fetch from network, update silently
+    if (!isCacheStale()) return;
     fetch('/api/colormap')
       .then(r => r.ok ? r.json() : null)
       .then(json => {
@@ -302,8 +305,11 @@ export function CatalogPreview({ onAdminLogin }: CatalogPreviewProps) {
     const cached = readCache<DynamicCategory[]>(CACHE_KEYS.categories);
     return cached && cached.length > 0 ? cached : [];
   });
-  // Background sync — always fetch fresh categories from network
+  // ━━━ Stale-aware sync: skip network if cache is fresh (within 30 min TTL) ━━━
+  // Fresh cache → 0ms latency, no network request at all
+  // Stale/no cache → fetch from network, update silently
   useEffect(() => {
+    if (!isCacheStale()) return;
     const loadCategories = async () => {
       try {
         const res = await fetch('/api/categories');
@@ -365,10 +371,17 @@ export function CatalogPreview({ onAdminLogin }: CatalogPreviewProps) {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   }, [selectedProduct]);
 
-  // ━━━ Network sync: fetch sections from API in background ━━━
-  // Uses ref to prevent duplicate fetches — always runs once when catalog is available
+  // ━━━ Stale-aware Network sync: skip fetch if cache is fresh ━━━
+  // Uses ref to prevent duplicate fetches
+  // Fresh cache → skip entirely (sections already in state from lazy initializer)
+  // Stale/no cache → fetch from network, update silently
   useEffect(() => {
     if (!catalog?.sections || networkSyncDone.current) return;
+    // Skip network sync if cache is fresh — data already loaded from localStorage
+    if (!isCacheStale()) {
+      networkSyncDone.current = true;
+      return;
+    }
     networkSyncDone.current = true;
     let cancelled = false;
 

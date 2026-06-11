@@ -1,9 +1,14 @@
 // ━━━ Offline-First Cache Utility ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 // Centralizes all localStorage cache logic:
-// - TTL management (5-minute expiry)
+// - TTL management (30-minute expiry — categories/colormap rarely change)
 // - Size guard (never exceed ~4MB per write)
 // - Data sanitization (strip Prisma metadata before caching)
-// - Cache-first read, silent background sync
+// - Cache-first read, stale-aware background sync
+//
+// Architecture Decision: readCache() ALWAYS returns data (offline-first principle)
+// isCacheStale() is checked at call sites to decide whether to trigger network sync.
+// Fresh cache → skip network entirely → 0ms latency.
+// Stale cache → display cached data + background sync → user never waits.
 
 // ── Cache Key Registry ──────────────────────────────────────────────────
 export const CACHE_KEYS = {
@@ -15,8 +20,10 @@ export const CACHE_KEYS = {
   timestamp:   'abaya_cache_ts',
 } as const;
 
-// ── TTL: 5 minutes ─────────────────────────────────────────────────────
-const CACHE_TTL = 5 * 60 * 1000;
+// ── TTL: 30 minutes ────────────────────────────────────────────────────
+// Categories, colormap, and datasources rarely change in production.
+// 30 min balances freshness vs. eliminating unnecessary network requests.
+const CACHE_TTL = 30 * 60 * 1000;
 
 // ── Max size per write: 4MB (localStorage limit ~5MB per origin) ───────
 const MAX_CACHE_SIZE = 4_000_000;
@@ -27,10 +34,14 @@ type CacheKey = (typeof CACHE_KEYS)[keyof typeof CACHE_KEYS];
 // ── Core read/write ─────────────────────────────────────────────────────
 
 /**
- * Read cached data. Returns null if:
- * - Key doesn't exist
- * - Data is malformed JSON
- * - Cache is stale (older than CACHE_TTL)
+ * Read cached data. ALWAYS returns data if available (offline-first principle).
+ * Returns null only if the key doesn't exist or data is malformed.
+ * Staleness is NOT checked here — use isCacheStale() at call sites to decide
+ * whether to trigger a background network sync.
+ *
+ * Why not reject stale data? Because displaying stale data instantly is better
+ * than showing a spinner. The caller decides: fresh cache → skip network,
+ * stale cache → show cached + sync in background.
  */
 export function readCache<T = unknown>(key: CacheKey): T | null {
   if (typeof window === 'undefined') return null;
@@ -42,6 +53,36 @@ export function readCache<T = unknown>(key: CacheKey): T | null {
   } catch {
     return null;
   }
+}
+
+/**
+ * Check if the global cache is stale (older than CACHE_TTL).
+ * Returns true if no timestamp exists or if cache has expired.
+ *
+ * Usage pattern at call sites:
+ *   if (isCacheStale()) {
+ *     // Cache is old → trigger background network sync
+ *     fetchFreshData().then(updateCache);
+ *   }
+ *   // else: cache is fresh → skip network entirely → 0ms latency
+ */
+export function isCacheStale(): boolean {
+  if (typeof window === 'undefined') return true;
+  try {
+    const ts = localStorage.getItem(CACHE_KEYS.timestamp);
+    if (!ts) return true;
+    return Date.now() - parseInt(ts) > CACHE_TTL;
+  } catch {
+    return true;
+  }
+}
+
+/**
+ * Convenience: inverse of isCacheStale().
+ * When true, the cached data is fresh and NO network fetch is needed.
+ */
+export function isCacheFresh(): boolean {
+  return !isCacheStale();
 }
 
 /**
@@ -69,20 +110,7 @@ export function writeCache<T = unknown>(
   }
 }
 
-/**
- * Check if cache is stale (older than CACHE_TTL).
- * Returns true if no timestamp exists or if cache has expired.
- */
-export function isCacheStale(): boolean {
-  if (typeof window === 'undefined') return true;
-  try {
-    const ts = localStorage.getItem(CACHE_KEYS.timestamp);
-    if (!ts) return true;
-    return Date.now() - parseInt(ts) > CACHE_TTL;
-  } catch {
-    return true;
-  }
-}
+
 
 /**
  * Clear ALL abaya_cache_* keys from localStorage.
