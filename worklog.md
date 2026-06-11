@@ -684,3 +684,32 @@ Stage Summary:
 - Product card images have explicit dimensions preventing lazy-load collapse
 - No more render-time setState — page reset co-located in event handler
 - Product page sticky preserved via CSS contain instead of overflow
+
+---
+Task ID: 3
+Agent: Z.ai Code (main)
+Task: Debug and fix sticky not working on production — root cause was body overflow-x:hidden
+
+Work Log:
+- Browser test showed sticky was NOT working: infoTop:-358 at scrollY:500 (should be 80)
+- First attempted fix: contain:layout paint → ALSO broke sticky (infoTop:-458 at scrollY:600)
+- Analyzed full ancestor chain of .product-page-info and found the real culprit:
+  <body> had overflow-x:hidden (computed as "hidden auto"), creating a scroll context
+- When both <html> (overflow-y:scroll) and <body> (overflow-x:hidden) have overflow,
+  the body becomes the nearest scroll container for sticky descendants
+- But body doesn't actually scroll (html does), so sticky has no effect
+- Fix: removed overflow-x:hidden from body in globals.css — html already has it (redundant)
+- Committed as adaac4b and pushed to main
+- Vercel deployment took ~2 minutes to propagate the new CSS bundle
+- Verified body now has overflow:visible (not hidden auto)
+- CRITICAL TEST: scroll down 600px → infoTop:80px ✅ STICKY WORKS!
+- Verified sticky un-sticks naturally at scrollY:697 (past gallery height 1032px) — correct behavior
+- Verified sticky snaps back to 80px when scrolling back up — correct behavior
+
+Stage Summary:
+- Commit SHA: adaac4b
+- ROOT CAUSE: body's overflow-x:hidden created a scroll context that intercepted sticky
+- Fix: removed body overflow-x:hidden (html already has it)
+- Sticky now works perfectly: info block stays at top:80px while scrolling within gallery bounds
+- Also removed contain:layout paint (commit d6c2151) which also broke sticky
+- Final CSS state: .product-page-layout and .product-page-gallery have NO overflow/contain properties
