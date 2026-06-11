@@ -4,6 +4,13 @@ import { useEffect, useCallback, useState, ComponentType } from 'react';
 import dynamic from 'next/dynamic';
 import { useAppStore } from '@/lib/store';
 import { CatalogPreview } from '@/components/preview/CatalogPreview';
+import {
+  readCache,
+  writeCache,
+  sanitizeCatalog,
+  sanitizeDatasources,
+  CACHE_KEYS,
+} from '@/lib/cache';
 
 // ── Code Splitting: Admin components lazy-loaded ──
 // These are ONLY needed for authenticated admins, never for public visitors.
@@ -62,6 +69,30 @@ function withErrorBoundary<P extends object>(Component: ComponentType<P>, fallba
   };
 }
 
+// ── Module-level cache hydration ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// Runs ONCE when the JS bundle loads, BEFORE React hydration.
+// Populates Zustand directly — by the time components render, data is ready.
+// This eliminates the blocking spinner on all subsequent page loads.
+let _cacheHydrated = false;
+if (typeof window !== 'undefined' && !_cacheHydrated) {
+  _cacheHydrated = true;
+  try {
+    const cachedCatalog = readCache(CACHE_KEYS.catalog);
+    const cachedDatasources = readCache(CACHE_KEYS.datasources);
+    if (cachedCatalog) {
+      useAppStore.getState().setCatalog(cachedCatalog as any);
+      if ((cachedCatalog as any)?.settings) {
+        useAppStore.getState().setSettings((cachedCatalog as any).settings);
+      }
+    }
+    if (cachedDatasources) {
+      useAppStore.getState().setDataSources(cachedDatasources as any);
+    }
+  } catch {
+    // Cache hydration failure — will fall back to network
+  }
+}
+
 // ── Main Page ─────────────────────────────────────────────────────────────
 
 function HomeContent() {
@@ -81,7 +112,13 @@ function HomeContent() {
     setSettingsTab,
   } = useAppStore();
 
-  const [initializing, setInitializing] = useState(true);
+  // ━━━ Offline-First: Skip spinner if cache was hydrated at module level ━━━
+  // If catalog or datasources exist in Zustand (from cache hydration), no spinner needed.
+  const catalogFromStore = useAppStore(s => s.catalog);
+  const datasourcesFromStore = useAppStore(s => s.dataSources);
+  const hasCachedData = !!(catalogFromStore || datasourcesFromStore.length > 0);
+
+  const [initializing, setInitializing] = useState(!hasCachedData);
   const [showLogin, setShowLogin] = useState(false);
 
   // ── Read URL params and set Zustand state on mount ──
@@ -219,8 +256,10 @@ function HomeContent() {
     }
   }, [setGoogleSession]);
 
-  // Load initial data (always, for both public and admin)
-  // Promise.all: both requests fire simultaneously → ~2× faster than sequential
+  // ━━━ Background sync: always fetch fresh data, but NEVER block the UI ━━━
+  // On first visit (cache cold): spinner shows, then data loads
+  // On subsequent visits (cache warm): data is already in Zustand from module-level
+  //   hydration; this fetch runs silently in the background and updates cache
   const loadData = useCallback(async () => {
     setLoading(true);
     try {
@@ -232,10 +271,14 @@ function HomeContent() {
         dsRes.ok ? dsRes.json() : Promise.resolve(null),
         catRes.ok ? catRes.json() : Promise.resolve(null),
       ]);
-      if (dsJson?.data) setDataSources(dsJson.data);
+      if (dsJson?.data) {
+        setDataSources(dsJson.data);
+        writeCache(CACHE_KEYS.datasources, dsJson.data, sanitizeDatasources);
+      }
       if (catJson?.data) {
         setCatalog(catJson.data);
         if (catJson.data.settings) setSettings(catJson.data.settings);
+        writeCache(CACHE_KEYS.catalog, catJson.data, sanitizeCatalog);
       }
     } catch (e) {
       console.error('Failed to load data:', e);
@@ -249,7 +292,7 @@ function HomeContent() {
     loadData();
   }, [loadData]);
 
-  // Show loading screen while initializing
+  // Show loading screen ONLY on first visit (no cache)
   if (initializing) {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center bg-background gap-3">

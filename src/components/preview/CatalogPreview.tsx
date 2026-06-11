@@ -8,10 +8,12 @@ import { Input } from '@/components/ui/input';
 import {
   ArrowLeft, Search, MessageCircle, ChevronLeft, ChevronRight,
   Mail, Instagram, ImageIcon, BookOpen, Settings, Heart,
-  ShoppingBag, LayoutDashboard, Lock
+  ShoppingBag, LayoutDashboard, Lock, RefreshCw
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { resolveColorHex, buildColorLookupMap, normalizeCouleurKey } from '@/lib/color-utils';
+import { readCache, writeCache, clearAllCache, sanitizeSections, CACHE_KEYS } from '@/lib/cache';
+import type { CachedSectionData } from '@/lib/cache';
 import { ProductPage } from './ProductPage';
 
 // ── Brand Constants removed — all values migrated to CSS pivot variables & global classes ──
@@ -248,6 +250,12 @@ function computeStockState(rawData: Record<string, unknown>): StockState {
 // ── Main Catalog Component ──
 // ═══════════════════════════════════════════════════════════════════════════
 
+// Type for dynamic categories (used in useState lazy initializer for cache)
+type DynamicCategory = {
+  id: string; slug: string; label: string; visible: boolean; ordre: number;
+  subCategories: { id: string; slug: string; label: string; visible: boolean; ordre: number; categoryId: string }[];
+};
+
 interface CatalogPreviewProps {
   onAdminLogin?: () => void;
 }
@@ -257,7 +265,6 @@ export function CatalogPreview({ onAdminLogin }: CatalogPreviewProps) {
 
   // Only owner/admin can access the builder — editors and public users cannot
   const canAccessBuilder = isAdmin && adminUser && (adminUser.role === 'owner' || adminUser.role === 'admin' || adminUser.role === 'super_admin');
-  const [sections, setSections] = useState<{ section: Section; columns: Column[]; rows: Row[] }[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedProduct, setSelectedProduct] = useState<{ row: Row; columns: Column[]; section: Section } | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
@@ -266,13 +273,20 @@ export function CatalogPreview({ onAdminLogin }: CatalogPreviewProps) {
 
   // ── ColorMap for color dots on cards (include ALL colors — no isActive/visible filter;
   // filtering is for admin UI only, not for hex resolution) ──
-  const [colorMapData, setColorMapData] = useState<Record<string, string>>({});
+  // ━━━ Offline-First: lazy initializer reads cache before first paint ━━━
+  const [colorMapData, setColorMapData] = useState<Record<string, string>>(() => {
+    const cached = readCache<Record<string, string>>(CACHE_KEYS.colormap);
+    return cached && Object.keys(cached).length > 0 ? cached : {};
+  });
   useEffect(() => {
+    // Background sync — always fetch fresh data
     fetch('/api/colormap')
       .then(r => r.ok ? r.json() : null)
       .then(json => {
         if (json?.data) {
-          setColorMapData(buildColorLookupMap(json.data));
+          const fresh = buildColorLookupMap(json.data);
+          setColorMapData(fresh);
+          writeCache(CACHE_KEYS.colormap, fresh);
         }
       })
       .catch(() => {});
@@ -283,12 +297,12 @@ export function CatalogPreview({ onAdminLogin }: CatalogPreviewProps) {
   // Level 2: Micro sub-filters (Nouveau, Saison, Discount) — contextual
   const [activeMacroFilter, setActiveMacroFilter] = useState<string>('all'); // category slug or 'all'
   const [activeMicroFilter, setActiveMicroFilter] = useState<string>('all'); // subcategory slug or 'all'
-  const [dynamicCategories, setDynamicCategories] = useState<{
-    id: string; slug: string; label: string; visible: boolean; ordre: number;
-    subCategories: { id: string; slug: string; label: string; visible: boolean; ordre: number; categoryId: string }[];
-  }[]>([]);
-
-  // Fetch dynamic categories from DB on mount; auto-seed defaults if empty
+  // ━━━ Offline-First: lazy initializer reads categories cache before first paint ━━━
+  const [dynamicCategories, setDynamicCategories] = useState<DynamicCategory[]>(() => {
+    const cached = readCache<DynamicCategory[]>(CACHE_KEYS.categories);
+    return cached && cached.length > 0 ? cached : [];
+  });
+  // Background sync — always fetch fresh categories from network
   useEffect(() => {
     const loadCategories = async () => {
       try {
@@ -297,6 +311,7 @@ export function CatalogPreview({ onAdminLogin }: CatalogPreviewProps) {
         const json = await res.json();
         if (json?.data && json.data.length > 0) {
           setDynamicCategories(json.data);
+          writeCache(CACHE_KEYS.categories, json.data);
           return;
         }
         // No categories found — seed defaults and re-fetch
@@ -305,7 +320,10 @@ export function CatalogPreview({ onAdminLogin }: CatalogPreviewProps) {
           const catRes = await fetch('/api/categories');
           if (catRes.ok) {
             const catJson = await catRes.json();
-            if (catJson?.data) setDynamicCategories(catJson.data);
+            if (catJson?.data) {
+              setDynamicCategories(catJson.data);
+              writeCache(CACHE_KEYS.categories, catJson.data);
+            }
           }
         }
       } catch {
@@ -321,8 +339,18 @@ export function CatalogPreview({ onAdminLogin }: CatalogPreviewProps) {
   const accentColor = s?.accentColor || '#F5F0E8';
   const bgColor = s?.backgroundColor || '#FFFFFF';
 
-  const [sectionsLoaded, setSectionsLoaded] = useState(false);
+  // ━━━ Offline-First: lazy initializer reads sections cache before first paint ━━━
+  const [sections, setSections] = useState<{ section: Section; columns: Column[]; rows: Row[] }[]>(() => {
+    const cached = readCache<CachedSectionData[]>(CACHE_KEYS.sections);
+    return cached && cached.length > 0 ? (cached as unknown as { section: Section; columns: Column[]; rows: Row[] }[]) : [];
+  });
+  const [sectionsLoaded, setSectionsLoaded] = useState(() => {
+    const cached = readCache<CachedSectionData[]>(CACHE_KEYS.sections);
+    return cached && cached.length > 0;
+  });
   const [loadError, setLoadError] = useState<string | null>(null);
+  // Track whether network sync has been triggered (ref, not state — no re-render)
+  const networkSyncDone = useRef(false);
 
   const isDetailView = !!selectedProduct;
   const catalogName = catalog?.name || 'Abaya Chic Collection';
@@ -337,11 +365,13 @@ export function CatalogPreview({ onAdminLogin }: CatalogPreviewProps) {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   }, [selectedProduct]);
 
+  // ━━━ Network sync: fetch sections from API in background ━━━
+  // Uses ref to prevent duplicate fetches — always runs once when catalog is available
   useEffect(() => {
-    if (!catalog?.sections || sectionsLoaded) return;
+    if (!catalog?.sections || networkSyncDone.current) return;
+    networkSyncDone.current = true;
     let cancelled = false;
 
-    // ━━━ Phase 0: Promise.all — all sections load in parallel, not sequentially ━━━
     const loadSections = async () => {
       try {
         const results = await Promise.all(
@@ -365,14 +395,21 @@ export function CatalogPreview({ onAdminLogin }: CatalogPreviewProps) {
             })
         );
         if (!cancelled) {
-          setSections(results.filter(Boolean));
+          const filtered = results.filter(Boolean);
+          setSections(filtered);
           setSectionsLoaded(true);
           setLoadError(null);
+          // Write sanitized data to cache
+          writeCache(CACHE_KEYS.sections, filtered, sanitizeSections);
         }
       } catch (err) {
         console.error('Section loading failed:', err);
         if (!cancelled) {
-          setLoadError('Erreur de chargement des données');
+          // Only show error if no cache was available
+          const cachedSections = readCache<CachedSectionData[]>(CACHE_KEYS.sections);
+          if (!cachedSections || cachedSections.length === 0) {
+            setLoadError('Erreur de chargement des données');
+          }
           setSectionsLoaded(true);
         }
       }
@@ -381,12 +418,15 @@ export function CatalogPreview({ onAdminLogin }: CatalogPreviewProps) {
     loadSections().catch(err => {
       console.error('Section loading failed:', err);
       if (!cancelled) {
-        setLoadError('Erreur de chargement des données');
+        const cachedSections = readCache<CachedSectionData[]>(CACHE_KEYS.sections);
+        if (!cachedSections || cachedSections.length === 0) {
+          setLoadError('Erreur de chargement des données');
+        }
         setSectionsLoaded(true);
       }
     });
     return () => { cancelled = true; };
-  }, [catalog, sectionsLoaded]);
+  }, [catalog]);
 
   // ━━━ SEO: Update browser URL when product is selected/deselected ━━━
   // Uses window.history.pushState() exclusively — NEVER router.push()
@@ -699,17 +739,36 @@ export function CatalogPreview({ onAdminLogin }: CatalogPreviewProps) {
           </h1>
         </div>
 
-        {/* Dashboard button — only visible for owner/admin roles */}
+        {/* Admin actions — only visible for owner/admin roles */}
         {canAccessBuilder ? (
-          <button
-            onClick={() => setView('dashboard')}
-            className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg hover:bg-gray-100 transition-colors shrink-0"
-            title="Retour au Dashboard"
-            aria-label="Dashboard"
-          >
-            <LayoutDashboard className="w-4 h-4" style={{ color: 'var(--pivot-brand)' }} />
-            <span className="text-[11px] font-medium hidden sm:inline" style={{ color: 'var(--pivot-brand)' }}>Dashboard</span>
-          </button>
+          <div className="flex items-center gap-1 shrink-0">
+            {/* Hard-refresh button — clears localStorage cache and forces full network reload */}
+            <button
+              onClick={() => {
+                clearAllCache();
+                setSectionsLoaded(false);
+                setDynamicCategories([]);
+                setColorMapData({});
+                setSections([]);
+                setLoadError(null);
+                networkSyncDone.current = false;
+              }}
+              className="flex items-center justify-center w-8 h-8 rounded-lg hover:bg-gray-100 transition-colors"
+              title="Vider le cache et recharger"
+              aria-label="Vider le cache"
+            >
+              <RefreshCw className="w-3.5 h-3.5" style={{ color: 'var(--muted-foreground)' }} />
+            </button>
+            <button
+              onClick={() => setView('dashboard')}
+              className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg hover:bg-gray-100 transition-colors"
+              title="Retour au Dashboard"
+              aria-label="Dashboard"
+            >
+              <LayoutDashboard className="w-4 h-4" style={{ color: 'var(--pivot-brand)' }} />
+              <span className="text-[11px] font-medium hidden sm:inline" style={{ color: 'var(--pivot-brand)' }}>Dashboard</span>
+            </button>
+          </div>
         ) : (
           <button
             onClick={onAdminLogin}
@@ -946,7 +1005,7 @@ export function CatalogPreview({ onAdminLogin }: CatalogPreviewProps) {
         <div className="catalog-container">
           <div className="rounded-xl p-4 text-center" style={{ backgroundColor: 'rgba(128,0,32,0.06)', border: '1px solid rgba(128,0,32,0.19)' }}>
             <p className="text-sm" style={{ color: 'var(--pivot-danger)' }}>{loadError}</p>
-            <button onClick={() => { setSectionsLoaded(false); setLoadError(null); }} className="text-xs underline mt-1" style={{ color: 'var(--pivot-danger)' }}>Réessayer</button>
+            <button onClick={() => { setSectionsLoaded(false); setLoadError(null); networkSyncDone.current = false; }} className="text-xs underline mt-1" style={{ color: 'var(--pivot-danger)' }}>Réessayer</button>
           </div>
         </div>
       )}
