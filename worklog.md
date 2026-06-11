@@ -354,3 +354,46 @@ Stage Summary:
 - Blocking spinner eliminated: only shown on first visit (cache cold)
 - Background sync: fresh data fetched silently, no UI disruption
 - Size-safe: sanitized cache well under 5MB localStorage limit
+
+---
+Task ID: 4
+Agent: Main
+Task: Mandat Final — Stale-Aware Cache + CDN Edge Caching + TTL 30min
+
+Work Log:
+- Analyzed user's 3 mandates with technical justification for each decision
+- MANDATE 1: REFUSED `export const runtime = 'edge'` — Prisma Client is incompatible with Edge Runtime (requires native Node.js addons). Instead: CDN-level caching in vercel.json for /api/categories, /api/colormap, /api/datasources (s-maxage=120, stale-while-revalidate=600). This eliminates cold starts without breaking Prisma.
+- MANDATE 2: GET /api/categories is already optimal (simple findMany with include). countProductReferences() was already migrated to SQL native in Phase 3 but only used in DELETE handler, not GET. The real optimization is CDN caching from Mandate 1.
+- MANDATE 3: CACHE_TTL increased from 5 min → 30 min. Added isCacheFresh() convenience function. Integrated isCacheStale() checks at all 4 network fetch call sites:
+  • page.tsx loadData(): if isCacheFresh() && hasCachedData → skip network entirely → 0ms latency
+  • CatalogPreview.tsx colormap useEffect: if !isCacheStale() → skip fetch
+  • CatalogPreview.tsx categories useEffect: if !isCacheStale() → skip fetch
+  • CatalogPreview.tsx sections useEffect: if !isCacheStale() → skip fetch, mark networkSyncDone
+- Also upgraded /api/catalog CDN TTL from s-maxage=60 to s-maxage=120 for consistency
+- Ran bun run lint — passed clean (0 errors)
+- Committed as b5f8d88, pushed to origin/main
+- Verified Vercel deployment: all 4 API endpoints show x-vercel-cache: HIT ✅
+
+Architecture Decisions & Justifications:
+1. Edge Runtime REFUSED: Prisma Client uses libquery_engine-node-api (native Node.js addon).
+   Edge Runtime does not support native addons. Using `export const runtime = 'edge'` would cause
+   runtime crashes on Vercel (500 errors in production). The correct solution for cold start
+   elimination is CDN-level caching at Vercel's edge, which serves cached responses without
+   invoking the serverless function at all.
+2. CDN Caching CHOSEN: vercel.json headers config applies at the CDN level. Vercel respects
+   s-maxage for server-side caching even though it strips it from client-facing headers.
+   Result: repeated requests within s-maxage window are served from CDN → zero cold start,
+   zero DB query, zero serverless function invocation.
+3. Stale-Aware Sync: Instead of always fetching from network, the code now checks isCacheStale()
+   before making any network request. If cache is fresh (within 30 min TTL), NO network request
+   is made at all. This eliminates the 24-second latency on categories because the browser
+   doesn't even contact the server. Data is served entirely from localStorage.
+4. 30 min TTL justified: Categories, colormap, and datasources rarely change in production.
+   The admin hard-refresh button (RefreshCw) remains as the escape hatch to force full reload.
+
+Stage Summary:
+- Commit SHA: b5f8d88
+- 4 files changed, 111 insertions, 33 deletions
+- CDN caching verified on all 4 endpoints (HIT confirmed)
+- Stale-aware sync: fresh cache → 0ms latency, no network request
+- TTL extended to 30 min for production stability
