@@ -257,6 +257,11 @@
   --sidebar-ring: #C9A84C;
 }
 
+html {
+  overflow-x: hidden;
+  overflow-y: scroll;   /* Anti-vibration fix: force scrollbar space always on the root element — prevents CLS on category filter */
+}
+
 @layer base {
   * {
     @apply border-border outline-ring/50;
@@ -267,10 +272,6 @@
     color: var(--text);
     font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
     overflow-x: hidden;
-  }
-  html {
-    overflow-x: hidden;
-    overflow-y: scroll;   /* Bug #2 fix: force scrollbar space always — prevents CLS on category filter */
   }
   h1, h2, h3 {
     font-family: 'Playfair Display', serif;
@@ -1194,7 +1195,8 @@ img {
   gap: 48px;
   align-items: start;
   min-width: 0;
-  overflow: clip;    /* Bug #3 fix: clip cuts overflow WITHOUT creating scroll context — sticky works */
+  overflow: hidden;   /* Safari/iOS 15 fallback — prevents visual overflow */
+  overflow: clip;     /* Modern override — clips without creating scroll context, preserving sticky */
 }
 
 @media (min-width: 1280px) {
@@ -1215,7 +1217,8 @@ img {
 .product-page-gallery {
   position: relative;
   min-width: 0;
-  overflow: clip;    /* Bug #3 fix: clip instead of hidden — preserves sticky on child .product-page-info */
+  overflow: hidden;   /* Safari/iOS 15 fallback — prevents visual overflow */
+  overflow: clip;     /* Modern override — clips without creating scroll context, preserving sticky */
 }
 
 /* ── Carousel ── */
@@ -1344,13 +1347,16 @@ img {
   top: 80px;
   padding-top: 0;
   min-width: 0;
-  /* overflow: hidden removed — Bug #3 fix: sticky requires no overflow on ancestors or self */
+  max-height: calc(100vh - 96px);   /* Sticky fix: constrain height so block stays within viewport */
+  overflow-y: auto;                  /* Sticky fix: internal scroll when content exceeds max-height */
 }
 
 @media (max-width: 900px) {
   .product-page-info {
     position: static;
     padding-top: 20px;
+    max-height: none;      /* No height constraint on mobile — content flows naturally */
+    overflow-y: visible;    /* No internal scroll on mobile */
   }
 }
 
