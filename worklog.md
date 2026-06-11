@@ -577,3 +577,24 @@ Stage Summary:
 - Admin DataTable loads ~50% faster (Promise.all)
 - Color column renders all at once (1 fetch instead of N×200)
 - Admin cache-first: 0ms display on repeat visits to same table
+---
+Task ID: 1
+Agent: Main Agent
+Task: Fix 3 UI/UX bugs — image flicker, scrollbar CLS, sticky product info
+
+Work Log:
+- Read ProductPage.tsx, globals.css, cache.ts to understand current code state
+- Bug #1: Changed colorMap useState from `{}` to lazy initializer using `readCache(CACHE_KEYS.colormap)` + `buildColorLookupMap()`
+- Bug #1 (bonus): Updated colormap useEffect to cache-first pattern — skips fetch if `isCacheStale` returns false (FROZEN_MODE)
+- Bug #2: Added `overflow-y: scroll` to `html` rule in globals.css to prevent CLS from scrollbar appearing/disappearing
+- Bug #3: Changed `overflow: hidden` → `overflow: clip` on `.product-page-layout` and `.product-page-gallery`; removed `overflow: hidden` from `.product-page-info`
+- Added `readCache`, `writeCache`, `isCacheStale`, `CACHE_KEYS` imports to ProductPage.tsx
+- Lint passed clean, no TypeScript errors in changed files
+- Committed as 7e76b6c, pushed to main (Vercel auto-deploy triggered)
+
+Stage Summary:
+- Commit: 7e76b6c "fix(ui): 3 surgical fixes — image flicker, scrollbar CLS, sticky product info"
+- Bug #1 fix: colorMap lazy-init from cache → zero re-render → zero image flicker
+- Bug #2 fix: html overflow-y:scroll → permanent scrollbar space → zero CLS on category filter
+- Bug #3 fix: overflow:clip on ancestors → sticky works on .product-page-info
+- Colormap fetch now cache-first (0 network request on repeat visits in FROZEN_MODE)
