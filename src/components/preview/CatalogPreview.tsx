@@ -371,13 +371,16 @@ export function CatalogPreview({ onAdminLogin }: CatalogPreviewProps) {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   }, [selectedProduct]);
 
-  // ━━━ Per-key stale-aware Network sync: sections (2 min TTL) ━━━
-  // Uses ref to prevent duplicate fetches
-  // Fresh cache → skip entirely (sections already in state from lazy initializer)
-  // Stale/no cache → fetch from network, update silently
+  // ━━━ Sections Network Sync (FROZEN MODE + stable trigger) ━━━━━━━━━━
+  // Replaced [catalog] dependency with stable boolean catalogReady.
+  // catalogReady transitions false → true EXACTLY ONCE (when catalog first appears).
+  // This breaks the cascade: loadData → setCatalog → [catalog] → loadSections → re-fetch.
+  // Inside the effect, we read fresh catalog from Zustand (no stale closure).
+  const catalogReady = !!(catalog?.sections?.length);
+
   useEffect(() => {
-    if (!catalog?.sections || networkSyncDone.current) return;
-    // Skip network sync if sections cache is fresh — data already loaded from localStorage
+    if (!catalogReady || networkSyncDone.current) return;
+    // FROZEN MODE: isCacheStale returns false when data exists → skip network entirely
     if (!isCacheStale(CACHE_KEYS.sections)) {
       networkSyncDone.current = true;
       return;
@@ -387,8 +390,12 @@ export function CatalogPreview({ onAdminLogin }: CatalogPreviewProps) {
 
     const loadSections = async () => {
       try {
+        // Read fresh catalog from Zustand store — avoids stale closure over [catalog]
+        const freshCatalog = useAppStore.getState().catalog;
+        if (!freshCatalog?.sections) return;
+
         const results = await Promise.all(
-          catalog.sections
+          freshCatalog.sections
             .filter(s => s.visible)
             .map(async section => {
               const config = section.config as SectionConfig;
@@ -412,13 +419,11 @@ export function CatalogPreview({ onAdminLogin }: CatalogPreviewProps) {
           setSections(filtered);
           setSectionsLoaded(true);
           setLoadError(null);
-          // Write sanitized data to cache
           writeCache(CACHE_KEYS.sections, filtered, sanitizeSections);
         }
       } catch (err) {
         console.error('Section loading failed:', err);
         if (!cancelled) {
-          // Only show error if no cache was available
           const cachedSections = readCache<CachedSectionData[]>(CACHE_KEYS.sections);
           if (!cachedSections || cachedSections.length === 0) {
             setLoadError('Erreur de chargement des données');
@@ -439,7 +444,7 @@ export function CatalogPreview({ onAdminLogin }: CatalogPreviewProps) {
       }
     });
     return () => { cancelled = true; };
-  }, [catalog]);
+  }, [catalogReady]);
 
   // ━━━ SEO: Update browser URL when product is selected/deselected ━━━
   // Uses window.history.pushState() exclusively — NEVER router.push()

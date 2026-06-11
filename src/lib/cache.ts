@@ -1,15 +1,16 @@
 // ━━━ Offline-First Cache Utility ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 // Centralizes all localStorage cache logic:
-// - Per-key TTL management (dynamic data: 2min, static structures: 30min)
+// - FROZEN MODE: cache never auto-expires — only invalidated by explicit admin action
 // - Per-key timestamps (no global timestamp — prevents false stale detection)
 // - Size guard (never exceed ~4MB per write)
 // - Data sanitization (strip Prisma metadata before caching)
-// - Cache-first read, stale-aware background sync
+// - Cache-first read, zero speculation
 //
-// Architecture Decision: readCache() ALWAYS returns data (offline-first principle)
-// isCacheStale(key) is checked at call sites per-key to decide whether to sync.
-// Fresh cache → skip network entirely → 0ms latency.
-// Stale cache → display cached data + background sync → user never waits.
+// Architecture Decision: FROZEN_MODE = true means cache NEVER expires by TTL.
+// isCacheStale() returns false when data exists (no auto-revalidation).
+// Cache is only invalidated by:
+//   1. clearAllCache() — admin clicks "Force Refresh"
+//   2. No data at all — first visit must still fetch from network
 
 // ── Cache Key Registry ──────────────────────────────────────────────────
 export const CACHE_KEYS = {
@@ -74,8 +75,29 @@ export function readCache<T = unknown>(key: CacheKey): T | null {
  *   }
  *   // else: cache is fresh → skip network entirely → 0ms latency
  */
+// ── FROZEN MODE ──────────────────────────────────────────────────────────
+// When active, cache NEVER auto-expires by TTL.
+// Only invalidation triggers: clearAllCache() (admin Force Refresh) or no data at all.
+// This eliminates all "silent sync" background fetches that fire on TTL expiry.
+const FROZEN_MODE = true;
+
 export function isCacheStale(key: CacheKey): boolean {
   if (typeof window === 'undefined') return true;
+
+  // ━━━ FROZEN MODE: cache never auto-expires ━━━
+  // If data exists in localStorage → always "fresh" (no TTL check)
+  // If no data exists → still "stale" (must fetch on first visit)
+  if (FROZEN_MODE) {
+    try {
+      const raw = localStorage.getItem(key);
+      if (!raw) return true; // No data → must fetch
+      return false; // Has data → never stale (admin must explicitly invalidate)
+    } catch {
+      return true;
+    }
+  }
+
+  // ── Standard TTL-based staleness (unused when FROZEN_MODE is on) ──
   try {
     const ts = localStorage.getItem(getTimestampKey(key));
     if (!ts) return true;

@@ -89,6 +89,20 @@ if (typeof window !== 'undefined' && !_cacheHydrated) {
     if (cachedDatasources) {
       useAppStore.getState().setDataSources(cachedDatasources as any);
     }
+    // ━━━ Admin state hydration — instant restore, 0 network fetch ━━━
+    const adminStateRaw = localStorage.getItem('abaya_admin_state');
+    if (adminStateRaw) {
+      const adminState = JSON.parse(adminStateRaw);
+      // Only restore if less than 24h old (session cookie likely still valid)
+      if (Date.now() - adminState.timestamp < 24 * 60 * 60 * 1000) {
+        if (adminState.isAdmin) useAppStore.getState().setIsAdmin(true);
+        if (adminState.adminUser) useAppStore.getState().setAdminUser(adminState.adminUser);
+        if (adminState.googleSession) useAppStore.getState().setGoogleSession(adminState.googleSession);
+      } else {
+        // Stale admin state — clear it
+        localStorage.removeItem('abaya_admin_state');
+      }
+    }
   } catch {
     // Cache hydration failure — will fall back to network
   }
@@ -155,50 +169,56 @@ function HomeContent() {
     }
   }, [setView, setPillar, setSettingsTab]);
 
-  // Check auth on mount (non-blocking — catalog is always visible)
+  // ━━━ PHASE 1: Auth locked — NO automatic fetch on mount ━━━━━━━━━━━
+  // Admin state is hydrated from localStorage at module level (instant, 0ms).
+  // Public visitors get 0 auth fetch. Returning admins are restored instantly.
+  //
+  // Lazy session verification: ONLY if admin was restored from cache,
+  // verify the session is still valid server-side (non-blocking, background).
+  // If session expired → gracefully clear admin state.
   useEffect(() => {
-    const checkAuth = async () => {
+    // Skip verification for public visitors (isAdmin=false after hydration)
+    if (!isAdmin) return;
+    const verifySession = async () => {
       try {
         const res = await fetch('/api/auth');
         if (res.ok) {
           const json = await res.json();
           if (json.authenticated && json.admin) {
-            setIsAdmin(true);
+            // Session still valid — update admin user info
             setAdminUser(json.admin);
+          } else {
+            // Session expired — clear admin state gracefully
+            setIsAdmin(false);
+            setAdminUser(null);
+            localStorage.removeItem('abaya_admin_state');
           }
+        } else {
+          // Auth endpoint error — session likely expired
+          setIsAdmin(false);
+          setAdminUser(null);
+          localStorage.removeItem('abaya_admin_state');
         }
       } catch {
-        // Not authenticated — that's fine, public visitor
+        // Network error — keep current admin state (offline-first)
       }
     };
-    checkAuth();
-  }, [setIsAdmin, setAdminUser]);
+    verifySession();
+  }, []);
 
-  // Check Google session on mount
+  // ━━━ Persist admin state to localStorage on change ━━━
   useEffect(() => {
-    const checkGoogleSession = async () => {
-      try {
-        const res = await fetch('/api/google/session');
-        if (res.ok) {
-          const json = await res.json();
-          if (json.data?.connected) {
-            setGoogleSession({
-              id: json.data.id,
-              email: json.data.email,
-              name: json.data.name,
-              picture: json.data.picture,
-              scope: json.data.scope || '',
-              createdAt: json.data.createdAt,
-              updatedAt: json.data.updatedAt,
-            });
-          }
-        }
-      } catch {
-        // No Google session
-      }
-    };
-    checkGoogleSession();
-  }, [setGoogleSession]);
+    if (isAdmin && adminUser) {
+      localStorage.setItem('abaya_admin_state', JSON.stringify({
+        isAdmin: true,
+        adminUser: { id: adminUser.id, email: adminUser.email, name: adminUser.name, role: adminUser.role },
+        googleSession: useAppStore.getState().googleSession || null,
+        timestamp: Date.now(),
+      }));
+    } else if (!isAdmin) {
+      localStorage.removeItem('abaya_admin_state');
+    }
+  }, [isAdmin, adminUser]);
 
   // Handle Google OAuth callback redirect from server
   useEffect(() => {
@@ -257,10 +277,10 @@ function HomeContent() {
     }
   }, [setGoogleSession]);
 
-  // ━━━ Per-key stale-aware background sync ━━━━━━━━━━━━━━━━━━━━━━━━━━━
-  // Each key has its own TTL and timestamp — no cross-key desynchronization.
-  // catalog/datasources: 2min TTL (admin-modifiable, always revalidated)
-  // categories/colormap: 30min TTL (rarely change, skip network entirely)
+  // ━━━ Cache-first data loading (FROZEN MODE) ━━━━━━━━━━━━━━━━━━━━━━━━━
+  // FROZEN_MODE: isCacheFresh() returns true whenever data exists (no TTL expiry).
+  // Network fetch only happens on FIRST visit (no cache) or after admin Force Refresh.
+  // This eliminates the "silent sync" that re-fetched every 2 minutes.
   const loadData = useCallback(async () => {
     // ── If BOTH catalog and datasources are fresh, skip network fetch entirely ──
     const catalogFresh = isCacheFresh(CACHE_KEYS.catalog);
