@@ -645,3 +645,42 @@ Stage Summary:
 - The sticky product info block now has proper height constraints
 - Safari/iOS 15 fallback ensures no visual overflow on older browsers
 - Scrollbar anti-vibration fix targets the correct root html element
+
+---
+Task ID: 2
+Agent: Z.ai Code (main)
+Task: Apply 4 structural bug fixes from audit — filter bar, lazy load, render cascade, sticky containment
+
+Work Log:
+- Read CatalogPreview.tsx (1291 lines) to identify exact line numbers for all 4 bugs
+- Bug #1: Replaced `sticky top-[52px] z-20 backdrop-blur-md` inline className on both filter bar
+  containers (line 900 and 982) with `catalog-filter-bar-wrap` CSS class (position: relative)
+- Bug #2: Added `width={300} height={400}` attributes on product card <img> (line ~1074)
+- Bug #3: Removed render-body `setCurrentPage(1)` pattern (lines 716-720) — tried useEffect
+  and useRef but React 19 strict lint rejected both. Final solution: moved setCurrentPage(1)
+  directly into the search input's onChange handler (line 886)
+- Bug #4: Replaced `overflow: hidden; overflow: clip;` on `.product-page-layout` and
+  `.product-page-gallery` with `contain: layout paint` — clips overflow without creating
+  scroll context, preserving position:sticky
+- Added `.catalog-filter-bar-wrap` CSS class in globals.css with position: relative,
+  backdrop-filter, and border-bottom
+- Lint passed clean after all fixes
+- Committed as bbd08ce and pushed to main
+- Vercel auto-deploy triggered from GitHub push
+- Browser verification on production confirmed all 4 fixes are active:
+  - Filter bar: position "relative" (not sticky) ✅
+  - .catalog-filter-bar-wrap: EXISTS ✅
+  - img width="300" height="400" ✅
+  - .product-page-layout contain: "layout paint" ✅
+  - .product-page-gallery contain: "layout paint" ✅
+  - .product-page-info position: "sticky" ✅
+  - .product-page-info maxHeight: "481px" ✅
+
+Stage Summary:
+- Commit SHA: bbd08ce
+- 4 structural fixes deployed and verified on production
+- No lint errors
+- Filter bar no longer sticky-inline — uses CSS class instead
+- Product card images have explicit dimensions preventing lazy-load collapse
+- No more render-time setState — page reset co-located in event handler
+- Product page sticky preserved via CSS contain instead of overflow
