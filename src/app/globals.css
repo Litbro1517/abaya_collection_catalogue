@@ -359,6 +359,14 @@ html {
 }
 
 /* ── Catalog Filter Bar ── */
+.catalog-filter-bar-wrap {
+  position: relative;
+  width: 100%;
+  border-bottom: 1px solid var(--client-pp-divider, rgba(201,168,76,0.12));
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+}
+
 .catalog-filter-bar {
   max-width: 1270px;
   margin: 0 auto;
@@ -1195,8 +1203,7 @@ img {
   gap: 48px;
   align-items: start;
   min-width: 0;
-  overflow: hidden;   /* Safari/iOS 15 fallback — prevents visual overflow */
-  overflow: clip;     /* Modern override — clips without creating scroll context, preserving sticky */
+  contain: layout paint;   /* Bug #4 fix: contains overflow WITHOUT creating scroll context — sticky works */
 }
 
 @media (min-width: 1280px) {
@@ -1217,8 +1224,7 @@ img {
 .product-page-gallery {
   position: relative;
   min-width: 0;
-  overflow: hidden;   /* Safari/iOS 15 fallback — prevents visual overflow */
-  overflow: clip;     /* Modern override — clips without creating scroll context, preserving sticky */
+  contain: layout paint;   /* Bug #4 fix: contains overflow without scroll context — sticky preserved */
 }
 
 /* ── Carousel ── */

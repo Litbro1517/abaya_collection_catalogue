@@ -713,11 +713,7 @@ export function CatalogPreview({ onAdminLogin }: CatalogPreviewProps) {
     currentPage * ITEMS_PER_PAGE
   );
 
-  const [lastSearchQuery, setLastSearchQuery] = useState('');
-  if (searchQuery !== lastSearchQuery) {
-    setLastSearchQuery(searchQuery);
-    setCurrentPage(1);
-  }
+
 
   const filterOptions = getFilterOptions();
 
@@ -887,7 +883,7 @@ export function CatalogPreview({ onAdminLogin }: CatalogPreviewProps) {
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4" style={{ color: 'var(--muted-foreground)' }} />
             <Input
               value={searchQuery}
-              onChange={e => setSearchQuery(e.target.value)}
+              onChange={e => { setSearchQuery(e.target.value); setCurrentPage(1); }}
               placeholder="Rechercher..."
               className="h-10 pl-10 text-sm rounded-full border-gray-200 bg-gray-50 focus:bg-white"
             />
@@ -897,7 +893,7 @@ export function CatalogPreview({ onAdminLogin }: CatalogPreviewProps) {
 
       {/* ━━━ Two-Level Dynamic Category Filter ━━━━━━━━━━━━━━━━━━━━━━━━━ */}
       {dynamicCategories.length > 0 ? (
-        <div className="sticky top-[52px] z-20 border-b backdrop-blur-md" style={{ backgroundColor: `${bgColor}ee`, borderColor: `${primaryColor}20` }}>
+        <div className="catalog-filter-bar-wrap" style={{ backgroundColor: `${bgColor}ee`, borderColor: `${primaryColor}20` }}>
           {/* ── Level 1: Macro Categories ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */}
           <div className="catalog-filter-bar no-scrollbar">
             {/* "Tout" pill */}
@@ -979,7 +975,7 @@ export function CatalogPreview({ onAdminLogin }: CatalogPreviewProps) {
           })()}
         </div>
       ) : filterOptions.length > 1 ? (
-        <div className="sticky top-[52px] z-20 border-b backdrop-blur-md" style={{ backgroundColor: `${bgColor}ee`, borderColor: `${primaryColor}20` }}>
+        <div className="catalog-filter-bar-wrap" style={{ backgroundColor: `${bgColor}ee`, borderColor: `${primaryColor}20` }}>
           <div className="catalog-filter-bar no-scrollbar">
             {filterOptions.map(opt => (
               <button
@@ -1074,6 +1070,8 @@ export function CatalogPreview({ onAdminLogin }: CatalogPreviewProps) {
                     <img
                       src={resolveDirectImageUrl(coverUrl, 800)}
                       alt={title}
+                      width={300}
+                      height={400}
                       loading="lazy"
                       decoding="async"
                       className="product-card-img"
