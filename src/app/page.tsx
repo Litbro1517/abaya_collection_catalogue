@@ -257,15 +257,15 @@ function HomeContent() {
     }
   }, [setGoogleSession]);
 
-  // ━━━ Stale-aware background sync ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-  // Fresh cache (within 30 min TTL) → SKIP network fetch entirely → 0ms latency
-  // Stale cache (past TTL) → display cached data + sync in background
-  // First visit (no cache) → spinner → network fetch → cache write
+  // ━━━ Per-key stale-aware background sync ━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  // Each key has its own TTL and timestamp — no cross-key desynchronization.
+  // catalog/datasources: 2min TTL (admin-modifiable, always revalidated)
+  // categories/colormap: 30min TTL (rarely change, skip network entirely)
   const loadData = useCallback(async () => {
-    // ── If cache is fresh, skip network fetch entirely ──
-    // This is the key optimization: within 30 min, NO network request is made.
-    // The data is already in Zustand from module-level cache hydration.
-    if (isCacheFresh() && hasCachedData) {
+    // ── If BOTH catalog and datasources are fresh, skip network fetch entirely ──
+    const catalogFresh = isCacheFresh(CACHE_KEYS.catalog);
+    const dsFresh = isCacheFresh(CACHE_KEYS.datasources);
+    if (catalogFresh && dsFresh && hasCachedData) {
       setInitializing(false);
       setLoading(false);
       return;
@@ -273,6 +273,8 @@ function HomeContent() {
 
     setLoading(true);
     try {
+      // Always fetch both — catalog/datasources are admin-modifiable (2min TTL)
+      // so we re-validate on every page load within the TTL window
       const [dsRes, catRes] = await Promise.all([
         fetch('/api/datasources'),
         fetch('/api/catalog'),

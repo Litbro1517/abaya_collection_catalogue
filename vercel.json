@@ -1,15 +1,6 @@
 {
   "headers": [
     {
-      "source": "/api/catalog",
-      "headers": [
-        {
-          "key": "Cache-Control",
-          "value": "public, s-maxage=120, stale-while-revalidate=600"
-        }
-      ]
-    },
-    {
       "source": "/api/categories",
       "headers": [
         {
@@ -20,15 +11,6 @@
     },
     {
       "source": "/api/colormap",
-      "headers": [
-        {
-          "key": "Cache-Control",
-          "value": "public, s-maxage=120, stale-while-revalidate=600"
-        }
-      ]
-    },
-    {
-      "source": "/api/datasources",
       "headers": [
         {
           "key": "Cache-Control",

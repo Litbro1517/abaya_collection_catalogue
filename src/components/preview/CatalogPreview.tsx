@@ -279,10 +279,10 @@ export function CatalogPreview({ onAdminLogin }: CatalogPreviewProps) {
     return cached && Object.keys(cached).length > 0 ? cached : {};
   });
   useEffect(() => {
-    // ━━━ Stale-aware sync: skip network if cache is fresh (within 30 min TTL) ━━━
+    // ━━━ Per-key stale-aware sync: colormap (30 min TTL) ━━━
     // Fresh cache → 0ms latency, no network request at all
     // Stale/no cache → fetch from network, update silently
-    if (!isCacheStale()) return;
+    if (!isCacheStale(CACHE_KEYS.colormap)) return;
     fetch('/api/colormap')
       .then(r => r.ok ? r.json() : null)
       .then(json => {
@@ -305,11 +305,11 @@ export function CatalogPreview({ onAdminLogin }: CatalogPreviewProps) {
     const cached = readCache<DynamicCategory[]>(CACHE_KEYS.categories);
     return cached && cached.length > 0 ? cached : [];
   });
-  // ━━━ Stale-aware sync: skip network if cache is fresh (within 30 min TTL) ━━━
+  // ━━━ Per-key stale-aware sync: categories (30 min TTL) ━━━
   // Fresh cache → 0ms latency, no network request at all
   // Stale/no cache → fetch from network, update silently
   useEffect(() => {
-    if (!isCacheStale()) return;
+    if (!isCacheStale(CACHE_KEYS.categories)) return;
     const loadCategories = async () => {
       try {
         const res = await fetch('/api/categories');
@@ -371,14 +371,14 @@ export function CatalogPreview({ onAdminLogin }: CatalogPreviewProps) {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   }, [selectedProduct]);
 
-  // ━━━ Stale-aware Network sync: skip fetch if cache is fresh ━━━
+  // ━━━ Per-key stale-aware Network sync: sections (2 min TTL) ━━━
   // Uses ref to prevent duplicate fetches
   // Fresh cache → skip entirely (sections already in state from lazy initializer)
   // Stale/no cache → fetch from network, update silently
   useEffect(() => {
     if (!catalog?.sections || networkSyncDone.current) return;
-    // Skip network sync if cache is fresh — data already loaded from localStorage
-    if (!isCacheStale()) {
+    // Skip network sync if sections cache is fresh — data already loaded from localStorage
+    if (!isCacheStale(CACHE_KEYS.sections)) {
       networkSyncDone.current = true;
       return;
     }

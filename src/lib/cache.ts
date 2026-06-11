@@ -1,12 +1,13 @@
 // ━━━ Offline-First Cache Utility ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 // Centralizes all localStorage cache logic:
-// - TTL management (30-minute expiry — categories/colormap rarely change)
+// - Per-key TTL management (dynamic data: 2min, static structures: 30min)
+// - Per-key timestamps (no global timestamp — prevents false stale detection)
 // - Size guard (never exceed ~4MB per write)
 // - Data sanitization (strip Prisma metadata before caching)
 // - Cache-first read, stale-aware background sync
 //
 // Architecture Decision: readCache() ALWAYS returns data (offline-first principle)
-// isCacheStale() is checked at call sites to decide whether to trigger network sync.
+// isCacheStale(key) is checked at call sites per-key to decide whether to sync.
 // Fresh cache → skip network entirely → 0ms latency.
 // Stale cache → display cached data + background sync → user never waits.
 
@@ -17,13 +18,18 @@ export const CACHE_KEYS = {
   sections:    'abaya_cache_sections',
   categories:  'abaya_cache_categories',
   colormap:    'abaya_cache_colormap',
-  timestamp:   'abaya_cache_ts',
 } as const;
 
-// ── TTL: 30 minutes ────────────────────────────────────────────────────
-// Categories, colormap, and datasources rarely change in production.
-// 30 min balances freshness vs. eliminating unnecessary network requests.
-const CACHE_TTL = 30 * 60 * 1000;
+// ── Per-Key TTL Configuration ───────────────────────────────────────────
+// Dynamic data (admin-modifiable) = short TTL → always revalidated quickly
+// Static structures (rarely change) = long TTL → skip network for 30 min
+const TTL_BY_KEY: Record<CacheKey, number> = {
+  [CACHE_KEYS.catalog]:     2 * 60 * 1000,   //  2 min — products, settings: admin-modifiable
+  [CACHE_KEYS.sections]:    2 * 60 * 1000,   //  2 min — product rows: admin-modifiable
+  [CACHE_KEYS.datasources]: 5 * 60 * 1000,   //  5 min — data source list: semi-static
+  [CACHE_KEYS.categories]:  30 * 60 * 1000,  // 30 min — category structure: rarely changes
+  [CACHE_KEYS.colormap]:    30 * 60 * 1000,  // 30 min — color map: rarely changes
+};
 
 // ── Max size per write: 4MB (localStorage limit ~5MB per origin) ───────
 const MAX_CACHE_SIZE = 4_000_000;
@@ -31,17 +37,19 @@ const MAX_CACHE_SIZE = 4_000_000;
 // ── Type helpers ────────────────────────────────────────────────────────
 type CacheKey = (typeof CACHE_KEYS)[keyof typeof CACHE_KEYS];
 
+// ── Per-Key Timestamp Helper ────────────────────────────────────────────
+// Each cache key gets its own timestamp: `${key}_ts`
+// This prevents cross-key desynchronization (Bug #2 from audit)
+function getTimestampKey(key: CacheKey): string {
+  return `${key}_ts`;
+}
+
 // ── Core read/write ─────────────────────────────────────────────────────
 
 /**
  * Read cached data. ALWAYS returns data if available (offline-first principle).
  * Returns null only if the key doesn't exist or data is malformed.
- * Staleness is NOT checked here — use isCacheStale() at call sites to decide
- * whether to trigger a background network sync.
- *
- * Why not reject stale data? Because displaying stale data instantly is better
- * than showing a spinner. The caller decides: fresh cache → skip network,
- * stale cache → show cached + sync in background.
+ * Staleness is NOT checked here — use isCacheStale(key) at call sites.
  */
 export function readCache<T = unknown>(key: CacheKey): T | null {
   if (typeof window === 'undefined') return null;
@@ -56,37 +64,39 @@ export function readCache<T = unknown>(key: CacheKey): T | null {
 }
 
 /**
- * Check if the global cache is stale (older than CACHE_TTL).
- * Returns true if no timestamp exists or if cache has expired.
+ * Check if a SPECIFIC cache key is stale (older than its per-key TTL).
+ * Each key has its own TTL and its own timestamp — no cross-key interference.
  *
- * Usage pattern at call sites:
- *   if (isCacheStale()) {
- *     // Cache is old → trigger background network sync
- *     fetchFreshData().then(updateCache);
+ * Usage pattern:
+ *   if (isCacheStale(CACHE_KEYS.categories)) {
+ *     // Categories cache is old → trigger background network sync
+ *     fetchCategories().then(updateCache);
  *   }
  *   // else: cache is fresh → skip network entirely → 0ms latency
  */
-export function isCacheStale(): boolean {
+export function isCacheStale(key: CacheKey): boolean {
   if (typeof window === 'undefined') return true;
   try {
-    const ts = localStorage.getItem(CACHE_KEYS.timestamp);
+    const ts = localStorage.getItem(getTimestampKey(key));
     if (!ts) return true;
-    return Date.now() - parseInt(ts) > CACHE_TTL;
+    const ttl = TTL_BY_KEY[key] ?? 5 * 60 * 1000; // fallback: 5 min
+    return Date.now() - parseInt(ts) > ttl;
   } catch {
     return true;
   }
 }
 
 /**
- * Convenience: inverse of isCacheStale().
- * When true, the cached data is fresh and NO network fetch is needed.
+ * Convenience: inverse of isCacheStale(key).
+ * When true, the cached data for this key is fresh and NO network fetch is needed.
  */
-export function isCacheFresh(): boolean {
-  return !isCacheStale();
+export function isCacheFresh(key: CacheKey): boolean {
+  return !isCacheStale(key);
 }
 
 /**
- * Write data to cache. Skips write if serialized size exceeds MAX_CACHE_SIZE.
+ * Write data to cache with a PER-KEY timestamp.
+ * Skips write if serialized size exceeds MAX_CACHE_SIZE.
  * Accepts an optional sanitizer to strip heavy fields before caching.
  */
 export function writeCache<T = unknown>(
@@ -103,22 +113,25 @@ export function writeCache<T = unknown>(
       return;
     }
     localStorage.setItem(key, serialized);
-    // Update global timestamp
-    localStorage.setItem(CACHE_KEYS.timestamp, String(Date.now()));
+    // Per-key timestamp — each key tracks its own freshness independently
+    localStorage.setItem(getTimestampKey(key), String(Date.now()));
   } catch (e) {
     console.warn(`[cache] Write failed for ${key}:`, e);
   }
 }
 
-
-
 /**
- * Clear ALL abaya_cache_* keys from localStorage.
+ * Clear ALL abaya_cache_* keys AND their per-key timestamps from localStorage.
  */
 export function clearAllCache(): void {
   if (typeof window === 'undefined') return;
   try {
+    // Remove data keys
     Object.values(CACHE_KEYS).forEach(k => localStorage.removeItem(k));
+    // Remove per-key timestamps
+    Object.values(CACHE_KEYS).forEach(k => localStorage.removeItem(`${k}_ts`));
+    // Also remove legacy global timestamp if it exists (migration cleanup)
+    localStorage.removeItem('abaya_cache_ts');
   } catch {
     // Silently fail — localStorage might be unavailable
   }
