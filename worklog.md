@@ -713,3 +713,24 @@ Stage Summary:
 - Sticky now works perfectly: info block stays at top:80px while scrolling within gallery bounds
 - Also removed contain:layout paint (commit d6c2151) which also broke sticky
 - Final CSS state: .product-page-layout and .product-page-gallery have NO overflow/contain properties
+
+---
+Task ID: clean-reset-redesign
+Agent: main
+Task: Reset + réappliquer design stable + fix page produit correct
+
+Work Log:
+- Discovered git filter-branch had reverted local files to pre-redesign state
+- Re-applied ALL catalog redesign changes from scratch (Règles 1-5)
+- Applied ProductPage restructuring with CORRECT approach:
+  - Breadcrumb moved inside left column (above carousel, scrolls with images)
+  - Right column: position:fixed (not sticky) — Justification: sticky top-0 hides behind z-30 header
+  - Right column: margin:auto 0 inner wrapper — Justification: justify-content:center + overflow clips top content
+  - Single-column layout with padding-right to offset fixed right panel
+- Force pushed to main (commit c72fd4b)
+- Verified Vercel deployment: all new CSS and JS classes present
+
+Key Technical Decisions:
+1. position:fixed > position:sticky for right column: Sticky top-0 places content behind header. Fixed completely removes from scroll flow.
+2. margin:auto 0 > justify-content:center: The CSS spec bug where justify-content:center + overflow-y:auto makes top content unreachable when content overflows.
+3. Single-column + padding-right > grid 2-col: Since right column is fixed (out of flow), grid column is empty. Block layout with right padding is cleaner.
