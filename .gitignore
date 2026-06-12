@@ -71,3 +71,4 @@ dev-daemon.sh
 start.sh
 run-server.sh
 server.log
+tool-results/

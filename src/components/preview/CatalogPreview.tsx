@@ -721,7 +721,7 @@ export function CatalogPreview({ onAdminLogin }: CatalogPreviewProps) {
   // ── PERSISTENT HEADER (sticky top bar — always visible) ──
   // ═══════════════════════════════════════════════════════════════════════
   const renderHeader = () => (
-    <header className="catalog-header sticky top-0 z-30 border-b bg-white/95" style={{ borderColor: 'rgba(201,168,76,0.08)' }}>
+    <header className="catalog-header sticky top-0 z-30 bg-white" style={{ borderBottom: '1px solid rgba(0,0,0,0.06)' }}>
       <div className="catalog-header-inner">
         {/* Back arrow — only visible on detail view */}
         {isDetailView ? (
@@ -876,38 +876,49 @@ export function CatalogPreview({ onAdminLogin }: CatalogPreviewProps) {
   // ═══════════════════════════════════════════════════════════════════════
   const renderGridView = () => (
     <>
-      {/* Search bar below header */}
-      {s?.enableSearch && (
-        <div className="mx-auto max-w-[1270px] px-4 sm:px-8 pt-4">
-          <div className="relative w-full max-w-md mx-auto">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4" style={{ color: 'var(--muted-foreground)' }} />
-            <Input
-              value={searchQuery}
-              onChange={e => { setSearchQuery(e.target.value); setCurrentPage(1); }}
-              placeholder="Rechercher..."
-              className="h-10 pl-10 text-sm rounded-full border-gray-200 bg-gray-50 focus:bg-white"
-            />
-          </div>
+      {/* ═══ Règle 1: Hero Header — isolated warm cream block ═══ */}
+      <div className="catalog-hero-header">
+        <div className="catalog-hero-header-inner">
+          {(() => {
+            const selectedCat = dynamicCategories.find(c => c.slug === activeMacroFilter);
+            const displayTitle = selectedCat ? selectedCat.label : (sections.length > 0 && sections[0].section.title ? sections[0].section.title : catalogName);
+            const displaySubtitle = selectedCat ? '' : (sections.length > 0 && sections[0].section.subtitle ? sections[0].section.subtitle : '');
+            return (
+              <>
+                <h1 className="catalog-hero-title">{displayTitle}</h1>
+                {displaySubtitle && <p className="catalog-hero-subtitle">{displaySubtitle}</p>}
+              </>
+            );
+          })()}
+          {s?.enableSearch && (
+            <div className="mt-5 relative w-full max-w-md">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4" style={{ color: '#8E8985' }} />
+              <Input
+                value={searchQuery}
+                onChange={e => { setSearchQuery(e.target.value); setCurrentPage(1); }}
+                placeholder="Rechercher..."
+                className="h-10 pl-10 text-sm rounded-full bg-white/70 border-0 focus:bg-white focus:ring-1 focus:ring-[#C9A84C]/30"
+                style={{ boxShadow: '0 1px 3px rgba(0,0,0,0.04)' }}
+              />
+            </div>
+          )}
         </div>
-      )}
+      </div>
 
-      {/* ━━━ Two-Level Dynamic Category Filter ━━━━━━━━━━━━━━━━━━━━━━━━━ */}
+      {/* ═══ Règle 2 & 3: Filters on cream white background ═══ */}
       {dynamicCategories.length > 0 ? (
-        <div className="catalog-filter-bar-wrap" style={{ backgroundColor: `${bgColor}ee`, borderColor: `${primaryColor}20` }}>
-          {/* ── Level 1: Macro Categories ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */}
+        <div className="catalog-filter-bar-wrap">
+          {/* ── Level 1: Macro Categories — elongated capsule pills ── */}
           <div className="catalog-filter-bar no-scrollbar">
-            {/* "Tout" pill */}
             <button
               className={cn(
-                'px-4 py-1.5 rounded-full text-xs sm:text-sm font-medium whitespace-nowrap transition-all duration-200',
-                activeMacroFilter === 'all' ? 'btn-filter-active shadow-sm' : 'text-foreground hover:opacity-80'
+                'px-5 py-1.5 rounded-[999px] text-xs sm:text-sm font-medium whitespace-nowrap transition-all duration-200',
+                activeMacroFilter === 'all' ? 'btn-filter-active' : 'btn-filter-default'
               )}
-              style={activeMacroFilter !== 'all' ? { border: `1px solid ${primaryColor}30` } : undefined}
-              onClick={() => { setActiveMacroFilter('all'); setActiveMicroFilter('all'); setCurrentPage(1); }}
+              onClick={() => { setActiveMacroFilter('all'); setActiveMicroFilter('all'); setCurrentPage(1); window.scrollTo({ top: 0, behavior: 'instant' }); }}
             >
               Tout
             </button>
-            {/* Dynamic category pills with product count */}
             {(() => {
               return dynamicCategories
                 .filter(cat => cat.visible)
@@ -917,14 +928,14 @@ export function CatalogPreview({ onAdminLogin }: CatalogPreviewProps) {
                     <button
                       key={cat.slug}
                       className={cn(
-                        'px-4 py-1.5 rounded-full text-xs sm:text-sm font-medium whitespace-nowrap transition-all duration-200',
-                        activeMacroFilter === cat.slug ? 'btn-filter-active shadow-sm' : 'text-foreground hover:opacity-80'
+                        'px-5 py-1.5 rounded-[999px] text-xs sm:text-sm font-medium whitespace-nowrap transition-all duration-200',
+                        activeMacroFilter === cat.slug ? 'btn-filter-active' : 'btn-filter-default'
                       )}
-                      style={activeMacroFilter !== cat.slug ? { border: `1px solid ${primaryColor}30` } : undefined}
                       onClick={() => {
                         setActiveMacroFilter(cat.slug);
                         setActiveMicroFilter('all');
                         setCurrentPage(1);
+                        window.scrollTo({ top: 0, behavior: 'instant' });
                       }}
                     >
                       {cat.label}{count > 0 ? ` (${count})` : ''}
@@ -934,58 +945,59 @@ export function CatalogPreview({ onAdminLogin }: CatalogPreviewProps) {
             })()}
           </div>
 
-          {/* ── Level 2: Micro Sub-filters (only when a macro category is selected) ━━ */}
-          {/* ━━━ Brand Chart color: inactive text uses chart-3 (#8B4513) instead of noir ━━━ */}
-          {activeMacroFilter !== 'all' && (() => {
-            const selectedCat = dynamicCategories.find(c => c.slug === activeMacroFilter);
-            if (!selectedCat || !selectedCat.subCategories?.length) return null;
-            const visibleSubs = selectedCat.subCategories.filter(sub => sub.visible);
-            if (visibleSubs.length === 0) return null;
-            const subCounts = subCategoryProductCounts;
-            // Micro filter: uses global CSS classes .btn-filter-sub-active / .btn-filter-sub-inactive
-            return (
-              <div className="catalog-filter-bar no-scrollbar" style={{ paddingTop: '4px', paddingBottom: '8px' }}>
-                {/* "Tous" sub-pill */}
-                <button
-                  className={cn(
-                    'px-3.5 py-1 rounded-full text-[11px] sm:text-xs font-medium whitespace-nowrap transition-all duration-200',
-                    activeMicroFilter === 'all' ? 'btn-filter-sub-active shadow-sm' : 'btn-filter-sub-inactive hover:opacity-80'
-                  )}
-                  onClick={() => { setActiveMicroFilter('all'); setCurrentPage(1); }}
-                >
-                  Tous
-                </button>
-                {visibleSubs.map(sub => {
-                  const count = subCounts.get(sub.slug) || 0;
-                  return (
-                    <button
-                      key={sub.slug}
-                      className={cn(
-                        'px-3.5 py-1 rounded-full text-[11px] sm:text-xs font-medium whitespace-nowrap transition-all duration-200',
-                        activeMicroFilter === sub.slug ? 'btn-filter-sub-active shadow-sm' : 'btn-filter-sub-inactive hover:opacity-80'
-                      )}
-                      onClick={() => { setActiveMicroFilter(sub.slug); setCurrentPage(1); }}
-                    >
-                      {sub.label}{count > 0 ? ` (${count})` : ''}
-                    </button>
-                  );
-                })}
-              </div>
-            );
-          })()}
+          {/* ── Level 2: Micro sub-filters — rectangular plain text, ALWAYS mounted ── */}
+          <div className="catalog-filter-bar no-scrollbar catalog-subfilter-slot"
+            style={{
+              paddingBottom: '8px',
+              opacity: activeMacroFilter !== 'all' && (() => {
+                const c = dynamicCategories.find(x => x.slug === activeMacroFilter);
+                return c && c.subCategories?.filter(s => s.visible).length;
+              })() ? 1 : 0,
+              pointerEvents: activeMacroFilter !== 'all' ? 'auto' : 'none'
+            }}>
+            <button
+              className={cn(
+                'px-3 py-1 rounded-md text-[11px] sm:text-xs font-medium whitespace-nowrap transition-colors duration-200',
+                activeMicroFilter === 'all' ? 'btn-filter-sub-active' : 'btn-filter-sub-inactive'
+              )}
+              onClick={() => { setActiveMicroFilter('all'); setCurrentPage(1); window.scrollTo({ top: 0, behavior: 'instant' }); }}
+            >
+              Tous
+            </button>
+            {(() => {
+              const selectedCat = dynamicCategories.find(c => c.slug === activeMacroFilter);
+              if (!selectedCat?.subCategories) return null;
+              const visibleSubs = selectedCat.subCategories.filter(sub => sub.visible);
+              const subCounts = subCategoryProductCounts;
+              return visibleSubs.map(sub => {
+                const count = subCounts.get(sub.slug) || 0;
+                return (
+                  <button
+                    key={sub.slug}
+                    className={cn(
+                      'px-3 py-1 rounded-md text-[11px] sm:text-xs font-medium whitespace-nowrap transition-colors duration-200',
+                      activeMicroFilter === sub.slug ? 'btn-filter-sub-active' : 'btn-filter-sub-inactive'
+                    )}
+                    onClick={() => { setActiveMicroFilter(sub.slug); setCurrentPage(1); window.scrollTo({ top: 0, behavior: 'instant' }); }}
+                  >
+                    {sub.label}{count > 0 ? ` (${count})` : ''}
+                  </button>
+                );
+              });
+            })()}
+          </div>
         </div>
       ) : filterOptions.length > 1 ? (
-        <div className="catalog-filter-bar-wrap" style={{ backgroundColor: `${bgColor}ee`, borderColor: `${primaryColor}20` }}>
+        <div className="catalog-filter-bar-wrap">
           <div className="catalog-filter-bar no-scrollbar">
             {filterOptions.map(opt => (
               <button
                 key={opt.value}
                 className={cn(
-                  'px-4 py-1.5 rounded-full text-xs sm:text-sm font-medium whitespace-nowrap transition-all duration-200',
-                  activeFilter === opt.value ? 'btn-filter-active shadow-sm' : 'text-foreground hover:opacity-80'
+                  'px-5 py-1.5 rounded-[999px] text-xs sm:text-sm font-medium whitespace-nowrap transition-all duration-200',
+                  activeFilter === opt.value ? 'btn-filter-active' : 'btn-filter-default'
                 )}
-                style={activeFilter !== opt.value ? { border: `1px solid ${primaryColor}30` } : undefined}
-                onClick={() => { setActiveFilter(opt.value); setCurrentPage(1); }}
+                onClick={() => { setActiveFilter(opt.value); setCurrentPage(1); window.scrollTo({ top: 0, behavior: 'instant' }); }}
               >
                 {opt.label}
               </button>
@@ -994,18 +1006,8 @@ export function CatalogPreview({ onAdminLogin }: CatalogPreviewProps) {
         </div>
       ) : null}
 
-      {/* ── Contextual Category Title ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */}
-      {activeMacroFilter !== 'all' && dynamicCategories.length > 0 && (() => {
-        const selectedCat = dynamicCategories.find(c => c.slug === activeMacroFilter);
-        if (!selectedCat) return null;
-        return (
-          <div className="mx-auto max-w-[1270px] px-4 sm:px-8 pt-6 pb-2">
-            <h2 className="text-2xl sm:text-3xl font-bold" style={{ color: 'var(--pivot-text)', fontFamily: "'Playfair Display', serif" }}>
-              {selectedCat.label}
-            </h2>
-          </div>
-        );
-      })()}
+      {/* Category title slot — hidden when hero header already shows it */}
+      <div className="catalog-title-slot" style={{ display: 'none' }} />
 
       {/* Error */}
       {loadError && (
@@ -1032,7 +1034,7 @@ export function CatalogPreview({ onAdminLogin }: CatalogPreviewProps) {
         )}
 
         {/* Glide-like grid */}
-        <div className="catalog-grid">
+        <div className="catalog-grid catalog-grid-fade">
           {paginatedProducts.map(({ row, columns, section, config, statut, stockState }) => {
             const rawData = row.data as Record<string, unknown>;
             const coverRawVal = config.coverColumn ? rawData[config.coverColumn] : null;
@@ -1278,7 +1280,7 @@ export function CatalogPreview({ onAdminLogin }: CatalogPreviewProps) {
   // ── MAIN RENDER ──
   // ═══════════════════════════════════════════════════════════════════════
   return (
-    <div className="min-h-screen flex flex-col" style={{ backgroundColor: bgColor }}>
+    <div className="min-h-screen flex flex-col" style={{ backgroundColor: '#FAF8F5' }}>
       {/* Persistent Header — always visible */}
       {renderHeader()}
 

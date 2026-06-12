@@ -411,22 +411,22 @@ export function ProductPage({
 
   return (
     <main className="product-page">
-      {/* ── Breadcrumb ── */}
-      <nav className="product-page-breadcrumb">
-        <button onClick={onBack} className="breadcrumb-back" aria-label="Retour">
-          <ArrowLeft className="w-4 h-4" />
-        </button>
-        <button className="breadcrumb-link" onClick={onBack}>{catalogName}</button>
-        <span className="breadcrumb-sep">/</span>
-        <button className="breadcrumb-link" onClick={onBack}>{sectionTitle}</button>
-        <span className="breadcrumb-sep">/</span>
-        <span className="breadcrumb-current">{title}</span>
-      </nav>
-
       {/* ── Main Layout: Carousel + Info ── */}
       <div className="product-page-layout">
-        {/* ═══════ LEFT: Carousel + Thumbnails ═══════ */}
+        {/* ═══════ LEFT: Breadcrumb + Carousel + Thumbnails ═══════ */}
         <div className="product-page-gallery">
+          {/* ── Breadcrumb — inside left column, scrolls with images ── */}
+          <nav className="product-page-breadcrumb">
+            <button onClick={onBack} className="breadcrumb-back" aria-label="Retour">
+              <ArrowLeft className="w-4 h-4" />
+            </button>
+            <button className="breadcrumb-link" onClick={onBack}>{catalogName}</button>
+            <span className="breadcrumb-sep">/</span>
+            <button className="breadcrumb-link" onClick={onBack}>{sectionTitle}</button>
+            <span className="breadcrumb-sep">/</span>
+            <span className="breadcrumb-current">{title}</span>
+          </nav>
+
           {/* Main Carousel */}
           {carouselImages.length > 0 ? (
             <section
@@ -555,8 +555,9 @@ export function ProductPage({
           )}
         </div>
 
-        {/* ═══════ RIGHT: Product Info ═══════ */}
+        {/* ═══════ RIGHT: Product Info — fixed, centered in viewport ═══════ */}
         <div className="product-page-info">
+          <div className="product-page-info-inner">
           {/* ── Statut badge ── */}
           {statut === 'Nouveau' && stockState === 'en_stock' && (
             <div className="product-page-badge badge-nouveau">
@@ -707,6 +708,7 @@ export function ProductPage({
               Lien copié !
             </div>
           )}
+          </div>{/* end .product-page-info-inner */}
         </div>
       </div>
 

@@ -285,7 +285,14 @@ html {
    ═══════════════════════════════════════════════════════════════════════════ */
 
 /* ── Global Layout Containers ── */
-.catalog-container,
+.catalog-container {
+  min-height: calc(100vh - 220px);
+  max-width: 1270px;
+  margin: 0 auto;
+  padding: 24px 32px 48px;
+  background-color: #FAF8F5;
+}
+
 .detail-container {
   max-width: 1270px;
   margin: 0 auto;
@@ -360,21 +367,71 @@ html {
   opacity: 0.7;
 }
 
+/* ── Catalog Hero Header — isolated warm cream block at top ── */
+.catalog-hero-header {
+  background-color: #F7F4F1;
+  width: 100%;
+  padding: 40px 32px 44px;
+}
+
+.catalog-hero-header-inner {
+  max-width: 1270px;
+  margin: 0 auto;
+}
+
+.catalog-hero-title {
+  font-family: 'Playfair Display', serif;
+  font-size: 32px;
+  font-weight: 700;
+  color: #1B1713;
+  margin: 0 0 8px;
+  line-height: 1.2;
+}
+
+.catalog-hero-subtitle {
+  font-size: 14px;
+  color: #8E8985;
+  margin: 0;
+  line-height: 1.5;
+}
+
+@media (max-width: 640px) {
+  .catalog-hero-header {
+    padding: 28px 16px 32px;
+  }
+  .catalog-hero-title {
+    font-size: 24px;
+  }
+  .catalog-hero-subtitle {
+    font-size: 13px;
+  }
+}
+
 /* ── Catalog Filter Bar ── */
 .catalog-filter-bar-wrap {
   position: relative;
   width: 100%;
-  border-bottom: 1px solid var(--client-pp-divider, rgba(201,168,76,0.12));
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
+  background-color: #FAF8F5;
+  /* No border, no backdrop-filter — clean flat look */
+}
+
+.catalog-subfilter-slot {
+  min-height: 38px;
+  transition: opacity 0.3s ease;
+  padding-top: 8px;
+}
+
+.catalog-title-slot {
+  min-height: 0;
 }
 
 .catalog-filter-bar {
   max-width: 1270px;
   margin: 0 auto;
-  padding: 8px 32px;
+  padding: 10px 32px;
   display: flex;
-  gap: 8px;
+  gap: 10px;
+  align-items: center;
   overflow-x: auto;
 }
 
@@ -387,23 +444,41 @@ html {
 /* ── Category Filter Buttons ── */
 /* Level 1 — Macro: Noir (active state) */
 .btn-filter-active {
-  background-color: #1A1A1A;
+  background-color: #1B1713;
   color: #FFFFFF;
   border: none;
+  box-shadow: none;
+}
+
+/* Level 1 — Macro: Default capsule state (warm cream) */
+.btn-filter-default {
+  background-color: #F0EAE0;
+  color: #403C37;
+  border: none;
+}
+
+.btn-filter-default:hover {
+  background-color: #E8E0D2;
 }
 
 /* Level 2 — Micro: Doré (active state) */
 .btn-filter-sub-active {
-  background-color: var(--pivot-gold);
-  color: #FFFFFF;
+  background-color: transparent;
+  color: #C9A84C;
   border: none;
+  box-shadow: none;
+  font-weight: 600;
 }
 
 /* Level 2 — Micro: Inactive state */
 .btn-filter-sub-inactive {
-  background-color: rgba(201,168,76,0.08);
-  color: #8B4513;
-  border: 1px solid rgba(201,168,76,0.25);
+  background-color: transparent;
+  color: #96918E;
+  border: none;
+}
+
+.btn-filter-sub-inactive:hover {
+  color: #6B6560;
 }
 
 /* ── Catalog Toolbar (section title) ── */
@@ -412,7 +487,7 @@ html {
   align-items: center;
   justify-content: space-between;
   gap: 24px;
-  margin-bottom: 28px;
+  margin-bottom: 24px;
 }
 
 .catalog-toolbar h2 {
@@ -441,6 +516,10 @@ html {
     column-gap: 10px;
     row-gap: 24px;
   }
+}
+
+.catalog-grid-fade {
+  transition: opacity 0.3s ease;
 }
 
 /* ── Product Card ── */
@@ -1135,9 +1214,9 @@ img {
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 12px 0 16px;
-  border-bottom: 1px solid var(--client-pp-divider);
-  margin-bottom: 24px;
+  padding: 0 0 16px;
+  border-bottom: none;
+  margin-bottom: 16px;
   font-size: 13px;
   overflow-x: auto;
 }
@@ -1146,8 +1225,8 @@ img {
   .product-page-breadcrumb {
     font-size: 12px;
     gap: 6px;
-    padding: 8px 0 12px;
-    margin-bottom: 16px;
+    padding: 0 0 10px;
+    margin-bottom: 12px;
   }
 }
 
@@ -1199,27 +1278,23 @@ img {
 }
 
 /* ── Main Layout ── */
+/* Single column: right column is position:fixed, so grid 2-col is unnecessary.
+   Left column takes full width minus the fixed right panel space. */
 .product-page-layout {
-  display: grid;
-  grid-template-columns: 1fr 420px;
-  gap: 48px;
-  align-items: start;
+  display: block;
+  padding-right: 468px;   /* 420px right panel + 48px gap */
   min-width: 0;
-  /* No overflow/contain property — sticky requires ancestors without scroll context or containment.
-     The carousel inside .product-page-gallery already has its own overflow:hidden. */
 }
 
 @media (min-width: 1280px) {
   .product-page-layout {
-    grid-template-columns: 1fr 440px;
-    gap: 64px;
+    padding-right: 504px;  /* 440px right panel + 64px gap */
   }
 }
 
 @media (max-width: 900px) {
   .product-page-layout {
-    grid-template-columns: 1fr;
-    gap: 0;
+    padding-right: 0;
   }
 }
 
@@ -1352,21 +1427,50 @@ img {
 }
 
 /* ── Product Info (Right Column) ── */
+/* FIXED position: completely removed from scroll flow, pinned to screen.
+   Justification: sticky top-0 hides content behind the sticky header (z-30).
+   Fixed ensures the right column never scrolls, ever. The left column scrolls freely. */
 .product-page-info {
-  position: sticky;
-  top: 80px;
-  padding-top: 0;
+  position: fixed;
+  top: 0;
+  right: 0;
+  width: 420px;
+  height: 100vh;
   min-width: 0;
-  max-height: calc(100vh - 96px);   /* Sticky fix: constrain height so block stays within viewport */
-  overflow-y: auto;                  /* Sticky fix: internal scroll when content exceeds max-height */
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto;
+  background: #FAF8F5;
+  z-index: 10;
+}
+
+@media (min-width: 1280px) {
+  .product-page-info {
+    width: 440px;
+  }
+}
+
+/* Inner wrapper: margin:auto 0 instead of justify-content:center on parent.
+   Justification: justify-content:center + overflow clips top content when it overflows.
+   margin:auto 0 centers when content fits, allows normal scroll when it overflows. */
+.product-page-info-inner {
+  margin: auto 0;
+  padding: 32px 24px;
+  width: 100%;
 }
 
 @media (max-width: 900px) {
   .product-page-info {
     position: static;
-    padding-top: 20px;
-    max-height: none;      /* No height constraint on mobile — content flows naturally */
-    overflow-y: visible;    /* No internal scroll on mobile */
+    width: 100%;
+    height: auto;
+    background: transparent;
+    display: block;
+    overflow-y: visible;
+  }
+  .product-page-info-inner {
+    margin: 0;
+    padding: 20px 0 0 0;
   }
 }
 
