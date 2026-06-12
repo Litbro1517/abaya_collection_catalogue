@@ -921,3 +921,26 @@ Stage Summary:
 - relationLookupMap now NEVER uses UUID as pivotKey (unless table has zero TEXT columns)
 - Both explicit (`targetColumnId="nom"`) and legacy (`targetColumnId=""`) columns now resolve correctly
 - Diagnostic proof: "tes (copie)" column went from ❌ DÉSALIGNÉ TOTAL → ✅ ALIGNÉ
+
+---
+Task ID: 5
+Agent: Main Agent
+Task: Deploy to Vercel and provide access link
+
+Work Log:
+- Checked dev server status — running on port 3000 with all APIs returning 200
+- Verified code changes from previous session (ColumnEditorDialog + DataTable relationLookupMap) were already in place
+- Attempted Vercel CLI authentication — requires browser OAuth, not possible from sandbox
+- Discovered GitHub repo already has Vercel integration with auto-deploy on push
+- Pushed code to GitHub — Vercel auto-deployed but API returned errors (SQLite provider incompatible with Vercel's PostgreSQL DATABASE_URL)
+- Created dual-provider Prisma setup: `scripts/switch-provider.js` automatically switches between SQLite (local) and PostgreSQL (Vercel) based on DATABASE_URL
+- Updated `package.json` build script: `node scripts/switch-provider.js && prisma generate && next build`
+- Pushed to GitHub — Vercel auto-deployed successfully
+- Verified all API endpoints on Vercel: datasources, catalog, categories, colormap — all working
+- Agent Browser verification confirmed: products display, category filters work, search works, pagination works
+
+Stage Summary:
+- Vercel deployment URL: https://abaya-collection-catalogue-9dum.vercel.app
+- Latest deployment commit: 2b8e9b68
+- Dual-provider Prisma setup ensures SQLite works locally and PostgreSQL works on Vercel
+- All features verified: product catalog, filtering, search, images, prices, stock status
