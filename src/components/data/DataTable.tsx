@@ -184,6 +184,225 @@ function CategoryCell({
   );
 }
 
+// ━━━ RelationCellEditor — Smart dropdown for RELATION column editing ━━━━━
+// Replaces the generic <Input> for RELATION columns.
+// Shows a dropdown of all target table rows, filtered by search.
+// Stores the pivot key value (targetColumnId column value or row ID).
+function RelationCellEditor({
+  col,
+  row,
+  dataSourceId,
+  onUpdateRow,
+  onClose,
+}: {
+  col: Column;
+  row: Row;
+  dataSourceId: string;
+  onUpdateRow: (rowId: string, newData: Record<string, unknown>) => void;
+  onClose: () => void;
+}) {
+  const dataSources = useAppStore(state => state.dataSources);
+  const [search, setSearch] = useState('');
+  const [targetRows, setTargetRows] = useState<Row[]>([]);
+  const [targetCols, setTargetCols] = useState<Column[]>([]);
+  const [loading, setLoading] = useState(true);
+  const popoverRef = useRef<HTMLDivElement>(null);
+
+  const targetDsId = (col.config?.targetTableId as string) || (col.config?.targetTable as string);
+  const targetColumnSlug = (col.config?.targetColumnId as string) || '';
+  const isSelfRef = !targetDsId || targetDsId === 'self';
+  const currentValue = String((row.data as Record<string, unknown>)[col.slug] || '');
+
+  // Fetch target table data
+  useEffect(() => {
+    const loadData = async () => {
+      if (isSelfRef) {
+        // Self-ref: we don't have access to rows here, will be handled by parent
+        setLoading(false);
+        return;
+      }
+      try {
+        // 1. Try localStorage cache
+        const cacheKey = `abaya_cache_admin_rows_${targetDsId}`;
+        const raw = localStorage.getItem(cacheKey);
+        if (raw) {
+          try { setTargetRows(JSON.parse(raw) as Row[]); } catch { /* malformed */ }
+        }
+        const colsCacheKey = `abaya_cache_admin_cols_${targetDsId}`;
+        const colsRaw = localStorage.getItem(colsCacheKey);
+        if (colsRaw) {
+          try { setTargetCols(JSON.parse(colsRaw) as Column[]); } catch { /* malformed */ }
+        }
+        // 2. Always fetch fresh from API
+        const [metaRes, rowsRes] = await Promise.all([
+          fetch(`/api/datasources/${targetDsId}?mode=meta`),
+          fetch(`/api/datasources/${targetDsId}/rows?limit=1000`),
+        ]);
+        const [metaJson, rowsJson] = await Promise.all([
+          metaRes.ok ? metaRes.json() : Promise.resolve(null),
+          rowsRes.ok ? rowsRes.json() : Promise.resolve(null),
+        ]);
+        const freshCols: Column[] = metaJson?.data?.columns || [];
+        const freshRows: Row[] = rowsJson?.data || [];
+        if (freshCols.length) setTargetCols(freshCols);
+        if (freshRows.length) setTargetRows(freshRows);
+        // Update cache
+        try {
+          if (freshRows.length) {
+            localStorage.setItem(cacheKey, JSON.stringify(freshRows));
+            localStorage.setItem(`${cacheKey}_ts`, String(Date.now()));
+          }
+          if (freshCols.length) {
+            localStorage.setItem(colsCacheKey, JSON.stringify(freshCols));
+            localStorage.setItem(`${colsCacheKey}_ts`, String(Date.now()));
+          }
+        } catch { /* quota */ }
+      } catch { /* API failed */ }
+      setLoading(false);
+    };
+    loadData();
+  }, [targetDsId, isSelfRef]);
+
+  // Auto-focus search input
+  useEffect(() => {
+    const input = popoverRef.current?.querySelector('input');
+    if (input) input.focus();
+  }, []);
+
+  // Get display label for a target row
+  const getLabel = (tRow: Row): string => {
+    const tData = tRow.data as Record<string, unknown>;
+    if (targetColumnSlug) {
+      const val = String(tData[targetColumnSlug] ?? '').trim();
+      if (val) return val;
+    }
+    // Fallback: first visible TEXT column
+    const textCol = targetCols.find(c => c.type === 'TEXT' && c.visible && !c.slug.startsWith('__'));
+    if (textCol) {
+      const val = String((tRow.data as Record<string, unknown>)[textCol.slug] ?? '').trim();
+      if (val) return val;
+    }
+    // Last resort: N Ordre
+    const ordre = (tRow.data as Record<string, unknown>).__n_ordre__;
+    if (ordre) return `#${ordre}`;
+    return tRow.id.slice(0, 8);
+  };
+
+  // Get pivot key for a target row (the value that will be stored in the cell)
+  const getPivotKey = (tRow: Row): string => {
+    const tData = tRow.data as Record<string, unknown>;
+    if (targetColumnSlug) {
+      return String(tData[targetColumnSlug] ?? '');
+    }
+    return tRow.id;
+  };
+
+  // Filter rows by search
+  const filteredRows = targetRows.filter(tRow => {
+    if (!search.trim()) return true;
+    const label = getLabel(tRow).toLowerCase();
+    return label.includes(search.toLowerCase());
+  });
+
+  const handleSelect = (pivotKey: string) => {
+    const data = { ...(row.data as Record<string, unknown>) };
+    data[col.slug] = pivotKey;
+    fetch(`/api/datasources/${dataSourceId}/rows/${row.id}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ data }),
+    }).then(res => {
+      if (res.ok) {
+        onUpdateRow(row.id, data);
+        toast.success('Relation mise à jour');
+      } else {
+        toast.error('Erreur de sauvegarde');
+      }
+    }).catch(() => toast.error('Erreur réseau'));
+    onClose();
+  };
+
+  const handleClear = () => {
+    const data = { ...(row.data as Record<string, unknown>) };
+    data[col.slug] = '';
+    fetch(`/api/datasources/${dataSourceId}/rows/${row.id}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ data }),
+    }).then(res => {
+      if (res.ok) {
+        onUpdateRow(row.id, data);
+        toast.success('Relation effacée');
+      }
+    }).catch(() => toast.error('Erreur'));
+    onClose();
+  };
+
+  const targetDs = isSelfRef ? null : dataSources.find(ds => ds.id === targetDsId);
+
+  return (
+    <div ref={popoverRef} className="w-[220px]" onClick={e => e.stopPropagation()}>
+      {/* Search input */}
+      <div className="p-1.5 border-b border-border/30">
+        <Input
+          value={search}
+          onChange={e => setSearch(e.target.value)}
+          placeholder={targetDs ? `Rechercher dans ${targetDs.name}…` : 'Rechercher…'}
+          className="h-6 text-[10px] border-border/40 focus:border-gold"
+          onKeyDown={e => {
+            if (e.key === 'Escape') onClose();
+            e.stopPropagation();
+          }}
+        />
+      </div>
+      {/* Options list */}
+      <div className="max-h-48 overflow-y-auto py-0.5 custom-scrollbar">
+        {loading ? (
+          <div className="px-2 py-3 text-center text-[10px] text-muted-foreground">
+            <Loader2 className="w-3 h-3 animate-spin inline mr-1" />
+            Chargement…
+          </div>
+        ) : filteredRows.length === 0 ? (
+          <div className="px-2 py-3 text-center text-[10px] text-muted-foreground">
+            Aucun résultat{search ? ` pour "${search}"` : ''}
+          </div>
+        ) : (
+          filteredRows.map(tRow => {
+            const pivotKey = getPivotKey(tRow);
+            const label = getLabel(tRow);
+            const isSelected = currentValue === pivotKey;
+            return (
+              <button
+                key={tRow.id}
+                className={cn(
+                  "w-full text-left px-2 py-1 text-[10px] flex items-center gap-1.5 hover:bg-muted/60 transition-colors",
+                  isSelected && "bg-gold/10 text-gold"
+                )}
+                onClick={() => handleSelect(pivotKey)}
+              >
+                {isSelected ? <Check className="w-3 h-3 shrink-0 text-gold" /> : <Link2 className="w-3 h-3 shrink-0 text-muted-foreground/40" />}
+                <span className="truncate">{label}</span>
+              </button>
+            );
+          })
+        )}
+      </div>
+      {/* Clear button */}
+      {currentValue && (
+        <div className="border-t border-border/30 p-1">
+          <button
+            className="w-full text-left px-2 py-1 text-[10px] text-destructive/70 hover:text-destructive hover:bg-destructive/5 rounded flex items-center gap-1.5"
+            onClick={handleClear}
+          >
+            <X className="w-3 h-3" />
+            Effacer la relation
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
+
 export function DataTable({ columns, rows, dataSourceId, loading, onRefresh, onUpdateRow, sortConfig, onSortChange, onSetSortDirect, onLocalStatusChange, onLocalLockToggle, pendingStatusChanges, onAddColumn, onToggleColumnVisibility, colormapItems, catOptions }: Props) {
   const [editingCell, setEditingCell] = useState<string | null>(null); // `${rowId}-${colSlug}`
   const [editValue, setEditValue] = useState('');
@@ -206,6 +425,9 @@ export function DataTable({ columns, rows, dataSourceId, loading, onRefresh, onU
 
   // STATUS cell editing state
   const [editingStatusCell, setEditingStatusCell] = useState<string | null>(null); // `${rowId}-${colSlug}`
+
+  // RELATION cell editing state (smart dropdown)
+  const [editingRelationCell, setEditingRelationCell] = useState<string | null>(null); // `${rowId}-${colSlug}`
 
   // Column options popover — track which col's popover is open and expanded sections
   const [colOptionsOpen, setColOptionsOpen] = useState<string | null>(null); // col.id
@@ -636,8 +858,57 @@ export function DataTable({ columns, rows, dataSourceId, loading, onRefresh, onU
   };
 
   // ── Relation lookup: resolve foreign keys → human-readable labels ──────
-  // Reads target table rows from admin cache (localStorage) for zero-latency lookups
+  // Reads target table rows from admin cache (localStorage) + API fallback
   const dataSources = useAppStore(state => state.dataSources);
+
+  // Async cache: stores rows fetched from API when localStorage was empty
+  const [apiFetchedRows, setApiFetchedRows] = useState<Record<string, Row[]>>({});
+  const [apiFetchedCols, setApiFetchedCols] = useState<Record<string, Column[]>>({});
+
+  // Fetch target table data from API when localStorage cache is missing
+  useEffect(() => {
+    const relationCols = columns.filter(c => c.type === 'RELATION');
+    for (const col of relationCols) {
+      const targetDsId = (col.config?.targetTableId as string) || (col.config?.targetTable as string);
+      if (!targetDsId || targetDsId === 'self') continue;
+      // Skip if already fetched
+      if (apiFetchedRows[targetDsId]) continue;
+      // Check if localStorage cache exists
+      const cacheKey = `abaya_cache_admin_rows_${targetDsId}`;
+      const raw = localStorage.getItem(cacheKey);
+      if (raw) continue; // cache exists — no need to fetch
+      // No cache → fetch from API
+      (async () => {
+        try {
+          const [metaRes, rowsRes] = await Promise.all([
+            fetch(`/api/datasources/${targetDsId}?mode=meta`),
+            fetch(`/api/datasources/${targetDsId}/rows?limit=1000`),
+          ]);
+          const [metaJson, rowsJson] = await Promise.all([
+            metaRes.ok ? metaRes.json() : Promise.resolve(null),
+            rowsRes.ok ? rowsRes.json() : Promise.resolve(null),
+          ]);
+          const freshCols: Column[] = metaJson?.data?.columns || [];
+          const freshRows: Row[] = rowsJson?.data || [];
+          // Write to localStorage cache for future use
+          try {
+            if (freshRows.length) {
+              localStorage.setItem(cacheKey, JSON.stringify(freshRows));
+              localStorage.setItem(`${cacheKey}_ts`, String(Date.now()));
+            }
+            if (freshCols.length) {
+              const colsCacheKey = `abaya_cache_admin_cols_${targetDsId}`;
+              localStorage.setItem(colsCacheKey, JSON.stringify(freshCols));
+              localStorage.setItem(`${colsCacheKey}_ts`, String(Date.now()));
+            }
+          } catch { /* quota */ }
+          // Also store in React state for immediate re-render
+          setApiFetchedRows(prev => ({ ...prev, [targetDsId]: freshRows }));
+          setApiFetchedCols(prev => ({ ...prev, [targetDsId]: freshCols }));
+        } catch { /* API failed — lookup will show raw value */ }
+      })();
+    }
+  }, [columns, dataSources]);
 
   const relationLookupMap = useMemo(() => {
     const map: Record<string, Record<string, string>> = {}; // colId → { pivotKey → label }
@@ -647,51 +918,67 @@ export function DataTable({ columns, rows, dataSourceId, loading, onRefresh, onU
       const targetDsId = (col.config?.targetTableId as string) || (col.config?.targetTable as string);
       if (!targetDsId || targetDsId === 'self') {
         // Self-referencing: use current table's rows
-        const sourceSlug = (col.config?.sourceColumn as string) || col.slug;
+        const targetColumnSlug = (col.config?.targetColumnId as string) || '';
         const lookup: Record<string, string> = {};
         for (const row of rows) {
           const data = row.data as Record<string, unknown>;
-          const pivotKey = String(data[sourceSlug] ?? '');
+          // Pivot key: if targetColumnId is set, use that column's value for matching
+          // Otherwise fall back to row id
+          const pivotKey = targetColumnSlug
+            ? String(data[targetColumnSlug] ?? '')
+            : row.id;
           if (!pivotKey) continue;
-          // Display label: prefer first TEXT column, fallback to N Ordre or id
-          const label = findBestLabel(data, columns);
+          // Label: prefer findBestLabel for richest display, but if targetColumnId
+          // is set, that column's value IS the match key — we still want to show
+          // a friendlier label (e.g. the row's primary text column)
+          const label = findBestLabel(data, columns) || pivotKey;
           if (label) lookup[pivotKey] = label;
         }
         map[col.id] = lookup;
         continue;
       }
 
-      // Cross-table: read target rows from admin cache
+      // Cross-table: read target rows from admin cache OR API-fetched data
       try {
         const cacheKey = `abaya_cache_admin_rows_${targetDsId}`;
         const raw = localStorage.getItem(cacheKey);
-        if (!raw) continue;
-        const targetRows = JSON.parse(raw) as Row[];
+        const targetRows: Row[] = raw
+          ? JSON.parse(raw) as Row[]
+          : (apiFetchedRows[targetDsId] || []);
 
-        // Also read target columns from cache to find label column
+        if (targetRows.length === 0) continue;
+
+        // Also read target columns from cache OR API-fetched data
         const colsCacheKey = `abaya_cache_admin_cols_${targetDsId}`;
         const colsRaw = localStorage.getItem(colsCacheKey);
-        const targetCols: Column[] = colsRaw ? JSON.parse(colsRaw) : [];
+        const targetCols: Column[] = colsRaw
+          ? JSON.parse(colsRaw) as Column[]
+          : (apiFetchedCols[targetDsId] || []);
 
+        // The target column slug is the key for matching (targetColumnId)
         const targetColumnSlug = (col.config?.targetColumnId as string) || '';
+
         const lookup: Record<string, string> = {};
 
         for (const tRow of targetRows) {
           const tData = tRow.data as Record<string, unknown>;
-          // If targetColumnId is set, use it as the pivot match key
-          // Otherwise match by row id
+          // If targetColumnId is set, use that column's value as the pivot key
+          // This allows matching "Catégorie A" → "Catégorie A" instead of UUID → UUID
+          // If not set, fall back to row id (legacy behavior)
           const pivotKey = targetColumnSlug
             ? String(tData[targetColumnSlug] ?? '')
             : tRow.id;
           if (!pivotKey) continue;
-          const label = findBestLabel(tData, targetCols);
+          // Label: use findBestLabel for richest display (primary text column, etc.)
+          // Fallback to pivotKey if no better label found
+          const label = findBestLabel(tData, targetCols) || pivotKey;
           if (label) lookup[pivotKey] = label;
         }
         map[col.id] = lookup;
       } catch { /* cache read failed, lookup will show raw value */ }
     }
     return map;
-  }, [columns, rows, dataSources]);
+  }, [columns, rows, dataSources, apiFetchedRows, apiFetchedCols]);
 
   /** Find the best display label from a row's data */
   function findBestLabel(data: Record<string, unknown>, cols: Column[]): string {
@@ -1829,13 +2116,29 @@ export function DataTable({ columns, rows, dataSourceId, loading, onRefresh, onU
                       const cellKey = `${row.id}-${col.slug}`;
                       const isEditing = editingCell === cellKey;
                       const isCellSelected = selectedCells.has(cellKey);
+                      const isRelationEditing = editingRelationCell === cellKey;
 
                       return (
                         <td key={col.slug} className={cn(
                           "px-3 py-1.5 border-l border-border/30 relative",
                           isCellSelected && "bg-[var(--dt-pending-row-bg)] dark:bg-amber-950/20 ring-1 ring-gold/40 dark:ring-gold/30 ring-inset"
                         )}>
-                          {isEditing ? (
+                          {isRelationEditing && col.type === 'RELATION' ? (
+                            <Popover open={isRelationEditing} onOpenChange={(open) => { if (!open) setEditingRelationCell(null); }}>
+                              <PopoverTrigger asChild>
+                                <div />
+                              </PopoverTrigger>
+                              <PopoverContent className="w-auto p-0 z-50" side="bottom" align="start">
+                                <RelationCellEditor
+                                  col={col}
+                                  row={row}
+                                  dataSourceId={dataSourceId}
+                                  onUpdateRow={onUpdateRow}
+                                  onClose={() => setEditingRelationCell(null)}
+                                />
+                              </PopoverContent>
+                            </Popover>
+                          ) : isEditing ? (
                             <Input
                               value={editValue}
                               onChange={e => setEditValue(e.target.value)}
@@ -1868,6 +2171,9 @@ export function DataTable({ columns, rows, dataSourceId, loading, onRefresh, onU
                                     if (el) { el.classList.add('animate-shake'); setTimeout(() => el.classList.remove('animate-shake'), 500); }
                                     toast.error('Statut verrouillé 🔒 — Déverrouillez d\'abord le cadenas');
                                   }
+                                } else if (col.type === 'RELATION') {
+                                  // RELATION column: open smart dropdown editor
+                                  setEditingRelationCell(cellKey);
                                 } else {
                                   startEditing(row.id, col.slug, (row.data as Record<string, unknown>)[col.slug]);
                                 }
@@ -1878,7 +2184,7 @@ export function DataTable({ columns, rows, dataSourceId, loading, onRefresh, onU
                                   toggleCellSelect(row.id, col.slug, e.shiftKey || e.ctrlKey || e.metaKey);
                                 }
                               }}
-                              title={(col.type === 'STATUS' || col.slug === '__statut__') ? ((pendingStatusChanges?.[row.id]?.locked ?? (row.data as Record<string, unknown>).__statut_locked__) ? "Statut verrouillé 🔒 — déverrouillez d'abord" : "Double-cliquer pour changer le statut") : "Double-cliquer pour modifier · Shift+Clic pour sélectionner"}
+                              title={(col.type === 'STATUS' || col.slug === '__statut__') ? ((pendingStatusChanges?.[row.id]?.locked ?? (row.data as Record<string, unknown>).__statut_locked__) ? "Statut verrouillé 🔒 — déverrouillez d'abord" : "Double-cliquer pour changer le statut") : col.type === 'RELATION' ? "Double-cliquer pour choisir la relation" : "Double-cliquer pour modifier · Shift+Clic pour sélectionner"}
                             >
                               {renderCellValue(row, col)}
                             </div>

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
@@ -18,7 +18,7 @@ import { Badge } from '@/components/ui/badge';
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/ui/select';
-import type { Column, ColumnType, ColumnConfig, Row } from '@/types';
+import type { Column, ColumnType, ColumnConfig, Row, DataSource } from '@/types';
 import { useAppStore } from '@/lib/store';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
@@ -518,69 +518,17 @@ export function ColumnEditorDialog({ open, onOpenChange, dataSourceId, columns, 
                   </div>
                 )}
 
-                {/* RELATION → Notion-style 3 fields */}
+                {/* RELATION → Notion-style 4 fields */}
                 {type === 'RELATION' && (
-                  <div className="space-y-2.5">
-                    <p className="text-[10px] text-muted-foreground/60 flex items-center gap-1.5">
-                      <Link2 className="w-3 h-3 text-gold/50" />
-                      Configurez la relation entre les tables
-                    </p>
-                    {/* Relation name */}
-                    <div>
-                      <Label className="mb-0.5 text-[10px] text-muted-foreground/60">Nom de la relation</Label>
-                      <Input
-                        value={name}
-                        onChange={e => setName(e.target.value)}
-                        placeholder="Ex: Produits → Catégories"
-                        className="h-7 text-xs border-border/40 focus:border-gold"
-                      />
-                    </div>
-                    {/* Source column */}
-                    <div>
-                      <Label className="mb-0.5 text-[10px] text-muted-foreground/60">Colonne source</Label>
-                      <Select value={config.sourceColumn || ''} onValueChange={v => setConfig({ ...config, sourceColumn: v })}>
-                        <SelectTrigger className="h-7 text-xs border-border/40">
-                          <SelectValue placeholder="Choisir le pivot local…" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {columns.map(col => (
-                            <SelectItem key={col.id} value={col.slug}>
-                              <span className="flex items-center gap-1.5">
-                                <span className="text-gold/60">{COLUMN_TYPES.find(ct => ct.value === col.type)?.icon}</span>
-                                {col.name}
-                              </span>
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    {/* Target table */}
-                    <div>
-                      <Label className="mb-0.5 text-[10px] text-muted-foreground/60">Table cible</Label>
-                      <Select value={config.targetTableId || config.targetTable || ''} onValueChange={v => setConfig({ ...config, targetTableId: v, targetTable: v })}>
-                        <SelectTrigger className="h-7 text-xs border-border/40">
-                          <SelectValue placeholder="Sélectionner la table cible…" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="self">Table actuelle (auto-référence)</SelectItem>
-                          {dataSources
-                            .filter(ds => ds.id !== dataSourceId)
-                            .map(ds => (
-                              <SelectItem key={ds.id} value={ds.id}>
-                                <span className="flex items-center gap-1.5">
-                                  <span className="h-2 w-2 rounded-full shrink-0" style={{ backgroundColor: ds.color || 'var(--gold)' }} />
-                                  {ds.name}
-                                </span>
-                              </SelectItem>
-                            ))
-                          }
-                          {dataSources.filter(ds => ds.id !== dataSourceId).length === 0 && (
-                            <SelectItem value="_none" disabled>Aucune autre table disponible</SelectItem>
-                          )}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                  </div>
+                  <RelationConfigFields
+                    name={name}
+                    onNameChange={setName}
+                    config={config}
+                    onConfigChange={setConfig}
+                    columns={columns}
+                    dataSourceId={dataSourceId}
+                    dataSources={dataSources}
+                  />
                 )}
               </div>
             </div>
@@ -654,5 +602,188 @@ export function ColumnEditorDialog({ open, onOpenChange, dataSourceId, columns, 
         </AlertDialog>
       </DialogContent>
     </Dialog>
+  );
+}
+
+// ━━━ RelationConfigFields — 4-field RELATION configuration ━━━━━━━━━━━━━━━━
+// Separated into its own component so it can fetch target-table columns
+// without re-rendering the entire dialog on each keystroke.
+function RelationConfigFields({
+  name,
+  onNameChange,
+  config,
+  onConfigChange,
+  columns,
+  dataSourceId,
+  dataSources,
+}: {
+  name: string;
+  onNameChange: (v: string) => void;
+  config: ColumnConfig;
+  onConfigChange: (c: ColumnConfig) => void;
+  columns: Column[];
+  dataSourceId: string;
+  dataSources: DataSource[];
+}) {
+  // ── Fetch target table columns when targetTableId changes ──
+  const [targetColumns, setTargetColumns] = useState<Column[]>([]);
+  const [loadingTargetCols, setLoadingTargetCols] = useState(false);
+
+  const selectedTargetDsId = (config.targetTableId as string) || (config.targetTable as string) || '';
+
+  const fetchTargetColumns = useCallback(async (dsId: string) => {
+    if (!dsId || dsId === 'self') {
+      // Self-referencing: use current table's columns
+      setTargetColumns(columns);
+      return;
+    }
+    setLoadingTargetCols(true);
+    try {
+      // 1. Try localStorage cache first (zero-latency)
+      const colsCacheKey = `abaya_cache_admin_cols_${dsId}`;
+      const cached = localStorage.getItem(colsCacheKey);
+      if (cached) {
+        try {
+          setTargetColumns(JSON.parse(cached) as Column[]);
+        } catch { /* malformed */ }
+      }
+      // 2. Always fetch fresh from API to guarantee accuracy
+      const res = await fetch(`/api/datasources/${dsId}?mode=meta`);
+      if (res.ok) {
+        const json = await res.json();
+        const freshCols: Column[] = json?.data?.columns || [];
+        setTargetColumns(freshCols);
+        // Update cache for future use
+        try {
+          localStorage.setItem(colsCacheKey, JSON.stringify(freshCols));
+          localStorage.setItem(`${colsCacheKey}_ts`, String(Date.now()));
+        } catch { /* quota */ }
+      }
+    } catch {
+      // API failed — if cache was set, we still have it
+    } finally {
+      setLoadingTargetCols(false);
+    }
+  }, [columns]);
+
+  useEffect(() => {
+    if (selectedTargetDsId) {
+      fetchTargetColumns(selectedTargetDsId);
+    } else {
+      setTargetColumns([]);
+    }
+  }, [selectedTargetDsId, fetchTargetColumns]);
+
+  // Reset targetColumnId when target table changes
+  const handleTargetTableChange = (v: string) => {
+    onConfigChange({
+      ...config,
+      targetTableId: v,
+      targetTable: v,
+      targetColumnId: '',  // reset — must re-select for new table
+    });
+  };
+
+  const isSelfRef = !selectedTargetDsId || selectedTargetDsId === 'self';
+
+  return (
+    <div className="space-y-2.5">
+      <p className="text-[10px] text-muted-foreground/60 flex items-center gap-1.5">
+        <Link2 className="w-3 h-3 text-gold/50" />
+        Configurez la relation entre les tables
+      </p>
+      {/* Relation name */}
+      <div>
+        <Label className="mb-0.5 text-[10px] text-muted-foreground/60">Nom de la relation</Label>
+        <Input
+          value={name}
+          onChange={e => onNameChange(e.target.value)}
+          placeholder="Ex: Produits → Catégories"
+          className="h-7 text-xs border-border/40 focus:border-gold"
+        />
+      </div>
+      {/* Source column (pivot local) */}
+      <div>
+        <Label className="mb-0.5 text-[10px] text-muted-foreground/60">Colonne source (pivot local)</Label>
+        <Select value={config.sourceColumn as string || ''} onValueChange={v => onConfigChange({ ...config, sourceColumn: v })}>
+          <SelectTrigger className="h-7 text-xs border-border/40">
+            <SelectValue placeholder="Choisir le pivot local…" />
+          </SelectTrigger>
+          <SelectContent>
+            {columns.map(col => (
+              <SelectItem key={col.id} value={col.slug}>
+                <span className="flex items-center gap-1.5">
+                  <span className="text-gold/60">{COLUMN_TYPES.find(ct => ct.value === col.type)?.icon}</span>
+                  {col.name}
+                </span>
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
+      {/* Target table */}
+      <div>
+        <Label className="mb-0.5 text-[10px] text-muted-foreground/60">Table cible</Label>
+        <Select value={selectedTargetDsId} onValueChange={handleTargetTableChange}>
+          <SelectTrigger className="h-7 text-xs border-border/40">
+            <SelectValue placeholder="Sélectionner la table cible…" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="self">Table actuelle (auto-référence)</SelectItem>
+            {dataSources
+              .filter(ds => ds.id !== dataSourceId)
+              .map(ds => (
+                <SelectItem key={ds.id} value={ds.id}>
+                  <span className="flex items-center gap-1.5">
+                    <span className="h-2 w-2 rounded-full shrink-0" style={{ backgroundColor: ds.color || 'var(--gold)' }} />
+                    {ds.name}
+                  </span>
+                </SelectItem>
+              ))
+            }
+            {dataSources.filter(ds => ds.id !== dataSourceId).length === 0 && (
+              <SelectItem value="_none" disabled>Aucune autre table disponible</SelectItem>
+            )}
+          </SelectContent>
+        </Select>
+      </div>
+      {/* Target column (pivot cible) — the key field that was MISSING */}
+      {selectedTargetDsId && (
+        <div>
+          <Label className="mb-0.5 text-[10px] text-muted-foreground/60">
+            Colonne cible (clé de correspondance)
+            {loadingTargetCols && <span className="ml-1 animate-pulse">⏳</span>}
+          </Label>
+          <Select
+            value={(config.targetColumnId as string) || ''}
+            onValueChange={v => onConfigChange({ ...config, targetColumnId: v })}
+          >
+            <SelectTrigger className="h-7 text-xs border-border/40">
+              <SelectValue placeholder={isSelfRef ? "Colonne de la table actuelle…" : "Colonne de la table cible…"} />
+            </SelectTrigger>
+            <SelectContent>
+              {targetColumns
+                .filter(c => !c.slug.startsWith('__'))
+                .map(col => (
+                  <SelectItem key={col.id} value={col.slug}>
+                    <span className="flex items-center gap-1.5">
+                      <span className="text-gold/60">{COLUMN_TYPES.find(ct => ct.value === col.type)?.icon}</span>
+                      {col.name}
+                      <span className="text-muted-foreground/40 text-[9px]">({col.slug})</span>
+                    </span>
+                  </SelectItem>
+                ))
+              }
+              {targetColumns.filter(c => !c.slug.startsWith('__')).length === 0 && !loadingTargetCols && (
+                <SelectItem value="_none" disabled>Aucune colonne disponible</SelectItem>
+              )}
+            </SelectContent>
+          </Select>
+          <p className="text-[9px] text-muted-foreground/40 mt-0.5">
+            La valeur de cette colonne dans la table cible sera comparée à la valeur du pivot local pour résoudre la relation.
+          </p>
+        </div>
+      )}
+    </div>
   );
 }

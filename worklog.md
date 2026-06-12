@@ -817,3 +817,57 @@ Stage Summary:
   1. Menu contextuel nettoyé (debug spans supprimés, Popover modal, cache invalidation)
   2. RELATION cell rendering avec lookup (lecture admin cache, findBestLabel, Badge)
   3. Sélecteur dynamique de tables (useAppStore, mapping dataSources, fix targetTableId)
+
+---
+Task ID: 1
+Agent: Main Agent
+Task: Fix 1 — Add targetColumnId selector in ColumnEditorDialog.tsx
+
+Work Log:
+- Created `RelationConfigFields` sub-component extracted from ColumnEditorDialog
+- Added 4th field: "Colonne cible (clé de correspondance)" — the missing `targetColumnId` selector
+- Component fetches target table columns dynamically via cache-first + API fallback pattern
+- Resets `targetColumnId` when target table changes
+- Added `DataSource` type import to ColumnEditorDialog.tsx
+- Added `useCallback` import for the fetch function
+
+Stage Summary:
+- ColumnEditorDialog now has 4 fields for RELATION: name, source column, target table, target column
+- Target column selector fetches columns from cache or API
+- `config.targetColumnId` is now properly stored when user selects a column
+
+---
+Task ID: 2
+Agent: Main Agent
+Task: Fix 2 — Fix relationLookupMap in DataTable.tsx + replace Input with smart dropdown
+
+Work Log:
+- Fixed `relationLookupMap` useMemo: when `targetColumnId` is set, pivot key uses `tData[targetColumnSlug]` instead of falling back to `tRow.id` (UUID)
+- Label resolution uses `findBestLabel()` for richest display, falls back to pivotKey
+- Created `RelationCellEditor` component — smart dropdown that replaces generic `<Input>` for RELATION cells
+- Added `editingRelationCell` state to DataTable
+- Modified cell rendering: RELATION columns now open a Popover with RelationCellEditor on double-click
+- RelationCellEditor features: search filter, loading state, select/clear actions, cache+API data loading
+
+Stage Summary:
+- relationLookupMap now correctly uses `targetColumnId` column values as pivot keys
+- Double-clicking a RELATION cell opens a searchable dropdown with target table rows
+- Selecting a row stores the correct pivot key value (not UUID when targetColumnId is set)
+
+---
+Task ID: 3
+Agent: Main Agent
+Task: Fix 3 — Secure store/global cache reading for target table data
+
+Work Log:
+- Added `apiFetchedRows` and `apiFetchedCols` state to DataTable for async API fallback
+- Added useEffect that detects when localStorage cache is empty for target table
+- When cache is missing, fetches from API (`/api/datasources/[id]?mode=meta` + `/rows?limit=1000`)
+- API responses are written back to localStorage for future use
+- `relationLookupMap` now reads from BOTH localStorage cache AND apiFetched state
+- RelationCellEditor also uses cache-first + API-fallback pattern
+
+Stage Summary:
+- Target table data is now available even if user never visited that table
+- API responses populate both React state (immediate) and localStorage (persistent)
+- Eliminates the "—" display caused by missing cache for unvisited target tables
