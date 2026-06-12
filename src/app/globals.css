@@ -1210,13 +1210,14 @@ img {
 }
 
 /* ── Breadcrumb ── */
+/* Règle 2: top padding pushes breadcrumb away from header, closer to image */
 .product-page-breadcrumb {
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 0 0 16px;
+  padding: 28px 0 20px;
   border-bottom: none;
-  margin-bottom: 16px;
+  margin-bottom: 12px;
   font-size: 13px;
   overflow-x: auto;
 }
@@ -1225,7 +1226,7 @@ img {
   .product-page-breadcrumb {
     font-size: 12px;
     gap: 6px;
-    padding: 0 0 10px;
+    padding: 16px 0 10px;
     margin-bottom: 12px;
   }
 }
@@ -1278,23 +1279,28 @@ img {
 }
 
 /* ── Main Layout ── */
-/* Single column: right column is position:fixed, so grid 2-col is unnecessary.
-   Left column takes full width minus the fixed right panel space. */
+/* Règle 1: CSS Grid with precise gap control (48px = ~1.2cm).
+   align-items:start required for sticky children to operate.
+   Right column width set via grid-template-columns — no fixed positioning needed. */
 .product-page-layout {
-  display: block;
-  padding-right: 468px;   /* 420px right panel + 48px gap */
+  display: grid;
+  grid-template-columns: 1fr 380px;
+  gap: 48px;
+  align-items: start;
   min-width: 0;
 }
 
 @media (min-width: 1280px) {
   .product-page-layout {
-    padding-right: 504px;  /* 440px right panel + 64px gap */
+    grid-template-columns: 1fr 400px;
   }
 }
 
 @media (max-width: 900px) {
   .product-page-layout {
-    padding-right: 0;
+    display: block;
+    grid-template-columns: unset;
+    gap: 0;
   }
 }
 
@@ -1427,26 +1433,28 @@ img {
 }
 
 /* ── Product Info (Right Column) ── */
-/* FIXED position: completely removed from scroll flow, pinned to screen.
-   Justification: sticky top-0 hides content behind the sticky header (z-30).
-   Fixed ensures the right column never scrolls, ever. The left column scrolls freely. */
+/* Règle 3: STICKY position with vertical centering — "bloc de marbre" effect.
+   top:72px accounts for the sticky header (~57px) + 15px breathing room.
+   height:calc(100vh - 88px) keeps the column within visible viewport.
+   margin:auto 0 on inner wrapper centers content when it fits,
+   allows natural scroll when content overflows (no clipping). */
 .product-page-info {
-  position: fixed;
-  top: 0;
-  right: 0;
-  width: 420px;
-  height: 100vh;
+  position: sticky;
+  top: 72px;
+  width: auto;
+  height: calc(100vh - 88px);
   min-width: 0;
   display: flex;
   flex-direction: column;
   overflow-y: auto;
   background: #FAF8F5;
   z-index: 10;
+  border-radius: 0;
 }
 
 @media (min-width: 1280px) {
   .product-page-info {
-    width: 440px;
+    /* width comes from grid, no override needed */
   }
 }
 
