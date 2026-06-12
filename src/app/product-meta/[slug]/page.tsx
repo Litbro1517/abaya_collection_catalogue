@@ -76,12 +76,23 @@ async function resolveProduct(slug: string) {
           const currency = settings?.currency || 'MAD';
           const catalogName = catalog.name || 'Abaya Collection';
 
+          // ── SEO Hybrid Logic ──
+          // Priority 1: Custom seo_description / seo_keywords from Row.data (admin-created columns)
+          // Priority 2: Auto-generated from title + price (fallback)
+          const seoDescription = String(data.seo_description || '').trim();
+          const seoKeywords = String(data.seo_keywords || '').trim();
+
+          // Build description: custom SEO field > auto-generated
+          const autoDescription = `${title}${price ? ` — ${price} ${currency}` : ''} | ${catalogName}`;
+          const finalDescription = seoDescription || autoDescription;
+
           return {
             title,
             price: price ? `${price} ${currency}` : '',
             coverUrl,
             catalogName,
-            description: `${title}${price ? ` — ${price}` : ''} | ${catalogName}`,
+            description: finalDescription,
+            seoKeywords,
           };
         }
       }
@@ -205,6 +216,7 @@ export async function generateMetadata({
   return {
     title: `${product.title} | ${product.catalogName}`,
     description: product.description,
+    keywords: product.seoKeywords || undefined,
     openGraph: {
       title: `${product.title} | ${product.catalogName}`,
       description: product.description,

@@ -672,14 +672,24 @@ export function ProductPage({
               href={isEpuise ? undefined : conversionLink}
               target={isEpuise ? undefined : '_blank'}
               rel={isEpuise ? undefined : 'noopener noreferrer'}
-              onClick={isEpuise ? (e: React.MouseEvent) => e.preventDefault() : undefined}
+              onClick={isEpuise ? (e: React.MouseEvent) => e.preventDefault() : () => {
+                // ── GTM dataLayer push — Lead event (NO monetary value) ──
+                // Sends 'whatsapp_contact' event for GTM/Meta tracking.
+                // IMPORTANT: No price/value sent to avoid poisoning Meta ROI optimization.
+                if (typeof window !== 'undefined' && (window as unknown as Record<string, unknown>).dataLayer) {
+                  (window as unknown as Record<string, unknown[]>).dataLayer.push({
+                    event: 'whatsapp_contact',
+                    product_title: title || rawData.nomproduitdocx || 'Catalogue',
+                  });
+                }
+              }}
               style={{
                 backgroundColor: isEpuise ? BRAND.grisClair : '#25D366',
                 color: isEpuise ? BRAND.grisMoyen : '#fff',
               }}
             >
               <MessageCircle className="w-5 h-5 shrink-0" />
-              {isEpuise ? 'Produit épuisé' : isSurCommande ? 'Commander via WhatsApp' : 'Commander via WhatsApp'}
+              {isEpuise ? 'Produit épuisé' : 'Commander via WhatsApp'}
             </a>
 
             {/* Like + Share */}
@@ -724,7 +734,15 @@ export function ProductPage({
           href={isEpuise ? undefined : conversionLink}
           target={isEpuise ? undefined : '_blank'}
           rel={isEpuise ? undefined : 'noopener noreferrer'}
-          onClick={isEpuise ? (e: React.MouseEvent) => e.preventDefault() : undefined}
+          onClick={isEpuise ? (e: React.MouseEvent) => e.preventDefault() : () => {
+            // ── GTM dataLayer push — Lead event (NO monetary value) ──
+            if (typeof window !== 'undefined' && (window as unknown as Record<string, unknown>).dataLayer) {
+              (window as unknown as Record<string, unknown[]>).dataLayer.push({
+                event: 'whatsapp_contact',
+                product_title: title || rawData.nomproduitdocx || 'Catalogue',
+              });
+            }
+          }}
           style={{
             backgroundColor: isEpuise ? BRAND.grisClair : '#25D366',
             color: isEpuise ? BRAND.grisMoyen : '#fff',

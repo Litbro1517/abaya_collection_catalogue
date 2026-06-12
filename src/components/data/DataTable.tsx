@@ -868,125 +868,22 @@ export function DataTable({ columns, rows, dataSourceId, loading, onRefresh, onU
   const dataSources = useAppStore(state => state.dataSources);
 
   // Async cache: stores rows fetched from API when localStorage was empty
+  // ━━━ V1 FREEZE: RELATION API fetching disabled ━━━━━━━━━━━━━━━━━━━━━━━━━
+  // Disabled for V1 launch — prevents unnecessary API calls that could block
+  // or slow down the admin interface. Will be re-enabled in V2.
   const [apiFetchedRows, setApiFetchedRows] = useState<Record<string, Row[]>>({});
   const [apiFetchedCols, setApiFetchedCols] = useState<Record<string, Column[]>>({});
 
-  // Fetch target table data from API when localStorage cache is missing
-  useEffect(() => {
-    const relationCols = columns.filter(c => c.type === 'RELATION');
-    for (const col of relationCols) {
-      const targetDsId = (col.config?.targetTableId as string) || (col.config?.targetTable as string);
-      if (!targetDsId || targetDsId === 'self') continue;
-      // Skip if already fetched
-      if (apiFetchedRows[targetDsId]) continue;
-      // Check if localStorage cache exists
-      const cacheKey = `abaya_cache_admin_rows_${targetDsId}`;
-      const raw = localStorage.getItem(cacheKey);
-      if (raw) continue; // cache exists — no need to fetch
-      // No cache → fetch from API
-      (async () => {
-        try {
-          const [metaRes, rowsRes] = await Promise.all([
-            fetch(`/api/datasources/${targetDsId}?mode=meta`),
-            fetch(`/api/datasources/${targetDsId}/rows?limit=1000`),
-          ]);
-          const [metaJson, rowsJson] = await Promise.all([
-            metaRes.ok ? metaRes.json() : Promise.resolve(null),
-            rowsRes.ok ? rowsRes.json() : Promise.resolve(null),
-          ]);
-          const freshCols: Column[] = metaJson?.data?.columns || [];
-          const freshRows: Row[] = rowsJson?.data || [];
-          // Write to localStorage cache for future use
-          try {
-            if (freshRows.length) {
-              localStorage.setItem(cacheKey, JSON.stringify(freshRows));
-              localStorage.setItem(`${cacheKey}_ts`, String(Date.now()));
-            }
-            if (freshCols.length) {
-              const colsCacheKey = `abaya_cache_admin_cols_${targetDsId}`;
-              localStorage.setItem(colsCacheKey, JSON.stringify(freshCols));
-              localStorage.setItem(`${colsCacheKey}_ts`, String(Date.now()));
-            }
-          } catch { /* quota */ }
-          // Also store in React state for immediate re-render
-          setApiFetchedRows(prev => ({ ...prev, [targetDsId]: freshRows }));
-          setApiFetchedCols(prev => ({ ...prev, [targetDsId]: freshCols }));
-        } catch { /* API failed — lookup will show raw value */ }
-      })();
-    }
-  }, [columns, dataSources]);
+  // // Fetch target table data from API when localStorage cache is missing
+  // // V1 FREEZE: Disabled — see relationLookupMap comment above
+  // useEffect(() => { ... }, [columns, dataSources]);
 
-  const relationLookupMap = useMemo(() => {
-    const map: Record<string, Record<string, string>> = {}; // colId → { pivotKey → label }
-    const relationCols = columns.filter(c => c.type === 'RELATION');
-
-    for (const col of relationCols) {
-      const targetDsId = (col.config?.targetTableId as string) || (col.config?.targetTable as string);
-      // Resolve the effective pivot column slug:
-      // 1. Explicit targetColumnId from config (set by user via "Colonne Pivot Cible" dropdown)
-      // 2. Auto-fallback: first visible TEXT column of the target table
-      // This ensures human-readable keys (e.g. "Noir") instead of UUID machine IDs
-      const explicitPivotSlug = (col.config?.targetColumnId as string) || '';
-
-      if (!targetDsId || targetDsId === 'self') {
-        // Self-referencing: use current table's rows + columns
-        const effectivePivotSlug = explicitPivotSlug
-          || (columns.find(c => c.type === 'TEXT' && c.visible && !c.slug.startsWith('__'))?.slug || '');
-        const lookup: Record<string, string> = {};
-        for (const row of rows) {
-          const data = row.data as Record<string, unknown>;
-          // pivotKey = the human-readable value from the selected/auto pivot column
-          const pivotKey = effectivePivotSlug
-            ? String(data[effectivePivotSlug] ?? '')
-            : row.id;   // absolute last resort (should never happen with auto-fallback)
-          if (!pivotKey) continue;
-          // Label: prefer findBestLabel for richest display
-          const label = findBestLabel(data, columns) || pivotKey;
-          if (label) lookup[pivotKey] = label;
-        }
-        map[col.id] = lookup;
-        continue;
-      }
-
-      // Cross-table: read target rows from admin cache OR API-fetched data
-      try {
-        const cacheKey = `abaya_cache_admin_rows_${targetDsId}`;
-        const raw = localStorage.getItem(cacheKey);
-        const targetRows: Row[] = raw
-          ? JSON.parse(raw) as Row[]
-          : (apiFetchedRows[targetDsId] || []);
-
-        if (targetRows.length === 0) continue;
-
-        // Also read target columns from cache OR API-fetched data
-        const colsCacheKey = `abaya_cache_admin_cols_${targetDsId}`;
-        const colsRaw = localStorage.getItem(colsCacheKey);
-        const targetCols: Column[] = colsRaw
-          ? JSON.parse(colsRaw) as Column[]
-          : (apiFetchedCols[targetDsId] || []);
-
-        // Auto-fallback: if no explicit pivot, use the first visible TEXT column
-        const effectivePivotSlug = explicitPivotSlug
-          || (targetCols.find(c => c.type === 'TEXT' && c.visible && !c.slug.startsWith('__'))?.slug || '');
-
-        const lookup: Record<string, string> = {};
-
-        for (const tRow of targetRows) {
-          const tData = tRow.data as Record<string, unknown>;
-          // pivotKey = human-readable value (e.g. "Noir") instead of UUID
-          const pivotKey = effectivePivotSlug
-            ? String(tData[effectivePivotSlug] ?? '')
-            : tRow.id;   // absolute last resort (should never happen with auto-fallback)
-          if (!pivotKey) continue;
-          // Label: use findBestLabel for richest display (primary text column, etc.)
-          const label = findBestLabel(tData, targetCols) || pivotKey;
-          if (label) lookup[pivotKey] = label;
-        }
-        map[col.id] = lookup;
-      } catch { /* cache read failed, lookup will show raw value */ }
-    }
-    return map;
-  }, [columns, rows, dataSources, apiFetchedRows, apiFetchedCols]);
+  // ━━━ V1 FREEZE: relationLookupMap disabled ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  // RELATION columns are frozen for V1 launch — all cells display '—'.
+  // The auto-fallback logic selected wrong columns in production (e.g. 'nouvelle_colonne'
+  // instead of 'nomproduitdocx' because most TEXT columns are visible:false).
+  // This will be re-enabled in V2 with proper pivot resolution.
+  const relationLookupMap: Record<string, Record<string, string>> = {};
 
   /** Find the best display label from a row's data */
   function findBestLabel(data: Record<string, unknown>, cols: Column[]): string {
@@ -1377,39 +1274,11 @@ export function DataTable({ columns, rows, dataSourceId, loading, onRefresh, onU
       );
     }
 
-    // ━━━ Relation Cell: Resolve foreign key → human-readable label ━━━━━━━
+    // ━━━ Relation Cell: V1 FROZEN — always display '—' ━━━━━━━━━━━━━━━━━━
+    // RELATION columns are frozen for V1 launch. No lookup, no editor.
+    // All RELATION cells display '—' to avoid broken display in production.
     if (col.type === 'RELATION') {
-      const rawValue = (row.data as Record<string, unknown>)[col.slug];
-      if (rawValue === undefined || rawValue === null || rawValue === '') {
-        return <span className="text-muted-foreground/40">—</span>;
-      }
-      const pivotKey = String(rawValue);
-      const lookup = relationLookupMap[col.id];
-      const resolvedLabel = lookup?.[pivotKey];
-      if (resolvedLabel) {
-        // Find target data source name for tooltip
-        const targetDsId = (col.config?.targetTableId as string) || (col.config?.targetTable as string);
-        const targetDs = targetDsId && targetDsId !== 'self'
-          ? dataSources.find(ds => ds.id === targetDsId)
-          : null;
-        return (
-          <Badge
-            variant="outline"
-            className="text-[10px] gap-1 max-w-[180px] truncate"
-            title={targetDs ? `→ ${targetDs.name}: ${resolvedLabel}` : resolvedLabel}
-          >
-            <Link2 className="w-2.5 h-2.5 shrink-0 text-gold/60" />
-            <span className="truncate">{resolvedLabel}</span>
-          </Badge>
-        );
-      }
-      // Fallback: show raw key with link icon
-      return (
-        <span className="text-muted-foreground/60 text-[10px] truncate block max-w-[150px]" title={`Clé: ${pivotKey}`}>
-          <Link2 className="w-2.5 h-2.5 inline mr-1 text-gold/40" />
-          {pivotKey.length > 20 ? `${pivotKey.slice(0, 8)}…` : pivotKey}
-        </span>
-      );
+      return <span className="text-muted-foreground/40">—</span>;
     }
 
     const value = (row.data as Record<string, unknown>)[col.slug];
@@ -2131,21 +2000,11 @@ export function DataTable({ columns, rows, dataSourceId, loading, onRefresh, onU
                           "px-3 py-1.5 border-l border-border/30 relative",
                           isCellSelected && "bg-[var(--dt-pending-row-bg)] dark:bg-amber-950/20 ring-1 ring-gold/40 dark:ring-gold/30 ring-inset"
                         )}>
-                          {isRelationEditing && col.type === 'RELATION' ? (
-                            <Popover open={isRelationEditing} onOpenChange={(open) => { if (!open) setEditingRelationCell(null); }}>
-                              <PopoverTrigger asChild>
-                                <div />
-                              </PopoverTrigger>
-                              <PopoverContent className="w-auto p-0 z-50" side="bottom" align="start">
-                                <RelationCellEditor
-                                  col={col}
-                                  row={row}
-                                  dataSourceId={dataSourceId}
-                                  onUpdateRow={onUpdateRow}
-                                  onClose={() => setEditingRelationCell(null)}
-                                />
-                              </PopoverContent>
-                            </Popover>
+                          {/* V1 FREEZE: RELATION editor disabled — always show cell value */}
+                          {col.type === 'RELATION' ? (
+                            <div className="min-h-[24px] flex items-center">
+                              {renderCellValue(row, col)}
+                            </div>
                           ) : isEditing ? (
                             <Input
                               value={editValue}
@@ -2180,8 +2039,8 @@ export function DataTable({ columns, rows, dataSourceId, loading, onRefresh, onU
                                     toast.error('Statut verrouillé 🔒 — Déverrouillez d\'abord le cadenas');
                                   }
                                 } else if (col.type === 'RELATION') {
-                                  // RELATION column: open smart dropdown editor
-                                  setEditingRelationCell(cellKey);
+                                  // V1 FREEZE: RELATION editing disabled — no-op on double-click
+                                  return;
                                 } else {
                                   startEditing(row.id, col.slug, (row.data as Record<string, unknown>)[col.slug]);
                                 }
@@ -2192,7 +2051,7 @@ export function DataTable({ columns, rows, dataSourceId, loading, onRefresh, onU
                                   toggleCellSelect(row.id, col.slug, e.shiftKey || e.ctrlKey || e.metaKey);
                                 }
                               }}
-                              title={(col.type === 'STATUS' || col.slug === '__statut__') ? ((pendingStatusChanges?.[row.id]?.locked ?? (row.data as Record<string, unknown>).__statut_locked__) ? "Statut verrouillé 🔒 — déverrouillez d'abord" : "Double-cliquer pour changer le statut") : col.type === 'RELATION' ? "Double-cliquer pour choisir la relation" : "Double-cliquer pour modifier · Shift+Clic pour sélectionner"}
+                              title={(col.type === 'STATUS' || col.slug === '__statut__') ? ((pendingStatusChanges?.[row.id]?.locked ?? (row.data as Record<string, unknown>).__statut_locked__) ? "Statut verrouillé 🔒 — déverrouillez d'abord" : "Double-cliquer pour changer le statut") : col.type === 'RELATION' ? "Relation (V1 — bientôt disponible)" : "Double-cliquer pour modifier · Shift+Clic pour sélectionner"}
                             >
                               {renderCellValue(row, col)}
                             </div>
