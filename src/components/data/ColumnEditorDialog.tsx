@@ -518,11 +518,9 @@ export function ColumnEditorDialog({ open, onOpenChange, dataSourceId, columns, 
                   </div>
                 )}
 
-                {/* RELATION → Notion-style 4 fields */}
+                {/* RELATION → Pivot configuration (3 dropdowns) */}
                 {type === 'RELATION' && (
                   <RelationConfigFields
-                    name={name}
-                    onNameChange={setName}
                     config={config}
                     onConfigChange={setConfig}
                     columns={columns}
@@ -609,16 +607,12 @@ export function ColumnEditorDialog({ open, onOpenChange, dataSourceId, columns, 
 // Separated into its own component so it can fetch target-table columns
 // without re-rendering the entire dialog on each keystroke.
 function RelationConfigFields({
-  name,
-  onNameChange,
   config,
   onConfigChange,
   columns,
   dataSourceId,
   dataSources,
 }: {
-  name: string;
-  onNameChange: (v: string) => void;
   config: ColumnConfig;
   onConfigChange: (c: ColumnConfig) => void;
   columns: Column[];
@@ -686,22 +680,28 @@ function RelationConfigFields({
 
   const isSelfRef = !selectedTargetDsId || selectedTargetDsId === 'self';
 
+  // Auto-select first TEXT column as default pivot when target table changes
+  const autoSelectDefaultPivot = (freshCols: Column[]) => {
+    if ((config.targetColumnId as string)) return; // already selected
+    const firstTextCol = freshCols.find(c => c.type === 'TEXT' && c.visible && !c.slug.startsWith('__'));
+    if (firstTextCol) {
+      onConfigChange({ ...config, targetColumnId: firstTextCol.slug });
+    }
+  };
+
+  // When target columns are fetched, auto-select default pivot
+  useEffect(() => {
+    if (targetColumns.length > 0 && !(config.targetColumnId as string)) {
+      autoSelectDefaultPivot(targetColumns);
+    }
+  }, [targetColumns]);
+
   return (
     <div className="space-y-2.5">
       <p className="text-[10px] text-muted-foreground/60 flex items-center gap-1.5">
         <Link2 className="w-3 h-3 text-gold/50" />
         Configurez la relation entre les tables
       </p>
-      {/* Relation name */}
-      <div>
-        <Label className="mb-0.5 text-[10px] text-muted-foreground/60">Nom de la relation</Label>
-        <Input
-          value={name}
-          onChange={e => onNameChange(e.target.value)}
-          placeholder="Ex: Produits → Catégories"
-          className="h-7 text-xs border-border/40 focus:border-gold"
-        />
-      </div>
       {/* Source column (pivot local) */}
       <div>
         <Label className="mb-0.5 text-[10px] text-muted-foreground/60">Colonne source (pivot local)</Label>
@@ -747,11 +747,11 @@ function RelationConfigFields({
           </SelectContent>
         </Select>
       </div>
-      {/* Target column (pivot cible) — the key field that was MISSING */}
+      {/* Colonne Pivot Cible — the key dropdown replacing useless 'Nom de la relation' */}
       {selectedTargetDsId && (
         <div>
           <Label className="mb-0.5 text-[10px] text-muted-foreground/60">
-            Colonne cible (clé de correspondance)
+            Colonne Pivot Cible
             {loadingTargetCols && <span className="ml-1 animate-pulse">⏳</span>}
           </Label>
           <Select
@@ -759,7 +759,7 @@ function RelationConfigFields({
             onValueChange={v => onConfigChange({ ...config, targetColumnId: v })}
           >
             <SelectTrigger className="h-7 text-xs border-border/40">
-              <SelectValue placeholder={isSelfRef ? "Colonne de la table actuelle…" : "Colonne de la table cible…"} />
+              <SelectValue placeholder={isSelfRef ? "Choisir le pivot dans cette table…" : "Choisir le pivot dans la table cible…"} />
             </SelectTrigger>
             <SelectContent>
               {targetColumns
@@ -780,7 +780,7 @@ function RelationConfigFields({
             </SelectContent>
           </Select>
           <p className="text-[9px] text-muted-foreground/40 mt-0.5">
-            La valeur de cette colonne dans la table cible sera comparée à la valeur du pivot local pour résoudre la relation.
+            La valeur de cette colonne (ex: « Noir », « 1 ») sera utilisée comme clé de correspondance entre la cellule source et la ligne cible.
           </p>
         </div>
       )}

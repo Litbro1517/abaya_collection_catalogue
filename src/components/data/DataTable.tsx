@@ -209,7 +209,7 @@ function RelationCellEditor({
   const popoverRef = useRef<HTMLDivElement>(null);
 
   const targetDsId = (col.config?.targetTableId as string) || (col.config?.targetTable as string);
-  const targetColumnSlug = (col.config?.targetColumnId as string) || '';
+  const explicitPivotSlug = (col.config?.targetColumnId as string) || '';
   const isSelfRef = !targetDsId || targetDsId === 'self';
   const currentValue = String((row.data as Record<string, unknown>)[col.slug] || '');
 
@@ -272,8 +272,11 @@ function RelationCellEditor({
   // Get display label for a target row
   const getLabel = (tRow: Row): string => {
     const tData = tRow.data as Record<string, unknown>;
-    if (targetColumnSlug) {
-      const val = String(tData[targetColumnSlug] ?? '').trim();
+    // Use effective pivot slug: explicit selection > auto-fallback to first TEXT column
+    const effectiveSlug = explicitPivotSlug
+      || (targetCols.find(c => c.type === 'TEXT' && c.visible && !c.slug.startsWith('__'))?.slug || '');
+    if (effectiveSlug) {
+      const val = String(tData[effectiveSlug] ?? '').trim();
       if (val) return val;
     }
     // Fallback: first visible TEXT column
@@ -289,10 +292,13 @@ function RelationCellEditor({
   };
 
   // Get pivot key for a target row (the value that will be stored in the cell)
+  // Uses effective pivot: explicit > auto-fallback to first TEXT column > tRow.id (last resort)
   const getPivotKey = (tRow: Row): string => {
     const tData = tRow.data as Record<string, unknown>;
-    if (targetColumnSlug) {
-      return String(tData[targetColumnSlug] ?? '');
+    const effectiveSlug = explicitPivotSlug
+      || (targetCols.find(c => c.type === 'TEXT' && c.visible && !c.slug.startsWith('__'))?.slug || '');
+    if (effectiveSlug) {
+      return String(tData[effectiveSlug] ?? '');
     }
     return tRow.id;
   };
@@ -916,21 +922,25 @@ export function DataTable({ columns, rows, dataSourceId, loading, onRefresh, onU
 
     for (const col of relationCols) {
       const targetDsId = (col.config?.targetTableId as string) || (col.config?.targetTable as string);
+      // Resolve the effective pivot column slug:
+      // 1. Explicit targetColumnId from config (set by user via "Colonne Pivot Cible" dropdown)
+      // 2. Auto-fallback: first visible TEXT column of the target table
+      // This ensures human-readable keys (e.g. "Noir") instead of UUID machine IDs
+      const explicitPivotSlug = (col.config?.targetColumnId as string) || '';
+
       if (!targetDsId || targetDsId === 'self') {
-        // Self-referencing: use current table's rows
-        const targetColumnSlug = (col.config?.targetColumnId as string) || '';
+        // Self-referencing: use current table's rows + columns
+        const effectivePivotSlug = explicitPivotSlug
+          || (columns.find(c => c.type === 'TEXT' && c.visible && !c.slug.startsWith('__'))?.slug || '');
         const lookup: Record<string, string> = {};
         for (const row of rows) {
           const data = row.data as Record<string, unknown>;
-          // Pivot key: if targetColumnId is set, use that column's value for matching
-          // Otherwise fall back to row id
-          const pivotKey = targetColumnSlug
-            ? String(data[targetColumnSlug] ?? '')
-            : row.id;
+          // pivotKey = the human-readable value from the selected/auto pivot column
+          const pivotKey = effectivePivotSlug
+            ? String(data[effectivePivotSlug] ?? '')
+            : row.id;   // absolute last resort (should never happen with auto-fallback)
           if (!pivotKey) continue;
-          // Label: prefer findBestLabel for richest display, but if targetColumnId
-          // is set, that column's value IS the match key — we still want to show
-          // a friendlier label (e.g. the row's primary text column)
+          // Label: prefer findBestLabel for richest display
           const label = findBestLabel(data, columns) || pivotKey;
           if (label) lookup[pivotKey] = label;
         }
@@ -955,22 +965,20 @@ export function DataTable({ columns, rows, dataSourceId, loading, onRefresh, onU
           ? JSON.parse(colsRaw) as Column[]
           : (apiFetchedCols[targetDsId] || []);
 
-        // The target column slug is the key for matching (targetColumnId)
-        const targetColumnSlug = (col.config?.targetColumnId as string) || '';
+        // Auto-fallback: if no explicit pivot, use the first visible TEXT column
+        const effectivePivotSlug = explicitPivotSlug
+          || (targetCols.find(c => c.type === 'TEXT' && c.visible && !c.slug.startsWith('__'))?.slug || '');
 
         const lookup: Record<string, string> = {};
 
         for (const tRow of targetRows) {
           const tData = tRow.data as Record<string, unknown>;
-          // If targetColumnId is set, use that column's value as the pivot key
-          // This allows matching "Catégorie A" → "Catégorie A" instead of UUID → UUID
-          // If not set, fall back to row id (legacy behavior)
-          const pivotKey = targetColumnSlug
-            ? String(tData[targetColumnSlug] ?? '')
-            : tRow.id;
+          // pivotKey = human-readable value (e.g. "Noir") instead of UUID
+          const pivotKey = effectivePivotSlug
+            ? String(tData[effectivePivotSlug] ?? '')
+            : tRow.id;   // absolute last resort (should never happen with auto-fallback)
           if (!pivotKey) continue;
           // Label: use findBestLabel for richest display (primary text column, etc.)
-          // Fallback to pivotKey if no better label found
           const label = findBestLabel(tData, targetCols) || pivotKey;
           if (label) lookup[pivotKey] = label;
         }

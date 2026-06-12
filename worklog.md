@@ -894,3 +894,30 @@ Stage Summary:
 - All API routes now work (200 responses), database is functional
 - `config.targetColumnId` correctly persists through Prisma JSON field
 - Previously implemented RELATION fixes (targetColumnId selector, relationLookupMap, cache/API fallback, RelationCellEditor) are all intact and working
+
+---
+Task ID: 5
+Agent: Main Agent
+Task: Rectification Majeure — Interface Pivot & Moteur de Jointure
+
+Work Log:
+- Audited ColumnEditorDialog.tsx: found "Nom de la relation" text input (useless duplicate of column name) + existing targetColumnId dropdown
+- Audited DataTable.tsx: found relationLookupMap with `tRow.id` UUID fallback when targetColumnId is empty
+- ColumnEditorDialog.tsx: Removed "Nom de la relation" text input + `name`/`onNameChange` props from RelationConfigFields
+- ColumnEditorDialog.tsx: Renamed "Colonne cible (clé de correspondance)" → "Colonne Pivot Cible"
+- ColumnEditorDialog.tsx: Added auto-select default pivot (first TEXT column) when target table changes
+- DataTable.tsx relationLookupMap: Replaced `tRow.id` UUID fallback with auto-detection of first visible TEXT column
+  - `effectivePivotSlug = explicitPivotSlug || targetCols.find(TEXT)?.slug || ''` 
+  - If effectivePivotSlug is found: `pivotKey = String(tData[effectivePivotSlug])` (human text)
+  - Only falls back to `tRow.id` if NO TEXT column exists (absolute last resort)
+- DataTable.tsx RelationCellEditor: Same auto-fallback logic for `getLabel` and `getPivotKey`
+- Ran diagnostic script proving both explicit and auto-fallback paths produce matching pivotKeys
+- Lint passes clean, browser loads with no errors, all API routes return 200
+
+Stage Summary:
+- "Nom de la relation" text field removed from ColumnEditorDialog
+- "Colonne Pivot Cible" dropdown is the primary configuration for RELATION columns
+- Auto-selects first TEXT column as default when target table changes
+- relationLookupMap now NEVER uses UUID as pivotKey (unless table has zero TEXT columns)
+- Both explicit (`targetColumnId="nom"`) and legacy (`targetColumnId=""`) columns now resolve correctly
+- Diagnostic proof: "tes (copie)" column went from ❌ DÉSALIGNÉ TOTAL → ✅ ALIGNÉ
