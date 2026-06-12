@@ -871,3 +871,26 @@ Stage Summary:
 - Target table data is now available even if user never visited that table
 - API responses populate both React state (immediate) and localStorage (persistent)
 - Eliminates the "—" display caused by missing cache for unvisited target tables
+
+---
+Task ID: 4
+Agent: Main Agent
+Task: Fix PostgreSQL/SQLite database connection crash — "Failed to update column" toast
+
+Work Log:
+- Inspected API route `/api/datasources/[id]/columns/[columnId]/route.ts` — confirmed it correctly accepts `body.config` and persists it (line 16)
+- Inspected Prisma schema — found `provider = "postgresql"` but `.env` had `DATABASE_URL=file:/home/z/my-project/db/custom.db` (SQLite)
+- This mismatch caused ALL Prisma calls to fail with "URL must start with postgresql://"
+- Changed `prisma/schema.prisma` datasource from `provider = "postgresql"` to `provider = "sqlite"`, removed `directUrl`
+- Simplified `src/lib/db.ts` — removed PostgreSQL-specific dotenv override logic
+- Created `/home/z/my-project/db/` directory and ran `prisma db push` to create SQLite database
+- Verified ALL API endpoints return 200 (previously 500): datasources, colormap, categories, catalog
+- Direct database test confirmed `targetColumnId` correctly saves/updates in `config` JSON field via Prisma
+- Browser verification: page loads correctly, no console errors from database
+
+Stage Summary:
+- ROOT CAUSE: Prisma schema declared PostgreSQL but DATABASE_URL pointed to SQLite file
+- FIX: Changed schema to `provider = "sqlite"` to match actual DATABASE_URL
+- All API routes now work (200 responses), database is functional
+- `config.targetColumnId` correctly persists through Prisma JSON field
+- Previously implemented RELATION fixes (targetColumnId selector, relationLookupMap, cache/API fallback, RelationCellEditor) are all intact and working
