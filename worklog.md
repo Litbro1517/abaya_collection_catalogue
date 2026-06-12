@@ -734,3 +734,28 @@ Key Technical Decisions:
 1. position:fixed > position:sticky for right column: Sticky top-0 places content behind header. Fixed completely removes from scroll flow.
 2. margin:auto 0 > justify-content:center: The CSS spec bug where justify-content:center + overflow-y:auto makes top content unreachable when content overflows.
 3. Single-column + padding-right > grid 2-col: Since right column is fixed (out of flow), grid column is empty. Block layout with right padding is cleaner.
+
+---
+Task ID: 1
+Agent: Main Agent
+Task: Apply Règles 1-3 geometric adjustments to ProductPage — horizontal gap, breadcrumb position, vertical centering
+
+Work Log:
+- Analyzed uploaded screenshot and current code state (VLM + code reading)
+- Identified root cause: position:fixed with right:0 pushed text to far right edge, creating excessive horizontal gap
+- Règle 1: Changed .product-page-layout from display:block + padding-right:468px to CSS Grid with grid-template-columns:1fr 380px; gap:48px; align-items:start
+- Règle 2: Changed .product-page-breadcrumb padding from 0 0 16px to 28px 0 20px (desktop) and 16px 0 10px (mobile)
+- Règle 3: Changed .product-page-info from position:fixed;top:0;right:0;width:420px;height:100vh to position:sticky;top:72px;width:auto;height:calc(100vh - 88px) with margin:auto 0 on inner wrapper
+- Verified on deployed Vercel site via Agent Browser
+- Computed CSS confirmed: grid 758px/400px with 48px gap, sticky at top:72px, inner margin:134px auto (vertical centering)
+- Inner center at 449.7px ≈ viewport center 450px — perfect vertical centering confirmed
+- Mobile (375px) verified: proper vertical stacking, no overlap, no bugs
+- VLM rated layout 9/10, all three criteria met
+
+Stage Summary:
+- Commit 289248d pushed to main
+- Deployed on Vercel at abaya-collection-catalogue-9dum.vercel.app
+- All three geometric rules satisfied:
+  1. Horizontal gap: 48px (compact, elegant) ✅
+  2. Breadcrumb: 28px top padding below header ✅
+  3. Vertical centering: text block centered in viewport ✅
