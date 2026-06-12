@@ -759,3 +759,29 @@ Stage Summary:
   1. Horizontal gap: 48px (compact, elegant) ✅
   2. Breadcrumb: 28px top padding below header ✅
   3. Vertical centering: text block centered in viewport ✅
+
+---
+Task ID: vague-1
+Agent: main
+Task: Mandat Vague 1 — Cache invalidation + bulk column updates + forceNetwork
+
+Work Log:
+- Read DataPillar.tsx (1876 lines) and ColumnEditorDialog.tsx to understand current implementation
+- Identified admin cache helpers: readAdminCache, writeAdminCache, isAdminCacheStale (2-min TTL)
+- Identified loadDataSourceData cache-first logic: reads cache, injects instantly, skips network if fresh
+- Fix 1: handleToggleColumnVisibility — after API PUT success, parse response, update admin cache with fresh column via writeAdminCache (non-optimistic)
+- Fix 2: handleHideAllColumns & handleShowAllColumns — replaced Promise.all with single batch call to new /api/columns/bulk-update endpoint, single cache invalidation after success
+- Fix 3: ColumnEditorDialog onSaved callback — added forceNetwork:true to loadDataSourceData() to bypass 2-min TTL
+- Fix 4: loadDataSourceData — added options?: { forceNetwork?: boolean } parameter, skips cache-fresh early return when forceNetwork=true
+- Created new API route: /api/datasources/[id]/columns/bulk-update/route.ts (Prisma $transaction for atomic batch updates)
+- Lint passed clean, dev server compiles without errors
+- Committed as 9607586 and pushed to main
+
+Stage Summary:
+- Commit SHA: 9607586
+- Files modified: src/components/data/DataPillar.tsx
+- Files created: src/app/api/datasources/[id]/columns/bulk-update/route.ts
+- Validation criteria:
+  1. Toggle eye on native column → only that column changes (cache updated with fresh data post-success)
+  2. "Masquer tout" → single network call via bulk-update endpoint
+  3. Create Relation column → forceNetwork:true forces immediate reload, no 2-min wait
