@@ -1703,6 +1703,7 @@ export function DataPillar() {
               onLocalLockToggle={handleLocalLockToggle}
               pendingStatusChanges={pendingStatusChanges}
               onAddColumn={() => setShowColumnModal(true)}
+              onToggleColumnVisibility={handleToggleColumnVisibility}
               colormapItems={colormapItems}
               catOptions={catOptions}
             />

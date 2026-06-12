@@ -1,7 +1,8 @@
 'use client';
 
-import { useState, useCallback, useRef, useEffect } from 'react';
-import type { Column, Row, ColumnType } from '@/types';
+import { useState, useCallback, useRef, useEffect, useMemo } from 'react';
+import type { Column, Row, ColumnType, DataSource } from '@/types';
+import { useAppStore } from '@/lib/store';
 import type { SortConfig } from './DataPillar';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -99,6 +100,7 @@ interface Props {
   onLocalLockToggle?: (rowId: string, currentLocked: boolean) => void;
   pendingStatusChanges?: Record<string, { statut: string; locked: boolean }>;
   onAddColumn?: () => void;
+  onToggleColumnVisibility?: (col: Column) => void;
   colormapItems?: Array<{
     id: string; name: string; slug: string; hex: string; ordre: number; visible: boolean; isActive: boolean;
   }>;
@@ -182,7 +184,7 @@ function CategoryCell({
   );
 }
 
-export function DataTable({ columns, rows, dataSourceId, loading, onRefresh, onUpdateRow, sortConfig, onSortChange, onSetSortDirect, onLocalStatusChange, onLocalLockToggle, pendingStatusChanges, onAddColumn, colormapItems, catOptions }: Props) {
+export function DataTable({ columns, rows, dataSourceId, loading, onRefresh, onUpdateRow, sortConfig, onSortChange, onSetSortDirect, onLocalStatusChange, onLocalLockToggle, pendingStatusChanges, onAddColumn, onToggleColumnVisibility, colormapItems, catOptions }: Props) {
   const [editingCell, setEditingCell] = useState<string | null>(null); // `${rowId}-${colSlug}`
   const [editValue, setEditValue] = useState('');
   const [showColumnEditor, setShowColumnEditor] = useState(false);
@@ -633,15 +635,118 @@ export function DataTable({ columns, rows, dataSourceId, loading, onRefresh, onU
     }
   };
 
+  // ── Relation lookup: resolve foreign keys → human-readable labels ──────
+  // Reads target table rows from admin cache (localStorage) for zero-latency lookups
+  const dataSources = useAppStore(state => state.dataSources);
+
+  const relationLookupMap = useMemo(() => {
+    const map: Record<string, Record<string, string>> = {}; // colId → { pivotKey → label }
+    const relationCols = columns.filter(c => c.type === 'RELATION');
+
+    for (const col of relationCols) {
+      const targetDsId = (col.config?.targetTableId as string) || (col.config?.targetTable as string);
+      if (!targetDsId || targetDsId === 'self') {
+        // Self-referencing: use current table's rows
+        const sourceSlug = (col.config?.sourceColumn as string) || col.slug;
+        const lookup: Record<string, string> = {};
+        for (const row of rows) {
+          const data = row.data as Record<string, unknown>;
+          const pivotKey = String(data[sourceSlug] ?? '');
+          if (!pivotKey) continue;
+          // Display label: prefer first TEXT column, fallback to N Ordre or id
+          const label = findBestLabel(data, columns);
+          if (label) lookup[pivotKey] = label;
+        }
+        map[col.id] = lookup;
+        continue;
+      }
+
+      // Cross-table: read target rows from admin cache
+      try {
+        const cacheKey = `abaya_cache_admin_rows_${targetDsId}`;
+        const raw = localStorage.getItem(cacheKey);
+        if (!raw) continue;
+        const targetRows = JSON.parse(raw) as Row[];
+
+        // Also read target columns from cache to find label column
+        const colsCacheKey = `abaya_cache_admin_cols_${targetDsId}`;
+        const colsRaw = localStorage.getItem(colsCacheKey);
+        const targetCols: Column[] = colsRaw ? JSON.parse(colsRaw) : [];
+
+        const targetColumnSlug = (col.config?.targetColumnId as string) || '';
+        const lookup: Record<string, string> = {};
+
+        for (const tRow of targetRows) {
+          const tData = tRow.data as Record<string, unknown>;
+          // If targetColumnId is set, use it as the pivot match key
+          // Otherwise match by row id
+          const pivotKey = targetColumnSlug
+            ? String(tData[targetColumnSlug] ?? '')
+            : tRow.id;
+          if (!pivotKey) continue;
+          const label = findBestLabel(tData, targetCols);
+          if (label) lookup[pivotKey] = label;
+        }
+        map[col.id] = lookup;
+      } catch { /* cache read failed, lookup will show raw value */ }
+    }
+    return map;
+  }, [columns, rows, dataSources]);
+
+  /** Find the best display label from a row's data */
+  function findBestLabel(data: Record<string, unknown>, cols: Column[]): string {
+    // 1. Prefer the first visible TEXT column that isn't a system column
+    const textCol = cols.find(c =>
+      c.type === 'TEXT' && c.visible && !c.slug.startsWith('__')
+    );
+    if (textCol) {
+      const val = String(data[textCol.slug] ?? '').trim();
+      if (val) return val;
+    }
+    // 2. Fallback: any visible non-system column
+    const anyCol = cols.find(c =>
+      c.visible && !c.slug.startsWith('__') && c.type !== 'IMAGE' && c.type !== 'IMAGE_ARRAY'
+    );
+    if (anyCol) {
+      const val = String(data[anyCol.slug] ?? '').trim();
+      if (val) return val;
+    }
+    // 3. Last resort: N Ordre
+    const ordre = data.__n_ordre__;
+    if (ordre) return `#${ordre}`;
+    return '';
+  }
+
   // ── Column operations ─────────────────────────────────────────────────────
 
   const toggleColumnVisibility = async (col: Column) => {
     try {
-      await fetch(`/api/datasources/${dataSourceId}/columns/${col.id}`, {
+      // ── Use the parent handler (DataPillar) which includes writeAdminCache ──
+      if (onToggleColumnVisibility) {
+        onToggleColumnVisibility(col);
+        return;
+      }
+      // ── Fallback: inline API call with direct cache update ──
+      const res = await fetch(`/api/datasources/${dataSourceId}/columns/${col.id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ visible: !col.visible }),
       });
+      if (res.ok) {
+        // Invalidate admin cache immediately with fresh data
+        const cKey = `abaya_cache_admin_cols_${dataSourceId}`;
+        try {
+          const raw = localStorage.getItem(cKey);
+          if (raw) {
+            const cachedCols = JSON.parse(raw) as Column[];
+            const updatedCols = cachedCols.map(c =>
+              c.id === col.id ? { ...c, visible: !c.visible } : c
+            );
+            localStorage.setItem(cKey, JSON.stringify(updatedCols));
+            localStorage.setItem(`${cKey}_ts`, String(Date.now()));
+          }
+        } catch { /* cache write failed silently */ }
+      }
       onRefresh();
       toast.success(col.visible ? 'Colonne masquée' : 'Colonne affichée');
     } catch {
@@ -974,6 +1079,41 @@ export function DataTable({ columns, rows, dataSourceId, loading, onRefresh, onU
           onRefresh={onRefresh}
           colormapItems={colormapItems}
         />
+      );
+    }
+
+    // ━━━ Relation Cell: Resolve foreign key → human-readable label ━━━━━━━
+    if (col.type === 'RELATION') {
+      const rawValue = (row.data as Record<string, unknown>)[col.slug];
+      if (rawValue === undefined || rawValue === null || rawValue === '') {
+        return <span className="text-muted-foreground/40">—</span>;
+      }
+      const pivotKey = String(rawValue);
+      const lookup = relationLookupMap[col.id];
+      const resolvedLabel = lookup?.[pivotKey];
+      if (resolvedLabel) {
+        // Find target data source name for tooltip
+        const targetDsId = (col.config?.targetTableId as string) || (col.config?.targetTable as string);
+        const targetDs = targetDsId && targetDsId !== 'self'
+          ? dataSources.find(ds => ds.id === targetDsId)
+          : null;
+        return (
+          <Badge
+            variant="outline"
+            className="text-[10px] gap-1 max-w-[180px] truncate"
+            title={targetDs ? `→ ${targetDs.name}: ${resolvedLabel}` : resolvedLabel}
+          >
+            <Link2 className="w-2.5 h-2.5 shrink-0 text-gold/60" />
+            <span className="truncate">{resolvedLabel}</span>
+          </Badge>
+        );
+      }
+      // Fallback: show raw key with link icon
+      return (
+        <span className="text-muted-foreground/60 text-[10px] truncate block max-w-[150px]" title={`Clé: ${pivotKey}`}>
+          <Link2 className="w-2.5 h-2.5 inline mr-1 text-gold/40" />
+          {pivotKey.length > 20 ? `${pivotKey.slice(0, 8)}…` : pivotKey}
+        </span>
       );
     }
 
@@ -1375,7 +1515,7 @@ export function DataTable({ columns, rows, dataSourceId, loading, onRefresh, onU
                         )}
 
                         {/* ── Column options — clean popover with expandable list ── */}
-                        <Popover open={colOptionsOpen === col.id} onOpenChange={(open) => { setColOptionsOpen(open ? col.id : null); setColOptionsExpanded(new Set()); }}>
+                        <Popover open={colOptionsOpen === col.id} onOpenChange={(open) => { setColOptionsOpen(open ? col.id : null); if (!open) setColOptionsExpanded(new Set()); }} modal>
                           <PopoverTrigger asChild>
                             <button className="p-1 rounded hover:bg-secondary text-muted-foreground hover:text-foreground transition-colors shrink-0 opacity-0 group-hover/col:opacity-100 data-[state=open]:opacity-100">
                               <ChevronDown className="w-3.5 h-3.5" />
@@ -1395,7 +1535,7 @@ export function DataTable({ columns, rows, dataSourceId, loading, onRefresh, onU
                                       <Badge variant="secondary" className="h-3.5 text-[8px] px-1 py-0 bg-amber-100 text-amber-700 border-amber-200 shrink-0">Native</Badge>
                                     )}
                                   </p>
-                                  <p className="text-[9px] text-muted-foreground">{COLUMN_TYPE_LABEL[col.type]} · slug: {col.slug}</p>
+                                  <p className="text-[9px] text-muted-foreground">{COLUMN_TYPE_LABEL[col.type]}</p>
                                 </div>
                               </div>
                             </div>
@@ -1413,9 +1553,8 @@ export function DataTable({ columns, rows, dataSourceId, loading, onRefresh, onU
                               >
                                 <Pencil className="w-3.5 h-3.5 text-muted-foreground" />
                                 <span className="flex-1">Éditer</span>
-                                {isNativeColumn(col.slug)
-                                  ? <span className="text-[8px] text-amber-500">Type verrouillé</span>
-                                  : <span className="text-[8px] text-muted-foreground/50">PUT /columns/{col.id.slice(0,6)}</span>
+                                {isNativeColumn(col.slug) &&
+                                  <span className="text-[8px] text-amber-500">Type verrouillé</span>
                                 }
                               </button>
 
@@ -1426,7 +1565,6 @@ export function DataTable({ columns, rows, dataSourceId, loading, onRefresh, onU
                               >
                                 <Type className="w-3.5 h-3.5 text-muted-foreground" />
                                 <span className="flex-1">Renommer</span>
-                                <span className="text-[8px] text-muted-foreground/50">field: name</span>
                               </button>
 
                               {/* Sort option — expandable */}
@@ -1444,7 +1582,6 @@ export function DataTable({ columns, rows, dataSourceId, loading, onRefresh, onU
                               </button>
                               {colOptionsExpanded.has('sort') && (
                                 <div className="ml-7 border-l-2 border-gold/20 pl-2 py-0.5">
-                                  <p className="text-[8px] text-muted-foreground/50 px-2 py-0.5">field: {col.slug}</p>
                                   <button
                                     className="w-full flex items-center gap-2 px-2 py-1 text-[10px] text-left hover:bg-secondary/60 rounded transition-colors"
                                     onClick={() => {
@@ -1478,7 +1615,6 @@ export function DataTable({ columns, rows, dataSourceId, loading, onRefresh, onU
                               >
                                 <Copy className="w-3.5 h-3.5 text-muted-foreground" />
                                 <span className="flex-1">Dupliquer</span>
-                                <span className="text-[8px] text-muted-foreground/50">POST /columns</span>
                               </button>
 
                               {/* Add column to right */}
@@ -1488,7 +1624,6 @@ export function DataTable({ columns, rows, dataSourceId, loading, onRefresh, onU
                               >
                                 <MoveRight className="w-3.5 h-3.5 text-muted-foreground" />
                                 <span className="flex-1">Ajouter à droite</span>
-                                <span className="text-[8px] text-muted-foreground/50">POST /columns</span>
                               </button>
 
                               <div className="my-1 h-px bg-border/40" />
@@ -1554,7 +1689,6 @@ export function DataTable({ columns, rows, dataSourceId, loading, onRefresh, onU
                               </button>
                               {colOptionsExpanded.has('visibility') && (
                                 <div className="ml-7 border-l-2 border-gold/20 pl-2 py-0.5">
-                                  <p className="text-[8px] text-muted-foreground/50 px-2 py-0.5">field: visible = {String(!col.visible)}</p>
                                   <button
                                     className="w-full flex items-center gap-2 px-2 py-1 text-[10px] text-left hover:bg-secondary/60 rounded transition-colors"
                                     onClick={() => { toggleColumnVisibility(col); setColOptionsOpen(null); }}
@@ -1574,7 +1708,6 @@ export function DataTable({ columns, rows, dataSourceId, loading, onRefresh, onU
                                 >
                                   <Trash2 className="w-3.5 h-3.5" />
                                   <span className="flex-1">Supprimer</span>
-                                  <span className="text-[8px] text-destructive/50">DELETE + all cell data</span>
                                 </button>
                               )}
                               {isNativeColumn(col.slug) && (

@@ -19,6 +19,7 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/ui/select';
 import type { Column, ColumnType, ColumnConfig, Row } from '@/types';
+import { useAppStore } from '@/lib/store';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 import {
@@ -75,6 +76,9 @@ export function ColumnEditorDialog({ open, onOpenChange, dataSourceId, columns, 
   const [required, setRequired] = useState(editingColumn?.required ?? false);
   const [config, setConfig] = useState<ColumnConfig>(editingColumn?.config || {});
   const [saving, setSaving] = useState(false);
+
+  // Access all data sources from global store for RELATION target table selector
+  const dataSources = useAppStore(state => state.dataSources);
 
   // Track original type for compatibility warning
   const [originalType, setOriginalType] = useState<ColumnType | null>(null);
@@ -553,12 +557,26 @@ export function ColumnEditorDialog({ open, onOpenChange, dataSourceId, columns, 
                     {/* Target table */}
                     <div>
                       <Label className="mb-0.5 text-[10px] text-muted-foreground/60">Table cible</Label>
-                      <Select value={config.targetTable || ''} onValueChange={v => setConfig({ ...config, targetTable: v })}>
+                      <Select value={config.targetTableId || config.targetTable || ''} onValueChange={v => setConfig({ ...config, targetTableId: v, targetTable: v })}>
                         <SelectTrigger className="h-7 text-xs border-border/40">
-                          <SelectValue placeholder="Sélectionner la source externe…" />
+                          <SelectValue placeholder="Sélectionner la table cible…" />
                         </SelectTrigger>
                         <SelectContent>
                           <SelectItem value="self">Table actuelle (auto-référence)</SelectItem>
+                          {dataSources
+                            .filter(ds => ds.id !== dataSourceId)
+                            .map(ds => (
+                              <SelectItem key={ds.id} value={ds.id}>
+                                <span className="flex items-center gap-1.5">
+                                  <span className="h-2 w-2 rounded-full shrink-0" style={{ backgroundColor: ds.color || 'var(--gold)' }} />
+                                  {ds.name}
+                                </span>
+                              </SelectItem>
+                            ))
+                          }
+                          {dataSources.filter(ds => ds.id !== dataSourceId).length === 0 && (
+                            <SelectItem value="_none" disabled>Aucune autre table disponible</SelectItem>
+                          )}
                         </SelectContent>
                       </Select>
                     </div>
