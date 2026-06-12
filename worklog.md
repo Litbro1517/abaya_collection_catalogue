@@ -785,3 +785,35 @@ Stage Summary:
   1. Toggle eye on native column → only that column changes (cache updated with fresh data post-success)
   2. "Masquer tout" → single network call via bulk-update endpoint
   3. Create Relation column → forceNetwork:true forces immediate reload, no 2-min wait
+
+---
+Task ID: structural-corrections
+Agent: main
+Task: Mandat d'Exécution — Correction Structurelle DataTable & ColumnEditorDialog
+
+Work Log:
+- DataTable.tsx: Removed 8 debug <span> elements (PUT /columns, POST /columns, DELETE + all cell data, field: name, field: slug, field: visible)
+- DataTable.tsx: Added `modal` prop to Popover to block unnecessary re-renders on hover
+- DataTable.tsx: Fixed toggleColumnVisibility to delegate to DataPillar's handler (includes writeAdminCache) via onToggleColumnVisibility prop; fallback with inline localStorage cache update
+- DataTable.tsx: Added RELATION case in renderCellValue with full lookup logic
+  - relationLookupMap (useMemo): reads target table rows from admin cache (localStorage)
+  - findBestLabel: prefers TEXT visible → any visible non-system → __n_ordre__
+  - Renders Badge with Link2 icon + resolved label; fallback raw key with truncation
+  - Supports self-reference (targetTable === 'self') and cross-table (targetTableId)
+- DataTable.tsx: Added useAppStore import, onToggleColumnVisibility prop, DataSource type import
+- ColumnEditorDialog.tsx: Added useAppStore import for dataSources access
+- ColumnEditorDialog.tsx: Replaced hardcoded "self" SelectItem with dynamic mapping of all dataSources
+  - Filters out current table, shows color dot + name
+  - Fixed config.targetTableId + config.targetTable updated together
+  - Shows "Aucune autre table disponible" when empty
+- DataPillar.tsx: Passes onToggleColumnVisibility={handleToggleColumnVisibility} to DataTable
+- Lint passed clean, dev server compiles without errors, HTTP 200 verified
+- Committed as 28c063f and pushed to main
+
+Stage Summary:
+- Commit SHA: 28c063f
+- Files modified: DataTable.tsx, ColumnEditorDialog.tsx, DataPillar.tsx
+- Three structural fixes applied:
+  1. Menu contextuel nettoyé (debug spans supprimés, Popover modal, cache invalidation)
+  2. RELATION cell rendering avec lookup (lecture admin cache, findBestLabel, Badge)
+  3. Sélecteur dynamique de tables (useAppStore, mapping dataSources, fix targetTableId)
