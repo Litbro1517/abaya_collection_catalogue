@@ -574,7 +574,7 @@ export function DataPillar() {
   }, [loadDataSources]);
 
   // Load columns and rows when active data source changes
-  const loadDataSourceData = useCallback(async () => {
+  const loadDataSourceData = useCallback(async (options?: { forceNetwork?: boolean }) => {
     if (!activeDataSourceId) return;
 
     const rKey = adminRowsKey(activeDataSourceId);
@@ -587,10 +587,10 @@ export function DataPillar() {
     if (cachedRows) setRows(cachedRows);
     if (cachedCols) setColumns(cachedCols);
 
-    // ── If both caches are fresh, skip network entirely ──
+    // ── If both caches are fresh AND no forceNetwork, skip network entirely ──
     const rowsFresh = !isAdminCacheStale(rKey);
     const colsFresh = !isAdminCacheStale(cKey);
-    if (rowsFresh && colsFresh && (cachedRows || cachedCols)) {
+    if (!options?.forceNetwork && rowsFresh && colsFresh && (cachedRows || cachedCols)) {
       setLoading(false);
       return;
     }
@@ -807,11 +807,25 @@ export function DataPillar() {
   // Column visibility toggle
   const handleToggleColumnVisibility = async (col: Column) => {
     try {
-      await fetch(`/api/datasources/${activeDataSourceId}/columns/${col.id}`, {
+      const res = await fetch(`/api/datasources/${activeDataSourceId}/columns/${col.id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ visible: !col.visible }),
       });
+      if (res.ok) {
+        // ── Invalider le cache local avec les données fraîches retournées par l'API ──
+        const json = await res.json();
+        if (json.data) {
+          const cKey = adminColsKey(activeDataSourceId!);
+          const cachedCols = readAdminCache<Column[]>(cKey);
+          if (cachedCols) {
+            const updatedCols = cachedCols.map(c =>
+              c.id === col.id ? { ...c, visible: !c.visible } : c
+            );
+            writeAdminCache(cKey, updatedCols);
+          }
+        }
+      }
       loadDataSourceData();
       toast.success(col.visible ? 'Colonne masquée' : 'Colonne affichée');
     } catch {
@@ -821,16 +835,25 @@ export function DataPillar() {
 
   const handleShowAllColumns = async () => {
     const hiddenCols = columns.filter(c => !c.visible);
+    if (hiddenCols.length === 0) return;
     try {
-      await Promise.all(
-        hiddenCols.map(col =>
-          fetch(`/api/datasources/${activeDataSourceId}/columns/${col.id}`, {
-            method: 'PUT',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ visible: true }),
-          })
-        )
-      );
+      const res = await fetch(`/api/datasources/${activeDataSourceId}/columns/bulk-update`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ updates: hiddenCols.map(col => ({ id: col.id, visible: true })) }),
+      });
+      if (res.ok) {
+        // Invalider le cache une seule fois après succès
+        const cKey = adminColsKey(activeDataSourceId!);
+        const cachedCols = readAdminCache<Column[]>(cKey);
+        if (cachedCols) {
+          const updatedCols = cachedCols.map(c => {
+            const update = hiddenCols.find(hc => hc.id === c.id);
+            return update ? { ...c, visible: true } : c;
+          });
+          writeAdminCache(cKey, updatedCols);
+        }
+      }
       loadDataSourceData();
       toast.success(`${hiddenCols.length} colonne(s) affichée(s)`);
     } catch {
@@ -840,16 +863,25 @@ export function DataPillar() {
 
   const handleHideAllColumns = async () => {
     const visibleCols = columns.filter(c => c.visible);
+    if (visibleCols.length === 0) return;
     try {
-      await Promise.all(
-        visibleCols.map(col =>
-          fetch(`/api/datasources/${activeDataSourceId}/columns/${col.id}`, {
-            method: 'PUT',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ visible: false }),
-          })
-        )
-      );
+      const res = await fetch(`/api/datasources/${activeDataSourceId}/columns/bulk-update`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ updates: visibleCols.map(col => ({ id: col.id, visible: false })) }),
+      });
+      if (res.ok) {
+        // Invalider le cache une seule fois après succès
+        const cKey = adminColsKey(activeDataSourceId!);
+        const cachedCols = readAdminCache<Column[]>(cKey);
+        if (cachedCols) {
+          const updatedCols = cachedCols.map(c => {
+            const update = visibleCols.find(vc => vc.id === c.id);
+            return update ? { ...c, visible: false } : c;
+          });
+          writeAdminCache(cKey, updatedCols);
+        }
+      }
       loadDataSourceData();
       toast.success(`${visibleCols.length} colonne(s) masquée(s)`);
     } catch {
@@ -1776,7 +1808,7 @@ export function DataPillar() {
         columns={columns}
         rows={rows}
         editingColumn={null}
-        onSaved={() => { loadDataSourceData(); setShowColumnModal(false); }}
+        onSaved={() => { loadDataSourceData({ forceNetwork: true }); setShowColumnModal(false); }}
       />
 
       {/* Google Sheets Browser */}
