@@ -8,7 +8,16 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
 
     const updateData: Record<string, unknown> = {};
     if (body.name !== undefined) updateData.name = body.name;
-    if (body.type !== undefined) updateData.type = body.type;
+    if (body.type !== undefined) {
+      // V1 FREEZE: Reject changing column type to RELATION
+      if (body.type === 'RELATION') {
+        return NextResponse.json(
+          { data: null, error: 'Le type Relation est désactivé en V1. Disponible en V2.' },
+          { status: 403 }
+        );
+      }
+      updateData.type = body.type;
+    }
     if (body.visible !== undefined) updateData.visible = body.visible;
     if (body.required !== undefined) updateData.required = body.required;
     if (body.order !== undefined) updateData.order = body.order;

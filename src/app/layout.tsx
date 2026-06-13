@@ -36,8 +36,10 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="fr" suppressHydrationWarning>
-      <head>
-        {/* ── Google Tag Manager — Head script ── */}
+      <body
+        className={`${playfair.variable} ${inter.variable} antialiased bg-background text-foreground`}
+      >
+        {/* ── Google Tag Manager — Head script (injected via next/script) ── */}
         {GTM_ID && (
           <Script
             id="gtm-head"
@@ -51,10 +53,6 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
             }}
           />
         )}
-      </head>
-      <body
-        className={`${playfair.variable} ${inter.variable} antialiased bg-background text-foreground`}
-      >
         {/* ── Google Tag Manager — Noscript fallback ── */}
         {GTM_ID && (
           <noscript>

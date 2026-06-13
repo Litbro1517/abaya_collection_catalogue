@@ -39,7 +39,13 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
         if (fields.visible !== undefined) updateData.visible = fields.visible;
         if (fields.order !== undefined) updateData.order = fields.order;
         if (fields.name !== undefined) updateData.name = fields.name;
-        if (fields.type !== undefined) updateData.type = fields.type;
+        if (fields.type !== undefined) {
+          // V1 FREEZE: Reject changing column type to RELATION
+          if (fields.type === 'RELATION') {
+            throw new Error('Le type Relation est désactivé en V1. Disponible en V2.');
+          }
+          updateData.type = fields.type;
+        }
         if (fields.required !== undefined) updateData.required = fields.required;
         if (fields.width !== undefined) updateData.width = fields.width;
         if (fields.config !== undefined) updateData.config = fields.config;

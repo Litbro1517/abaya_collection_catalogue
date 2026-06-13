@@ -39,7 +39,7 @@ const COLUMN_TYPES: { value: ColumnType; label: string; description: string; ico
   { value: 'SELECT', label: 'Sélection', description: 'Choix unique', icon: <ChevronDown className="w-4 h-4" /> },
   { value: 'MULTI_SELECT', label: 'Multi-sélection', description: 'Plusieurs choix', icon: <ListChecks className="w-4 h-4" /> },
   { value: 'BOOLEAN', label: 'Oui/Non', description: 'Valeur vrai ou faux', icon: <ToggleRight className="w-4 h-4" /> },
-  { value: 'RELATION', label: 'Relation', description: 'Lien vers une autre table', icon: <Link2 className="w-4 h-4" /> },
+  { value: 'RELATION', label: 'Relation', description: 'Bientôt disponible (V2)', icon: <Link2 className="w-4 h-4" />, frozen: true as const },
   { value: 'ARRAY', label: 'Groupe', description: 'Regroupement de colonnes', icon: <Layers className="w-4 h-4" /> },
   { value: 'URL', label: 'Lien', description: 'URL ou lien externe', icon: <ExternalLink className="w-4 h-4" /> },
   { value: 'STATUS', label: 'Statut', description: 'Statut avec verrouillage', icon: <Activity className="w-4 h-4" /> },
@@ -331,29 +331,34 @@ export function ColumnEditorDialog({ open, onOpenChange, dataSourceId, columns, 
                       const ct = COLUMN_TYPES.find(c => c.value === typeVal);
                       if (!ct) return null;
                       const isSelected = type === ct.value;
+                      const isFrozen = 'frozen' in ct && ct.frozen;
                       return (
                         <button
                           key={ct.value}
                           type="button"
                           className={cn(
                             "w-full flex items-center gap-2.5 px-3 py-2 text-sm transition-colors",
-                            isSelected
-                              ? "bg-primary text-white"
-                              : "hover:bg-muted/40 text-foreground"
+                            isFrozen
+                              ? "opacity-40 cursor-not-allowed"
+                              : isSelected
+                                ? "bg-primary text-white"
+                                : "hover:bg-muted/40 text-foreground"
                           )}
                           onClick={() => {
+                            if (isFrozen) return; // V1 FREEZE: RELATION type disabled
                             setType(ct.value);
                             setTypePopoverOpen(false);
                           }}
                         >
-                          <span className={isSelected ? "text-gold" : "text-gold/60"}>{ct.icon}</span>
+                          <span className={isSelected && !isFrozen ? "text-gold" : "text-gold/60"}>{ct.icon}</span>
                           <div className="flex-1 text-left">
                             <span className="text-xs font-medium">{ct.label}</span>
-                            <span className={cn("text-[10px] ml-1.5", isSelected ? "text-white/50" : "text-muted-foreground/50")}>
+                            <span className={cn("text-[10px] ml-1.5", isSelected && !isFrozen ? "text-white/50" : "text-muted-foreground/50")}>
                               {ct.description}
                             </span>
                           </div>
-                          {isSelected && <Check className="w-3.5 h-3.5 text-gold" />}
+                          {isFrozen && <Badge variant="secondary" className="text-[8px] px-1 py-0">V2</Badge>}
+                          {isSelected && !isFrozen && <Check className="w-3.5 h-3.5 text-gold" />}
                         </button>
                       );
                     })}
@@ -518,8 +523,18 @@ export function ColumnEditorDialog({ open, onOpenChange, dataSourceId, columns, 
                   </div>
                 )}
 
-                {/* RELATION → Pivot configuration (3 dropdowns) */}
+                {/* RELATION → V1 FROZEN — show notice instead of config */}
                 {type === 'RELATION' && (
+                  <div className="rounded-lg border border-gold/20 bg-gold/5 p-3 space-y-1.5">
+                    <p className="text-xs font-semibold text-gold">🔒 Fonctionnalité gelée (V1)</p>
+                    <p className="text-[10px] text-muted-foreground leading-relaxed">
+                      Les colonnes de type Relation sont désactivées pour la version actuelle.
+                      Elles seront disponibles en V2 avec une meilleure résolution des pivots.
+                    </p>
+                  </div>
+                )}
+                {/* RELATION config fields — HIDDEN for V1 freeze (uncomment for V2) */}
+                {/*type === 'RELATION' && (
                   <RelationConfigFields
                     config={config}
                     onConfigChange={setConfig}
@@ -527,7 +542,7 @@ export function ColumnEditorDialog({ open, onOpenChange, dataSourceId, columns, 
                     dataSourceId={dataSourceId}
                     dataSources={dataSources}
                   />
-                )}
+                )*/}
               </div>
             </div>
           )}

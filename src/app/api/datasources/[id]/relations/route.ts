@@ -19,29 +19,11 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
 
 export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
-    const { id } = await params;
-    const body = await req.json();
-    const { name, sourceColumnId, targetTableId, type } = body;
-
-    if (!name || !sourceColumnId || !targetTableId) {
-      return NextResponse.json({ data: null, error: 'Missing required fields' }, { status: 400 });
-    }
-
-    const relation = await db.relation.create({
-      data: {
-        name,
-        sourceTableId: id,
-        sourceColumnId,
-        targetTableId,
-        type: type || 'manyToOne',
-      },
-      include: {
-        sourceTable: { select: { id: true, name: true } },
-        targetTable: { select: { id: true, name: true } },
-      },
-    });
-
-    return NextResponse.json({ data: relation, error: null }, { status: 201 });
+    // V1 FREEZE: Disable relation creation for launch
+    return NextResponse.json(
+      { data: null, error: 'Les relations sont désactivées en V1. Disponible en V2.' },
+      { status: 403 }
+    );
   } catch (e) {
     return NextResponse.json({ data: null, error: 'Failed to create relation' }, { status: 500 });
   }

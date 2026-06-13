@@ -25,6 +25,14 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
       return NextResponse.json({ data: null, error: 'Name is required' }, { status: 400 });
     }
 
+    // V1 FREEZE: Reject RELATION column creation
+    if (type === 'RELATION') {
+      return NextResponse.json(
+        { data: null, error: 'Le type Relation est désactivé en V1. Disponible en V2.' },
+        { status: 403 }
+      );
+    }
+
     const slug = name
       .toLowerCase()
       .replace(/[^a-z0-9\s_]/g, '')

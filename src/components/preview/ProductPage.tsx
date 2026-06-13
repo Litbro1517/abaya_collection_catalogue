@@ -676,7 +676,9 @@ export function ProductPage({
                 // ── GTM dataLayer push — Lead event (NO monetary value) ──
                 // Sends 'whatsapp_contact' event for GTM/Meta tracking.
                 // IMPORTANT: No price/value sent to avoid poisoning Meta ROI optimization.
-                if (typeof window !== 'undefined' && (window as unknown as Record<string, unknown>).dataLayer) {
+                if (typeof window !== 'undefined') {
+                  (window as unknown as Record<string, unknown[]>).dataLayer =
+                    (window as unknown as Record<string, unknown[]>).dataLayer || [];
                   (window as unknown as Record<string, unknown[]>).dataLayer.push({
                     event: 'whatsapp_contact',
                     product_title: title || rawData.nomproduitdocx || 'Catalogue',
@@ -736,7 +738,9 @@ export function ProductPage({
           rel={isEpuise ? undefined : 'noopener noreferrer'}
           onClick={isEpuise ? (e: React.MouseEvent) => e.preventDefault() : () => {
             // ── GTM dataLayer push — Lead event (NO monetary value) ──
-            if (typeof window !== 'undefined' && (window as unknown as Record<string, unknown>).dataLayer) {
+            if (typeof window !== 'undefined') {
+              (window as unknown as Record<string, unknown[]>).dataLayer =
+                (window as unknown as Record<string, unknown[]>).dataLayer || [];
               (window as unknown as Record<string, unknown[]>).dataLayer.push({
                 event: 'whatsapp_contact',
                 product_title: title || rawData.nomproduitdocx || 'Catalogue',
