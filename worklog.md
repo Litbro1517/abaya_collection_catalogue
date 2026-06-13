@@ -103,3 +103,32 @@ Stage Summary:
 - 5 files modified, 135 insertions, 153 deletions (net code reduction)
 - Build + lint: ✅ clean
 - Deployed to Vercel via GitHub push
+
+---
+Task ID: 4
+Agent: Main Agent
+Task: URL Param Routing with Settings Fallback (?mode=whatsapp / ?mode=landing)
+
+Work Log:
+- Added URL parameter priority system to CatalogPreview.tsx
+- Implemented resolvedConversionChannel: reads ?mode= param first, falls back to admin setting
+- Uses useState lazy initializer (SSR-safe, avoids lint error from setState in effect)
+- Passes resolvedConversionChannel to ProductPage (CTA mode) and SocialStickyTickets (badge visibility)
+- Updated buildConversionLink to use resolvedConversionChannel, removed obsolete messenger/email branches
+- Admin settings switches remain fully functional as fallback when no URL param is present
+- Three scenarios:
+  1. ?mode=whatsapp → Force WhatsApp interface (direct CTA, no form, no sticky badge)
+  2. ?mode=landing → Force Landing Page interface (COD form, /merci redirect, sticky WhatsApp badge)
+  3. No param → Use admin setting (conversionChannel from catalog_settings table)
+- Email and Messenger confirmed still in Footer only (from previous task)
+- Lint passes with 0 errors (fixed react-hooks/set-state-in-effect by using lazy initializer)
+- Build passes with 0 errors
+- Deployed to Vercel via GitHub push (commit 9d69b23)
+
+Stage Summary:
+- URL param routing fully implemented with clean fallback to admin settings
+- 1 file modified, 21 insertions, 8 deletions
+- Priority chain: ?mode= URL param > admin setting > default 'whatsapp'
+- No code interference between global switch and URL params
+- Build + lint: ✅ clean
+- Deployed to Vercel
