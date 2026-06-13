@@ -854,9 +854,7 @@ export function SettingsPillar() {
                     <SelectTrigger><SelectValue /></SelectTrigger>
                     <SelectContent>
                       <SelectItem value="whatsapp"><div className="flex items-center gap-2"><MessageCircle className="w-3 h-3 text-green-600" /> WhatsApp</div></SelectItem>
-                      <SelectItem value="messenger"><div className="flex items-center gap-2"><MessageCircle className="w-3 h-3 text-blue-600" /> Messenger</div></SelectItem>
                       <SelectItem value="landing"><div className="flex items-center gap-2"><ExternalLink className="w-3 h-3" /> Landing Page</div></SelectItem>
-                      <SelectItem value="email"><div className="flex items-center gap-2"><Mail className="w-3 h-3" /> Email</div></SelectItem>
                     </SelectContent>
                   </Select>
                 </div>

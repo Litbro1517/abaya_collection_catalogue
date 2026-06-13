@@ -864,8 +864,6 @@ export function CatalogPreview({ onAdminLogin }: CatalogPreviewProps) {
         catalogName={catalogName}
         conversionChannel={s?.conversionChannel || 'whatsapp'}
         whatsappNumber={s?.whatsappNumber || ''}
-        messengerLink={s?.messengerLink || ''}
-        emailContact={s?.emailContact || ''}
         conversionMessage={s?.conversionMessage || ''}
         primaryColor={primaryColor}
         secondaryColor={secondaryColor}
@@ -1257,10 +1255,16 @@ export function CatalogPreview({ onAdminLogin }: CatalogPreviewProps) {
               {catalogName}
             </span>
           </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 20 }} className="text-xs text-white/70">
+          <div style={{ display: 'flex', alignItems: 'center', gap: 20, flexWrap: 'wrap', justifyContent: 'center' }} className="text-xs text-white/70">
             {s?.whatsappNumber && (
               <a href={`https://wa.me/${s.whatsappNumber}`} target="_blank" rel="noopener noreferrer" className="hover:text-green-400 transition-colors flex items-center gap-1.5">
                 <MessageCircle className="w-4 h-4" /> WhatsApp
+              </a>
+            )}
+            {s?.messengerLink && (
+              <a href={s.messengerLink.startsWith('http') ? s.messengerLink : `https://m.me/${s.messengerLink}`} target="_blank" rel="noopener noreferrer" className="hover:text-blue-400 transition-colors flex items-center gap-1.5">
+                <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.477 2 2 6.145 2 11.243c0 2.907 1.2 5.426 3.15 7.1.165.141.263.345.274.564l.056 1.76c.018.554.595.916 1.1.69l1.963-.867a.878.878 0 0 1 .59-.045c.924.255 1.907.391 2.917.391 5.523 0 10-4.145 10-9.243S17.523 2 12 2zm5.974 7.487l-2.832 4.488c-.424.672-1.333.808-1.932.29l-2.254-1.944a.706.706 0 0 0-.894-.002l-3.048 2.316c-.406.309-.937-.162-.677-.6l2.832-4.488c.424-.672 1.333-.808 1.932-.29l2.254 1.944a.706.706 0 0 0 .894.002l3.048-2.316c.406-.309.937.162.677.6z"/></svg>
+                Messenger
               </a>
             )}
             {s?.instagramHandle && (
@@ -1270,7 +1274,7 @@ export function CatalogPreview({ onAdminLogin }: CatalogPreviewProps) {
             )}
             {s?.emailContact && (
               <a href={`mailto:${s.emailContact}`} className="hover:text-blue-300 transition-colors flex items-center gap-1.5">
-                <Mail className="w-4 h-4" /> Contact
+                <Mail className="w-4 h-4" /> E-mail
               </a>
             )}
           </div>
@@ -1290,11 +1294,10 @@ export function CatalogPreview({ onAdminLogin }: CatalogPreviewProps) {
       {/* Conditional: Grid or Detail */}
       {isDetailView ? renderDetailView() : renderGridView()}
 
-      {/* Omnicanal Floating Social Widget */}
+      {/* Floating WhatsApp badge — only in Landing Page mode */}
       <SocialStickyTickets
         whatsappNumber={s?.whatsappNumber || ''}
-        messengerLink={s?.messengerLink || ''}
-        instagramHandle={s?.instagramHandle || ''}
+        conversionChannel={s?.conversionChannel || 'whatsapp'}
       />
     </div>
   );

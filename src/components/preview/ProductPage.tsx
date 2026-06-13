@@ -129,8 +129,6 @@ interface ProductPageProps {
   catalogName: string;
   conversionChannel: string;
   whatsappNumber: string;
-  messengerLink: string;
-  emailContact: string;
   conversionMessage: string;
   primaryColor: string;
   secondaryColor: string;
@@ -144,8 +142,6 @@ export function ProductPage({
   catalogName,
   conversionChannel,
   whatsappNumber,
-  messengerLink,
-  emailContact,
   conversionMessage,
   primaryColor,
   secondaryColor,
@@ -303,15 +299,16 @@ export function ProductPage({
     !detailLabelsShown.has(f.label.toLowerCase())
   );
 
-  // ── Conversion link ──
-  const conversionLink = (() => {
-    if (conversionChannel === 'whatsapp' && whatsappNumber) {
+  // ── Mode detection ──
+  // WhatsApp mode: direct WhatsApp link (simple catalog)
+  // Landing mode: COD form + sticky WhatsApp badge (e-commerce)
+  const isLandingMode = conversionChannel === 'landing';
+
+  // ── WhatsApp direct link (used in WhatsApp mode) ──
+  const whatsappLink = (() => {
+    if (whatsappNumber) {
       const msg = conversionMessage || `${t('whatsapp.message')}\n*${title}*\nPrix : ${price}`;
       return `https://wa.me/${whatsappNumber}?text=${encodeURIComponent(msg.replace('{product}', title))}`;
-    }
-    if (conversionChannel === 'messenger' && messengerLink) return messengerLink;
-    if (conversionChannel === 'email' && emailContact) {
-      return `mailto:${emailContact}?subject=${encodeURIComponent(`Commande : ${title}`)}`;
     }
     return '#';
   })();
@@ -326,11 +323,27 @@ export function ProductPage({
   const [showCodForm, setShowCodForm] = useState(false);
   const codFormRef = useRef<HTMLDivElement>(null);
 
+  // Only used in Landing Page mode
   const scrollToCodForm = () => {
     setShowCodForm(true);
     setTimeout(() => {
       codFormRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
     }, 100);
+  };
+
+  // CTA click handler — dynamic based on mode
+  const handleCtaClick = () => {
+    if (isEpuise) return;
+    if (isLandingMode) {
+      scrollToCodForm();
+    } else {
+      // WhatsApp mode: open WhatsApp directly
+      const dl = (window as unknown as Record<string, unknown[]>).dataLayer;
+      if (dl) {
+        dl.push({ event: 'whatsapp_contact', product_title: title });
+      }
+      window.open(whatsappLink, '_blank', 'noopener noreferrer');
+    }
   };
 
   const touchStartX = useRef(0);
@@ -678,19 +691,37 @@ export function ProductPage({
 
           {/* ── Action buttons ── */}
           <div className="product-page-actions">
-            {/* Commander CTA — triggers COD form */}
-            <button
-              className={cn('product-page-cta', isEpuise && 'cta-disabled')}
-              disabled={isEpuise}
-              onClick={isEpuise ? undefined : scrollToCodForm}
-              style={{
-                backgroundColor: isEpuise ? BRAND.grisClair : BRAND.vertFonce,
-                color: isEpuise ? BRAND.grisMoyen : '#fff',
-              }}
-            >
-              <ShoppingBag className="w-5 h-5 shrink-0" />
-              {isEpuise ? t('product.soldOut') : isSurCommande ? t('product.onOrder') : 'Achat Rapide'}
-            </button>
+            {/* Main CTA — dynamic based on conversion mode */}
+            {isLandingMode ? (
+              <button
+                className={cn('product-page-cta', isEpuise && 'cta-disabled')}
+                disabled={isEpuise}
+                onClick={isEpuise ? undefined : handleCtaClick}
+                style={{
+                  backgroundColor: isEpuise ? BRAND.grisClair : BRAND.vertFonce,
+                  color: isEpuise ? BRAND.grisMoyen : '#fff',
+                }}
+              >
+                <ShoppingBag className="w-5 h-5 shrink-0" />
+                {isEpuise ? t('product.soldOut') : isSurCommande ? t('product.onOrder') : 'Achat Rapide'}
+              </button>
+            ) : (
+              <a
+                className={cn('product-page-cta', isEpuise && 'cta-disabled')}
+                href={isEpuise ? '#' : whatsappLink}
+                target={isEpuise ? undefined : '_blank'}
+                rel={isEpuise ? undefined : 'noopener noreferrer'}
+                onClick={isEpuise ? (e) => e.preventDefault() : undefined}
+                style={{
+                  backgroundColor: isEpuise ? BRAND.grisClair : '#25D366',
+                  color: isEpuise ? BRAND.grisMoyen : '#fff',
+                  textDecoration: 'none',
+                }}
+              >
+                <MessageCircle className="w-5 h-5 shrink-0" />
+                {isEpuise ? t('product.soldOut') : 'Commander sur WhatsApp'}
+              </a>
+            )}
 
             {/* Like + Share */}
             <div className="product-page-secondary-actions">
@@ -711,8 +742,8 @@ export function ProductPage({
             </div>
           </div>
 
-          {/* ── COD Form ── */}
-          {showCodForm && !isEpuise && (
+          {/* ── COD Form — only in Landing Page mode ── */}
+          {isLandingMode && showCodForm && !isEpuise && (
             <div ref={codFormRef}>
               <CodForm
                 productId={row.id}
@@ -740,18 +771,36 @@ export function ProductPage({
           {isEpuise && <span className="product-page-status status-epuise">{t('product.soldOut')}</span>}
           {isSurCommande && <span className="product-page-status status-sur-commande">{t('product.onOrder')}</span>}
         </div>
-        <button
-          className={cn('mobile-cta-button', isEpuise && 'cta-disabled')}
-          disabled={isEpuise}
-          onClick={isEpuise ? undefined : scrollToCodForm}
-          style={{
-            backgroundColor: isEpuise ? BRAND.grisClair : BRAND.vertFonce,
-            color: isEpuise ? BRAND.grisMoyen : '#fff',
-          }}
-        >
-          <ShoppingBag className="w-4 h-4" />
-          {isEpuise ? t('product.soldOut') : t('product.commander')}
-        </button>
+        {isLandingMode ? (
+          <button
+            className={cn('mobile-cta-button', isEpuise && 'cta-disabled')}
+            disabled={isEpuise}
+            onClick={isEpuise ? undefined : handleCtaClick}
+            style={{
+              backgroundColor: isEpuise ? BRAND.grisClair : BRAND.vertFonce,
+              color: isEpuise ? BRAND.grisMoyen : '#fff',
+            }}
+          >
+            <ShoppingBag className="w-4 h-4" />
+            {isEpuise ? t('product.soldOut') : t('product.commander')}
+          </button>
+        ) : (
+          <a
+            className={cn('mobile-cta-button', isEpuise && 'cta-disabled')}
+            href={isEpuise ? '#' : whatsappLink}
+            target={isEpuise ? undefined : '_blank'}
+            rel={isEpuise ? undefined : 'noopener noreferrer'}
+            onClick={isEpuise ? (e) => e.preventDefault() : undefined}
+            style={{
+              backgroundColor: isEpuise ? BRAND.grisClair : '#25D366',
+              color: isEpuise ? BRAND.grisMoyen : '#fff',
+              textDecoration: 'none',
+            }}
+          >
+            <MessageCircle className="w-4 h-4" />
+            {isEpuise ? t('product.soldOut') : 'WhatsApp'}
+          </a>
+        )}
       </div>
     </main>
   );

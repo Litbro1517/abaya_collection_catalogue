@@ -2152,7 +2152,7 @@ img {
 }
 
 /* ═══════════════════════════════════════════════════════════════
-   SOCIAL STICKY TICKETS — Omnicanal floating widget
+   SOCIAL STICKY TICKET — Floating WhatsApp badge (Landing Page mode only)
    ═══════════════════════════════════════════════════════════════ */
 
 .social-sticky-container {
@@ -2162,7 +2162,6 @@ img {
   z-index: 50;
   display: flex;
   flex-direction: column;
-  gap: 8px;
   align-items: flex-end;
   pointer-events: none;
 }
@@ -2177,12 +2176,13 @@ img {
   height: 48px;
   overflow: hidden;
   cursor: pointer;
-  transition: all 0.3s ease-in-out;
+  transition: all 300ms ease;
   box-shadow: 0 2px 12px rgba(0, 0, 0, 0.15);
   position: relative;
+  background: #25D366;
 }
 
-/* Desktop: hover-expand */
+/* Desktop: hover-expand with 300ms smooth transition */
 @media (min-width: 641px) {
   .social-sticky-ticket:hover {
     width: 220px;
@@ -2212,7 +2212,6 @@ img {
   .social-sticky-container {
     top: auto;
     bottom: 80px;
-    gap: 10px;
   }
 
   .social-sticky-ticket {
@@ -2246,19 +2245,6 @@ img {
 @keyframes ticket-text-in {
   from { opacity: 0; transform: translateX(8px); }
   to { opacity: 1; transform: translateX(0); }
-}
-
-/* Brand colors per ticket type */
-.social-sticky-ticket--whatsapp {
-  background: #25D366;
-}
-
-.social-sticky-ticket--messenger {
-  background: #0084FF;
-}
-
-.social-sticky-ticket--instagram {
-  background: linear-gradient(135deg, #833AB4, #FD1D1D, #FCAF45);
 }
 
 /* ═══════════════════════════════════════════════════════════════
