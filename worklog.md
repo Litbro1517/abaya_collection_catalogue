@@ -72,3 +72,34 @@ Stage Summary:
 - SocialStickyTickets: ✅ Deployed (client-rendered)
 - GTM: ⚠️ Requires NEXT_PUBLIC_GTM_ID in Vercel environment variables
 - Production URL: https://abaya-collection-catalogue-9dum.vercel.app
+
+---
+Task ID: 3
+Agent: Main Agent
+Task: Dynamic Hybrid Funnel Switch — WhatsApp mode vs Landing Page mode
+
+Work Log:
+- Analyzed full project structure: 5 key files to modify (SocialStickyTickets, CatalogPreview, ProductPage, SettingsPillar, globals.css)
+- GLOBAL_CLEANUP: Rewrote SocialStickyTickets.tsx — removed Email/Messenger/Instagram tickets, now renders only a single WhatsApp badge (landing mode only)
+- GLOBAL_CLEANUP: Updated Footer in CatalogPreview.tsx — added Messenger (m.me link) and relabeled Email as "E-mail" (mailto:), both with matching brand styling
+- DYNAMIC_ROUTING: Modified ProductPage.tsx — added isLandingMode detection based on conversionChannel
+  - WhatsApp mode: CTA is a green `<a>` link "Commander sur WhatsApp" opening wa.me directly, no COD form, no sticky badge
+  - Landing Page mode: CTA is a dark "Achat Rapide" button triggering scrollToCodForm, COD form renders on click, sticky WhatsApp badge appears
+- Updated CatalogPreview.tsx — removed messengerLink/emailContact props from ProductPage, passed conversionChannel to SocialStickyTickets
+- Updated SettingsPillar.tsx — removed Messenger and Email from conversion channel dropdown, now only "WhatsApp" and "Landing Page" options
+- Updated globals.css — simplified SocialStickyTickets CSS to single badge, hardcoded bg: #25D366, transition: 300ms ease, removed messenger/instagram color classes
+- Removed obsolete conversionLink logic (messenger/email paths) from ProductPage
+- Build (next build) passes with 0 errors
+- Lint (eslint) passes with 0 errors
+- Browser verification: catalog page loads with products, footer shows WhatsApp/Messenger/Instagram/E-mail links, product detail shows "Commander sur WhatsApp" button in WhatsApp mode
+- Committed and pushed to GitHub (commit 2f3e164), Vercel auto-deploy triggered
+
+Stage Summary:
+- Dynamic mode switching fully implemented based on conversionChannel setting
+- WhatsApp mode: clean catalog with direct WhatsApp CTA, no form, no floating badge
+- Landing Page mode: e-commerce with COD form, /merci redirect, sticky WhatsApp badge
+- Email and Messenger permanently moved from floating buttons to Footer
+- Settings only show WhatsApp and Landing Page as conversion channel options
+- 5 files modified, 135 insertions, 153 deletions (net code reduction)
+- Build + lint: ✅ clean
+- Deployed to Vercel via GitHub push
