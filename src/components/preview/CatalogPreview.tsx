@@ -353,6 +353,20 @@ export function CatalogPreview({ onAdminLogin }: CatalogPreviewProps) {
   const accentColor = s?.accentColor || '#F5F0E8';
   const bgColor = s?.backgroundColor || '#FFFFFF';
 
+  // ━━━ URL Param Priority: ?mode=whatsapp | ?mode=landing ━━━
+  // If a URL param is present, it OVERRIDES the admin setting.
+  // If no param, falls back to the admin's configured conversionChannel.
+  // Priority: ?mode= param > admin setting > default 'whatsapp'
+  // Using useState lazy initializer to read URL once on mount (SSR-safe).
+  const [urlMode] = useState<string | null>(() => {
+    if (typeof window === 'undefined') return null;
+    const params = new URLSearchParams(window.location.search);
+    const mode = params.get('mode');
+    return (mode === 'whatsapp' || mode === 'landing') ? mode : null;
+  });
+
+  const resolvedConversionChannel = urlMode || s?.conversionChannel || 'whatsapp';
+
   // ━━━ Sections: useState starts empty (SSR can't read localStorage) ━━━
   const [sections, setSections] = useState<{ section: Section; columns: Column[]; rows: Row[] }[]>([]);
   const [sectionsLoaded, setSectionsLoaded] = useState(false);
@@ -559,15 +573,14 @@ export function CatalogPreview({ onAdminLogin }: CatalogPreviewProps) {
     const price = getCellValue(row, config.priceColumn || '');
     const phone = s?.whatsappNumber || '';
 
-    if (s?.conversionChannel === 'whatsapp' && phone) {
+    // Use resolvedConversionChannel (URL param ?mode= overrides admin setting)
+    if (resolvedConversionChannel === 'whatsapp' && phone) {
       const msg = s?.conversionMessage || `${t('whatsapp.message')}\n*${title}*\nPrix : ${price}`;
       return `https://wa.me/${phone}?text=${encodeURIComponent(msg.replace('{product}', title))}`;
     }
-    if (s?.conversionChannel === 'messenger' && s?.messengerLink) {
-      return s.messengerLink;
-    }
-    if (s?.conversionChannel === 'email' && s?.emailContact) {
-      return `mailto:${s.emailContact}?subject=${encodeURIComponent(`Commande : ${title}`)}`;
+    // Landing mode: no direct external link — the CTA triggers the COD form
+    if (resolvedConversionChannel === 'landing') {
+      return '#cod-form';
     }
     return '#';
   };
@@ -862,7 +875,7 @@ export function CatalogPreview({ onAdminLogin }: CatalogPreviewProps) {
         columns={detailColumns}
         section={section}
         catalogName={catalogName}
-        conversionChannel={s?.conversionChannel || 'whatsapp'}
+        conversionChannel={resolvedConversionChannel}
         whatsappNumber={s?.whatsappNumber || ''}
         conversionMessage={s?.conversionMessage || ''}
         primaryColor={primaryColor}
@@ -1297,7 +1310,7 @@ export function CatalogPreview({ onAdminLogin }: CatalogPreviewProps) {
       {/* Floating WhatsApp badge — only in Landing Page mode */}
       <SocialStickyTickets
         whatsappNumber={s?.whatsappNumber || ''}
-        conversionChannel={s?.conversionChannel || 'whatsapp'}
+        conversionChannel={resolvedConversionChannel}
       />
     </div>
   );
