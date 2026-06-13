@@ -978,11 +978,11 @@ export function CatalogPreview({ onAdminLogin }: CatalogPreviewProps) {
                 'catalog-subfilter-slot no-scrollbar',
                 hasSubs && 'catalog-subfilter-slot--visible'
               )}>
-                <div className="catalog-filter-bar no-scrollbar" style={{ paddingTop: '0', paddingBottom: '8px' }}>
+                <div className="catalog-filter-bar no-scrollbar" style={{ paddingTop: '4px', paddingBottom: '8px', marginTop: '4px' }}>
                   {/* "Tous" sub-pill */}
                   <button
                     className={cn(
-                      'px-3.5 py-1 rounded-full text-[11px] sm:text-xs font-medium whitespace-nowrap transition-all duration-200',
+                      'px-3.5 py-1.5 rounded-full text-xs sm:text-[13px] font-medium whitespace-nowrap transition-all duration-200',
                       activeMicroFilter === 'all' ? 'btn-filter-sub-active shadow-sm' : 'btn-filter-sub-inactive hover:opacity-80'
                     )}
                     onClick={() => { setActiveMicroFilter('all'); setCurrentPage(1); }}
@@ -995,7 +995,7 @@ export function CatalogPreview({ onAdminLogin }: CatalogPreviewProps) {
                       <button
                         key={sub.slug}
                         className={cn(
-                          'px-3.5 py-1 rounded-full text-[11px] sm:text-xs font-medium whitespace-nowrap transition-all duration-200',
+                          'px-3.5 py-1.5 rounded-full text-xs sm:text-[13px] font-medium whitespace-nowrap transition-all duration-200',
                           activeMicroFilter === sub.slug ? 'btn-filter-sub-active shadow-sm' : 'btn-filter-sub-inactive hover:opacity-80'
                         )}
                         onClick={() => { setActiveMicroFilter(sub.slug); setCurrentPage(1); }}
