@@ -900,6 +900,45 @@ export function SettingsPillar() {
           {/* Affichage */}
           <TabsContent value="display">
             <Card>
+              <CardHeader><CardTitle className="text-sm">Identité visuelle</CardTitle></CardHeader>
+              <CardContent className="space-y-4">
+                <div>
+                  <Label className="text-xs">Logo de la marque</Label>
+                  <p className="text-[10px] text-muted-foreground mb-1.5">URL de l'image — remplace le monogramme dans la barre de navigation et le pied de page</p>
+                  <div className="flex items-center gap-2">
+                    {local.logo && (
+                      <div className="w-8 h-8 rounded-md overflow-hidden bg-muted flex items-center justify-center shrink-0">
+                        <img src={local.logo} alt="Logo" className="w-full h-full object-contain" />
+                      </div>
+                    )}
+                    <Input
+                      value={local.logo || ''}
+                      onChange={e => updateField('logo', e.target.value)}
+                      placeholder="https://example.com/logo.png"
+                      className="h-9 text-xs"
+                    />
+                  </div>
+                </div>
+                <div>
+                  <Label className="text-xs">Favicon</Label>
+                  <p className="text-[10px] text-muted-foreground mb-1.5">URL de l'icône affichée dans l'onglet du navigateur (32×32 recommandé)</p>
+                  <div className="flex items-center gap-2">
+                    {local.favicon && (
+                      <div className="w-8 h-8 rounded-md overflow-hidden bg-muted flex items-center justify-center shrink-0">
+                        <img src={local.favicon} alt="Favicon" className="w-full h-full object-contain" />
+                      </div>
+                    )}
+                    <Input
+                      value={local.favicon || ''}
+                      onChange={e => updateField('favicon', e.target.value)}
+                      placeholder="https://example.com/favicon.ico"
+                      className="h-9 text-xs"
+                    />
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+            <Card>
               <CardHeader><CardTitle className="text-sm">Affichage</CardTitle></CardHeader>
               <CardContent className="space-y-4">
                 <label className="flex items-center justify-between">

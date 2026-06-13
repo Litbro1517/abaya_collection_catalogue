@@ -324,7 +324,7 @@ html.rtl .mobile-cta-button svg {
   min-height: calc(100vh - 220px);
   max-width: 1270px;
   margin: 0 auto;
-  padding: 24px 32px 48px;
+  padding: 16px 32px 48px;
   background-color: #FAF8F5;
 }
 
@@ -406,7 +406,7 @@ html.rtl .mobile-cta-button svg {
 .catalog-hero-header {
   background-color: #F7F4F1;
   width: 100%;
-  padding: 40px 32px 44px;
+  padding: 24px 32px 18px;
 }
 
 .catalog-hero-header-inner {
@@ -432,7 +432,7 @@ html.rtl .mobile-cta-button svg {
 
 @media (max-width: 640px) {
   .catalog-hero-header {
-    padding: 28px 16px 32px;
+    padding: 20px 16px 14px;
   }
   .catalog-hero-title {
     font-size: 24px;
@@ -451,8 +451,18 @@ html.rtl .mobile-cta-button svg {
 }
 
 .catalog-subfilter-slot {
+  min-height: 0;
+  max-height: 0;
+  opacity: 0;
+  overflow: hidden;
+  transition: max-height 0.35s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.3s ease, padding-top 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+  padding-top: 0;
+}
+
+.catalog-subfilter-slot--visible {
   min-height: 38px;
-  transition: opacity 0.3s ease;
+  max-height: 50px;
+  opacity: 1;
   padding-top: 8px;
 }
 
@@ -463,7 +473,7 @@ html.rtl .mobile-cta-button svg {
 .catalog-filter-bar {
   max-width: 1270px;
   margin: 0 auto;
-  padding: 10px 32px;
+  padding: 8px 32px;
   display: flex;
   gap: 10px;
   align-items: center;
@@ -472,7 +482,7 @@ html.rtl .mobile-cta-button svg {
 
 @media (max-width: 640px) {
   .catalog-filter-bar {
-    padding: 8px 16px;
+    padding: 6px 16px;
   }
 }
 
@@ -522,7 +532,7 @@ html.rtl .mobile-cta-button svg {
   align-items: center;
   justify-content: space-between;
   gap: 24px;
-  margin-bottom: 24px;
+  margin-bottom: 16px;
 }
 
 .catalog-toolbar h2 {

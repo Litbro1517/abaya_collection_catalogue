@@ -367,6 +367,18 @@ export function CatalogPreview({ onAdminLogin }: CatalogPreviewProps) {
 
   const resolvedConversionChannel = urlMode || s?.conversionChannel || 'whatsapp';
 
+  // ━━━ Dynamic Favicon — inject from catalog_settings.favicon ━━━
+  useEffect(() => {
+    if (!s?.favicon) return;
+    let link = document.querySelector("link[rel*='icon']") as HTMLLinkElement | null;
+    if (!link) {
+      link = document.createElement('link');
+      link.rel = 'icon';
+      document.head.appendChild(link);
+    }
+    link.href = s.favicon;
+  }, [s?.favicon]);
+
   // ━━━ Sections: useState starts empty (SSR can't read localStorage) ━━━
   const [sections, setSections] = useState<{ section: Section; columns: Column[]; rows: Row[] }[]>([]);
   const [sectionsLoaded, setSectionsLoaded] = useState(false);
@@ -752,11 +764,20 @@ export function CatalogPreview({ onAdminLogin }: CatalogPreviewProps) {
           <div className="w-9 h-9 shrink-0" />
         )}
 
-        {/* Logo badge + Catalog Name */}
+        {/* Logo badge + Catalog Name — dynamic from catalog_settings.logo */}
         <div className="flex-1 min-w-0 flex items-center gap-2.5">
-          <div className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0" style={{ background: 'linear-gradient(135deg, #C9A84C, #E8D48B, #C9A84C)' }}>
-            <span className="text-sm font-bold" style={{ color: 'var(--pivot-text)' }}>A</span>
-          </div>
+          {s?.logo ? (
+            <img
+              src={s.logo}
+              alt={catalogName}
+              className="h-8 w-auto object-contain shrink-0"
+              style={{ maxHeight: 32 }}
+            />
+          ) : (
+            <div className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0" style={{ background: 'linear-gradient(135deg, #C9A84C, #E8D48B, #C9A84C)' }}>
+              <span className="text-sm font-bold" style={{ color: 'var(--pivot-text)' }}>A</span>
+            </div>
+          )}
           <h1 className="font-bold text-sm sm:text-base truncate" style={{ color: 'var(--pivot-text)', fontFamily: "'Playfair Display', serif" }}>
             {catalogName}
           </h1>
@@ -905,7 +926,7 @@ export function CatalogPreview({ onAdminLogin }: CatalogPreviewProps) {
             );
           })()}
           {s?.enableSearch && (
-            <div className="mt-5 relative w-full max-w-md">
+            <div className="mt-3 relative w-full max-w-md">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4" style={{ color: '#8E8985' }} />
               <Input
                 value={searchQuery}
@@ -960,15 +981,13 @@ export function CatalogPreview({ onAdminLogin }: CatalogPreviewProps) {
           </div>
 
           {/* ── Level 2: Micro sub-filters — rectangular plain text, ALWAYS mounted ── */}
-          <div className="catalog-filter-bar no-scrollbar catalog-subfilter-slot"
-            style={{
-              paddingBottom: '8px',
-              opacity: activeMacroFilter !== 'all' && (() => {
-                const c = dynamicCategories.find(x => x.slug === activeMacroFilter);
-                return c && c.subCategories?.filter(s => s.visible).length;
-              })() ? 1 : 0,
-              pointerEvents: activeMacroFilter !== 'all' ? 'auto' : 'none'
-            }}>
+          <div className={cn(
+            'catalog-filter-bar no-scrollbar catalog-subfilter-slot',
+            activeMacroFilter !== 'all' && (() => {
+              const c = dynamicCategories.find(x => x.slug === activeMacroFilter);
+              return c && c.subCategories?.filter(s => s.visible).length;
+            })() && 'catalog-subfilter-slot--visible'
+          )}>
             <button
               className={cn(
                 'px-3 py-1 rounded-md text-[11px] sm:text-xs font-medium whitespace-nowrap transition-colors duration-200',
@@ -1261,9 +1280,13 @@ export function CatalogPreview({ onAdminLogin }: CatalogPreviewProps) {
       <footer className="mt-auto py-4 sm:py-5" style={{ backgroundColor: secondaryColor }}>
         <div style={{ maxWidth: 1270, margin: '0 auto', padding: '0 32px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <div className="w-6 h-6 rounded-md flex items-center justify-center" style={{ background: 'linear-gradient(135deg, #C9A84C, #E8D48B)' }}>
-              <span className="text-[10px] font-bold" style={{ color: 'var(--pivot-text)' }}>A</span>
-            </div>
+            {s?.logo ? (
+              <img src={s.logo} alt={catalogName} className="h-6 w-auto object-contain" style={{ maxHeight: 24 }} />
+            ) : (
+              <div className="w-6 h-6 rounded-md flex items-center justify-center" style={{ background: 'linear-gradient(135deg, #C9A84C, #E8D48B)' }}>
+                <span className="text-[10px] font-bold" style={{ color: 'var(--pivot-text)' }}>A</span>
+              </div>
+            )}
             <span className="font-semibold text-xs sm:text-sm text-white" style={{ fontFamily: "'Playfair Display', serif" }}>
               {catalogName}
             </span>
