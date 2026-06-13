@@ -281,6 +281,41 @@ html {
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════
+   RTL SUPPORT — Arabic and other right-to-left languages
+   ═══════════════════════════════════════════════════════════════════════════ */
+html.rtl {
+  direction: rtl;
+}
+
+html.rtl .catalog-header-actions,
+html.rtl .product-page-actions,
+html.rtl .product-page-secondary-actions,
+html.rtl .product-card-micro-cta,
+html.rtl .mobile-cta-button,
+html.rtl .product-page-cta {
+  direction: rtl;
+}
+
+html.rtl .product-page-info-inner {
+  direction: rtl;
+  text-align: right;
+}
+
+/* Flip flex rows in RTL */
+html.rtl .product-page-colors-row,
+html.rtl .product-page-variant-row,
+html.rtl .product-page-detail-row {
+  flex-direction: row-reverse;
+}
+
+/* Fix icon margin in RTL */
+html.rtl .product-page-cta svg,
+html.rtl .mobile-cta-button svg {
+  margin-left: 0;
+  margin-right: 0.5rem;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
    GLIDE-LIKE STYLES — All styles for catalog + product page
    ═══════════════════════════════════════════════════════════════════════════ */
 

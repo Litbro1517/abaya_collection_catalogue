@@ -1323,7 +1323,12 @@ export function DataTable({ columns, rows, dataSourceId, loading, onRefresh, onU
     }
 
     if (col.type === 'CURRENCY') {
-      return <span className="font-medium text-[var(--dt-stock-ok-text)]">{strVal}</span>;
+      // Use the column's currencySymbol if configured, otherwise just display the value
+      const currencySymbol = (col.config as Record<string, unknown>)?.currencySymbol as string | undefined;
+      const displayVal = currencySymbol && strVal && !strVal.includes(currencySymbol)
+        ? `${strVal} ${currencySymbol}`
+        : strVal;
+      return <span className="font-medium text-[var(--dt-stock-ok-text)]">{displayVal}</span>;
     }
 
     // ━━━ Stock counter: Minimalist design with optimistic update + debounce ━━━

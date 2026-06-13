@@ -3,7 +3,8 @@
 import { Shirt, Star, MessageCircle, Instagram, ExternalLink, Mail } from 'lucide-react';
 import type { Product, Canal } from '@/types';
 import { useAppStore } from '@/lib/store';
-import { formatPrice, CANAUX } from '@/lib/constants';
+import { CANAUX } from '@/lib/constants';
+import { useTranslation } from '@/lib/i18n';
 import { Badge } from '@/components/ui/badge';
 
 interface ProductCardProps {
@@ -25,6 +26,7 @@ function getCanalColor(canal: Canal): string {
 
 export default function ProductCard({ product, statut }: ProductCardProps) {
   const { setSelectedProduct, setShowProductDetail } = useAppStore();
+  const { t, formatPrice } = useTranslation();
 
   const handleClick = () => {
     setSelectedProduct(product);
@@ -56,7 +58,7 @@ export default function ProductCard({ product, statut }: ProductCardProps) {
         {/* Nouveau badge */}
         {statut === 'Nouveau' && (
           <Badge className="absolute left-2 top-2 gap-1 border-none bg-emerald-700 text-white text-[10px] font-semibold shadow-sm z-10">
-            Nouveau
+            {t('product.new')}
           </Badge>
         )}
 
@@ -64,7 +66,7 @@ export default function ProductCard({ product, statut }: ProductCardProps) {
         {product.featured && (
           <Badge className="absolute left-2 top-2 gap-1 border-none bg-gold text-gold-foreground text-[10px] font-semibold shadow-sm">
             <Star className="size-3 fill-current" />
-            Vedette
+            {t('product.featured')}
           </Badge>
         )}
 
@@ -79,7 +81,7 @@ export default function ProductCard({ product, statut }: ProductCardProps) {
         {/* Hover overlay - Commander */}
         <div className="absolute inset-x-0 bottom-0 flex translate-y-full items-center justify-center bg-gradient-to-t from-black/70 to-black/0 py-4 transition-transform duration-300 group-hover:translate-y-0">
           <span className="text-sm font-semibold tracking-wide text-white">
-            Commander
+            {t('product.commander')}
           </span>
         </div>
       </div>

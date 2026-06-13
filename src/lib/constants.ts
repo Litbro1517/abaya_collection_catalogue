@@ -58,12 +58,36 @@ export function normalizeCouleurKey(nom: string): string {
     .replace(/[\u0300-\u036f]/g, '');  // Strip accents
 }
 
-export function formatPrice(price: number): string {
-  return `${price.toFixed(0)} DH`;
+/**
+ * Format a price with a currency symbol.
+ * @deprecated Use `useTranslation().formatPrice()` in React components instead.
+ * This function is kept for non-React contexts (constants, API routes).
+ */
+export function formatPrice(price: number, currency: string = 'MAD'): string {
+  const config = CURRENCY_SYMBOLS[currency] || CURRENCY_SYMBOLS.MAD;
+  const formatted = price.toFixed(config.decimalDigits);
+  if (config.position === 'before') {
+    return `${config.symbol}${formatted}`;
+  }
+  return `${formatted} ${config.symbol}`;
 }
 
-export function buildWhatsAppUrl(productNom: string, productPrix: number, phone: string = '212600000000'): string {
-  const message = `Bonjour, je souhaite commander :\n*${productNom}*\nPrix : ${productPrix} DH`;
+// ── Currency symbol config for formatPrice ──
+const CURRENCY_SYMBOLS: Record<string, { symbol: string; position: 'before' | 'after'; decimalDigits: number }> = {
+  MAD: { symbol: 'MAD', position: 'after', decimalDigits: 0 },
+  DH:  { symbol: 'DH',  position: 'after', decimalDigits: 0 },
+  EUR: { symbol: '€',   position: 'before', decimalDigits: 2 },
+  USD: { symbol: '$',   position: 'before', decimalDigits: 2 },
+  GBP: { symbol: '£',   position: 'before', decimalDigits: 2 },
+  DZD: { symbol: 'د.ج', position: 'after', decimalDigits: 2 },
+  TND: { symbol: 'د.ت', position: 'after', decimalDigits: 3 },
+  SAR: { symbol: 'ر.س', position: 'after', decimalDigits: 2 },
+  AED: { symbol: 'د.إ', position: 'after', decimalDigits: 2 },
+};
+
+export function buildWhatsAppUrl(productNom: string, productPrix: number, phone: string = '212600000000', currency: string = 'MAD'): string {
+  const priceStr = formatPrice(productPrix, currency);
+  const message = `Bonjour, je souhaite commander :\n*${productNom}*\nPrix : ${priceStr}`;
   return `https://wa.me/${phone}?text=${encodeURIComponent(message)}`;
 }
 

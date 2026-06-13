@@ -7,6 +7,7 @@ import {
   buildInstagramUrl,
   buildEmailUrl,
 } from '@/lib/constants';
+import { useTranslation } from '@/lib/i18n';
 
 interface ContactButtonProps {
   product: Product;
@@ -15,32 +16,32 @@ interface ContactButtonProps {
 const canalConfig: Record<
   Canal,
   {
-    label: string;
+    labelKey: string;
     color: string;
     icon: React.ReactNode;
     getUrl: (product: Product) => string;
   }
 > = {
   whatsapp: {
-    label: 'Commander via WhatsApp',
+    labelKey: 'contact.whatsapp',
     color: '#25D366',
     icon: <MessageCircle className="size-5" />,
     getUrl: (product) => buildWhatsAppUrl(product.nomProduit, product.prixVente),
   },
   instagram: {
-    label: 'Commander via Instagram',
+    labelKey: 'contact.instagram',
     color: '#E1306C',
     icon: <Instagram className="size-5" />,
     getUrl: () => buildInstagramUrl(),
   },
   landing: {
-    label: 'Voir la page produit',
+    labelKey: 'contact.landing',
     color: '#C9A84C',
     icon: <ExternalLink className="size-5" />,
     getUrl: (product) => product.lienCommande || '#',
   },
   email: {
-    label: 'Commander par email',
+    labelKey: 'contact.email',
     color: '#1A1A1A',
     icon: <Mail className="size-5" />,
     getUrl: (product) => buildEmailUrl(product.nomProduit),
@@ -48,6 +49,7 @@ const canalConfig: Record<
 };
 
 export default function ContactButton({ product }: ContactButtonProps) {
+  const { t } = useTranslation();
   const config = canalConfig[product.canalCommande];
   const url = config.getUrl(product);
 
@@ -60,7 +62,7 @@ export default function ContactButton({ product }: ContactButtonProps) {
       style={{ backgroundColor: config.color }}
     >
       {config.icon}
-      {config.label}
+      {t(config.labelKey)}
     </a>
   );
 }

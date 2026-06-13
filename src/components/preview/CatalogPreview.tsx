@@ -15,6 +15,7 @@ import { resolveColorHex, buildColorLookupMap, normalizeCouleurKey } from '@/lib
 import { readCache, writeCache, clearAllCache, sanitizeSections, CACHE_KEYS } from '@/lib/cache';
 import type { CachedSectionData } from '@/lib/cache';
 import { ProductPage } from './ProductPage';
+import { useTranslation } from '@/lib/i18n';
 
 // ── Brand Constants removed — all values migrated to CSS pivot variables & global classes ──
 
@@ -262,6 +263,7 @@ interface CatalogPreviewProps {
 
 export function CatalogPreview({ onAdminLogin }: CatalogPreviewProps) {
   const { catalog, settings, isAdmin, adminUser, setView } = useAppStore();
+  const { t, formatPrice, rtl } = useTranslation();
 
   // Only owner/admin can access the builder — editors and public users cannot
   const canAccessBuilder = isAdmin && adminUser && (adminUser.role === 'owner' || adminUser.role === 'admin' || adminUser.role === 'super_admin');
@@ -557,7 +559,7 @@ export function CatalogPreview({ onAdminLogin }: CatalogPreviewProps) {
     const phone = s?.whatsappNumber || '';
 
     if (s?.conversionChannel === 'whatsapp' && phone) {
-      const msg = s?.conversionMessage || `Bonjour, je souhaite commander :\n*${title}*\nPrix : ${price}`;
+      const msg = s?.conversionMessage || `${t('whatsapp.message')}\n*${title}*\nPrix : ${price}`;
       return `https://wa.me/${phone}?text=${encodeURIComponent(msg.replace('{product}', title))}`;
     }
     if (s?.conversionChannel === 'messenger' && s?.messengerLink) {
@@ -781,7 +783,7 @@ export function CatalogPreview({ onAdminLogin }: CatalogPreviewProps) {
             onClick={onAdminLogin}
             className="flex items-center justify-center w-9 h-9 rounded-full hover:bg-gray-100 transition-colors shrink-0"
             title="Accès administrateur"
-            aria-label="Connexion admin"
+            aria-label={t('catalog.adminLogin')}
           >
             <Lock className="w-4 h-4" style={{ color: 'var(--muted-foreground)' }} />
           </button>
@@ -896,7 +898,7 @@ export function CatalogPreview({ onAdminLogin }: CatalogPreviewProps) {
               <Input
                 value={searchQuery}
                 onChange={e => { setSearchQuery(e.target.value); setCurrentPage(1); }}
-                placeholder="Rechercher..."
+                placeholder={t('catalog.search')}
                 className="h-10 pl-10 text-sm rounded-full bg-white/70 border-0 focus:bg-white focus:ring-1 focus:ring-[#C9A84C]/30"
                 style={{ boxShadow: '0 1px 3px rgba(0,0,0,0.04)' }}
               />
@@ -1116,7 +1118,7 @@ export function CatalogPreview({ onAdminLogin }: CatalogPreviewProps) {
                       className="absolute left-2.5 top-2.5 z-10 rounded-sm px-2.5 py-1 text-[9px] font-medium tracking-[0.15em] uppercase text-white/90 badge-nouveau"
                       style={{ backdropFilter: 'blur(4px)' }}
                     >
-                      Nouveau
+                      {t('product.new')}
                     </span>
                   )}
 
@@ -1141,9 +1143,9 @@ export function CatalogPreview({ onAdminLogin }: CatalogPreviewProps) {
                         setCarouselIdx(0);
                       }
                     }}
-                    aria-label={isEpuise ? 'Produit épuisé' : 'Commander'}
+                    aria-label={isEpuise ? t('product.soldOut') : t('product.commander')}
                   >
-                    {isEpuise ? 'Produit épuisé' : 'Commander'}
+                    {isEpuise ? t('product.soldOut') : t('product.commander')}
                   </button>
                 </div>
 
@@ -1194,18 +1196,18 @@ export function CatalogPreview({ onAdminLogin }: CatalogPreviewProps) {
                 {((price && config.showPrice !== false) || isEpuise || isSurCommande) && (
                   <div className="product-card-price-row">
                     {price && config.showPrice !== false && (
-                      <span className="product-card-price">{price}</span>
+                      <span className="product-card-price">{formatPrice(price)}</span>
                     )}
                     {/* Scenario B: Épuisé — soft rose, no background */}
                     {isEpuise && (
                       <span className="product-card-status product-card-status--epuise">
-                        Sold out
+                        {t('product.soldOut')}
                       </span>
                     )}
                     {/* Scenario C: Sur commande — amber/gold, no background */}
                     {isSurCommande && (
                       <span className="product-card-status product-card-status--sur-commande">
-                        Sur commande
+                        {t('product.onOrder')}
                       </span>
                     )}
                   </div>
@@ -1223,13 +1225,13 @@ export function CatalogPreview({ onAdminLogin }: CatalogPreviewProps) {
             <div style={{ width: 80, height: 80, margin: '0 auto 20px', borderRadius: 16, display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: `${primaryColor}15` }}>
               <ShoppingBag style={{ width: 36, height: 36, color: primaryColor, opacity: 0.5 }} />
             </div>
-            <p style={{ fontSize: 18, fontWeight: 600, color: secondaryColor, fontFamily: "'Playfair Display', serif" }}>Aucun produit trouvé</p>
+            <p style={{ fontSize: 18, fontWeight: 600, color: secondaryColor, fontFamily: "'Playfair Display', serif" }}>{t('catalog.noProducts')}</p>
             {searchQuery ? (
               <p style={{ fontSize: 14, marginTop: 6, color: '#777' }}>Essayez un autre terme de recherche</p>
             ) : isAdmin ? (
               <p style={{ fontSize: 14, marginTop: 6, color: '#777' }}>Ajoutez des sections dans l&apos;onglet Mise en page</p>
             ) : (
-              <p style={{ fontSize: 14, marginTop: 6, color: '#777' }}>Le catalogue est en cours de préparation. Revenez bientôt !</p>
+              <p style={{ fontSize: 14, marginTop: 6, color: '#777' }}>{t('catalog.preparing')}</p>
             )}
           </div>
         )}

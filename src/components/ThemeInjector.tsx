@@ -4,11 +4,16 @@ import { useEffect, useState } from 'react';
 import { ThemeProvider } from '@/components/ThemeProvider';
 import { THEME_DEFAULTS } from '@/lib/theme.config';
 import type { ThemePivots, ThemeExceptions } from '@/lib/theme.config';
+import { isRTL, type Locale } from '@/lib/i18n';
 
 /**
  * ThemeInjector — Fetches theme settings from DB and passes to ThemeProvider.
  * This is the bridge between the database and the CSS variable injection.
  * Separated from layout.tsx to keep layout as a server component.
+ *
+ * Also handles:
+ * - Language/direction: Sets `dir` and `lang` on <html> for RTL support
+ * - Currency: Not injected here (use useTranslation hook in components)
  *
  * Listens for 'theme-updated' custom events to re-fetch settings
  * when the admin saves changes in the Style panel (live preview).
@@ -19,6 +24,7 @@ export function ThemeInjector() {
     exceptions: ThemeExceptions;
     customCSS: string;
     clientOverrides: Record<string, string> | null;
+    language: string;
   } | null>(null);
   const [refreshKey, setRefreshKey] = useState(0);
 
@@ -45,6 +51,7 @@ export function ThemeInjector() {
               },
               customCSS: data.customCSS || '',
               clientOverrides: data.clientOverrides || null,
+              language: data.language || 'fr',
             });
           }
         }
@@ -55,6 +62,24 @@ export function ThemeInjector() {
     fetchTheme();
     return () => { cancelled = true; };
   }, [refreshKey]);
+
+  // ── Apply dir and lang to <html> when language changes ──
+  useEffect(() => {
+    if (!themeData?.language) return;
+    const locale = themeData.language as Locale;
+    const rtl = isRTL(locale);
+
+    const html = document.documentElement;
+    html.setAttribute('dir', rtl ? 'rtl' : 'ltr');
+    html.setAttribute('lang', locale);
+
+    // Add/remove RTL class for CSS targeting
+    if (rtl) {
+      html.classList.add('rtl');
+    } else {
+      html.classList.remove('rtl');
+    }
+  }, [themeData?.language]);
 
   // Listen for theme-updated events (from SettingsPillar save)
   useEffect(() => {

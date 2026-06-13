@@ -5,7 +5,7 @@ import { Shirt } from 'lucide-react';
 import type { Product } from '@/types';
 import type { CarouselApi } from '@/components/ui/carousel';
 import { useAppStore } from '@/lib/store';
-import { formatPrice } from '@/lib/constants';
+import { useTranslation } from '@/lib/i18n';
 import {
   Sheet,
   SheetContent,
@@ -28,6 +28,7 @@ import {
 import ContactButton from './ContactButton';
 
 function ProductDetailContent({ product }: { product: Product }) {
+  const { t, formatPrice } = useTranslation();
   const [selectedSize, setSelectedSize] = useState<string | null>(null);
   const [selectedColor, setSelectedColor] = useState<string | null>(null);
   const [api, setApi] = useState<CarouselApi | undefined>(undefined);
@@ -129,7 +130,7 @@ function ProductDetailContent({ product }: { product: Product }) {
         {/* Size selector */}
         {product.tailles && product.tailles.length > 0 && (
           <div className="flex flex-col gap-2">
-            <span className="text-sm font-medium text-foreground">Taille</span>
+            <span className="text-sm font-medium text-foreground">{t('product.sizes')}</span>
             <div className="flex flex-wrap gap-2">
               {product.tailles.map((taille) => {
                 const isSelected = selectedSize === taille;
@@ -158,7 +159,7 @@ function ProductDetailContent({ product }: { product: Product }) {
         {/* Color selector */}
         {product.couleurs && product.couleurs.length > 0 && (
           <div className="flex flex-col gap-2">
-            <span className="text-sm font-medium text-foreground">Couleur</span>
+            <span className="text-sm font-medium text-foreground">{t('product.colors')}</span>
             <div className="flex flex-wrap gap-2.5">
               {product.couleurs.map((couleur, idx) => {
                 const isSelected = selectedColor === couleur.hex;
@@ -189,7 +190,7 @@ function ProductDetailContent({ product }: { product: Product }) {
         {/* Description */}
         {product.description && (
           <div className="flex flex-col gap-1.5">
-            <span className="text-sm font-medium text-foreground">Description</span>
+            <span className="text-sm font-medium text-foreground">{t('product.description')}</span>
             <p className="text-sm leading-relaxed text-muted-foreground">
               {product.description}
             </p>
@@ -199,7 +200,7 @@ function ProductDetailContent({ product }: { product: Product }) {
         {/* Stock indicator */}
         {!product.disponible && (
           <p className="text-sm font-medium text-destructive">
-            Rupture de stock
+            {t('product.soldOut')}
           </p>
         )}
 

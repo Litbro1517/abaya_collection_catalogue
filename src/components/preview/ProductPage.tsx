@@ -16,6 +16,7 @@ import {
   ShoppingBag,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { useTranslation } from '@/lib/i18n';
 
 // ── Brand Constants ──
 const BRAND = {
@@ -151,6 +152,7 @@ export function ProductPage({
 }: ProductPageProps) {
   const config = section.config as SectionConfig;
   const rawData = row.data as Record<string, unknown>;
+  const { t, formatPrice, rtl } = useTranslation();
   const stockState = computeStockState(rawData);
   const stock = typeof rawData.__stock__ === 'number'
     ? rawData.__stock__
@@ -303,7 +305,7 @@ export function ProductPage({
   // ── Conversion link ──
   const conversionLink = (() => {
     if (conversionChannel === 'whatsapp' && whatsappNumber) {
-      const msg = conversionMessage || `Bonjour, je souhaite commander :\n*${title}*\nPrix : ${price}`;
+      const msg = conversionMessage || `${t('whatsapp.message')}\n*${title}*\nPrix : ${price}`;
       return `https://wa.me/${whatsappNumber}?text=${encodeURIComponent(msg.replace('{product}', title))}`;
     }
     if (conversionChannel === 'messenger' && messengerLink) return messengerLink;
@@ -557,12 +559,12 @@ export function ProductPage({
 
         {/* ═══════ RIGHT: Product Info — fixed, centered in viewport ═══════ */}
         <div className="product-page-info">
-          <div className="product-page-info-inner">
+          <div className="product-page-info-inner" dir={rtl ? 'rtl' : 'ltr'}>
           {/* ── Statut badge ── */}
           {statut === 'Nouveau' && stockState === 'en_stock' && (
             <div className="product-page-badge badge-nouveau">
               <span className="badge-dot" />
-              Nouveau
+              {t('product.new')}
             </div>
           )}
 
@@ -573,15 +575,15 @@ export function ProductPage({
           {price && (
             <div className="product-page-price-row">
               <span className="product-page-price">{price}</span>
-              {isEpuise && <span className="product-page-status status-epuise">Épuisé</span>}
-              {isSurCommande && <span className="product-page-status status-sur-commande">Sur commande</span>}
+              {isEpuise && <span className="product-page-status status-epuise">{t('product.soldOut')}</span>}
+              {isSurCommande && <span className="product-page-status status-sur-commande">{t('product.onOrder')}</span>}
             </div>
           )}
 
           {/* ── Description ── */}
           {description && (
             <div className="product-page-section">
-              <div className="product-page-section-title">Description</div>
+              <div className="product-page-section-title">{t('product.description')}</div>
               <p className="product-page-description">{description}</p>
             </div>
           )}
@@ -691,7 +693,7 @@ export function ProductPage({
               }}
             >
               <MessageCircle className="w-5 h-5 shrink-0" />
-              {isEpuise ? 'Produit épuisé' : 'Commander via WhatsApp'}
+              {isEpuise ? t('product.soldOut') : t('product.commanderWhatsApp')}
             </a>
 
             {/* Like + Share */}
@@ -717,7 +719,7 @@ export function ProductPage({
           {showShareToast && (
             <div className="product-page-toast">
               <Check className="w-4 h-4" style={{ color: BRAND.vertFonce }} />
-              Lien copié !
+              {t('product.linkCopied')}
             </div>
           )}
           </div>{/* end .product-page-info-inner */}
@@ -728,8 +730,8 @@ export function ProductPage({
       <div className="product-page-mobile-cta">
         <div className="mobile-cta-price-row">
           {price && <span className="mobile-cta-price">{price}</span>}
-          {isEpuise && <span className="product-page-status status-epuise">Épuisé</span>}
-          {isSurCommande && <span className="product-page-status status-sur-commande">Sur commande</span>}
+          {isEpuise && <span className="product-page-status status-epuise">{t('product.soldOut')}</span>}
+          {isSurCommande && <span className="product-page-status status-sur-commande">{t('product.onOrder')}</span>}
         </div>
         <a
           className={cn('mobile-cta-button', isEpuise && 'cta-disabled')}
@@ -753,7 +755,7 @@ export function ProductPage({
           }}
         >
           <MessageCircle className="w-4 h-4" />
-          {isEpuise ? 'Épuisé' : 'Commander'}
+          {isEpuise ? t('product.soldOut') : t('product.commander')}
         </a>
       </div>
     </main>

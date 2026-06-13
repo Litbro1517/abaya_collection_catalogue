@@ -5,6 +5,7 @@ import { toast } from 'sonner';
 import { Loader2, Plus, Trash2, ExternalLink, MessageCircle, Instagram, Mail } from 'lucide-react';
 import { useAppStore } from '@/lib/store';
 import { TAILLES_DISPONIBLES, CANAUX, MAX_CAROUSEL_IMAGES, normalizeCouleurKey, COULEURS_DEFAULTS } from '@/lib/constants';
+import { useTranslation } from '@/lib/i18n';
 import type { Couleur, Canal, ProductFormValues } from '@/types';
 import ImageUploader from './ImageUploader';
 
@@ -33,6 +34,7 @@ import {
 import { ScrollArea } from '@/components/ui/scroll-area';
 
 export default function ProductForm() {
+  const { currency } = useTranslation();
   const {
     showProductForm,
     setShowProductForm,
@@ -351,7 +353,7 @@ export default function ProductForm() {
                       className={errors.prixVente ? 'border-destructive pr-10' : 'pr-10'}
                     />
                     <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">
-                      DH
+                      {currency}
                     </span>
                   </div>
                   {errors.prixVente && (
@@ -371,7 +373,7 @@ export default function ProductForm() {
                       className="pr-10"
                     />
                     <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">
-                      DH
+                      {currency}
                     </span>
                   </div>
                   <p className="text-[10px] text-muted-foreground">

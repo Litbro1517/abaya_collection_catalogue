@@ -16,7 +16,8 @@ import {
   Mail,
 } from 'lucide-react';
 import { useAppStore } from '@/lib/store';
-import { CANAUX, formatPrice } from '@/lib/constants';
+import { CANAUX } from '@/lib/constants';
+import { useTranslation } from '@/lib/i18n';
 import type { Product } from '@/types';
 
 import { Input } from '@/components/ui/input';
@@ -60,6 +61,7 @@ interface ProductTableProps {
 
 export default function ProductTable({ onEdit }: ProductTableProps) {
   const { categories } = useAppStore();
+  const { formatPrice } = useTranslation();
 
   // Filters
   const [search, setSearch] = useState('');
