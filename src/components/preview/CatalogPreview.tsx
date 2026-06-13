@@ -911,34 +911,20 @@ export function CatalogPreview({ onAdminLogin }: CatalogPreviewProps) {
   // ═══════════════════════════════════════════════════════════════════════
   const renderGridView = () => (
     <>
-      {/* ═══ Règle 1: Hero Header — isolated warm cream block ═══ */}
-      <div className="catalog-hero-header">
-        <div className="catalog-hero-header-inner">
-          {(() => {
-            const selectedCat = dynamicCategories.find(c => c.slug === activeMacroFilter);
-            const displayTitle = selectedCat ? selectedCat.label : (sections.length > 0 && sections[0].section.title ? sections[0].section.title : catalogName);
-            const displaySubtitle = selectedCat ? '' : (sections.length > 0 && sections[0].section.subtitle ? sections[0].section.subtitle : '');
-            return (
-              <>
-                <h1 className="catalog-hero-title">{displayTitle}</h1>
-                {displaySubtitle && <p className="catalog-hero-subtitle">{displaySubtitle}</p>}
-              </>
-            );
-          })()}
-          {s?.enableSearch && (
-            <div className="mt-3 relative w-full max-w-md">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4" style={{ color: '#8E8985' }} />
-              <Input
-                value={searchQuery}
-                onChange={e => { setSearchQuery(e.target.value); setCurrentPage(1); }}
-                placeholder={t('catalog.search')}
-                className="h-10 pl-10 text-sm rounded-full bg-white/70 border-0 focus:bg-white focus:ring-1 focus:ring-[#C9A84C]/30"
-                style={{ boxShadow: '0 1px 3px rgba(0,0,0,0.04)' }}
-              />
-            </div>
-          )}
+      {/* Search bar below header — left-aligned with grid */}
+      {s?.enableSearch && (
+        <div className="mx-auto max-w-[1270px] px-4 sm:px-8 pt-4 pb-4">
+          <div className="relative w-full sm:max-w-md">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4" style={{ color: 'var(--muted-foreground)' }} />
+            <Input
+              value={searchQuery}
+              onChange={e => { setSearchQuery(e.target.value); setCurrentPage(1); }}
+              placeholder="Rechercher..."
+              className="h-10 pl-10 text-sm rounded-full border-gray-200 bg-gray-50 focus:bg-white"
+            />
+          </div>
         </div>
-      </div>
+      )}
 
       {/* ═══ Règle 2 & 3: Filters on cream white background ═══ */}
       {dynamicCategories.length > 0 ? (
@@ -980,45 +966,48 @@ export function CatalogPreview({ onAdminLogin }: CatalogPreviewProps) {
             })()}
           </div>
 
-          {/* ── Level 2: Micro sub-filters — rectangular plain text, ALWAYS mounted ── */}
-          <div className={cn(
-            'catalog-filter-bar no-scrollbar catalog-subfilter-slot',
-            activeMacroFilter !== 'all' && (() => {
-              const c = dynamicCategories.find(x => x.slug === activeMacroFilter);
-              return c && c.subCategories?.filter(s => s.visible).length;
-            })() && 'catalog-subfilter-slot--visible'
-          )}>
-            <button
-              className={cn(
-                'px-3 py-1 rounded-md text-[11px] sm:text-xs font-medium whitespace-nowrap transition-colors duration-200',
-                activeMicroFilter === 'all' ? 'btn-filter-sub-active' : 'btn-filter-sub-inactive'
-              )}
-              onClick={() => { setActiveMicroFilter('all'); setCurrentPage(1); window.scrollTo({ top: 0, behavior: 'instant' }); }}
-            >
-              Tous
-            </button>
-            {(() => {
-              const selectedCat = dynamicCategories.find(c => c.slug === activeMacroFilter);
-              if (!selectedCat?.subCategories) return null;
-              const visibleSubs = selectedCat.subCategories.filter(sub => sub.visible);
-              const subCounts = subCategoryProductCounts;
-              return visibleSubs.map(sub => {
-                const count = subCounts.get(sub.slug) || 0;
-                return (
+          {/* ── Level 2: Micro Sub-filters — ALWAYS mounted, CSS-animated ━━ */}
+          {/* ━━━ Brand Chart color: inactive text uses chart-3 (#8B4513) instead of noir ━━━ */}
+          {(() => {
+            const selectedCat = activeMacroFilter !== 'all' ? dynamicCategories.find(c => c.slug === activeMacroFilter) : null;
+            const visibleSubs = selectedCat?.subCategories?.filter(sub => sub.visible) || [];
+            const hasSubs = visibleSubs.length > 0;
+            const subCounts = subCategoryProductCounts;
+            return (
+              <div className={cn(
+                'catalog-subfilter-slot no-scrollbar',
+                hasSubs && 'catalog-subfilter-slot--visible'
+              )}>
+                <div className="catalog-filter-bar no-scrollbar" style={{ paddingTop: '0', paddingBottom: '8px' }}>
+                  {/* "Tous" sub-pill */}
                   <button
-                    key={sub.slug}
                     className={cn(
-                      'px-3 py-1 rounded-md text-[11px] sm:text-xs font-medium whitespace-nowrap transition-colors duration-200',
-                      activeMicroFilter === sub.slug ? 'btn-filter-sub-active' : 'btn-filter-sub-inactive'
+                      'px-3.5 py-1 rounded-full text-[11px] sm:text-xs font-medium whitespace-nowrap transition-all duration-200',
+                      activeMicroFilter === 'all' ? 'btn-filter-sub-active shadow-sm' : 'btn-filter-sub-inactive hover:opacity-80'
                     )}
-                    onClick={() => { setActiveMicroFilter(sub.slug); setCurrentPage(1); window.scrollTo({ top: 0, behavior: 'instant' }); }}
+                    onClick={() => { setActiveMicroFilter('all'); setCurrentPage(1); }}
                   >
-                    {sub.label}{count > 0 ? ` (${count})` : ''}
+                    Tous
                   </button>
-                );
-              });
-            })()}
-          </div>
+                  {visibleSubs.map(sub => {
+                    const count = subCounts.get(sub.slug) || 0;
+                    return (
+                      <button
+                        key={sub.slug}
+                        className={cn(
+                          'px-3.5 py-1 rounded-full text-[11px] sm:text-xs font-medium whitespace-nowrap transition-all duration-200',
+                          activeMicroFilter === sub.slug ? 'btn-filter-sub-active shadow-sm' : 'btn-filter-sub-inactive hover:opacity-80'
+                        )}
+                        onClick={() => { setActiveMicroFilter(sub.slug); setCurrentPage(1); }}
+                      >
+                        {sub.label}{count > 0 ? ` (${count})` : ''}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            );
+          })()}
         </div>
       ) : filterOptions.length > 1 ? (
         <div className="catalog-filter-bar-wrap">
@@ -1039,8 +1028,18 @@ export function CatalogPreview({ onAdminLogin }: CatalogPreviewProps) {
         </div>
       ) : null}
 
-      {/* Category title slot — hidden when hero header already shows it */}
-      <div className="catalog-title-slot" style={{ display: 'none' }} />
+      {/* ── Contextual Category Title ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */}
+      {activeMacroFilter !== 'all' && dynamicCategories.length > 0 && (() => {
+        const selectedCat = dynamicCategories.find(c => c.slug === activeMacroFilter);
+        if (!selectedCat) return null;
+        return (
+          <div className="mx-auto max-w-[1270px] px-4 sm:px-8 pt-5 pb-1">
+            <h2 className="text-2xl sm:text-3xl font-bold" style={{ color: 'var(--pivot-text)', fontFamily: "'Playfair Display', serif" }}>
+              {selectedCat.label}
+            </h2>
+          </div>
+        );
+      })()}
 
       {/* Error */}
       {loadError && (
