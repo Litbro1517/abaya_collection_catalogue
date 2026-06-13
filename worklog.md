@@ -944,3 +944,33 @@ Stage Summary:
 - Latest deployment commit: 2b8e9b68
 - Dual-provider Prisma setup ensures SQLite works locally and PostgreSQL works on Vercel
 - All features verified: product catalog, filtering, search, images, prices, stock status
+
+---
+Task ID: 6
+Agent: Main Agent
+Task: Mandat Global de Déploiement V1 — GTM, Tracking & SEO Meta
+
+Work Log:
+- Added GTM integration: NEXT_PUBLIC_GTM_ID env var, conditional <Script> injection in layout.tsx (Head + Noscript)
+- Added WhatsApp dataLayer push on both desktop and mobile CTA buttons in ProductPage.tsx
+  - Event: 'whatsapp_contact', payload: { event, product_title } — NO monetary value (prevents Meta ROI poisoning)
+- Enhanced SEO metadata in product-meta/[slug]/page.tsx:
+  - Added hybrid logic: checks Row.data for 'seo_description' and 'seo_keywords' custom columns first
+  - Falls back to auto-generated description from title + price + catalog name
+  - Added 'keywords' metadata field from seo_keywords
+- V1 FREEZE: Disabled RELATION auto-fallback and editor in DataTable.tsx:
+  - relationLookupMap set to empty object (no lookup computation)
+  - RELATION API fetching disabled (no useEffect fetching target table data)
+  - RELATION cells always display '—' (frozen for V1)
+  - RELATION double-click editor disabled (no-op)
+  - Prevents "Failed to update column" errors in PostgreSQL production
+- Removed temporary /api/inspect route and analysis script
+- Pushed to GitHub, Vercel auto-deployed successfully
+- Verified: all APIs return 200, products display, category/search/filters work, WhatsApp CTA functional
+
+Stage Summary:
+- Vercel URL: https://abaya-collection-catalogue-9dum.vercel.app
+- GTM will activate when NEXT_PUBLIC_GTM_ID is set in Vercel environment
+- WhatsApp tracking fires dataLayer push with event name 'whatsapp_contact'
+- SEO: custom seo_description/seo_keywords columns take priority over auto-generated meta
+- RELATION feature frozen for V1 — clean '—' display, no broken lookups
