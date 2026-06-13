@@ -24,3 +24,25 @@ Stage Summary:
 - RELATION Freeze: Frontend (disabled type selector, frozen badge, V1 notice) + Backend (API 403 guards on column/relation creation)
 - Hydration fix: GTM script moved from <head> to <body>
 - Deployed to Vercel via GitHub push
+
+---
+Task ID: V2-implementation
+Agent: Main Agent
+Task: V2 Features — COD Order Tunnel, Thank You Page, Social Sticky Tickets
+
+Work Log:
+- Feature 1: Added Order model to Prisma schema (after ColorMap model) with fields: id, productId, customerName, customerPhone, customerCity, customerAddress, status, productName, productPrice, createdAt, updatedAt. Mapped to "orders" table. Ran db:push successfully.
+- Feature 2: Created /api/orders/route.ts with POST (create COD order with validation) and GET (list orders with status filter, pagination) endpoints.
+- Feature 3: Created CodForm.tsx component with form fields (name, phone, city, address), client-side validation, API submission, loading/success/error states, and redirect to /merci page.
+- Feature 4: Created /merci/page.tsx thank-you page with order confirmation display, dataLayer purchase event tracking, and back-to-catalog button.
+- Feature 5: Created SocialStickyTickets.tsx component with WhatsApp/Messenger/Instagram floating ticket buttons, desktop hover-expand and mobile tap-expand behavior, dataLayer social_contact tracking.
+- Feature 6: Modified ProductPage.tsx — replaced desktop WhatsApp CTA with Commander button (triggers COD form), added showCodForm state and scrollToCodForm function, added CodForm component rendering, replaced mobile sticky WhatsApp CTA with Commander button.
+- Feature 7: Modified CatalogPreview.tsx — imported SocialStickyTickets, added widget in main render passing settings (whatsappNumber, messengerLink, instagramHandle).
+- Feature 8: Appended CSS to globals.css for CodForm (form wrapper, fields, submit button, success state), SocialStickyTickets (container, tickets, hover/tap expand, brand colors), and Merci page (card, icon, details, back button, tracking notice).
+
+Stage Summary:
+- 8 features implemented across 8 files (1 schema edit, 4 new files, 3 existing file modifications)
+- All lint checks pass
+- Dev server running cleanly with no errors
+- COD order flow: CTA → CodForm → POST /api/orders → /merci page
+- Social omnicanal: floating WhatsApp/Messenger/Instagram tickets with expand behavior

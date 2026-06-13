@@ -15,6 +15,7 @@ import { resolveColorHex, buildColorLookupMap, normalizeCouleurKey } from '@/lib
 import { readCache, writeCache, clearAllCache, sanitizeSections, CACHE_KEYS } from '@/lib/cache';
 import type { CachedSectionData } from '@/lib/cache';
 import { ProductPage } from './ProductPage';
+import { SocialStickyTickets } from './SocialStickyTickets';
 import { useTranslation } from '@/lib/i18n';
 
 // ── Brand Constants removed — all values migrated to CSS pivot variables & global classes ──
@@ -1288,6 +1289,13 @@ export function CatalogPreview({ onAdminLogin }: CatalogPreviewProps) {
 
       {/* Conditional: Grid or Detail */}
       {isDetailView ? renderDetailView() : renderGridView()}
+
+      {/* Omnicanal Floating Social Widget */}
+      <SocialStickyTickets
+        whatsappNumber={s?.whatsappNumber || ''}
+        messengerLink={s?.messengerLink || ''}
+        instagramHandle={s?.instagramHandle || ''}
+      />
     </div>
   );
 }

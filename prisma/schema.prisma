@@ -291,3 +291,23 @@ model ColorMap {
 
   @@map("color_map")
 }
+
+// ═══════════════════════════════════════════════════════════════
+// ORDERS - Cash on Delivery (COD) order tunnel
+// ═══════════════════════════════════════════════════════════════
+
+model Order {
+  id              String   @id @default(cuid())
+  productId       String   @map("product_id")
+  customerName    String   @map("customer_name")
+  customerPhone   String   @map("customer_phone")
+  customerCity    String   @map("customer_city")
+  customerAddress String   @map("customer_address")
+  status          String   @default("pending")
+  productName     String?  @map("product_name")
+  productPrice    String?  @map("product_price")
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+
+  @@map("orders")
+}

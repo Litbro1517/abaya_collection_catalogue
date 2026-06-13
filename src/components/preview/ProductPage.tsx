@@ -16,6 +16,7 @@ import {
   ShoppingBag,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { CodForm } from './CodForm';
 import { useTranslation } from '@/lib/i18n';
 
 // ── Brand Constants ──
@@ -322,6 +323,15 @@ export function ProductPage({
   const [isLiked, setIsLiked] = useState(false);
   const [showShareToast, setShowShareToast] = useState(false);
   const [imageLoaded, setImageLoaded] = useState<Set<number>>(new Set());
+  const [showCodForm, setShowCodForm] = useState(false);
+  const codFormRef = useRef<HTMLDivElement>(null);
+
+  const scrollToCodForm = () => {
+    setShowCodForm(true);
+    setTimeout(() => {
+      codFormRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }, 100);
+  };
 
   const touchStartX = useRef(0);
   const touchEndX = useRef(0);
@@ -668,33 +678,19 @@ export function ProductPage({
 
           {/* ── Action buttons ── */}
           <div className="product-page-actions">
-            {/* WhatsApp CTA */}
-            <a
+            {/* Commander CTA — triggers COD form */}
+            <button
               className={cn('product-page-cta', isEpuise && 'cta-disabled')}
-              href={isEpuise ? undefined : conversionLink}
-              target={isEpuise ? undefined : '_blank'}
-              rel={isEpuise ? undefined : 'noopener noreferrer'}
-              onClick={isEpuise ? (e: React.MouseEvent) => e.preventDefault() : () => {
-                // ── GTM dataLayer push — Lead event (NO monetary value) ──
-                // Sends 'whatsapp_contact' event for GTM/Meta tracking.
-                // IMPORTANT: No price/value sent to avoid poisoning Meta ROI optimization.
-                if (typeof window !== 'undefined') {
-                  (window as unknown as Record<string, unknown[]>).dataLayer =
-                    (window as unknown as Record<string, unknown[]>).dataLayer || [];
-                  (window as unknown as Record<string, unknown[]>).dataLayer.push({
-                    event: 'whatsapp_contact',
-                    product_title: title || rawData.nomproduitdocx || 'Catalogue',
-                  });
-                }
-              }}
+              disabled={isEpuise}
+              onClick={isEpuise ? undefined : scrollToCodForm}
               style={{
-                backgroundColor: isEpuise ? BRAND.grisClair : '#25D366',
+                backgroundColor: isEpuise ? BRAND.grisClair : BRAND.vertFonce,
                 color: isEpuise ? BRAND.grisMoyen : '#fff',
               }}
             >
-              <MessageCircle className="w-5 h-5 shrink-0" />
-              {isEpuise ? t('product.soldOut') : t('product.commanderWhatsApp')}
-            </a>
+              <ShoppingBag className="w-5 h-5 shrink-0" />
+              {isEpuise ? t('product.soldOut') : isSurCommande ? t('product.onOrder') : 'Achat Rapide'}
+            </button>
 
             {/* Like + Share */}
             <div className="product-page-secondary-actions">
@@ -715,6 +711,17 @@ export function ProductPage({
             </div>
           </div>
 
+          {/* ── COD Form ── */}
+          {showCodForm && !isEpuise && (
+            <div ref={codFormRef}>
+              <CodForm
+                productId={row.id}
+                productName={title}
+                productPrice={price}
+              />
+            </div>
+          )}
+
           {/* ── Share toast ── */}
           {showShareToast && (
             <div className="product-page-toast">
@@ -733,30 +740,18 @@ export function ProductPage({
           {isEpuise && <span className="product-page-status status-epuise">{t('product.soldOut')}</span>}
           {isSurCommande && <span className="product-page-status status-sur-commande">{t('product.onOrder')}</span>}
         </div>
-        <a
+        <button
           className={cn('mobile-cta-button', isEpuise && 'cta-disabled')}
-          href={isEpuise ? undefined : conversionLink}
-          target={isEpuise ? undefined : '_blank'}
-          rel={isEpuise ? undefined : 'noopener noreferrer'}
-          onClick={isEpuise ? (e: React.MouseEvent) => e.preventDefault() : () => {
-            // ── GTM dataLayer push — Lead event (NO monetary value) ──
-            if (typeof window !== 'undefined') {
-              (window as unknown as Record<string, unknown[]>).dataLayer =
-                (window as unknown as Record<string, unknown[]>).dataLayer || [];
-              (window as unknown as Record<string, unknown[]>).dataLayer.push({
-                event: 'whatsapp_contact',
-                product_title: title || rawData.nomproduitdocx || 'Catalogue',
-              });
-            }
-          }}
+          disabled={isEpuise}
+          onClick={isEpuise ? undefined : scrollToCodForm}
           style={{
-            backgroundColor: isEpuise ? BRAND.grisClair : '#25D366',
+            backgroundColor: isEpuise ? BRAND.grisClair : BRAND.vertFonce,
             color: isEpuise ? BRAND.grisMoyen : '#fff',
           }}
         >
-          <MessageCircle className="w-4 h-4" />
+          <ShoppingBag className="w-4 h-4" />
           {isEpuise ? t('product.soldOut') : t('product.commander')}
-        </a>
+        </button>
       </div>
     </main>
   );
