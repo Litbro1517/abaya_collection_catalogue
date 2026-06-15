@@ -71,8 +71,12 @@ export function ThemeInjector() {
   const view = useAppStore(s => s.view);
 
   useEffect(() => {
-    // Determine which locale to use: clientLocale for preview, admin language otherwise
-    const effectiveLocale = view === 'preview'
+    // Determine which locale to use:
+    // - For non-admin users (always seeing catalog) → clientLocale
+    // - For admin in preview mode → clientLocale
+    // - For admin in builder/dashboard → admin settings.language
+    const isAdmin = useAppStore.getState().isAdmin;
+    const effectiveLocale = (!isAdmin || view === 'preview')
       ? (clientLocale as Locale) || 'fr'
       : (themeData?.language as Locale) || 'fr';
 

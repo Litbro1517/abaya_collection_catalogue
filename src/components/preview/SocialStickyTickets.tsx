@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { MessageCircle } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { useClientTranslation } from '@/lib/i18n';
 
 // ── SocialStickyTickets ──
 // Only renders a single WhatsApp badge on the right edge.
@@ -17,6 +18,7 @@ interface SocialStickyTicketsProps {
 export function SocialStickyTickets({ whatsappNumber, conversionChannel }: SocialStickyTicketsProps) {
   const [expanded, setExpanded] = useState(false);
   const [visible, setVisible] = useState(false);
+  const { t } = useClientTranslation();
 
   const showWidget = useCallback(() => setVisible(true), []);
 
@@ -61,10 +63,10 @@ export function SocialStickyTickets({ whatsappNumber, conversionChannel }: Socia
         target="_blank"
         rel="noopener noreferrer"
         onClick={handleClick}
-        aria-label="Discuter sur WhatsApp"
+        aria-label={t('contact.chatWhatsApp')}
       >
         <MessageCircle className="w-5 h-5 text-white" />
-        <span className="social-sticky-ticket-text">Discuter sur WhatsApp</span>
+        <span className="social-sticky-ticket-text">{t('contact.chatWhatsApp')}</span>
       </a>
     </div>
   );

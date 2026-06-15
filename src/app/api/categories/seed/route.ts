@@ -44,7 +44,10 @@ export async function POST() {
     for (const cat of defaultCategories) {
       const upserted = await db.category.upsert({
         where: { slug: cat.slug },
-        update: {}, // NEVER overwrite admin's label/visibility
+        update: {
+          // Always update translations to fix corrupted/missing data
+          translations: cat.translations,
+        },
         create: {
           slug: cat.slug,
           label: cat.label,
@@ -58,7 +61,10 @@ export async function POST() {
       for (const sub of cat.subCategories) {
         const subUpserted = await db.subCategory.upsert({
           where: { slug: sub.slug },
-          update: {}, // NEVER overwrite admin's label/visibility
+          update: {
+            // Always update translations to fix corrupted/missing data
+            translations: sub.translations,
+          },
           create: {
             slug: sub.slug,
             label: sub.label,

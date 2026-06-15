@@ -4,6 +4,7 @@ import { useEffect, useCallback, useState, ComponentType } from 'react';
 import dynamic from 'next/dynamic';
 import { useAppStore } from '@/lib/store';
 import { CatalogPreview } from '@/components/preview/CatalogPreview';
+import { useClientTranslation } from '@/lib/i18n';
 import {
   readCache,
   writeCache,
@@ -126,6 +127,8 @@ function HomeContent() {
     setPillar,
     setSettingsTab,
   } = useAppStore();
+
+  const { t } = useClientTranslation();
 
   // ━━━ Offline-First: Skip spinner if cache was hydrated at module level ━━━
   // If catalog or datasources exist in Zustand (from cache hydration), no spinner needed.
@@ -331,7 +334,7 @@ function HomeContent() {
         <div className="w-10 h-10 rounded-full bg-gold/10 flex items-center justify-center">
           <Loader2 className="w-5 h-5 text-gold animate-spin" />
         </div>
-        <p className="text-sm text-muted-foreground">Chargement...</p>
+        <p className="text-sm text-muted-foreground">{t('catalog.loading')}</p>
       </div>
     );
   }

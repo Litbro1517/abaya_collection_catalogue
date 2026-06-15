@@ -182,6 +182,32 @@ export const dictionaries: Record<Locale, TranslationDict> = {
     'upload.remove': 'Supprimer',
     'upload.fileTooLarge': 'Fichier trop volumineux (max 2 Mo)',
     'upload.invalidType': 'Type de fichier non supporté',
+
+    // ── Catalog Navigation ──
+    'catalog.backToCatalog': 'Retour au catalogue',
+    'catalog.back': 'Retour',
+    'catalog.retry': 'Réessayer',
+
+    // ── Admin Navigation (public catalog) ──
+    'admin.clearCache': 'Vider le cache et recharger',
+    'admin.backToDashboard': 'Retour au Dashboard',
+    'admin.dashboard': 'Dashboard',
+
+    // ── Product Page Extended ──
+    'product.product': 'Produit',
+    'product.previousImage': 'Image précédente',
+    'product.nextImage': 'Image suivante',
+    'product.details': 'Détails',
+    'product.colorAria': 'Couleur',
+    'product.selectedAria': '(sélectionnée)',
+
+    // ── Contact Extended ──
+    'contact.chatWhatsApp': 'Discuter sur WhatsApp',
+
+    // ── Footer Social ──
+    'footer.whatsapp': 'WhatsApp',
+    'footer.messenger': 'Messenger',
+    'footer.instagram': 'Instagram',
   },
 
   en: {
@@ -354,6 +380,32 @@ export const dictionaries: Record<Locale, TranslationDict> = {
     'upload.remove': 'Remove',
     'upload.fileTooLarge': 'File too large (max 2 MB)',
     'upload.invalidType': 'Unsupported file type',
+
+    // ── Catalog Navigation ──
+    'catalog.backToCatalog': 'Back to catalog',
+    'catalog.back': 'Back',
+    'catalog.retry': 'Retry',
+
+    // ── Admin Navigation (public catalog) ──
+    'admin.clearCache': 'Clear cache and reload',
+    'admin.backToDashboard': 'Back to Dashboard',
+    'admin.dashboard': 'Dashboard',
+
+    // ── Product Page Extended ──
+    'product.product': 'Product',
+    'product.previousImage': 'Previous image',
+    'product.nextImage': 'Next image',
+    'product.details': 'Details',
+    'product.colorAria': 'Color',
+    'product.selectedAria': '(selected)',
+
+    // ── Contact Extended ──
+    'contact.chatWhatsApp': 'Chat on WhatsApp',
+
+    // ── Footer Social ──
+    'footer.whatsapp': 'WhatsApp',
+    'footer.messenger': 'Messenger',
+    'footer.instagram': 'Instagram',
   },
 
   ar: {
@@ -526,6 +578,32 @@ export const dictionaries: Record<Locale, TranslationDict> = {
     'upload.remove': 'إزالة',
     'upload.fileTooLarge': 'الملف كبير جدًا (الحد الأقصى 2 ميجابايت)',
     'upload.invalidType': 'نوع الملف غير مدعوم',
+
+    // ── Catalog Navigation ──
+    'catalog.backToCatalog': 'العودة إلى الكتالوج',
+    'catalog.back': 'رجوع',
+    'catalog.retry': 'إعادة المحاولة',
+
+    // ── Admin Navigation (public catalog) ──
+    'admin.clearCache': 'مسح ذاكرة التخزين المؤقت وإعادة التحميل',
+    'admin.backToDashboard': 'العودة إلى لوحة التحكم',
+    'admin.dashboard': 'لوحة التحكم',
+
+    // ── Product Page Extended ──
+    'product.product': 'منتج',
+    'product.previousImage': 'الصورة السابقة',
+    'product.nextImage': 'الصورة التالية',
+    'product.details': 'التفاصيل',
+    'product.colorAria': 'لون',
+    'product.selectedAria': '(محدد)',
+
+    // ── Contact Extended ──
+    'contact.chatWhatsApp': 'تواصل عبر واتساب',
+
+    // ── Footer Social ──
+    'footer.whatsapp': 'واتساب',
+    'footer.messenger': 'ماسنجر',
+    'footer.instagram': 'إنستغرام',
   },
 };
 
@@ -552,13 +630,20 @@ export function isRTL(locale: Locale): boolean {
  * @param locale - Current locale
  * @param fallback - Fallback string (typically the `label` field from DB)
  */
+const LOCALE_CODES = new Set(['fr', 'en', 'ar']);
+
 export function resolveTranslation(
   translations: Record<string, string> | null | undefined,
   locale: Locale,
   fallback?: string,
 ): string {
-  if (translations && typeof translations === 'object') {
-    return translations[locale] || translations.fr || translations.en || fallback || '';
+  if (translations && typeof translations === 'object' && !Array.isArray(translations)) {
+    const value = translations[locale] || translations.fr || translations.en;
+    // Guard: if the stored value is literally a locale code (e.g. "fr", "en", "ar"),
+    // it means the translations JSONB was corrupted — skip it and use fallback.
+    if (value && !LOCALE_CODES.has(value)) {
+      return value;
+    }
   }
   return fallback || '';
 }

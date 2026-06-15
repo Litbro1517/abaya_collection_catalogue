@@ -396,7 +396,7 @@ export function ProductPage({
   // ── Share handler ──
   const handleShare = async () => {
     const shareData = {
-      title: title || 'Produit',
+      title: title || t('product.product'),
       text: `${title}${price ? ` — ${price}` : ''}`,
       url: window.location.href,
     };
@@ -428,7 +428,7 @@ export function ProductPage({
 
   const isEpuise = stockState === 'epuise';
   const isSurCommande = stockState === 'sur_commande';
-  const sectionTitle = section.title || 'Collection';
+  const sectionTitle = section.title || t('catalog.collection');
 
   // ═══════════════════════════════════════════════════════════════════
   // ── RENDER ──
@@ -442,7 +442,7 @@ export function ProductPage({
         <div className="product-page-gallery">
           {/* ── Breadcrumb — inside left column, scrolls with images ── */}
           <nav className="product-page-breadcrumb">
-            <button onClick={onBack} className="breadcrumb-back" aria-label="Retour">
+            <button onClick={onBack} className="breadcrumb-back" aria-label={t('catalog.back')}>
               <ArrowLeft className="w-4 h-4" />
             </button>
             <button className="breadcrumb-link" onClick={onBack}>{catalogName}</button>
@@ -497,8 +497,8 @@ export function ProductPage({
               {/* Navigation arrows */}
               {carouselImages.length > 1 && (
                 <>
-                  <button className="carousel-arrow left" onClick={goPrev} aria-label="Image précédente">‹</button>
-                  <button className="carousel-arrow right" onClick={goNext} aria-label="Image suivante">›</button>
+                  <button className="carousel-arrow left" onClick={goPrev} aria-label={t('product.previousImage')}>‹</button>
+                  <button className="carousel-arrow right" onClick={goNext} aria-label={t('product.nextImage')}>›</button>
 
                   {/* Dots */}
                   <div className="carousel-dots">
@@ -597,7 +597,7 @@ export function ProductPage({
           {/* ── Price ── */}
           {price && (
             <div className="product-page-price-row">
-              <span className="product-page-price">{price}</span>
+              <span className="product-page-price">{formatPrice(price)}</span>
               {isEpuise && <span className="product-page-status status-epuise">{t('product.soldOut')}</span>}
               {isSurCommande && <span className="product-page-status status-sur-commande">{t('product.onOrder')}</span>}
             </div>
@@ -615,7 +615,7 @@ export function ProductPage({
           {colorData.length > 0 && (
             <div className="product-page-section">
               <div className="product-page-section-title">
-                Couleurs{selectedColor ? <span className="selected-value">: {selectedColor}</span> : ''}
+                {t('product.colors')}{selectedColor ? <span className="selected-value">: {selectedColor}</span> : ''}
               </div>
               <div className="product-page-colors">
                 {colorData.map(({ name, hex }) => {
@@ -629,7 +629,7 @@ export function ProductPage({
                       )}
                       onClick={() => setSelectedColor(isSelected ? null : name)}
                       title={name}
-                      aria-label={`Couleur ${name}${isSelected ? ' (sélectionnée)' : ''}`}
+                      aria-label={`${t('product.colorAria')} ${name}${isSelected ? ` ${t('product.selectedAria')}` : ''}`}
                     >
                       <span
                         className={cn(
@@ -655,7 +655,7 @@ export function ProductPage({
           {sizes.length > 0 && (
             <div className="product-page-section">
               <div className="product-page-section-title">
-                Tailles{selectedSize ? <span className="selected-value">: {selectedSize}</span> : ''}
+                {t('product.sizes')}{selectedSize ? <span className="selected-value">: {selectedSize}</span> : ''}
               </div>
               <div className="product-page-sizes">
                 {sizes.map(size => (
@@ -679,7 +679,7 @@ export function ProductPage({
           {/* ── Detail fields ── */}
           {filteredDetailFields.length > 0 && (
             <div className="product-page-details">
-              <div className="product-page-section-title">Détails</div>
+              <div className="product-page-section-title">{t('product.details')}</div>
               {filteredDetailFields.map(field => (
                 <div key={field.slug} className="product-page-detail-row">
                   <span className="detail-label">{field.label}</span>
@@ -728,14 +728,14 @@ export function ProductPage({
               <button
                 className="product-page-icon-btn"
                 onClick={() => setIsLiked(!isLiked)}
-                aria-label="Favori"
+                aria-label={t('product.favorite')}
               >
                 <Heart className={cn('w-5 h-5', isLiked && 'fill-current')} style={{ color: isLiked ? '#EF4444' : BRAND.grisMoyen }} />
               </button>
               <button
                 className="product-page-icon-btn"
                 onClick={handleShare}
-                aria-label="Partager"
+                aria-label={t('product.share')}
               >
                 <Share2 className="w-5 h-5" style={{ color: BRAND.grisMoyen }} />
               </button>
@@ -748,7 +748,7 @@ export function ProductPage({
               <CodForm
                 productId={row.id}
                 productName={title}
-                productPrice={price}
+                productPrice={formatPrice(price)}
               />
             </div>
           )}
@@ -767,7 +767,7 @@ export function ProductPage({
       {/* ── Mobile sticky CTA ── */}
       <div className="product-page-mobile-cta">
         <div className="mobile-cta-price-row">
-          {price && <span className="mobile-cta-price">{price}</span>}
+          {price && <span className="mobile-cta-price">{formatPrice(price)}</span>}
           {isEpuise && <span className="product-page-status status-epuise">{t('product.soldOut')}</span>}
           {isSurCommande && <span className="product-page-status status-sur-commande">{t('product.onOrder')}</span>}
         </div>
@@ -798,7 +798,7 @@ export function ProductPage({
             }}
           >
             <MessageCircle className="w-4 h-4" />
-            {isEpuise ? t('product.soldOut') : 'WhatsApp'}
+            {isEpuise ? t('product.soldOut') : t('product.whatsappOrder')}
           </a>
         )}
       </div>

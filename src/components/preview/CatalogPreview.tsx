@@ -745,7 +745,7 @@ export function CatalogPreview({ onAdminLogin }: CatalogPreviewProps) {
           <button
             onClick={() => setSelectedProduct(null)}
             className="flex items-center justify-center w-9 h-9 rounded-full hover:bg-gray-100 transition-colors shrink-0"
-            aria-label="Retour au catalogue"
+            aria-label={t('catalog.backToCatalog')}
           >
             <ArrowLeft className="w-5 h-5" style={{ color: 'var(--pivot-text)' }} />
           </button>
@@ -806,26 +806,26 @@ export function CatalogPreview({ onAdminLogin }: CatalogPreviewProps) {
                 networkSyncDone.current = false;
               }}
               className="flex items-center justify-center w-8 h-8 rounded-lg hover:bg-gray-100 transition-colors"
-              title="Vider le cache et recharger"
-              aria-label="Vider le cache"
+              title={t('admin.clearCache')}
+              aria-label={t('admin.clearCache')}
             >
               <RefreshCw className="w-3.5 h-3.5" style={{ color: 'var(--muted-foreground)' }} />
             </button>
             <button
               onClick={() => setView('dashboard')}
               className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg hover:bg-gray-100 transition-colors"
-              title="Retour au Dashboard"
-              aria-label="Dashboard"
+              title={t('admin.backToDashboard')}
+              aria-label={t('admin.dashboard')}
             >
               <LayoutDashboard className="w-4 h-4" style={{ color: 'var(--pivot-brand)' }} />
-              <span className="text-[11px] font-medium hidden sm:inline" style={{ color: 'var(--pivot-brand)' }}>Dashboard</span>
+              <span className="text-[11px] font-medium hidden sm:inline" style={{ color: 'var(--pivot-brand)' }}>{t('admin.dashboard')}</span>
             </button>
           </div>
         ) : (
           <button
             onClick={onAdminLogin}
             className="flex items-center justify-center w-9 h-9 rounded-full hover:bg-gray-100 transition-colors shrink-0"
-            title="Accès administrateur"
+            title={t('catalog.adminLogin')}
             aria-label={t('catalog.adminLogin')}
           >
             <Lock className="w-4 h-4" style={{ color: 'var(--muted-foreground)' }} />
@@ -1054,7 +1054,7 @@ export function CatalogPreview({ onAdminLogin }: CatalogPreviewProps) {
         <div className="catalog-container">
           <div className="rounded-xl p-4 text-center" style={{ backgroundColor: 'rgba(128,0,32,0.06)', border: '1px solid rgba(128,0,32,0.19)' }}>
             <p className="text-sm" style={{ color: 'var(--pivot-danger)' }}>{loadError}</p>
-            <button onClick={() => { setSectionsLoaded(false); setLoadError(null); networkSyncDone.current = false; }} className="text-xs underline mt-1" style={{ color: 'var(--pivot-danger)' }}>Réessayer</button>
+            <button onClick={() => { setSectionsLoaded(false); setLoadError(null); networkSyncDone.current = false; }} className="text-xs underline mt-1" style={{ color: 'var(--pivot-danger)' }}>{t('catalog.retry')}</button>
           </div>
         </div>
       )}
@@ -1301,18 +1301,18 @@ export function CatalogPreview({ onAdminLogin }: CatalogPreviewProps) {
           <div style={{ display: 'flex', alignItems: 'center', gap: 20, flexWrap: 'wrap', justifyContent: 'center' }} className="text-xs text-white/70">
             {s?.whatsappNumber && (
               <a href={`https://wa.me/${s.whatsappNumber}`} target="_blank" rel="noopener noreferrer" className="hover:text-green-400 transition-colors flex items-center gap-1.5">
-                <MessageCircle className="w-4 h-4" /> WhatsApp
+                <MessageCircle className="w-4 h-4" /> {t('footer.whatsapp')}
               </a>
             )}
             {s?.messengerLink && (
               <a href={s.messengerLink.startsWith('http') ? s.messengerLink : `https://m.me/${s.messengerLink}`} target="_blank" rel="noopener noreferrer" className="hover:text-blue-400 transition-colors flex items-center gap-1.5">
                 <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.477 2 2 6.145 2 11.243c0 2.907 1.2 5.426 3.15 7.1.165.141.263.345.274.564l.056 1.76c.018.554.595.916 1.1.69l1.963-.867a.878.878 0 0 1 .59-.045c.924.255 1.907.391 2.917.391 5.523 0 10-4.145 10-9.243S17.523 2 12 2zm5.974 7.487l-2.832 4.488c-.424.672-1.333.808-1.932.29l-2.254-1.944a.706.706 0 0 0-.894-.002l-3.048 2.316c-.406.309-.937-.162-.677-.6l2.832-4.488c.424-.672 1.333-.808 1.932-.29l2.254 1.944a.706.706 0 0 0 .894.002l3.048-2.316c.406-.309.937.162.677.6z"/></svg>
-                Messenger
+                {t('footer.messenger')}
               </a>
             )}
             {s?.instagramHandle && (
               <a href={`https://instagram.com/${s.instagramHandle.replace('@','')}`} target="_blank" rel="noopener noreferrer" className="hover:text-pink-400 transition-colors flex items-center gap-1.5">
-                <Instagram className="w-4 h-4" /> Instagram
+                <Instagram className="w-4 h-4" /> {t('footer.instagram')}
               </a>
             )}
             {s?.emailContact && (
@@ -1330,7 +1330,7 @@ export function CatalogPreview({ onAdminLogin }: CatalogPreviewProps) {
   // ── MAIN RENDER ──
   // ═══════════════════════════════════════════════════════════════════════
   return (
-    <div className="min-h-screen flex flex-col" style={{ backgroundColor: '#FAF8F5' }}>
+    <div className="min-h-screen flex flex-col" style={{ backgroundColor: '#FAF8F5' }} dir={rtl ? 'rtl' : 'ltr'}>
       {/* Persistent Header — always visible */}
       {renderHeader()}
 
