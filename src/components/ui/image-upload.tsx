@@ -72,13 +72,19 @@ export function ImageUpload({ value, onChange, onRemove, accept = 'image/*', cla
 
   // If there's already a value (URL), show preview with remove button
   if (value && !uploading) {
+    // For data URLs, show a friendly label instead of the long base64 string
+    const isDataUrl = value.startsWith('data:');
+    const displayUrl = isDataUrl
+      ? t('upload.storedInline')
+      : value;
+
     return (
       <div className={cn('flex items-center gap-2', className)}>
         <div className="w-10 h-10 rounded-lg overflow-hidden bg-muted flex items-center justify-center shrink-0 border border-border/50">
           <img src={value} alt="Preview" className="w-full h-full object-contain" />
         </div>
         <div className="flex-1 min-w-0">
-          <p className="text-xs text-muted-foreground truncate">{value}</p>
+          <p className="text-xs text-muted-foreground truncate">{displayUrl}</p>
         </div>
         <button
           type="button"

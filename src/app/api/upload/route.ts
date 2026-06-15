@@ -18,13 +18,15 @@ const ALLOWED_TYPES = new Set([
 const MAX_SIZE = 2 * 1024 * 1024;
 
 /**
- * Dual-mode upload: Supabase Storage (cloud) or local filesystem (fallback).
+ * Multi-mode upload with automatic fallback:
  *
- * - If SUPABASE_URL + SUPABASE_ANON_KEY are set → uploads to Supabase (Vercel-compatible)
- * - Otherwise → saves to public/uploads/ (local dev, read-only on Vercel)
+ * 1. Supabase Storage (cloud) — if configured + bucket exists
+ * 2. Base64 data URL (inline) — if Supabase not configured, works everywhere including Vercel
+ * 3. Local filesystem (dev only) — if no Supabase env vars
  *
- * Uses the anon key with RLS policies (no service_role key required).
- * Run /api/setup/storage to get the SQL setup script for Supabase.
+ * The base64 fallback makes uploads work immediately on Vercel without any
+ * Supabase bucket setup. When Supabase is fully configured later, it
+ * automatically switches to cloud storage.
  */
 export async function POST(request: NextRequest) {
   try {
@@ -44,10 +46,6 @@ export async function POST(request: NextRequest) {
     if (file.size > MAX_SIZE) {
       return NextResponse.json({ error: 'File too large (max 2 MB)' }, { status: 400 });
     }
-
-    // Generate a unique filename
-    const ext = mimeToExt(file.type, file.name);
-    const safeName = `${randomUUID()}${ext}`;
 
     const arrayBuffer = await file.arrayBuffer();
     const buffer = Buffer.from(arrayBuffer);
@@ -69,7 +67,10 @@ export async function POST(request: NextRequest) {
         // otherwise use anon client (requires RLS policies to be set up)
         const client = process.env.SUPABASE_SERVICE_ROLE_KEY ? supabaseAdmin : supabase;
 
+        const ext = mimeToExt(file.type, file.name);
+        const safeName = `${randomUUID()}${ext}`;
         const storagePath = `branding/${safeName}`;
+
         const { data, error } = await client.storage
           .from(STORAGE_BUCKET)
           .upload(storagePath, buffer, {
@@ -77,71 +78,44 @@ export async function POST(request: NextRequest) {
             upsert: true,
           });
 
-        if (error) {
-          console.error('[Upload API] Supabase upload error:', error);
+        if (!error && data) {
+          // Get the public URL
+          const { data: urlData } = supabase.storage
+            .from(STORAGE_BUCKET)
+            .getPublicUrl(data.path);
 
-          // Provide helpful error message for common RLS issues
-          if (error.message?.includes('row-level security') || error.message?.includes('policy') || error.message?.includes('new row violates')) {
-            return NextResponse.json(
-              {
-                error: 'Upload blocked by Supabase RLS policies. Run the SQL setup script from /api/setup/storage to configure storage policies.',
-                details: error.message,
-              },
-              { status: 500 }
-            );
-          }
-
-          // Bucket not found
-          if (error.message?.includes('not found') || error.message?.includes('does not exist')) {
-            return NextResponse.json(
-              {
-                error: 'Supabase storage bucket "assets" not found. Run the SQL setup script from /api/setup/storage to create it.',
-                details: error.message,
-              },
-              { status: 500 }
-            );
-          }
-
-          return NextResponse.json(
-            { error: `Storage upload failed: ${error.message}` },
-            { status: 500 }
-          );
+          console.log('[Upload API] ✅ Uploaded to Supabase:', urlData.publicUrl);
+          return NextResponse.json({ data: { url: urlData.publicUrl } });
         }
 
-        // Get the public URL
-        const { data: urlData } = supabase.storage
-          .from(STORAGE_BUCKET)
-          .getPublicUrl(data.path);
-
-        console.log('[Upload API] ✅ Uploaded to Supabase:', urlData.publicUrl);
-        return NextResponse.json({ data: { url: urlData.publicUrl } });
+        // If Supabase upload failed, log and fall through to base64
+        console.warn('[Upload API] Supabase upload failed, falling back to base64:', error?.message);
       } catch (supabaseErr) {
-        console.error('[Upload API] Supabase import/upload error:', supabaseErr);
-        return NextResponse.json(
-          { error: 'Cloud storage upload failed. Check Supabase configuration.' },
-          { status: 500 }
-        );
+        console.warn('[Upload API] Supabase error, falling back to base64:', supabaseErr instanceof Error ? supabaseErr.message : String(supabaseErr));
       }
+      // Fall through to base64 mode
     }
 
-    // ── MODE 2: Local filesystem (dev / fallback) ──
-    try {
-      const uploadsDir = path.join(process.cwd(), 'public', 'uploads');
-      await mkdir(uploadsDir, { recursive: true });
+    // ── MODE 2: Base64 data URL (works everywhere, including Vercel) ──
+    // This is the primary fallback for production (Vercel) when Supabase
+    // Storage isn't fully configured yet. The image is stored inline as
+    // a data URL in the database, which works for small branding assets.
+    const base64 = buffer.toString('base64');
+    const dataUrl = `data:${file.type};base64,${base64}`;
 
-      const filePath = path.join(uploadsDir, safeName);
-      await writeFile(filePath, buffer);
-
-      const url = `/uploads/${safeName}`;
-      console.log('[Upload API] ✅ Uploaded locally:', url);
-      return NextResponse.json({ data: { url } });
-    } catch (fsErr) {
-      console.error('[Upload API] Local filesystem error:', fsErr);
+    // Check if the data URL is reasonable (should be < ~2.7MB for 2MB file)
+    if (dataUrl.length > 3 * 1024 * 1024) {
       return NextResponse.json(
-        { error: 'Local storage unavailable. Configure Supabase for cloud deployment.' },
-        { status: 500 }
+        { error: 'File too large for inline storage. Please configure Supabase Storage for large files.' },
+        { status: 400 }
       );
     }
+
+    console.log('[Upload API] ✅ Uploaded as base64 data URL (length:', dataUrl.length, 'chars)');
+    return NextResponse.json({ data: { url: dataUrl } });
+
+    // NOTE: Local filesystem mode removed — doesn't work on Vercel (read-only filesystem).
+    // Base64 data URLs are the reliable fallback for Vercel deployments.
   } catch (err) {
     console.error('[Upload API] Error:', err);
     return NextResponse.json({ error: 'Upload failed' }, { status: 500 });

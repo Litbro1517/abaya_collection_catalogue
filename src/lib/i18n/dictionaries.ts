@@ -272,6 +272,7 @@ export const dictionaries: Record<Locale, TranslationDict> = {
     'upload.remove': 'Supprimer',
     'upload.fileTooLarge': 'Fichier trop volumineux (max 2 Mo)',
     'upload.invalidType': 'Type de fichier non supporté',
+    'upload.storedInline': 'Image stockée en ligne',
 
     // ── Error Messages ──
     'error.loadData': 'Erreur de chargement des données',
@@ -722,6 +723,7 @@ export const dictionaries: Record<Locale, TranslationDict> = {
     'upload.remove': 'Remove',
     'upload.fileTooLarge': 'File too large (max 2 MB)',
     'upload.invalidType': 'Unsupported file type',
+    'upload.storedInline': 'Image stored inline',
 
     // ── Error Messages ──
     'error.loadData': 'Failed to load data',
@@ -1172,6 +1174,7 @@ export const dictionaries: Record<Locale, TranslationDict> = {
     'upload.remove': 'إزالة',
     'upload.fileTooLarge': 'الملف كبير جدًا (الحد الأقصى 2 ميجابايت)',
     'upload.invalidType': 'نوع الملف غير مدعوم',
+    'upload.storedInline': 'صورة مخزنة مضمنة',
 
     // ── Error Messages ──
     'error.loadData': 'خطأ في تحميل البيانات',
