@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { supabase, STORAGE_BUCKET } from '@/lib/supabase';
 import { randomUUID } from 'crypto';
+import { writeFile, mkdir } from 'fs/promises';
+import path from 'path';
 
 // Allowed MIME types
 const ALLOWED_TYPES = new Set([
@@ -16,17 +17,14 @@ const ALLOWED_TYPES = new Set([
 // Max file size: 2 MB
 const MAX_SIZE = 2 * 1024 * 1024;
 
+/**
+ * Dual-mode upload: Supabase Storage (cloud) or local filesystem (fallback).
+ *
+ * - If SUPABASE_URL + SUPABASE_ANON_KEY are set → uploads to Supabase (Vercel-compatible)
+ * - Otherwise → saves to public/uploads/ (local dev, read-only on Vercel)
+ */
 export async function POST(request: NextRequest) {
   try {
-    // ── Validate Supabase configuration ──
-    if (!process.env.SUPABASE_URL || !process.env.SUPABASE_ANON_KEY) {
-      console.error('[Upload API] Supabase not configured — missing SUPABASE_URL or SUPABASE_ANON_KEY');
-      return NextResponse.json(
-        { error: 'Storage not configured. Please set SUPABASE_URL and SUPABASE_ANON_KEY.' },
-        { status: 503 }
-      );
-    }
-
     const formData = await request.formData();
     const file = formData.get('file') as File | null;
 
@@ -46,36 +44,74 @@ export async function POST(request: NextRequest) {
 
     // Generate a unique filename
     const ext = mimeToExt(file.type, file.name);
-    const safeName = `branding/${randomUUID()}${ext}`;
+    const safeName = `${randomUUID()}${ext}`;
 
-    // Convert to buffer for Supabase upload
     const arrayBuffer = await file.arrayBuffer();
     const buffer = Buffer.from(arrayBuffer);
 
-    // Upload to Supabase Storage
-    const { data, error } = await supabase.storage
-      .from(STORAGE_BUCKET)
-      .upload(safeName, buffer, {
-        contentType: file.type,
-        upsert: true,
-      });
+    // ── MODE 1: Supabase Storage (cloud, Vercel-compatible) ──
+    const supabaseUrl = process.env.SUPABASE_URL;
+    const supabaseKey = process.env.SUPABASE_ANON_KEY;
+    const isSupabaseConfigured =
+      supabaseUrl &&
+      supabaseKey &&
+      supabaseUrl !== 'https://your-project.supabase.co' &&
+      supabaseKey !== 'your-anon-key-here';
 
-    if (error) {
-      console.error('[Upload API] Supabase upload error:', error);
+    if (isSupabaseConfigured) {
+      try {
+        const { supabase, STORAGE_BUCKET } = await import('@/lib/supabase');
+
+        const storagePath = `branding/${safeName}`;
+        const { data, error } = await supabase.storage
+          .from(STORAGE_BUCKET)
+          .upload(storagePath, buffer, {
+            contentType: file.type,
+            upsert: true,
+          });
+
+        if (error) {
+          console.error('[Upload API] Supabase upload error:', error);
+          return NextResponse.json(
+            { error: `Storage upload failed: ${error.message}` },
+            { status: 500 }
+          );
+        }
+
+        // Get the public URL
+        const { data: urlData } = supabase.storage
+          .from(STORAGE_BUCKET)
+          .getPublicUrl(data.path);
+
+        console.log('[Upload API] ✅ Uploaded to Supabase:', urlData.publicUrl);
+        return NextResponse.json({ data: { url: urlData.publicUrl } });
+      } catch (supabaseErr) {
+        console.error('[Upload API] Supabase import/upload error:', supabaseErr);
+        return NextResponse.json(
+          { error: 'Cloud storage upload failed. Check Supabase configuration.' },
+          { status: 500 }
+        );
+      }
+    }
+
+    // ── MODE 2: Local filesystem (dev / fallback) ──
+    try {
+      const uploadsDir = path.join(process.cwd(), 'public', 'uploads');
+      await mkdir(uploadsDir, { recursive: true });
+
+      const filePath = path.join(uploadsDir, safeName);
+      await writeFile(filePath, buffer);
+
+      const url = `/uploads/${safeName}`;
+      console.log('[Upload API] ✅ Uploaded locally:', url);
+      return NextResponse.json({ data: { url } });
+    } catch (fsErr) {
+      console.error('[Upload API] Local filesystem error:', fsErr);
       return NextResponse.json(
-        { error: `Storage upload failed: ${error.message}` },
+        { error: 'Local storage unavailable. Configure Supabase for cloud deployment.' },
         { status: 500 }
       );
     }
-
-    // Get the public URL
-    const { data: urlData } = supabase.storage
-      .from(STORAGE_BUCKET)
-      .getPublicUrl(data.path);
-
-    const publicUrl = urlData.publicUrl;
-
-    return NextResponse.json({ data: { url: publicUrl } });
   } catch (err) {
     console.error('[Upload API] Error:', err);
     return NextResponse.json({ error: 'Upload failed' }, { status: 500 });
