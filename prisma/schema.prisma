@@ -249,6 +249,7 @@ model Category {
   id             String         @id @default(cuid())
   slug           String         @unique          // Immutable identifier — NEVER changes after creation
   label          String                            // Display name — renameable by admin
+  translations   Json?                             // { "fr": "Ensemble", "ar": "طقم", "en": "Set" }
   visible        Boolean        @default(true)   // Admin toggle: invisible = hidden from public catalog
   ordre          Int            @default(0)      // Display order (ascending)
   subCategories  SubCategory[]
@@ -262,6 +263,7 @@ model SubCategory {
   id           String   @id @default(cuid())
   slug         String   @unique          // Immutable identifier — NEVER changes after creation
   label        String                      // Display name — renameable by admin
+  translations Json?                       // { "fr": "Nouveau", "ar": "جديد", "en": "New" }
   categoryId   String   @map("category_id")
   category     Category @relation(fields: [categoryId], references: [id], onDelete: Cascade)
   visible      Boolean  @default(true)   // Admin toggle: invisible = hidden from public catalog

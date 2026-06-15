@@ -149,7 +149,7 @@ export function ProductPage({
 }: ProductPageProps) {
   const config = section.config as SectionConfig;
   const rawData = row.data as Record<string, unknown>;
-  const { t, formatPrice, rtl } = useTranslation();
+  const { t, locale, formatPrice, rtl } = useTranslation();
   const stockState = computeStockState(rawData);
   const stock = typeof rawData.__stock__ === 'number'
     ? rawData.__stock__
@@ -307,7 +307,7 @@ export function ProductPage({
   // ── WhatsApp direct link (used in WhatsApp mode) ──
   const whatsappLink = (() => {
     if (whatsappNumber) {
-      const msg = conversionMessage || `${t('whatsapp.message')}\n*${title}*\nPrix : ${price}`;
+      const msg = conversionMessage || `${t('whatsapp.message')}\n*${title}*\n${t('product.price')} : ${price}`;
       return `https://wa.me/${whatsappNumber}?text=${encodeURIComponent(msg.replace('{product}', title))}`;
     }
     return '#';
@@ -703,7 +703,7 @@ export function ProductPage({
                 }}
               >
                 <ShoppingBag className="w-5 h-5 shrink-0" />
-                {isEpuise ? t('product.soldOut') : isSurCommande ? t('product.onOrder') : 'Achat Rapide'}
+                {isEpuise ? t('product.soldOut') : isSurCommande ? t('product.onOrder') : t('product.quickBuy')}
               </button>
             ) : (
               <a
@@ -719,7 +719,7 @@ export function ProductPage({
                 }}
               >
                 <MessageCircle className="w-5 h-5 shrink-0" />
-                {isEpuise ? t('product.soldOut') : 'Commander sur WhatsApp'}
+                {isEpuise ? t('product.soldOut') : t('product.whatsappOrder')}
               </a>
             )}
 

@@ -16,7 +16,7 @@ import { readCache, writeCache, clearAllCache, sanitizeSections, CACHE_KEYS } fr
 import type { CachedSectionData } from '@/lib/cache';
 import { ProductPage } from './ProductPage';
 import { SocialStickyTickets } from './SocialStickyTickets';
-import { useTranslation } from '@/lib/i18n';
+import { useTranslation, resolveTranslation } from '@/lib/i18n';
 
 // ── Brand Constants removed — all values migrated to CSS pivot variables & global classes ──
 
@@ -255,7 +255,8 @@ function computeStockState(rawData: Record<string, unknown>): StockState {
 // Type for dynamic categories (used in useState lazy initializer for cache)
 type DynamicCategory = {
   id: string; slug: string; label: string; visible: boolean; ordre: number;
-  subCategories: { id: string; slug: string; label: string; visible: boolean; ordre: number; categoryId: string }[];
+  translations?: Record<string, string> | null;
+  subCategories: { id: string; slug: string; label: string; visible: boolean; ordre: number; categoryId: string; translations?: Record<string, string> | null }[];
 };
 
 interface CatalogPreviewProps {
@@ -264,7 +265,7 @@ interface CatalogPreviewProps {
 
 export function CatalogPreview({ onAdminLogin }: CatalogPreviewProps) {
   const { catalog, settings, isAdmin, adminUser, setView } = useAppStore();
-  const { t, formatPrice, rtl } = useTranslation();
+  const { t, formatPrice, rtl, locale } = useTranslation();
 
   // Only owner/admin can access the builder — editors and public users cannot
   const canAccessBuilder = isAdmin && adminUser && (adminUser.role === 'owner' || adminUser.role === 'admin' || adminUser.role === 'super_admin');
@@ -366,18 +367,6 @@ export function CatalogPreview({ onAdminLogin }: CatalogPreviewProps) {
   });
 
   const resolvedConversionChannel = urlMode || s?.conversionChannel || 'whatsapp';
-
-  // ━━━ Dynamic Favicon — inject from catalog_settings.favicon ━━━
-  useEffect(() => {
-    if (!s?.favicon) return;
-    let link = document.querySelector("link[rel*='icon']") as HTMLLinkElement | null;
-    if (!link) {
-      link = document.createElement('link');
-      link.rel = 'icon';
-      document.head.appendChild(link);
-    }
-    link.href = s.favicon;
-  }, [s?.favicon]);
 
   // ━━━ Sections: useState starts empty (SSR can't read localStorage) ━━━
   const [sections, setSections] = useState<{ section: Section; columns: Column[]; rows: Row[] }[]>([]);
@@ -587,7 +576,7 @@ export function CatalogPreview({ onAdminLogin }: CatalogPreviewProps) {
 
     // Use resolvedConversionChannel (URL param ?mode= overrides admin setting)
     if (resolvedConversionChannel === 'whatsapp' && phone) {
-      const msg = s?.conversionMessage || `${t('whatsapp.message')}\n*${title}*\nPrix : ${price}`;
+      const msg = s?.conversionMessage || `${t('whatsapp.message')}\n*${title}*\n${t('product.price')} : ${price}`;
       return `https://wa.me/${phone}?text=${encodeURIComponent(msg.replace('{product}', title))}`;
     }
     // Landing mode: no direct external link — the CTA triggers the COD form
@@ -836,7 +825,7 @@ export function CatalogPreview({ onAdminLogin }: CatalogPreviewProps) {
     const { section } = selectedProduct;
     const config = section.config as SectionConfig;
     const productTitle = config.titleColumn ? getCellValue(selectedProduct.row, config.titleColumn) : '';
-    const sectionTitle = section.title || 'Collection';
+    const sectionTitle = section.title || t('catalog.collection');
 
     return (
       <nav className="catalog-breadcrumb">
@@ -938,7 +927,7 @@ export function CatalogPreview({ onAdminLogin }: CatalogPreviewProps) {
               )}
               onClick={() => { setActiveMacroFilter('all'); setActiveMicroFilter('all'); setCurrentPage(1); window.scrollTo({ top: 0, behavior: 'instant' }); }}
             >
-              Tout
+              {t('catalog.all')}
             </button>
             {(() => {
               return dynamicCategories
@@ -959,7 +948,7 @@ export function CatalogPreview({ onAdminLogin }: CatalogPreviewProps) {
                         window.scrollTo({ top: 0, behavior: 'instant' });
                       }}
                     >
-                      {cat.label}{count > 0 ? ` (${count})` : ''}
+                      {resolveTranslation(cat.translations, locale, cat.label)}{count > 0 ? ` (${count})` : ''}
                     </button>
                   );
                 });
@@ -987,7 +976,7 @@ export function CatalogPreview({ onAdminLogin }: CatalogPreviewProps) {
                     )}
                     onClick={() => { setActiveMicroFilter('all'); setCurrentPage(1); }}
                   >
-                    Tous
+                    {t('filter.all')}
                   </button>
                   {visibleSubs.map(sub => {
                     const count = subCounts.get(sub.slug) || 0;
@@ -1000,7 +989,7 @@ export function CatalogPreview({ onAdminLogin }: CatalogPreviewProps) {
                         )}
                         onClick={() => { setActiveMicroFilter(sub.slug); setCurrentPage(1); }}
                       >
-                        {sub.label}{count > 0 ? ` (${count})` : ''}
+                        {resolveTranslation(sub.translations, locale, sub.label)}{count > 0 ? ` (${count})` : ''}
                       </button>
                     );
                   })}
@@ -1035,7 +1024,7 @@ export function CatalogPreview({ onAdminLogin }: CatalogPreviewProps) {
         return (
           <div className="mx-auto max-w-[1270px] px-4 sm:px-8 pt-5 pb-1">
             <h2 className="text-2xl sm:text-3xl font-bold" style={{ color: 'var(--pivot-text)', fontFamily: "'Playfair Display', serif" }}>
-              {selectedCat.label}
+              {resolveTranslation(selectedCat.translations, locale, selectedCat.label)}
             </h2>
           </div>
         );
@@ -1095,7 +1084,7 @@ export function CatalogPreview({ onAdminLogin }: CatalogPreviewProps) {
                 <button
                   className="product-card-action"
                   onClick={() => { setSelectedProduct({ row, columns, section }); setCarouselIdx(0); }}
-                  aria-label={`Voir ${title}`}
+                  aria-label={`${t('catalog.viewProduct')} ${title}`}
                 />
 
                 {/* Image: aspect-ratio 4/3, object-fit cover */}
@@ -1136,7 +1125,7 @@ export function CatalogPreview({ onAdminLogin }: CatalogPreviewProps) {
                     onClick={(e) => toggleLike(row.id, e)}
                     className="product-card-like"
                     style={{ background: isLiked ? '#FEE2E2' : 'rgba(255,255,255,0.9)' }}
-                    aria-label="Favori"
+                    aria-label={t('product.favorite')}
                   >
                     <Heart className={isLiked ? 'fill-current' : ''} style={{ width: 14, height: 14, color: isLiked ? '#EF4444' : '#808080' }} />
                   </button>
@@ -1257,9 +1246,9 @@ export function CatalogPreview({ onAdminLogin }: CatalogPreviewProps) {
             </div>
             <p style={{ fontSize: 18, fontWeight: 600, color: secondaryColor, fontFamily: "'Playfair Display', serif" }}>{t('catalog.noProducts')}</p>
             {searchQuery ? (
-              <p style={{ fontSize: 14, marginTop: 6, color: '#777' }}>Essayez un autre terme de recherche</p>
+              <p style={{ fontSize: 14, marginTop: 6, color: '#777' }}>{t('catalog.tryAnotherSearch')}</p>
             ) : isAdmin ? (
-              <p style={{ fontSize: 14, marginTop: 6, color: '#777' }}>Ajoutez des sections dans l&apos;onglet Mise en page</p>
+              <p style={{ fontSize: 14, marginTop: 6, color: '#777' }}>{t('catalog.addSections')}</p>
             ) : (
               <p style={{ fontSize: 14, marginTop: 6, color: '#777' }}>{t('catalog.preparing')}</p>
             )}
@@ -1309,7 +1298,7 @@ export function CatalogPreview({ onAdminLogin }: CatalogPreviewProps) {
             )}
             {s?.emailContact && (
               <a href={`mailto:${s.emailContact}`} className="hover:text-blue-300 transition-colors flex items-center gap-1.5">
-                <Mail className="w-4 h-4" /> E-mail
+                <Mail className="w-4 h-4" /> {t('footer.email')}
               </a>
             )}
           </div>

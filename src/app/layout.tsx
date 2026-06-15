@@ -5,6 +5,7 @@ import "./globals.css";
 import { Toaster } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { ThemeInjector } from "@/components/ThemeInjector";
+import { db } from '@/lib/db';
 
 const playfair = Playfair_Display({
   variable: "--font-playfair",
@@ -21,13 +22,36 @@ const inter = Inter({
 // ── GTM Container ID from environment variable ──
 const GTM_ID = process.env.NEXT_PUBLIC_GTM_ID || '';
 
-export const metadata: Metadata = {
-  title: "Abaya Collection Chic — Catalogue",
-  description: "Découvrez notre collection exclusive d'abayas, robes et ensembles. Commandez via WhatsApp, Messenger et plus.",
-  icons: {
-    icon: "/logo.svg",
-  },
-};
+export async function generateMetadata(): Promise<Metadata> {
+  // Try to read favicon and catalog name from DB for SSR metadata
+  let faviconUrl = "/logo.svg"; // default fallback
+  let catalogName = "Abaya Collection Chic";
+
+  try {
+    const settings = await db.catalogSettings.findFirst();
+    if (settings?.favicon) {
+      faviconUrl = settings.favicon;
+    }
+    if (settings) {
+      // Get catalog name from the related catalog
+      const catalog = await db.catalog.findFirst({
+        where: { id: settings.catalogId },
+        select: { name: true },
+      });
+      if (catalog?.name) catalogName = catalog.name;
+    }
+  } catch {
+    // DB not available (first deploy, etc.) — use defaults
+  }
+
+  return {
+    title: `${catalogName} — Catalogue`,
+    description: "Découvrez notre collection exclusive d'abayas, robes et ensembles. Commandez via WhatsApp, Messenger et plus.",
+    icons: {
+      icon: faviconUrl,
+    },
+  };
+}
 
 export default function RootLayout({
   children,

@@ -94,6 +94,58 @@ export const dictionaries: Record<Locale, TranslationDict> = {
     // ── Admin ──
     'admin.recharge': 'Recharger la page',
     'admin.error': 'Une erreur inattendue s\'est produite.',
+
+    // ── Catalog Extended ──
+    'catalog.collection': 'Collection',
+    'catalog.tryAnotherSearch': 'Essayez un autre terme de recherche',
+    'catalog.addSections': 'Ajoutez des sections dans l\'onglet Mise en page',
+    'catalog.viewProduct': 'Voir',
+
+    // ── Product Extended ──
+    'product.quickBuy': 'Achat Rapide',
+    'product.whatsappOrder': 'Commander sur WhatsApp',
+    'product.price': 'Prix',
+
+    // ── Footer Extended ──
+    'footer.email': 'E-mail',
+
+    // ── Settings Tabs ──
+    'settings.general': 'Général',
+    'settings.appearance': 'Style',
+    'settings.conversion': 'Partage',
+    'settings.display': 'Affichage',
+    'settings.admin': 'Admin',
+    'settings.catalogue': 'Catalogue',
+    'settings.colors': 'Couleurs',
+    'settings.save': 'Sauvegarder',
+    'settings.saved': 'Paramètres sauvegardés',
+    'settings.saveError': 'Erreur de sauvegarde',
+    'settings.logoLabel': 'Logo de la marque',
+    'settings.logoHint': 'URL de l\'image — remplace le monogramme dans la barre de navigation et le pied de page',
+    'settings.faviconLabel': 'Favicon',
+    'settings.faviconHint': 'URL de l\'icône affichée dans l\'onglet du navigateur (32×32 recommandé)',
+    'settings.logoPlaceholder': 'https://example.com/logo.png',
+    'settings.faviconPlaceholder': 'https://example.com/favicon.ico',
+
+    // ── Admin Extended ──
+    'admin.confirmDelete': 'Êtes-vous sûr de vouloir supprimer ?',
+    'admin.productsDeleted': 'produit(s) supprimé(s)',
+    'admin.productsActivated': 'produit(s) activé(s)',
+    'admin.linkCopied': 'Lien copié !',
+    'admin.refresh': 'Rafraîchir',
+
+    // ── Order ──
+    'order.subject': 'Commande',
+
+    // ── Upload ──
+    'upload.dragDrop': 'Glisser-déposer ou cliquer',
+    'upload.clickOrDrop': 'Cliquez ou glissez un fichier ici',
+    'upload.uploading': 'Téléversement en cours...',
+    'upload.success': 'Fichier téléversé avec succès',
+    'upload.error': 'Erreur lors du téléversement',
+    'upload.remove': 'Supprimer',
+    'upload.fileTooLarge': 'Fichier trop volumineux (max 2 Mo)',
+    'upload.invalidType': 'Type de fichier non supporté',
   },
 
   en: {
@@ -178,6 +230,58 @@ export const dictionaries: Record<Locale, TranslationDict> = {
     // ── Admin ──
     'admin.recharge': 'Reload page',
     'admin.error': 'An unexpected error occurred.',
+
+    // ── Catalog Extended ──
+    'catalog.collection': 'Collection',
+    'catalog.tryAnotherSearch': 'Try a different search term',
+    'catalog.addSections': 'Add sections in the Layout tab',
+    'catalog.viewProduct': 'View',
+
+    // ── Product Extended ──
+    'product.quickBuy': 'Quick Buy',
+    'product.whatsappOrder': 'Order on WhatsApp',
+    'product.price': 'Price',
+
+    // ── Footer Extended ──
+    'footer.email': 'Email',
+
+    // ── Settings Tabs ──
+    'settings.general': 'General',
+    'settings.appearance': 'Style',
+    'settings.conversion': 'Sharing',
+    'settings.display': 'Display',
+    'settings.admin': 'Admin',
+    'settings.catalogue': 'Catalog',
+    'settings.colors': 'Colors',
+    'settings.save': 'Save',
+    'settings.saved': 'Settings saved',
+    'settings.saveError': 'Save error',
+    'settings.logoLabel': 'Brand logo',
+    'settings.logoHint': 'Image URL — replaces the monogram in the navigation bar and footer',
+    'settings.faviconLabel': 'Favicon',
+    'settings.faviconHint': 'Icon displayed in the browser tab (32×32 recommended)',
+    'settings.logoPlaceholder': 'https://example.com/logo.png',
+    'settings.faviconPlaceholder': 'https://example.com/favicon.ico',
+
+    // ── Admin Extended ──
+    'admin.confirmDelete': 'Are you sure you want to delete?',
+    'admin.productsDeleted': 'product(s) deleted',
+    'admin.productsActivated': 'product(s) activated',
+    'admin.linkCopied': 'Link copied!',
+    'admin.refresh': 'Refresh',
+
+    // ── Order ──
+    'order.subject': 'Order',
+
+    // ── Upload ──
+    'upload.dragDrop': 'Drag & drop or click',
+    'upload.clickOrDrop': 'Click or drag a file here',
+    'upload.uploading': 'Uploading...',
+    'upload.success': 'File uploaded successfully',
+    'upload.error': 'Upload error',
+    'upload.remove': 'Remove',
+    'upload.fileTooLarge': 'File too large (max 2 MB)',
+    'upload.invalidType': 'Unsupported file type',
   },
 
   ar: {
@@ -262,6 +366,58 @@ export const dictionaries: Record<Locale, TranslationDict> = {
     // ── Admin ──
     'admin.recharge': 'إعادة تحميل الصفحة',
     'admin.error': 'حدث خطأ غير متوقع.',
+
+    // ── Catalog Extended ──
+    'catalog.collection': 'مجموعة',
+    'catalog.tryAnotherSearch': 'جرّب مصطلح بحث آخر',
+    'catalog.addSections': 'أضف أقسامًا في علامة التبويب التخطيط',
+    'catalog.viewProduct': 'عرض',
+
+    // ── Product Extended ──
+    'product.quickBuy': 'شراء سريع',
+    'product.whatsappOrder': 'اطلب عبر واتساب',
+    'product.price': 'السعر',
+
+    // ── Footer Extended ──
+    'footer.email': 'البريد الإلكتروني',
+
+    // ── Settings Tabs ──
+    'settings.general': 'عام',
+    'settings.appearance': 'النمط',
+    'settings.conversion': 'المشاركة',
+    'settings.display': 'العرض',
+    'settings.admin': 'المشرف',
+    'settings.catalogue': 'الكتالوج',
+    'settings.colors': 'الألوان',
+    'settings.save': 'حفظ',
+    'settings.saved': 'تم حفظ الإعدادات',
+    'settings.saveError': 'خطأ في الحفظ',
+    'settings.logoLabel': 'شعار العلامة التجارية',
+    'settings.logoHint': 'رابط الصورة — يحل محل الحرف في شريط التن synchronization والتذييل',
+    'settings.faviconLabel': 'أيقونة الموقع',
+    'settings.faviconHint': 'الأيقونة المعروضة في علامة تبويب المتصفح (32×32 موصى به)',
+    'settings.logoPlaceholder': 'https://example.com/logo.png',
+    'settings.faviconPlaceholder': 'https://example.com/favicon.ico',
+
+    // ── Admin Extended ──
+    'admin.confirmDelete': 'هل أنت متأكد أنك تريد الحذف؟',
+    'admin.productsDeleted': 'تم حذف المنتج/المنتجات',
+    'admin.productsActivated': 'تم تفعيل المنتج/المنتجات',
+    'admin.linkCopied': 'تم نسخ الرابط!',
+    'admin.refresh': 'تحديث',
+
+    // ── Order ──
+    'order.subject': 'طلب',
+
+    // ── Upload ──
+    'upload.dragDrop': 'اسحب وأفلت أو انقر',
+    'upload.clickOrDrop': 'انقر أو اسحب ملفًا هنا',
+    'upload.uploading': '...جارٍ الرفع',
+    'upload.success': 'تم رفع الملف بنجاح',
+    'upload.error': 'خطأ في الرفع',
+    'upload.remove': 'إزالة',
+    'upload.fileTooLarge': 'الملف كبير جدًا (الحد الأقصى 2 ميجابايت)',
+    'upload.invalidType': 'نوع الملف غير مدعوم',
   },
 };
 
@@ -278,6 +434,25 @@ export function t(key: string, locale: Locale = 'fr'): string {
  */
 export function isRTL(locale: Locale): boolean {
   return locale === 'ar';
+}
+
+/**
+ * Resolve a translated value from a JSONB translations object.
+ * Falls back to the requested locale → French → English → the `label` fallback → raw key.
+ * 
+ * @param translations - JSONB object like { "fr": "Ensemble", "ar": "طقم", "en": "Set" }
+ * @param locale - Current locale
+ * @param fallback - Fallback string (typically the `label` field from DB)
+ */
+export function resolveTranslation(
+  translations: Record<string, string> | null | undefined,
+  locale: Locale,
+  fallback?: string,
+): string {
+  if (translations && typeof translations === 'object') {
+    return translations[locale] || translations.fr || translations.en || fallback || '';
+  }
+  return fallback || '';
 }
 
 /**

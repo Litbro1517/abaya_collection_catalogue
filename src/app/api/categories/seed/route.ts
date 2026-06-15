@@ -6,30 +6,30 @@ import { NextResponse } from 'next/server';
 export async function POST() {
   try {
     const defaultCategories = [
-      { slug: 'ensemble', label: 'Ensemble', ordre: 1, subCategories: [
-        { slug: 'ensemble-nouveau', label: 'Nouveau', ordre: 1 },
-        { slug: 'ensemble-saison', label: 'Saison', ordre: 2 },
-        { slug: 'ensemble-discount', label: 'Discount', ordre: 3 },
+      { slug: 'ensemble', label: 'Ensemble', ordre: 1, translations: { fr: "Ensemble", ar: "طقم", en: "Set" }, subCategories: [
+        { slug: 'ensemble-nouveau', label: 'Nouveau', ordre: 1, translations: { fr: "Nouveau", ar: "جديد", en: "New" } },
+        { slug: 'ensemble-saison', label: 'Saison', ordre: 2, translations: { fr: "Saison", ar: "موسمي", en: "Seasonal" } },
+        { slug: 'ensemble-discount', label: 'Discount', ordre: 3, translations: { fr: "Discount", ar: "تخفيض", en: "Discount" } },
       ]},
-      { slug: 'abaya', label: 'Abaya', ordre: 2, subCategories: [
-        { slug: 'abaya-nouveau', label: 'Nouveau', ordre: 1 },
-        { slug: 'abaya-saison', label: 'Saison', ordre: 2 },
-        { slug: 'abaya-discount', label: 'Discount', ordre: 3 },
+      { slug: 'abaya', label: 'Abaya', ordre: 2, translations: { fr: "Abaya", ar: "عباية", en: "Abaya" }, subCategories: [
+        { slug: 'abaya-nouveau', label: 'Nouveau', ordre: 1, translations: { fr: "Nouveau", ar: "جديد", en: "New" } },
+        { slug: 'abaya-saison', label: 'Saison', ordre: 2, translations: { fr: "Saison", ar: "موسمي", en: "Seasonal" } },
+        { slug: 'abaya-discount', label: 'Discount', ordre: 3, translations: { fr: "Discount", ar: "تخفيض", en: "Discount" } },
       ]},
-      { slug: 'kimono', label: 'Kimono', ordre: 3, subCategories: [
-        { slug: 'kimono-nouveau', label: 'Nouveau', ordre: 1 },
-        { slug: 'kimono-saison', label: 'Saison', ordre: 2 },
-        { slug: 'kimono-discount', label: 'Discount', ordre: 3 },
+      { slug: 'kimono', label: 'Kimono', ordre: 3, translations: { fr: "Kimono", ar: "كيمونو", en: "Kimono" }, subCategories: [
+        { slug: 'kimono-nouveau', label: 'Nouveau', ordre: 1, translations: { fr: "Nouveau", ar: "جديد", en: "New" } },
+        { slug: 'kimono-saison', label: 'Saison', ordre: 2, translations: { fr: "Saison", ar: "موسمي", en: "Seasonal" } },
+        { slug: 'kimono-discount', label: 'Discount', ordre: 3, translations: { fr: "Discount", ar: "تخفيض", en: "Discount" } },
       ]},
-      { slug: 'robe', label: 'Robe', ordre: 4, subCategories: [
-        { slug: 'robe-nouveau', label: 'Nouveau', ordre: 1 },
-        { slug: 'robe-saison', label: 'Saison', ordre: 2 },
-        { slug: 'robe-discount', label: 'Discount', ordre: 3 },
+      { slug: 'robe', label: 'Robe', ordre: 4, translations: { fr: "Robe", ar: "فستان", en: "Dress" }, subCategories: [
+        { slug: 'robe-nouveau', label: 'Nouveau', ordre: 1, translations: { fr: "Nouveau", ar: "جديد", en: "New" } },
+        { slug: 'robe-saison', label: 'Saison', ordre: 2, translations: { fr: "Saison", ar: "موسمي", en: "Seasonal" } },
+        { slug: 'robe-discount', label: 'Discount', ordre: 3, translations: { fr: "Discount", ar: "تخفيض", en: "Discount" } },
       ]},
-      { slug: 'accessoires', label: 'Accessoires', ordre: 5, subCategories: [
-        { slug: 'accessoires-nouveau', label: 'Nouveau', ordre: 1 },
-        { slug: 'accessoires-saison', label: 'Saison', ordre: 2 },
-        { slug: 'accessoires-discount', label: 'Discount', ordre: 3 },
+      { slug: 'accessoires', label: 'Accessoires', ordre: 5, translations: { fr: "Accessoires", ar: "إكسسوارات", en: "Accessories" }, subCategories: [
+        { slug: 'accessoires-nouveau', label: 'Nouveau', ordre: 1, translations: { fr: "Nouveau", ar: "جديد", en: "New" } },
+        { slug: 'accessoires-saison', label: 'Saison', ordre: 2, translations: { fr: "Saison", ar: "موسمي", en: "Seasonal" } },
+        { slug: 'accessoires-discount', label: 'Discount', ordre: 3, translations: { fr: "Discount", ar: "تخفيض", en: "Discount" } },
       ]},
     ];
 
@@ -45,6 +45,7 @@ export async function POST() {
           label: cat.label,
           ordre: cat.ordre,
           visible: true,
+          translations: cat.translations,
         },
       });
       if (upserted) categoriesCreated++;
@@ -59,6 +60,7 @@ export async function POST() {
             ordre: sub.ordre,
             visible: true,
             categoryId: upserted.id,
+            translations: sub.translations,
           },
         });
         if (subUpserted) subCategoriesCreated++;

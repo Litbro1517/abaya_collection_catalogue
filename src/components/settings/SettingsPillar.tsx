@@ -2,10 +2,12 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { useAppStore } from '@/lib/store';
+import { useTranslation } from '@/lib/i18n';
 import type { CatalogSettings, SettingsTab } from '@/types';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
+import { ImageUpload } from '@/components/ui/image-upload';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { Button } from '@/components/ui/button';
@@ -38,6 +40,7 @@ interface CatItem {
   label: string;
   visible: boolean;
   ordre: number;
+  translations?: Record<string, string> | null;
   subCategories: SubCatItem[];
 }
 
@@ -48,6 +51,7 @@ interface SubCatItem {
   visible: boolean;
   ordre: number;
   categoryId: string;
+  translations?: Record<string, string> | null;
   category?: { id: string; slug: string; label: string };
 }
 
@@ -62,6 +66,7 @@ function generateSlug(label: string): string {
 
 export function SettingsPillar() {
   const { settings, setSettings, adminUser, settingsTab, setSettingsTab } = useAppStore();
+  const { t } = useTranslation();
   const [local, setLocal] = useState<CatalogSettings | null>(null);
   const [saving, setSaving] = useState(false);
   const [copied, setCopied] = useState(false);
@@ -467,12 +472,12 @@ export function SettingsPillar() {
           setSettings(json.data);
           setLocal(json.data);
         }
-        toast.success('Paramètres sauvegardés');
+        toast.success(t('settings.saved'));
         // Trigger ThemeInjector to refresh CSS variables instantly
         window.dispatchEvent(new CustomEvent('theme-updated'));
       }
     } catch {
-      toast.error('Erreur de sauvegarde');
+      toast.error(t('settings.saveError'));
     } finally {
       setSaving(false);
     }
@@ -488,7 +493,7 @@ export function SettingsPillar() {
     navigator.clipboard.writeText(window.location.origin);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
-    toast.success('Lien copié !');
+    toast.success(t('admin.linkCopied'));
   };
 
   const handleChangePassword = async () => {
@@ -538,19 +543,19 @@ export function SettingsPillar() {
           <h2 className="text-lg font-semibold">Paramètres</h2>
           <Button size="sm" className="gap-1.5" onClick={() => handleSave()} disabled={saving}>
             {saving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Save className="w-3.5 h-3.5" />}
-            Sauvegarder
+            {t('settings.save')}
           </Button>
         </div>
 
         <Tabs value={settingsTab} onValueChange={(v) => setSettingsTab(v as SettingsTab)} className="space-y-4">
           <TabsList className="grid w-full grid-cols-7">
-            <TabsTrigger value="general" className="text-xs gap-1"><Globe className="w-3 h-3" /> Général</TabsTrigger>
-            <TabsTrigger value="appearance" className="text-xs gap-1"><Palette className="w-3 h-3" /> Style</TabsTrigger>
-            <TabsTrigger value="conversion" className="text-xs gap-1"><Share2 className="w-3 h-3" /> Partage</TabsTrigger>
-            <TabsTrigger value="display" className="text-xs gap-1"><Monitor className="w-3 h-3" /> Affichage</TabsTrigger>
-            <TabsTrigger value="admin" className="text-xs gap-1"><Shield className="w-3 h-3" /> Admin</TabsTrigger>
-            <TabsTrigger value="catalogue" className="text-xs gap-1"><BookOpen className="w-3 h-3" /> Catalogue</TabsTrigger>
-            <TabsTrigger value="couleurs" className="text-xs gap-1"><Palette className="w-3 h-3" /> Couleurs</TabsTrigger>
+            <TabsTrigger value="general" className="text-xs gap-1"><Globe className="w-3 h-3" /> {t('settings.general')}</TabsTrigger>
+            <TabsTrigger value="appearance" className="text-xs gap-1"><Palette className="w-3 h-3" /> {t('settings.appearance')}</TabsTrigger>
+            <TabsTrigger value="conversion" className="text-xs gap-1"><Share2 className="w-3 h-3" /> {t('settings.conversion')}</TabsTrigger>
+            <TabsTrigger value="display" className="text-xs gap-1"><Monitor className="w-3 h-3" /> {t('settings.display')}</TabsTrigger>
+            <TabsTrigger value="admin" className="text-xs gap-1"><Shield className="w-3 h-3" /> {t('settings.admin')}</TabsTrigger>
+            <TabsTrigger value="catalogue" className="text-xs gap-1"><BookOpen className="w-3 h-3" /> {t('settings.catalogue')}</TabsTrigger>
+            <TabsTrigger value="couleurs" className="text-xs gap-1"><Palette className="w-3 h-3" /> {t('settings.colors')}</TabsTrigger>
           </TabsList>
 
           {/* Général */}
@@ -559,7 +564,7 @@ export function SettingsPillar() {
               <CardHeader><CardTitle className="text-sm">Général</CardTitle></CardHeader>
               <CardContent className="space-y-4">
                 <div>
-                  <Label className="text-xs">Langue</Label>
+                  <Label className="text-xs">{t('settings.language')}</Label>
                   <Select value={local.language} onValueChange={v => updateField('language', v)}>
                     <SelectTrigger><SelectValue /></SelectTrigger>
                     <SelectContent>
@@ -570,7 +575,7 @@ export function SettingsPillar() {
                   </Select>
                 </div>
                 <div>
-                  <Label className="text-xs">Devise</Label>
+                  <Label className="text-xs">{t('settings.currency')}</Label>
                   <Select value={local.currency} onValueChange={v => updateField('currency', v)}>
                     <SelectTrigger><SelectValue /></SelectTrigger>
                     <SelectContent>
@@ -903,38 +908,23 @@ export function SettingsPillar() {
               <CardHeader><CardTitle className="text-sm">Identité visuelle</CardTitle></CardHeader>
               <CardContent className="space-y-4">
                 <div>
-                  <Label className="text-xs">Logo de la marque</Label>
-                  <p className="text-[10px] text-muted-foreground mb-1.5">URL de l'image — remplace le monogramme dans la barre de navigation et le pied de page</p>
-                  <div className="flex items-center gap-2">
-                    {local.logo && (
-                      <div className="w-8 h-8 rounded-md overflow-hidden bg-muted flex items-center justify-center shrink-0">
-                        <img src={local.logo} alt="Logo" className="w-full h-full object-contain" />
-                      </div>
-                    )}
-                    <Input
-                      value={local.logo || ''}
-                      onChange={e => updateField('logo', e.target.value)}
-                      placeholder="https://example.com/logo.png"
-                      className="h-9 text-xs"
-                    />
-                  </div>
+                  <Label className="text-xs">{t('settings.logoLabel')}</Label>
+                  <p className="text-[10px] text-muted-foreground mb-1.5">{t('settings.logoHint')}</p>
+                  <ImageUpload
+                    value={local.logo}
+                    onChange={(url) => updateField('logo', url)}
+                    onRemove={() => updateField('logo', '')}
+                  />
                 </div>
                 <div>
-                  <Label className="text-xs">Favicon</Label>
-                  <p className="text-[10px] text-muted-foreground mb-1.5">URL de l'icône affichée dans l'onglet du navigateur (32×32 recommandé)</p>
-                  <div className="flex items-center gap-2">
-                    {local.favicon && (
-                      <div className="w-8 h-8 rounded-md overflow-hidden bg-muted flex items-center justify-center shrink-0">
-                        <img src={local.favicon} alt="Favicon" className="w-full h-full object-contain" />
-                      </div>
-                    )}
-                    <Input
-                      value={local.favicon || ''}
-                      onChange={e => updateField('favicon', e.target.value)}
-                      placeholder="https://example.com/favicon.ico"
-                      className="h-9 text-xs"
-                    />
-                  </div>
+                  <Label className="text-xs">{t('settings.faviconLabel')}</Label>
+                  <p className="text-[10px] text-muted-foreground mb-1.5">{t('settings.faviconHint')}</p>
+                  <ImageUpload
+                    value={local.favicon}
+                    onChange={(url) => updateField('favicon', url)}
+                    onRemove={() => updateField('favicon', '')}
+                    accept="image/png,image/svg+xml,image/x-icon,image/vnd.microsoft.icon"
+                  />
                 </div>
               </CardContent>
             </Card>

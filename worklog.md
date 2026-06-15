@@ -769,3 +769,302 @@ Stage Summary:
 - Merge conflicts cleanly resolved — using the newer layout (search bar, no hero header)
 - Dead CSS removed for clean codebase
 - Dev server running and serving HTTP 200
+
+---
+
+## Task 1 — Migration multilingue DB + Utilitaire de résolution i18n
+
+### Date
+2025-03-04
+
+### Summary
+Added `translations` JSONB field to Category and SubCategory models, created `resolveTranslation` utility, updated seed data with FR/AR/EN translations, and patched the categories API to accept translations on create/update.
+
+### Changes
+
+#### Part A: Prisma Schema (`prisma/schema.prisma`)
+- Added `translations Json?` field to **Category** model (after `label`)
+  - Comment: `{ "fr": "Ensemble", "ar": "طقم", "en": "Set" }`
+- Added `translations Json?` field to **SubCategory** model (after `label`)
+  - Comment: `{ "fr": "Nouveau", "ar": "جديد", "en": "New" }`
+- Ran `bun run db:push` — schema synced successfully
+
+#### Part B: TypeScript Types
+- **`src/components/preview/CatalogPreview.tsx`** (line 256-260):
+  - Added `translations?: Record<string, string> | null;` to `DynamicCategory` type
+  - Added `translations?: Record<string, string> | null;` to nested `subCategories` type
+- **`src/components/settings/SettingsPillar.tsx`** (line 35-54):
+  - Added `translations?: Record<string, string> | null;` to `CatItem` interface
+  - Added `translations?: Record<string, string> | null;` to `SubCatItem` interface
+
+#### Part C: i18n Resolution Utility (`src/lib/i18n/dictionaries.ts`)
+- Added `resolveTranslation()` function after `isRTL()`
+- Signature: `resolveTranslation(translations, locale, fallback?) => string`
+- Fallback chain: requested locale → French → English → `fallback` param → empty string
+
+#### Part D: Seed Data (`src/app/api/categories/seed/route.ts`)
+- Added `translations` JSONB to each category in `defaultCategories`:
+  - Ensemble: `{ fr: "Ensemble", ar: "طقم", en: "Set" }`
+  - Abaya: `{ fr: "Abaya", ar: "عباية", en: "Abaya" }`
+  - Kimono: `{ fr: "Kimono", ar: "كيمونو", en: "Kimono" }`
+  - Robe: `{ fr: "Robe", ar: "فستان", en: "Dress" }`
+  - Accessoires: `{ fr: "Accessoires", ar: "إكسسوارات", en: "Accessories" }`
+- Added `translations` JSONB to each subcategory:
+  - Nouveau: `{ fr: "Nouveau", ar: "جديد", en: "New" }`
+  - Saison: `{ fr: "Saison", ar: "موسمي", en: "Seasonal" }`
+  - Discount: `{ fr: "Discount", ar: "تخفيض", en: "Discount" }`
+- Updated category upsert `create` to include `translations: cat.translations`
+- Updated subcategory upsert `create` to include `translations: sub.translations`
+
+#### Part E: Categories API (`src/app/api/categories/route.ts`)
+- **POST handler**: Added conditional spread for `translations` in `create` data
+  - `...(body.translations !== undefined ? { translations: body.translations } : {})`
+- **PATCH handler**: Updated `updateData` type to include `translations?: unknown`
+  - Added: `if (body.translations !== undefined) (updateData as any).translations = body.translations;`
+
+### Verification
+- `bun run db:push` — schema synced, Prisma Client regenerated
+- `bun run lint` — only pre-existing `daemon.js` errors (unrelated to changes)
+- All changed files pass ESLint with zero new errors
+
+---
+
+## Task 2 — Enrich i18n dictionaries from ~45 to ~80 keys
+
+### Date
+2025-03-04
+
+### Summary
+Added 38 new translation keys to all three locales (fr, en, ar) in `src/lib/i18n/dictionaries.ts` and updated the barrel file to export `resolveTranslation`.
+
+### Changes
+
+#### `src/lib/i18n/dictionaries.ts`
+Added the following new key groups to **all three locales** (fr, en, ar):
+
+- **Catalog Extended** (4 keys): `catalog.collection`, `catalog.tryAnotherSearch`, `catalog.addSections`, `catalog.viewProduct`
+- **Product Extended** (3 keys): `product.quickBuy`, `product.whatsappOrder`, `product.price`
+- **Footer Extended** (1 key): `footer.email`
+- **Settings Tabs** (16 keys): `settings.general`, `settings.appearance`, `settings.conversion`, `settings.display`, `settings.admin`, `settings.catalogue`, `settings.colors`, `settings.save`, `settings.saved`, `settings.saveError`, `settings.logoLabel`, `settings.logoHint`, `settings.faviconLabel`, `settings.faviconHint`, `settings.logoPlaceholder`, `settings.faviconPlaceholder`
+- **Admin Extended** (5 keys): `admin.confirmDelete`, `admin.productsDeleted`, `admin.productsActivated`, `admin.linkCopied`, `admin.refresh`
+- **Order** (1 key): `order.subject`
+- **Upload** (8 keys): `upload.dragDrop`, `upload.clickOrDrop`, `upload.uploading`, `upload.success`, `upload.error`, `upload.remove`, `upload.fileTooLarge`, `upload.invalidType`
+
+All existing keys were preserved exactly as they were.
+
+#### `src/lib/i18n/index.ts`
+Added `resolveTranslation` to the re-export list from `./dictionaries`.
+
+### Verification
+- `npx eslint src/lib/i18n/dictionaries.ts src/lib/i18n/index.ts` — zero errors
+
+---
+
+## Task 3-a — Replace hardcoded French strings in CatalogPreview.tsx with t() calls
+
+### Date
+2025-03-04
+
+### Summary
+Replaced all 13 hardcoded French strings in `src/components/preview/CatalogPreview.tsx` with i18n `t()` and `resolveTranslation()` calls, making the component fully translatable.
+
+### Changes
+
+#### `src/components/preview/CatalogPreview.tsx`
+
+1. **Import update** (line 19): Added `resolveTranslation` to the import from `@/lib/i18n`
+2. **useTranslation destructuring** (line 268): Added `locale` to the destructured return
+3. **"Tout" macro filter** (line 942): Replaced with `{t('catalog.all')}`
+4. **"Tous" micro filter** (line 991): Replaced with `{t('filter.all')}`
+5. **"Collection" fallback** (line 840): Replaced `'Collection'` with `t('catalog.collection')`
+6. **Category labels** (line 963): Replaced `{cat.label}` with `{resolveTranslation(cat.translations, locale, cat.label)}`
+7. **Subcategory labels** (line 1004): Replaced `{sub.label}` with `{resolveTranslation(sub.translations, locale, sub.label)}`
+8. **"Favori" aria-label** (line 1140): Replaced `aria-label="Favori"` with `aria-label={t('product.favorite')}`
+9. **"Voir ${title}" aria-label** (line 1099): Replaced with `` aria-label={`${t('catalog.viewProduct')} ${title}`} ``
+10. **"Essayez un autre terme de recherche"** (line 1261): Replaced with `{t('catalog.tryAnotherSearch')}`
+11. **"Ajoutez des sections dans l'onglet Mise en page"** (line 1263): Replaced with `{t('catalog.addSections')}`
+12. **"E-mail" footer label** (line 1313): Replaced with `{t('footer.email')}`
+13. **"Prix :" in WhatsApp message** (line 591): Replaced with `${t('product.price')} :`
+14. **selectedCat.label title** (line 1039): Replaced with `{resolveTranslation(selectedCat.translations, locale, selectedCat.label)}`
+
+All translation keys used were already present in the dictionaries from Task 2.
+
+### Verification
+- `npx eslint src/components/preview/CatalogPreview.tsx` — zero errors
+- `bun run lint` — only pre-existing `daemon.js` errors (unrelated to this task)
+
+---
+
+## Task 3-b — Replace hardcoded French strings in ProductPage.tsx with t() calls
+
+### Date
+2025-03-04
+
+### Summary
+Replaced all hardcoded French strings in `src/components/preview/ProductPage.tsx` with i18n `t()` calls using keys already defined in the dictionaries.
+
+### Changes Made
+
+1. **Added `locale` to `useTranslation()` destructuring** (line 152):
+   - `const { t, formatPrice, rtl }` → `const { t, locale, formatPrice, rtl }`
+
+2. **Replaced `"Achat Rapide"`** (line 706):
+   - `'Achat Rapide'` → `t('product.quickBuy')`
+
+3. **Replaced `"Commander sur WhatsApp"`** (line 722):
+   - `'Commander sur WhatsApp'` → `t('product.whatsappOrder')`
+
+4. **Replaced `"Prix :"` in WhatsApp message fallback** (line 310):
+   - `Prix : ${price}` → `${t('product.price')} : ${price}`
+
+5. **Kept `"WhatsApp"` as-is** (line 801):
+   - "WhatsApp" is a brand name and universally recognized — no translation needed.
+
+### Translation Keys Used
+All keys were already present in `src/lib/i18n/dictionaries.ts`:
+- `product.quickBuy` — FR: "Achat Rapide", EN: "Quick Buy", AR: "شراء سريع"
+- `product.whatsappOrder` — FR: "Commander sur WhatsApp", EN: "Order on WhatsApp", AR: "اطلب عبر واتساب"
+- `product.price` — FR: "Prix", EN: "Price", AR: "السعر"
+
+### Verification
+- `npx eslint src/components/preview/ProductPage.tsx` — zero errors
+- `bun run lint` — only pre-existing `daemon.js` errors (unrelated to this task)
+- Grep for `Achat Rapide|Commander sur WhatsApp|Prix :` — no matches (all replaced)
+
+---
+
+## Task 3-c: Add i18n to SettingsPillar.tsx for key UI elements
+
+### Date
+2025-03-04
+
+### Summary
+Added `useTranslation()` hook to `SettingsPillar.tsx` and replaced the most user-visible hardcoded French strings with `t()` calls. All translation keys were already defined in `src/lib/i18n/dictionaries.ts`.
+
+### Changes Made
+
+#### 1. Import & Hook Setup
+- Added `import { useTranslation } from '@/lib/i18n';`
+- Added `const { t } = useTranslation();` inside the component
+
+#### 2. Tab Labels (7 replacements)
+| Original | Key |
+|---|---|
+| `Général` | `settings.general` |
+| `Style` | `settings.appearance` |
+| `Partage` | `settings.conversion` |
+| `Affichage` | `settings.display` |
+| `Admin` | `settings.admin` |
+| `Catalogue` | `settings.catalogue` |
+| `Couleurs` | `settings.colors` |
+
+#### 3. Save Button
+- `Sauvegarder` → `{t('settings.save')}`
+
+#### 4. Toast Messages (3 replacements)
+| Original | Key |
+|---|---|
+| `'Paramètres sauvegardés'` | `t('settings.saved')` |
+| `'Erreur de sauvegarde'` | `t('settings.saveError')` |
+| `'Lien copié !'` | `t('admin.linkCopied')` |
+
+#### 5. Logo/Favicon Fields
+| Original | Key |
+|---|---|
+| `Logo de la marque` | `settings.logoLabel` |
+| Logo hint text | `settings.logoHint` |
+| `Favicon` | `settings.faviconLabel` |
+| Favicon hint text | `settings.faviconHint` |
+| `placeholder="https://example.com/logo.png"` | `placeholder={t('settings.logoPlaceholder')}` |
+| `placeholder="https://example.com/favicon.ico"` | `placeholder={t('settings.faviconPlaceholder')}` |
+
+#### 6. Language/Currency Labels
+- `Langue` → `{t('settings.language')}`
+- `Devise` → `{t('settings.currency')}`
+
+### Intentionally NOT Replaced
+- Deeply nested admin-only strings (password change labels, Google OAuth text, catalogue CRUD messages)
+- These can be addressed in a future i18n pass
+
+### Verification
+- `npx eslint src/components/settings/SettingsPillar.tsx` — zero errors
+- `bun run lint` — only pre-existing `daemon.js` errors (unrelated)
+
+---
+
+## Task 4 — Image Upload Widget + API Route
+
+## Date
+2025-03-04
+
+## Summary of Changes
+
+### Part A: Created API Route `/api/upload/route.ts`
+- POST endpoint that accepts a `file` from FormData
+- Validates MIME type against allowlist (png, jpeg, webp, svg+xml, x-icon, vnd.microsoft.icon)
+- Validates file size (max 2 MB)
+- Generates unique filename with `Date.now()` prefix
+- Writes to `public/uploads/` directory (creates dir if missing)
+- Returns `{ data: { url: "/uploads/...", filename } }` on success
+
+### Part B: Created `ImageUpload` Component (`src/components/ui/image-upload.tsx`)
+- Drag-and-drop + click-to-upload widget
+- Client-side validation matching server-side rules
+- Shows preview with remove button when an image URL is already set
+- Shows loading spinner during upload
+- Displays error messages for invalid type/size/upload failure
+- Uses existing i18n keys (`upload.clickOrDrop`, `upload.uploading`, `upload.error`, `upload.remove`, `upload.fileTooLarge`, `upload.invalidType`)
+- Accepts `value`, `onChange`, `onRemove`, `accept`, `className` props
+
+### Part C: Updated `SettingsPillar.tsx`
+- Added `ImageUpload` import
+- Replaced Logo section: removed manual `<img>` preview + `<Input>` → now uses `<ImageUpload value={local.logo} onChange={...} onRemove={...} />`
+- Replaced Favicon section: same pattern, with restricted `accept` prop (`image/png,image/svg+xml,image/x-icon,image/vnd.microsoft.icon`)
+- Kept `Input` import (used 19 times elsewhere in file)
+
+### Files Created
+- `src/app/api/upload/route.ts`
+- `src/components/ui/image-upload.tsx`
+- `public/uploads/` directory
+
+### Files Modified
+- `src/components/settings/SettingsPillar.tsx` — import + logo/favicon sections
+
+### Verification
+- `npx eslint src/app/api/upload/route.ts src/components/ui/image-upload.tsx src/components/settings/SettingsPillar.tsx` — zero errors
+- `bun run lint` — only pre-existing `daemon.js` errors (unrelated)
+
+---
+
+## Task 5 — Replace static favicon with dynamic generateMetadata() in layout.tsx
+
+### Date
+2025-03-04
+
+### Summary
+Replaced the static `metadata` export in `layout.tsx` with an async `generateMetadata()` function that reads the favicon URL and catalog name from the database at SSR time. Also removed the client-side favicon injection hack from `CatalogPreview.tsx`.
+
+### Changes
+
+#### 1. `src/app/layout.tsx`
+- Added `import { db } from '@/lib/db';`
+- Replaced `export const metadata: Metadata = { ... }` with `export async function generateMetadata(): Promise<Metadata> { ... }`
+- The new function:
+  - Queries `db.catalogSettings.findFirst()` for the `favicon` field
+  - If settings exist, also queries the related `catalog` record for its `name`
+  - Falls back to `/logo.svg` for favicon and `"Abaya Collection Chic"` for catalog name on error (e.g., DB unavailable on first deploy)
+  - Returns metadata with `title: \`${catalogName} — Catalogue\`` and `icons.icon: faviconUrl`
+
+#### 2. `src/components/preview/CatalogPreview.tsx`
+- Removed the entire `useEffect` block that manually injected a `<link rel="icon">` tag into `document.head` based on `s?.favicon`
+- This client-side hack is no longer needed since `generateMetadata()` now handles favicon SSR
+
+### Why This Is Better
+- **SSR-native**: The favicon is set server-side via Next.js metadata, so it's present in the initial HTML response (no flash of default icon)
+- **No DOM manipulation**: Eliminates the fragile `document.querySelector`/`createElement` pattern
+- **Dynamic title**: Catalog name from DB is also reflected in the page title
+- **Graceful fallback**: If the DB is unavailable, the defaults (`/logo.svg`, `"Abaya Collection Chic"`) are used
+
+### Verification
+- `bun run lint` — only pre-existing `daemon.js` errors (unrelated to this task)
+- No new lint errors introduced
