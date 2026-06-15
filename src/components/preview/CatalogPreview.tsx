@@ -753,7 +753,7 @@ export function CatalogPreview({ onAdminLogin }: CatalogPreviewProps) {
           <div className="w-9 h-9 shrink-0" />
         )}
 
-        {/* Logo badge + Catalog Name — dynamic from catalog_settings.logo */}
+        {/* Logo or Catalog Name — dynamic from catalog_settings.logo */}
         <div className="flex-1 min-w-0 flex items-center gap-2.5">
           {s?.logo ? (
             <img
@@ -763,13 +763,15 @@ export function CatalogPreview({ onAdminLogin }: CatalogPreviewProps) {
               style={{ maxHeight: 32 }}
             />
           ) : (
-            <div className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0" style={{ background: 'linear-gradient(135deg, #C9A84C, #E8D48B, #C9A84C)' }}>
-              <span className="text-sm font-bold" style={{ color: 'var(--pivot-text)' }}>A</span>
-            </div>
+            <>
+              <div className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0" style={{ background: 'linear-gradient(135deg, #C9A84C, #E8D48B, #C9A84C)' }}>
+                <span className="text-sm font-bold" style={{ color: 'var(--pivot-text)' }}>A</span>
+              </div>
+              <h1 className="font-bold text-sm sm:text-base truncate" style={{ color: 'var(--pivot-text)', fontFamily: "'Playfair Display', serif" }}>
+                {catalogName}
+              </h1>
+            </>
           )}
-          <h1 className="font-bold text-sm sm:text-base truncate" style={{ color: 'var(--pivot-text)', fontFamily: "'Playfair Display', serif" }}>
-            {catalogName}
-          </h1>
         </div>
 
         {/* ── Public Language Selector ── */}
@@ -1290,13 +1292,15 @@ export function CatalogPreview({ onAdminLogin }: CatalogPreviewProps) {
             {s?.logo ? (
               <img src={s.logo} alt={catalogName} className="h-6 w-auto object-contain" style={{ maxHeight: 24 }} />
             ) : (
-              <div className="w-6 h-6 rounded-md flex items-center justify-center" style={{ background: 'linear-gradient(135deg, #C9A84C, #E8D48B)' }}>
-                <span className="text-[10px] font-bold" style={{ color: 'var(--pivot-text)' }}>A</span>
-              </div>
+              <>
+                <div className="w-6 h-6 rounded-md flex items-center justify-center" style={{ background: 'linear-gradient(135deg, #C9A84C, #E8D48B)' }}>
+                  <span className="text-[10px] font-bold" style={{ color: 'var(--pivot-text)' }}>A</span>
+                </div>
+                <span className="font-semibold text-xs sm:text-sm text-white" style={{ fontFamily: "'Playfair Display', serif" }}>
+                  {catalogName}
+                </span>
+              </>
             )}
-            <span className="font-semibold text-xs sm:text-sm text-white" style={{ fontFamily: "'Playfair Display', serif" }}>
-              {catalogName}
-            </span>
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 20, flexWrap: 'wrap', justifyContent: 'center' }} className="text-xs text-white/70">
             {s?.whatsappNumber && (
