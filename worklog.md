@@ -1256,3 +1256,203 @@ Stage Summary:
 - RTL layout fully supported with dir attribute on root catalog container
 - ThemeInjector uses clientLocale for non-admin users
 - Seed route now updates translations on existing categories
+
+---
+
+## Task 4 — Internationalize BuilderShell.tsx
+
+### Date
+2026-03-04
+
+### Summary
+Replaced all ~35 hardcoded French strings in `BuilderShell.tsx` with `t()` calls using the existing i18n infrastructure.
+
+### Changes
+
+#### 1. `src/lib/i18n/dictionaries.ts`
+Added **42 new translation keys** (prefixed `builder.*`) to all three locales (fr, en, ar):
+
+| Key | FR | EN | AR |
+|-----|----|----|-----|
+| `builder.disconnected` | Déconnecté | Disconnected | تم تسجيل الخروج |
+| `builder.disconnectedMsg` | Vous avez été déconnecté | You have been disconnected | لقد تم تسجيل خروجك |
+| `builder.googleNotConfigured` | Google non configuré | Google not configured | Google غير مُعد |
+| `builder.googleConfigRequired` | Veuillez configurer... | Please configure... | يرجى إعداد... |
+| `builder.error` | Erreur | Error | خطأ |
+| `builder.googleConnectError` | Impossible de se connecter à Google | Unable to connect to Google | تعذّر الاتصال بـ Google |
+| `builder.emailRequired` | L'email est requis | Email is required | البريد الإلكتروني مطلوب |
+| `builder.adminAdded` | Administrateur ajouté avec succès | Administrator added successfully | تمت إضافة المشرف بنجاح |
+| `builder.addError` | Erreur lors de l'ajout | Error while adding | خطأ أثناء الإضافة |
+| `builder.connectionError` | Erreur de connexion | Connection error | خطأ في الاتصال |
+| `builder.data` | Données | Data | البيانات |
+| `builder.layout` | Mise en page | Layout | التخطيط |
+| `builder.settings` | Paramètres | Settings | الإعدادات |
+| `builder.myCatalog` | Mon Catalogue | My Catalog | كتالوجي |
+| `builder.builder` | Constructeur | Builder | المنشئ |
+| `builder.hello` | Bonjour | Hello | مرحبًا |
+| `builder.manageAccount` | Gérer votre compte | Manage your account | إدارة حسابك |
+| `builder.addAccount` | Ajouter un compte | Add account | إضافة حساب |
+| `builder.logout` | Se déconnecter | Sign out | تسجيل الخروج |
+| `builder.privacyPolicy` | Règles de confidentialité | Privacy Policy | سياسة الخصوصية |
+| `builder.termsOfUse` | Conditions d'utilisation | Terms of Use | شروط الاستخدام |
+| `builder.connectGoogle` | Connecter Google | Connect Google | ربط Google |
+| `builder.connectGoogleTooltip` | Connecter votre compte Google Sheets | Connect your Google Sheets account | ربط حساب Google Sheets الخاص بك |
+| `builder.edit` | Éditer | Edit | تعديل |
+| `builder.preview` | Aperçu | Preview | معاينة |
+| `builder.disconnect` | Déconnexion | Disconnect | قطع الاتصال |
+| `builder.expandSidebar` | Déployer la sidebar | Expand sidebar | توسيع الشريط الجانبي |
+| `builder.collapseSidebar` | Réduire la sidebar | Collapse sidebar | تصغير الشريط الجانبي |
+| `builder.dashboard` | Dashboard | Dashboard | لوحة التحكم |
+| `builder.showTables` | Afficher les tables | Show tables | إظهار الجداول |
+| `builder.hideTables` | Masquer les tables | Hide tables | إخفاء الجداول |
+| `builder.showSections` | Afficher les sections | Show sections | إظهار الأقسام |
+| `builder.hideSections` | Masquer les sections | Hide sections | إخفاء الأقسام |
+| `builder.showTablesShort` | Afficher tables | Show tables | إظهار الجداول |
+| `builder.hideTablesShort` | Masquer tables | Hide tables | إخفاء الجداول |
+| `builder.showSectionsShort` | Afficher sections | Show sections | إظهار الأقسام |
+| `builder.hideSectionsShort` | Masquer sections | Hide sections | إخفاء الأقسام |
+| `builder.addAdmin` | Ajouter un administrateur | Add administrator | إضافة مشرف |
+| `builder.addAdminDesc` | Créez un nouvel accès... | Create a new administrator... | أنشئ وصول مشرف جديد... |
+| `builder.emailStar` | Email * | Email * | البريد الإلكتروني * |
+| `builder.nameOptional` | Nom (optionnel) | Name (optional) | الاسم (اختياري) |
+| `builder.role` | Rôle | Role | الدور |
+| `builder.roleAdmin` | Admin — Gestion complète | Admin — Full management | مشرف — إدارة كاملة |
+| `builder.roleEditor` | Éditeur — Modification du contenu uniquement | Editor — Content editing only | محرر — تعديل المحتوى فقط |
+| `builder.passwordOptional` | Mot de passe (optionnel) | Password (optional) | كلمة المرور (اختيارية) |
+| `builder.min8Chars` | Min. 8 caractères | Min. 8 characters | 8 أحرف كحد أدنى |
+| `builder.noPasswordHint` | Si aucun mot de passe... | If no password is set... | إذا لم يتم تعيين كلمة مرور... |
+| `builder.cancel` | Annuler | Cancel | إلغاء |
+| `builder.add` | Ajouter | Add | إضافة |
+
+#### 2. `src/components/BuilderShell.tsx`
+- Added `import { useTranslation } from '@/lib/i18n';`
+- Added `const { t } = useTranslation();` inside the component
+- Replaced all 35 hardcoded French strings with `t('builder.xxx')` calls
+- Dynamic string `Bonjour {name} !` → `{t('builder.hello')} {displayName} !`
+
+### Verification
+- `bun run lint` passed with zero errors
+- No functionality changed — only string extraction
+
+---
+
+## Task ID: 5 — Internationalize AdminDashboard.tsx
+
+## Date
+2025-03-04
+
+## Summary
+Replaced ~45 hardcoded French strings in `AdminDashboard.tsx` with `t()` translation calls, and added corresponding keys to all three locale dictionaries (fr, en, ar).
+
+## Files Modified
+
+### 1. `src/lib/i18n/dictionaries.ts`
+Added 66 new `admin.*` translation keys to all three locales (fr, en, ar) under a new `// ── Admin Dashboard ──` section:
+
+**Key categories added:**
+- **Toast messages:** `admin.googleNotConfigured`, `admin.googleNotConfiguredDesc`, `admin.googleConnectError`, `admin.googleDisconnected`, `admin.googleDisconnectedDesc`, `admin.disconnectError`, `admin.connectionError`, `admin.emailRequired`, `admin.adminAdded`, `admin.addError`
+- **Quick access cards:** `admin.edit`, `admin.editDesc`, `admin.preview`, `admin.previewDesc`, `admin.data`, `admin.dataDesc`, `admin.layout`, `admin.layoutDesc`, `admin.settings`, `admin.settingsDesc`
+- **Google connection:** `admin.googleConnect`, `admin.googleSheets`, `admin.googleConnectDesc`, `admin.googleConnectedPrefix`, `admin.googleAccount`, `admin.googleConnected`, `admin.connected`, `admin.configureOAuth`, `admin.importSheet`, `admin.disconnectBtn`
+- **Navigation/UI:** `admin.backToCatalog`, `admin.viewCatalog`, `admin.catalog`, `admin.userMenu`, `admin.hello`, `admin.dashboard`
+- **User menu:** `admin.manageAccount`, `admin.addAccount`, `admin.logout`, `admin.privacyPolicy`, `admin.termsOfUse`
+- **Stats:** `admin.sources`, `admin.sections`, `admin.products`, `admin.admins`
+- **Admin management:** `admin.administration`, `admin.adminManagement`, `admin.adminCount`, `admin.adminActions`, `admin.addBtn`
+- **Add admin dialog:** `admin.addAdmin`, `admin.addAdminDesc`, `admin.emailLabel`, `admin.emailPlaceholder`, `admin.nameLabel`, `admin.namePlaceholder`, `admin.roleLabel`, `admin.roleAdmin`, `admin.roleEditor`, `admin.passwordLabel`, `admin.passwordPlaceholder`, `admin.passwordHint`, `admin.cancel`
+- **Security:** `admin.secureAccess`, `admin.secureAccessDesc`
+- **Footer:** `admin.dashboardTitle`
+- **Misc:** `admin.quickAccess`
+
+### 2. `src/components/admin/AdminDashboard.tsx`
+- Added `import { useTranslation } from '@/lib/i18n';`
+- Added `const { t } = useTranslation();` hook call
+- Replaced all hardcoded French strings with `t('admin.xxx')` calls
+- Added `id` field to cards array (e.g., `id: 'googleConnect'`) to replace `card.title === 'Connexion Google'` comparison with `card.id === 'googleConnect'`
+- Used template literals for dynamic strings (e.g., `` `${t('admin.googleConnectedPrefix')} ${email}` ``)
+- Reused existing `admin.dashboard` key for the header title
+
+## Verification
+- `bun run lint` passes with no errors
+- All three locales (fr, en, ar) have complete translations
+- Arabic translations are proper Arabic (not transliterations)
+- No functionality changes — only string replacement
+
+---
+
+### Task 6: SettingsPillar.tsx Internationalization (i18n)
+
+**Agent**: Main Agent
+**Date**: 2025-06-15
+
+**Summary**: Completed internationalization of the SettingsPillar.tsx component by replacing ~50 hardcoded French strings with `t()` translation calls, and adding all corresponding translation keys to the dictionaries.ts file for all three locales (fr, en, ar).
+
+**Changes Made**:
+
+1. **`src/lib/i18n/dictionaries.ts`** — Added 89 new translation keys in the `settings.*` namespace across all three locales:
+   - Category/subcategory CRUD toast messages (errorLoadingCategories, categoryAdded, categoryRenamed, categoryVisible/Hidden, categoryDeleted, cannotDeleteCategory, etc.)
+   - Password management strings (fillAllFields, passwordMin8, passwordMismatch, passwordChanged, passwordChangeError, currentPassword, newPassword, confirmPassword, etc.)
+   - UI section titles and headers (title, mainPalette, advancedColors, clientSpace, fontAndCss, conversionAndSharing, visualIdentity, accessManagement, etc.)
+   - Form labels (font, customCss, conversionChannel, whatsappNumber, messengerLink, contactEmail, instagram, conversionMessage, shareLink, etc.)
+   - Button labels (copy, copied, cancel, add, saveCredentials, changePassword, etc.)
+   - Tooltips and descriptions (reference, restore, doubleClickToRename, cannotDeleteProductsOne/Many, etc.)
+   - Placeholders (customCssPlaceholder, conversionMessagePlaceholder, categoryNamePlaceholder, subcategoryNamePlaceholder, instagramPlaceholder, etc.)
+
+2. **`src/components/settings/SettingsPillar.tsx`** — Replaced all hardcoded French strings:
+   - All `toast.error('...')` and `toast.success('...')` calls now use `t('settings.xxx')`
+   - All `<Label>`, `<CardTitle>`, and `<p>` elements with hardcoded French text now use `t()` calls
+   - `title` attributes (e.g., "Double-cliquer pour renommer") now use `t()`
+   - `placeholder` attributes with French text now use `t()`
+   - Conditional strings (e.g., `visible ? 'Catégorie visible' : 'Catégorie masquée'`) use ternary with `t()`
+   - Dynamic tooltip text ("Impossible: N produits associés") uses `t('settings.cannotDeleteProductsMany').replace('{n}', String(count))` pattern
+   - Loading state uses existing `t('catalog.loading')` key
+   - Reused existing keys where applicable (settings.general, settings.display, settings.saveError, etc.)
+
+**Verification**:
+- `bun run lint` passes with no errors
+- All three locales (fr, en, ar) have complete translations for all new keys
+- Arabic translations are proper Arabic (not transliterations)
+- No functionality changes — only string replacement
+- Remaining non-translated strings are technical placeholders (URLs, phone formats, hex codes, password dots) which are locale-independent
+
+---
+
+## Task 8 — Internationalize LoginModal.tsx & fix remaining hardcoded strings
+
+**Date**: 2025-03-04
+**Agent**: code-agent
+
+### Changes Made
+
+#### 1. LoginModal.tsx — Full i18n
+- Added `import { useClientTranslation } from '@/lib/i18n/useClientTranslation'`
+- Added `const { t } = useClientTranslation()` hook
+- Replaced ALL 21 hardcoded French strings with `t('login.*')` calls:
+  - `login.checking`, `login.firstSetup`, `login.adminAccess`, `login.noAdminNotice`
+  - `login.googleConnecting`, `login.signInWithGoogle`, `login.googleNotConfigured`
+  - `login.or`, `login.nameOptional`, `login.email`, `login.password`
+  - `login.creatingAccount`, `login.connecting`, `login.createAccount`, `login.signIn`
+  - `login.ownerNotice`, `login.enterCredentials`, `login.connectionError`
+  - `login.passwordMin8`, `login.registerError`, `login.googleUrlUnavailable`, `login.googleConnectError`
+
+#### 2. dictionaries.ts — Added translation keys
+- Added `login.*` section (21 keys) to all 3 locales (fr, en, ar)
+- Added `header.*` section (7 keys) to all 3 locales for Header component
+- Arabic translations are proper Arabic (not transliterations)
+
+#### 3. gallery/Header.tsx — Full i18n
+- Added `import { useClientTranslation } from '@/lib/i18n/useClientTranslation'`
+- Added `const { t } = useClientTranslation()` hook
+- Replaced 7 hardcoded French strings with `t('header.*')` calls:
+  - `header.toggleView`, `header.adminLogin`, `header.administration`, `header.gallery`
+  - `header.searchProduct`, `header.search`, `header.admin`
+
+#### 4. layout.tsx — Left as-is
+- Confirmed hardcoded French description in `generateMetadata()` — left unchanged as it's server-side SEO metadata with French as primary language
+
+#### 5. Other preview components — Already i18n'd
+- `SocialStickyTickets.tsx` — already uses `useClientTranslation` and `t()` ✓
+- `CodForm.tsx` — already uses `useClientTranslation` and `t()` ✓
+
+### Verification
+- `bun run lint` passes with no errors
+- All three locales (fr, en, ar) have complete translations for all new keys
+- No functionality changes — only string replacement

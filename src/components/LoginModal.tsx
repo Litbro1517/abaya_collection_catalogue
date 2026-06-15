@@ -5,6 +5,7 @@ import { useAppStore } from '@/lib/store';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Lock, Loader2, BookOpen, X, Mail, User } from 'lucide-react';
+import { useClientTranslation } from '@/lib/i18n/useClientTranslation';
 
 function GoogleIcon({ className }: { className?: string }) {
   return (
@@ -34,6 +35,7 @@ export function LoginModal({ onLoginSuccess, onCancel }: LoginModalProps) {
   const [googleLoading, setGoogleLoading] = useState(false);
   const [googleUnavailable, setGoogleUnavailable] = useState(false);
   const { setIsAdmin, setAdminUser } = useAppStore();
+  const { t } = useClientTranslation();
 
   // Check if any admins exist on mount
   useEffect(() => {
@@ -79,10 +81,10 @@ export function LoginModal({ onLoginSuccess, onCancel }: LoginModalProps) {
         onLoginSuccess?.();
       } else {
         const json = await res.json();
-        setError(json.error || 'Erreur de connexion');
+        setError(json.error || t('login.connectionError'));
       }
     } catch {
-      setError('Erreur de connexion');
+      setError(t('login.connectionError'));
     } finally {
       setLoading(false);
     }
@@ -94,7 +96,7 @@ export function LoginModal({ onLoginSuccess, onCancel }: LoginModalProps) {
     setError('');
 
     if (password.length < 8) {
-      setError('Le mot de passe doit contenir au moins 8 caractères');
+      setError(t('login.passwordMin8'));
       setLoading(false);
       return;
     }
@@ -119,10 +121,10 @@ export function LoginModal({ onLoginSuccess, onCancel }: LoginModalProps) {
         onLoginSuccess?.();
       } else {
         const json = await res.json();
-        setError(json.error || 'Erreur lors de l\'inscription');
+        setError(json.error || t('login.registerError'));
       }
     } catch {
-      setError('Erreur lors de l\'inscription');
+      setError(t('login.registerError'));
     } finally {
       setLoading(false);
     }
@@ -140,14 +142,14 @@ export function LoginModal({ onLoginSuccess, onCancel }: LoginModalProps) {
         } else if (json.url) {
           window.location.href = json.url;
         } else {
-          setError('URL de connexion Google non disponible');
+          setError(t('login.googleUrlUnavailable'));
         }
       } else {
         const json = await res.json();
         if (json.error?.includes('non configur') || json.setupRequired || res.status === 503) {
           setGoogleUnavailable(true);
         } else {
-          setError(json.error || 'Erreur de connexion Google');
+          setError(json.error || t('login.googleConnectError'));
         }
       }
     } catch {
@@ -163,7 +165,7 @@ export function LoginModal({ onLoginSuccess, onCancel }: LoginModalProps) {
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-cream via-background to-secondary/30 p-4">
         <div className="flex flex-col items-center gap-3">
           <Loader2 className="w-8 h-8 text-gold animate-spin" />
-          <p className="text-sm text-muted-foreground">Vérification...</p>
+          <p className="text-sm text-muted-foreground">{t('login.checking')}</p>
         </div>
       </div>
     );
@@ -200,7 +202,7 @@ export function LoginModal({ onLoginSuccess, onCancel }: LoginModalProps) {
             <div>
               <h2 className="text-xl font-semibold text-foreground">Abaya Collection</h2>
               <p className="text-sm text-muted-foreground mt-1">
-                {isRegister ? 'Première configuration' : 'Accès Administrateur'}
+                {isRegister ? t('login.firstSetup') : t('login.adminAccess')}
               </p>
             </div>
           </div>
@@ -208,7 +210,7 @@ export function LoginModal({ onLoginSuccess, onCancel }: LoginModalProps) {
           {/* First-time setup notice */}
           {isRegister && (
             <div className="bg-gold/5 border border-gold/20 rounded-lg px-4 py-3 text-sm text-muted-foreground">
-              Aucun administrateur n&apos;existe encore. Créez votre compte propriétaire pour commencer.
+              {t('login.noAdminNotice')}
             </div>
           )}
 
@@ -222,18 +224,18 @@ export function LoginModal({ onLoginSuccess, onCancel }: LoginModalProps) {
             {googleLoading ? (
               <>
                 <Loader2 className="w-4 h-4 animate-spin" />
-                Connexion Google...
+                {t('login.googleConnecting')}
               </>
             ) : (
               <>
                 <GoogleIcon className="w-4 h-4" />
-                Se connecter avec Google
+                {t('login.signInWithGoogle')}
               </>
             )}
           </Button>
 
           {googleUnavailable && (
-            <p className="text-xs text-muted-foreground text-center">Google non configuré</p>
+            <p className="text-xs text-muted-foreground text-center">{t('login.googleNotConfigured')}</p>
           )}
 
           {/* Divider */}
@@ -242,7 +244,7 @@ export function LoginModal({ onLoginSuccess, onCancel }: LoginModalProps) {
               <span className="w-full border-t border-border" />
             </div>
             <div className="relative flex justify-center text-xs uppercase">
-              <span className="bg-card px-2 text-muted-foreground">ou</span>
+              <span className="bg-card px-2 text-muted-foreground">{t('login.or')}</span>
             </div>
           </div>
 
@@ -254,7 +256,7 @@ export function LoginModal({ onLoginSuccess, onCancel }: LoginModalProps) {
                 <User className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                 <Input
                   type="text"
-                  placeholder="Nom (optionnel)"
+                  placeholder={t('login.nameOptional')}
                   value={name}
                   onChange={(e) => setName(e.target.value)}
                   className="h-11 pl-10 border-border"
@@ -267,7 +269,7 @@ export function LoginModal({ onLoginSuccess, onCancel }: LoginModalProps) {
               <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
               <Input
                 type="email"
-                placeholder="Email"
+                placeholder={t('login.email')}
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 autoFocus={!isRegister}
@@ -280,7 +282,7 @@ export function LoginModal({ onLoginSuccess, onCancel }: LoginModalProps) {
               <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
               <Input
                 type="password"
-                placeholder="Mot de passe"
+                placeholder={t('login.password')}
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 autoFocus={isRegister}
@@ -302,10 +304,10 @@ export function LoginModal({ onLoginSuccess, onCancel }: LoginModalProps) {
               {loading ? (
                 <>
                   <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                  {isRegister ? 'Création du compte...' : 'Connexion...'}
+                  {isRegister ? t('login.creatingAccount') : t('login.connecting')}
                 </>
               ) : (
-                isRegister ? 'Créer le compte' : 'Se connecter'
+                isRegister ? t('login.createAccount') : t('login.signIn')
               )}
             </Button>
           </form>
@@ -313,8 +315,8 @@ export function LoginModal({ onLoginSuccess, onCancel }: LoginModalProps) {
           {/* Footer */}
           <p className="text-xs text-muted-foreground text-center">
             {isRegister
-              ? 'Ce compte sera le propriétaire de l\'application'
-              : 'Entrez vos identifiants pour accéder au constructeur'
+              ? t('login.ownerNotice')
+              : t('login.enterCredentials')
             }
           </p>
         </div>

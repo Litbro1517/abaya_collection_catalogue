@@ -142,7 +142,7 @@ export function SettingsPillar() {
         setCategories(json.data || []);
       }
     } catch {
-      toast.error('Erreur lors du chargement des catégories');
+      toast.error(t('settings.errorLoadingCategories'));
     } finally {
       setCatLoading(false);
     }
@@ -158,7 +158,7 @@ export function SettingsPillar() {
         setSubCategories(json.data || []);
       }
     } catch {
-      toast.error('Erreur lors du chargement des sous-catégories');
+      toast.error(t('settings.errorLoadingSubcategories'));
     } finally {
       setSubLoading(false);
     }
@@ -230,7 +230,7 @@ export function SettingsPillar() {
   // ─── Catalogue: Add category ────────────────────────────────────────
   const addCategory = async () => {
     if (!newCatLabel.trim()) {
-      toast.error('Le nom est requis');
+      toast.error(t('settings.nameRequired'));
       return;
     }
     try {
@@ -248,20 +248,20 @@ export function SettingsPillar() {
         setCategories(prev => [...prev, json.data]);
         setNewCatLabel('');
         setShowNewCat(false);
-        toast.success('Catégorie ajoutée');
+        toast.success(t('settings.categoryAdded'));
       } else {
         const json = await res.json();
-        toast.error(json.error || 'Erreur');
+        toast.error(json.error || t('settings.error'));
       }
     } catch {
-      toast.error('Erreur de connexion');
+      toast.error(t('settings.connectionError'));
     }
   };
 
   // ─── Catalogue: Add subcategory ─────────────────────────────────────
   const addSubCategory = async () => {
     if (!newSubLabel.trim()) {
-      toast.error('Le nom est requis');
+      toast.error(t('settings.nameRequired'));
       return;
     }
     if (!selectedCategoryId) return;
@@ -291,13 +291,13 @@ export function SettingsPillar() {
         );
         setNewSubLabel('');
         setShowNewSub(false);
-        toast.success('Sous-catégorie ajoutée');
+        toast.success(t('settings.subcategoryAdded'));
       } else {
         const json = await res.json();
-        toast.error(json.error || 'Erreur');
+        toast.error(json.error || t('settings.error'));
       }
     } catch {
-      toast.error('Erreur de connexion');
+      toast.error(t('settings.connectionError'));
     }
   };
 
@@ -318,14 +318,14 @@ export function SettingsPillar() {
         body: JSON.stringify({ id, label: trimmed }),
       });
       if (res.ok) {
-        toast.success('Catégorie renommée');
+        toast.success(t('settings.categoryRenamed'));
       } else {
         const json = await res.json();
-        toast.error(json.error || 'Erreur');
+        toast.error(json.error || t('settings.error'));
         loadCategories();
       }
     } catch {
-      toast.error('Erreur de connexion');
+      toast.error(t('settings.connectionError'));
       loadCategories();
     }
   };
@@ -347,14 +347,14 @@ export function SettingsPillar() {
         body: JSON.stringify({ id, label: trimmed }),
       });
       if (res.ok) {
-        toast.success('Sous-catégorie renommée');
+        toast.success(t('settings.subcategoryRenamed'));
       } else {
         const json = await res.json();
-        toast.error(json.error || 'Erreur');
+        toast.error(json.error || t('settings.error'));
         if (selectedCategoryId) loadSubCategories(selectedCategoryId);
       }
     } catch {
-      toast.error('Erreur de connexion');
+      toast.error(t('settings.connectionError'));
       if (selectedCategoryId) loadSubCategories(selectedCategoryId);
     }
   };
@@ -369,14 +369,14 @@ export function SettingsPillar() {
         body: JSON.stringify({ id, visible }),
       });
       if (res.ok) {
-        toast.success(visible ? 'Catégorie visible' : 'Catégorie masquée');
+        toast.success(visible ? t('settings.categoryVisible') : t('settings.categoryHidden'));
       } else {
         const json = await res.json();
-        toast.error(json.error || 'Erreur');
+        toast.error(json.error || t('settings.error'));
         loadCategories();
       }
     } catch {
-      toast.error('Erreur de connexion');
+      toast.error(t('settings.connectionError'));
       loadCategories();
     }
   };
@@ -391,14 +391,14 @@ export function SettingsPillar() {
         body: JSON.stringify({ id, visible }),
       });
       if (res.ok) {
-        toast.success(visible ? 'Sous-catégorie visible' : 'Sous-catégorie masquée');
+        toast.success(visible ? t('settings.subcategoryVisible') : t('settings.subcategoryHidden'));
       } else {
         const json = await res.json();
-        toast.error(json.error || 'Erreur');
+        toast.error(json.error || t('settings.error'));
         if (selectedCategoryId) loadSubCategories(selectedCategoryId);
       }
     } catch {
-      toast.error('Erreur de connexion');
+      toast.error(t('settings.connectionError'));
       if (selectedCategoryId) loadSubCategories(selectedCategoryId);
     }
   };
@@ -412,19 +412,19 @@ export function SettingsPillar() {
         if (selectedCategoryId === id) {
           setSelectedCategoryId('');
         }
-        toast.success('Catégorie supprimée');
+        toast.success(t('settings.categoryDeleted'));
         loadProductCounts();
       } else {
         const json = await res.json();
         if (res.status === 403) {
-          toast.error(json.error || 'Impossible de supprimer : des produits sont associés');
+          toast.error(json.error || t('settings.cannotDeleteCategory'));
           loadProductCounts();
         } else {
-          toast.error(json.error || 'Erreur');
+          toast.error(json.error || t('settings.error'));
         }
       }
     } catch {
-      toast.error('Erreur de connexion');
+      toast.error(t('settings.connectionError'));
     }
   };
 
@@ -440,19 +440,19 @@ export function SettingsPillar() {
             subCategories: (c.subCategories || []).filter(s => s.id !== id),
           }))
         );
-        toast.success('Sous-catégorie supprimée');
+        toast.success(t('settings.subcategoryDeleted'));
         loadProductCounts();
       } else {
         const json = await res.json();
         if (res.status === 403) {
-          toast.error(json.error || 'Impossible de supprimer : des produits sont associés');
+          toast.error(json.error || t('settings.cannotDeleteCategory'));
           loadProductCounts();
         } else {
-          toast.error(json.error || 'Erreur');
+          toast.error(json.error || t('settings.error'));
         }
       }
     } catch {
-      toast.error('Erreur de connexion');
+      toast.error(t('settings.connectionError'));
     }
   };
 
@@ -498,15 +498,15 @@ export function SettingsPillar() {
 
   const handleChangePassword = async () => {
     if (!currentPassword || !newPassword || !confirmPassword) {
-      toast.error('Veuillez remplir tous les champs');
+      toast.error(t('settings.fillAllFields'));
       return;
     }
     if (newPassword.length < 8) {
-      toast.error('Le nouveau mot de passe doit contenir au moins 8 caractères');
+      toast.error(t('settings.passwordMin8'));
       return;
     }
     if (newPassword !== confirmPassword) {
-      toast.error('Les mots de passe ne correspondent pas');
+      toast.error(t('settings.passwordMismatch'));
       return;
     }
     setPasswordSaving(true);
@@ -517,30 +517,30 @@ export function SettingsPillar() {
         body: JSON.stringify({ currentPassword, newPassword }),
       });
       if (res.ok) {
-        toast.success('Mot de passe modifié avec succès');
+        toast.success(t('settings.passwordChanged'));
         setCurrentPassword('');
         setNewPassword('');
         setConfirmPassword('');
       } else {
         const json = await res.json();
-        toast.error(json.error || 'Erreur lors du changement de mot de passe');
+        toast.error(json.error || t('settings.passwordChangeError'));
       }
     } catch {
-      toast.error('Erreur de connexion');
+      toast.error(t('settings.connectionError'));
     } finally {
       setPasswordSaving(false);
     }
   };
 
   if (!local) {
-    return <div className="flex items-center justify-center h-full text-muted-foreground">Chargement...</div>;
+    return <div className="flex items-center justify-center h-full text-muted-foreground">{t('catalog.loading')}</div>;
   }
 
   return (
     <div className="h-full overflow-y-auto p-4">
       <div className="max-w-2xl mx-auto">
         <div className="flex items-center justify-between mb-4">
-          <h2 className="text-lg font-semibold">Paramètres</h2>
+          <h2 className="text-lg font-semibold">{t('settings.title')}</h2>
           <Button size="sm" className="gap-1.5" onClick={() => handleSave()} disabled={saving}>
             {saving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Save className="w-3.5 h-3.5" />}
             {t('settings.save')}
@@ -561,16 +561,16 @@ export function SettingsPillar() {
           {/* Général */}
           <TabsContent value="general">
             <Card>
-              <CardHeader><CardTitle className="text-sm">Général</CardTitle></CardHeader>
+              <CardHeader><CardTitle className="text-sm">{t('settings.general')}</CardTitle></CardHeader>
               <CardContent className="space-y-4">
                 <div>
                   <Label className="text-xs">{t('settings.language')}</Label>
                   <Select value={local.language} onValueChange={v => updateField('language', v)}>
                     <SelectTrigger><SelectValue /></SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="fr">Français</SelectItem>
-                      <SelectItem value="en">English</SelectItem>
-                      <SelectItem value="ar">العربية</SelectItem>
+                      <SelectItem value="fr">{t('settings.french')}</SelectItem>
+                      <SelectItem value="en">{t('settings.english')}</SelectItem>
+                      <SelectItem value="ar">{t('settings.arabic')}</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
@@ -600,10 +600,10 @@ export function SettingsPillar() {
                   <div>
                     <CardTitle className="text-sm flex items-center gap-2">
                       <Palette className="w-4 h-4" style={{ color: 'var(--gold)' }} />
-                      Palette Principale
+                      {t('settings.mainPalette')}
                     </CardTitle>
                     <p className="text-xs text-muted-foreground mt-0.5">
-                      4 couleurs pivots — pilotent 80% du design par dérivation automatique
+                      {t('settings.mainPaletteDesc')}
                     </p>
                   </div>
                 </CardHeader>
@@ -638,7 +638,7 @@ export function SettingsPillar() {
                               />
                             </TooltipTrigger>
                             <TooltipContent side="top" className="text-xs">
-                              Référence : {defaultVal}
+                              {t('settings.reference')} : {defaultVal}
                             </TooltipContent>
                           </Tooltip>
 
@@ -666,7 +666,7 @@ export function SettingsPillar() {
                               if (/^#[0-9A-Fa-f]{6}$/.test(val)) {
                                 updateField(field, val);
                               } else if (val && !/^#[0-9A-Fa-f]{0,6}$/.test(val)) {
-                                toast.error('Format hex invalide — utilisez #RRGGBB');
+                                toast.error(t('settings.invalidHexFormat'));
                               }
                             }}
                             className="w-24 h-8 text-xs font-mono"
@@ -688,7 +688,7 @@ export function SettingsPillar() {
                               </Button>
                             </TooltipTrigger>
                             <TooltipContent side="top" className="text-xs">
-                              Restaurer {defaultVal}
+                              {t('settings.restore')} {defaultVal}
                             </TooltipContent>
                           </Tooltip>
                         </div>
@@ -704,10 +704,10 @@ export function SettingsPillar() {
                   <div>
                     <CardTitle className="text-sm flex items-center gap-2">
                       <Palette className="w-4 h-4" style={{ color: 'var(--primary)' }} />
-                      Couleurs Avancées
+                      {t('settings.advancedColors')}
                     </CardTitle>
                     <p className="text-xs text-muted-foreground mt-0.5">
-                      3 exceptions non-dérivables — couleurs fonctionnelles spécifiques
+                      {t('settings.advancedColorsDesc')}
                     </p>
                   </div>
                 </CardHeader>
@@ -741,7 +741,7 @@ export function SettingsPillar() {
                               />
                             </TooltipTrigger>
                             <TooltipContent side="top" className="text-xs">
-                              Référence : {defaultVal}
+                              {t('settings.reference')} : {defaultVal}
                             </TooltipContent>
                           </Tooltip>
 
@@ -764,7 +764,7 @@ export function SettingsPillar() {
                               if (/^#[0-9A-Fa-f]{6}$/.test(val)) {
                                 updateField(field, val);
                               } else if (val && !/^#[0-9A-Fa-f]{0,6}$/.test(val)) {
-                                toast.error('Format hex invalide — utilisez #RRGGBB');
+                                toast.error(t('settings.invalidHexFormat'));
                               }
                             }}
                             className="w-24 h-8 text-xs font-mono"
@@ -786,7 +786,7 @@ export function SettingsPillar() {
                               </Button>
                             </TooltipTrigger>
                             <TooltipContent side="top" className="text-xs">
-                              Restaurer {defaultVal}
+                              {t('settings.restore')} {defaultVal}
                             </TooltipContent>
                           </Tooltip>
                         </div>
@@ -802,10 +802,10 @@ export function SettingsPillar() {
                   <div>
                     <CardTitle className="text-sm flex items-center gap-2">
                       <Palette className="w-4 h-4" style={{ color: 'var(--cream)' }} />
-                      Espace Client
+                      {t('settings.clientSpace')}
                     </CardTitle>
                     <p className="text-xs text-muted-foreground mt-0.5">
-                      Variables visibles sur le catalogue public — mode Auto (hérite de l'Admin) ou Custom (valeur propre)
+                      {t('settings.cssVarsDesc')}
                     </p>
                   </div>
                 </CardHeader>
@@ -820,11 +820,11 @@ export function SettingsPillar() {
               {/* ═══ Police & CSS ═══ */}
               <Card>
                 <CardHeader>
-                  <CardTitle className="text-sm">Police & CSS</CardTitle>
+                  <CardTitle className="text-sm">{t('settings.fontAndCss')}</CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-4">
                   <div>
-                    <Label className="text-xs">Police</Label>
+                    <Label className="text-xs">{t('settings.font')}</Label>
                     <Select value={local.fontFamily} onValueChange={v => updateField('fontFamily', v)}>
                       <SelectTrigger><SelectValue /></SelectTrigger>
                       <SelectContent>
@@ -835,12 +835,12 @@ export function SettingsPillar() {
                     </Select>
                   </div>
                   <div>
-                    <Label className="text-xs">CSS personnalisé</Label>
+                    <Label className="text-xs">{t('settings.customCss')}</Label>
                     <Textarea
                       value={local.customCSS}
                       onChange={e => updateField('customCSS', e.target.value)}
                       className="h-24 font-mono text-xs"
-                      placeholder="/* Votre CSS personnalisé */"
+                      placeholder={t('settings.customCssPlaceholder')}
                     />
                   </div>
                 </CardContent>
@@ -851,10 +851,10 @@ export function SettingsPillar() {
           {/* Conversion & Partage */}
           <TabsContent value="conversion">
             <Card>
-              <CardHeader><CardTitle className="text-sm">Conversion & Partage</CardTitle></CardHeader>
+              <CardHeader><CardTitle className="text-sm">{t('settings.conversionAndSharing')}</CardTitle></CardHeader>
               <CardContent className="space-y-4">
                 <div>
-                  <Label className="text-xs">Canal de conversion</Label>
+                  <Label className="text-xs">{t('settings.conversionChannel')}</Label>
                   <Select value={local.conversionChannel} onValueChange={v => updateField('conversionChannel', v)}>
                     <SelectTrigger><SelectValue /></SelectTrigger>
                     <SelectContent>
@@ -864,37 +864,37 @@ export function SettingsPillar() {
                   </Select>
                 </div>
                 <div>
-                  <Label className="text-xs">Numéro WhatsApp</Label>
+                  <Label className="text-xs">{t('settings.whatsappNumber')}</Label>
                   <Input value={local.whatsappNumber} onChange={e => updateField('whatsappNumber', e.target.value)} placeholder="212600000000" />
                 </div>
                 <div>
-                  <Label className="text-xs">Lien Messenger</Label>
+                  <Label className="text-xs">{t('settings.messengerLink')}</Label>
                   <Input value={local.messengerLink} onChange={e => updateField('messengerLink', e.target.value)} placeholder="https://m.me/..." />
                 </div>
                 <div>
-                  <Label className="text-xs">Email de contact</Label>
+                  <Label className="text-xs">{t('settings.contactEmail')}</Label>
                   <Input value={local.emailContact} onChange={e => updateField('emailContact', e.target.value)} placeholder="contact@example.com" />
                 </div>
                 <div>
-                  <Label className="text-xs">Instagram</Label>
-                  <Input value={local.instagramHandle} onChange={e => updateField('instagramHandle', e.target.value)} placeholder="@votre_compte" />
+                  <Label className="text-xs">{t('settings.instagram')}</Label>
+                  <Input value={local.instagramHandle} onChange={e => updateField('instagramHandle', e.target.value)} placeholder={t('settings.instagramPlaceholder')} />
                 </div>
                 <div>
-                  <Label className="text-xs">Message de conversion</Label>
+                  <Label className="text-xs">{t('settings.conversionMessage')}</Label>
                   <Textarea
                     value={local.conversionMessage}
                     onChange={e => updateField('conversionMessage', e.target.value)}
                     className="h-20 text-xs"
-                    placeholder="Bonjour, je souhaite commander : {product}"
+                    placeholder={t('settings.conversionMessagePlaceholder')}
                   />
                 </div>
                 <div>
-                  <Label className="text-xs">Lien de partage</Label>
+                  <Label className="text-xs">{t('settings.shareLink')}</Label>
                   <div className="flex items-center gap-2">
                     <Input value={typeof window !== 'undefined' ? window.location.origin : ''} readOnly className="h-9 text-xs" />
                     <Button size="sm" variant="outline" onClick={copyShareLink} className="gap-1.5">
                       {copied ? <Check className="w-3 h-3" /> : <Copy className="w-3 h-3" />}
-                      {copied ? 'Copié' : 'Copier'}
+                      {copied ? t('settings.copied') : t('settings.copy')}
                     </Button>
                   </div>
                 </div>
@@ -905,7 +905,7 @@ export function SettingsPillar() {
           {/* Affichage */}
           <TabsContent value="display">
             <Card>
-              <CardHeader><CardTitle className="text-sm">Identité visuelle</CardTitle></CardHeader>
+              <CardHeader><CardTitle className="text-sm">{t('settings.visualIdentity')}</CardTitle></CardHeader>
               <CardContent className="space-y-4">
                 <div>
                   <Label className="text-xs">{t('settings.logoLabel')}</Label>
@@ -929,36 +929,36 @@ export function SettingsPillar() {
               </CardContent>
             </Card>
             <Card>
-              <CardHeader><CardTitle className="text-sm">Affichage</CardTitle></CardHeader>
+              <CardHeader><CardTitle className="text-sm">{t('settings.display')}</CardTitle></CardHeader>
               <CardContent className="space-y-4">
                 <label className="flex items-center justify-between">
                   <div>
-                    <p className="text-sm font-medium">Zoom sur images</p>
-                    <p className="text-xs text-muted-foreground">Permettre le zoom en cliquant sur les images</p>
+                    <p className="text-sm font-medium">{t('settings.imageZoom')}</p>
+                    <p className="text-xs text-muted-foreground">{t('settings.imageZoomDesc')}</p>
                   </div>
                   <Switch checked={local.enableZoom} onCheckedChange={v => updateField('enableZoom', v)} />
                 </label>
                 <label className="flex items-center justify-between">
                   <div>
-                    <p className="text-sm font-medium">Recherche</p>
-                    <p className="text-xs text-muted-foreground">Activer la barre de recherche</p>
+                    <p className="text-sm font-medium">{t('settings.search')}</p>
+                    <p className="text-xs text-muted-foreground">{t('settings.searchDesc')}</p>
                   </div>
                   <Switch checked={local.enableSearch} onCheckedChange={v => updateField('enableSearch', v)} />
                 </label>
                 <label className="flex items-center justify-between">
                   <div>
-                    <p className="text-sm font-medium">Partage</p>
-                    <p className="text-xs text-muted-foreground">Boutons de partage sur les produits</p>
+                    <p className="text-sm font-medium">{t('settings.sharing')}</p>
+                    <p className="text-xs text-muted-foreground">{t('settings.sharingDesc')}</p>
                   </div>
                   <Switch checked={local.enableSharing} onCheckedChange={v => updateField('enableSharing', v)} />
                 </label>
                 <div className="pt-4 border-t">
                   <label className="flex items-center justify-between">
                     <div>
-                      <p className="text-sm font-medium">Publier le catalogue</p>
-                      <p className="text-xs text-muted-foreground">Rendre le catalogue visible publiquement</p>
+                      <p className="text-sm font-medium">{t('settings.publishCatalog')}</p>
+                      <p className="text-xs text-muted-foreground">{t('settings.publishCatalogDesc')}</p>
                     </div>
-                    <Switch checked={false} onCheckedChange={v => toast.info(v ? 'Catalogue publié !' : 'Catalogue dépublié')} />
+                    <Switch checked={false} onCheckedChange={v => toast.info(v ? t('settings.catalogPublished') : t('settings.catalogUnpublished'))} />
                   </label>
                 </div>
               </CardContent>
@@ -974,7 +974,7 @@ export function SettingsPillar() {
                 <CardHeader>
                   <CardTitle className="text-sm flex items-center gap-2">
                     <Shield className="w-4 h-4" />
-                    Gestion des accès
+                    {t('settings.accessManagement')}
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
@@ -987,11 +987,10 @@ export function SettingsPillar() {
                 <CardHeader><CardTitle className="text-sm flex items-center gap-2"><Key className="w-4 h-4" /> Google OAuth</CardTitle></CardHeader>
                 <CardContent className="space-y-4">
                   <p className="text-xs text-muted-foreground">
-                    Pour connecter Google Sheets et Google Drive, vous devez configurer un projet Google Cloud
-                    et obtenir des identifiants OAuth. <a href="https://console.cloud.google.com/apis/credentials" target="_blank" rel="noopener noreferrer" className="text-gold underline">Créer des identifiants</a>
+                    {t('settings.googleOauthDesc')} <a href="https://console.cloud.google.com/apis/credentials" target="_blank" rel="noopener noreferrer" className="text-gold underline">{t('settings.createCredentials')}</a>
                   </p>
                   <div>
-                    <Label className="text-xs">Client ID</Label>
+                    <Label className="text-xs">{t('settings.clientId')}</Label>
                     <Input
                       value={googleClientId}
                       onChange={e => setGoogleClientId(e.target.value)}
@@ -1000,7 +999,7 @@ export function SettingsPillar() {
                     />
                   </div>
                   <div>
-                    <Label className="text-xs">Client Secret</Label>
+                    <Label className="text-xs">{t('settings.clientSecret')}</Label>
                     <Input
                       type="password"
                       value={googleClientSecret}
@@ -1025,19 +1024,19 @@ export function SettingsPillar() {
                           }),
                         });
                         if (res.ok) {
-                          toast.success('Identifiants Google sauvegardés');
+                          toast.success(t('settings.googleCredentialsSaved'));
                         } else {
-                          toast.error('Erreur lors de la sauvegarde');
+                          toast.error(t('settings.saveError'));
                         }
                       } catch {
-                        toast.error('Erreur de connexion');
+                        toast.error(t('settings.connectionError'));
                       } finally {
                         setGoogleCredsSaving(false);
                       }
                     }}
                   >
                     {googleCredsSaving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Save className="w-3.5 h-3.5" />}
-                    Sauvegarder les identifiants
+                    {t('settings.saveCredentials')}
                   </Button>
                 </CardContent>
               </Card>
@@ -1047,15 +1046,15 @@ export function SettingsPillar() {
                 <CardHeader>
                   <CardTitle className="text-sm flex items-center gap-2">
                     <Key className="w-4 h-4" />
-                    Mon mot de passe
+                    {t('settings.myPassword')}
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-4">
                   <p className="text-xs text-muted-foreground">
-                    Modifiez votre mot de passe personnel. Si vous vous connectez uniquement via Google, cette section ne s&apos;applique pas.
+                    {t('settings.myPasswordDesc')}
                   </p>
                   <div>
-                    <Label className="text-xs">Mot de passe actuel</Label>
+                    <Label className="text-xs">{t('settings.currentPassword')}</Label>
                     <Input
                       type="password"
                       value={currentPassword}
@@ -1065,23 +1064,23 @@ export function SettingsPillar() {
                     />
                   </div>
                   <div>
-                    <Label className="text-xs">Nouveau mot de passe</Label>
+                    <Label className="text-xs">{t('settings.newPassword')}</Label>
                     <Input
                       type="password"
                       value={newPassword}
                       onChange={e => setNewPassword(e.target.value)}
                       className="h-9 text-xs"
-                      placeholder="Min. 8 caractères"
+                      placeholder={t('settings.min8Chars')}
                     />
                   </div>
                   <div>
-                    <Label className="text-xs">Confirmer le mot de passe</Label>
+                    <Label className="text-xs">{t('settings.confirmPassword')}</Label>
                     <Input
                       type="password"
                       value={confirmPassword}
                       onChange={e => setConfirmPassword(e.target.value)}
                       className="h-9 text-xs"
-                      placeholder="Retapez le nouveau mot de passe"
+                      placeholder={t('settings.confirmPasswordPlaceholder')}
                       onKeyDown={e => { if (e.key === 'Enter') handleChangePassword(); }}
                     />
                   </div>
@@ -1092,7 +1091,7 @@ export function SettingsPillar() {
                     disabled={passwordSaving || !currentPassword || !newPassword || !confirmPassword}
                   >
                     {passwordSaving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Key className="w-3.5 h-3.5" />}
-                    Changer le mot de passe
+                    {t('settings.changePassword')}
                   </Button>
                 </CardContent>
               </Card>
@@ -1101,7 +1100,7 @@ export function SettingsPillar() {
               {adminUser && (
                 <Card>
                   <CardHeader>
-                    <CardTitle className="text-sm">Session actuelle</CardTitle>
+                    <CardTitle className="text-sm">{t('settings.currentSession')}</CardTitle>
                   </CardHeader>
                   <CardContent>
                     <div className="flex items-center gap-3">
@@ -1129,9 +1128,9 @@ export function SettingsPillar() {
                   <div>
                     <CardTitle className="text-sm flex items-center gap-2">
                       <BookOpen className="w-4 h-4" style={{ color: '#C9A84C' }} />
-                      Grandes Catégories
+                      {t('settings.mainCategories')}
                     </CardTitle>
-                    <p className="text-xs text-muted-foreground mt-0.5">Niveau 1 — Navigation principale</p>
+                    <p className="text-xs text-muted-foreground mt-0.5">{t('settings.level1MainNav')}</p>
                   </div>
                 </CardHeader>
                 <CardContent className="space-y-1">
@@ -1140,7 +1139,7 @@ export function SettingsPillar() {
                       <Loader2 className="w-4 h-4 animate-spin text-muted-foreground" />
                     </div>
                   ) : categories.length === 0 ? (
-                    <p className="text-xs text-muted-foreground text-center py-8">Aucune catégorie</p>
+                    <p className="text-xs text-muted-foreground text-center py-8">{t('settings.noCategories')}</p>
                   ) : (
                     categories.map((cat) => {
                       const count = productCounts[cat.slug] || 0;
@@ -1174,7 +1173,7 @@ export function SettingsPillar() {
                                 setEditingCatId(cat.id);
                                 setEditingCatLabel(cat.label);
                               }}
-                              title="Double-cliquer pour renommer"
+                              title={t('settings.doubleClickToRename')}
                             >
                               {cat.label}
                             </span>
@@ -1203,7 +1202,7 @@ export function SettingsPillar() {
                             </TooltipTrigger>
                             {count > 0 && (
                               <TooltipContent side="left">
-                                Impossible : {count} produit{count !== 1 ? 's' : ''} associé{count !== 1 ? 's' : ''}
+                                {count === 1 ? t('settings.cannotDeleteProductsOne') : t('settings.cannotDeleteProductsMany').replace('{n}', String(count))}
                               </TooltipContent>
                             )}
                           </Tooltip>
@@ -1217,7 +1216,7 @@ export function SettingsPillar() {
                       <Input
                         value={newCatLabel}
                         onChange={e => setNewCatLabel(e.target.value)}
-                        placeholder="Nom de la catégorie"
+                        placeholder={t('settings.categoryNamePlaceholder')}
                         className="h-7 text-xs flex-1"
                         autoFocus
                         onKeyDown={e => {
@@ -1239,7 +1238,7 @@ export function SettingsPillar() {
                         className="h-7 text-xs"
                         onClick={() => { setShowNewCat(false); setNewCatLabel(''); }}
                       >
-                        Annuler
+                        {t('settings.cancel')}
                       </Button>
                     </div>
                   ) : (
@@ -1250,7 +1249,7 @@ export function SettingsPillar() {
                       onClick={() => setShowNewCat(true)}
                       style={{ borderColor: '#C9A84C', color: '#C9A84C' }}
                     >
-                      <Plus className="w-3 h-3" /> Ajouter
+                      <Plus className="w-3 h-3" /> {t('settings.add')}
                     </Button>
                   )}
                 </CardContent>
@@ -1262,15 +1261,15 @@ export function SettingsPillar() {
                   <div>
                     <CardTitle className="text-sm flex items-center gap-2">
                       <BookOpen className="w-4 h-4" style={{ color: '#C9A84C' }} />
-                      Sous-catégories
+                      {t('settings.subcategories')}
                     </CardTitle>
-                    <p className="text-xs text-muted-foreground mt-0.5">Niveau 2 — Filtres contextuels</p>
+                    <p className="text-xs text-muted-foreground mt-0.5">{t('settings.level2ContextualFilters')}</p>
                   </div>
                 </CardHeader>
                 <CardContent className="space-y-3">
                   <Select value={selectedCategoryId} onValueChange={setSelectedCategoryId}>
                     <SelectTrigger className="h-8 text-xs">
-                      <SelectValue placeholder="Sélectionner une catégorie parente" />
+                      <SelectValue placeholder={t('settings.selectParentCategory')} />
                     </SelectTrigger>
                     <SelectContent>
                       {categories.map(cat => (
@@ -1281,7 +1280,7 @@ export function SettingsPillar() {
 
                   {!selectedCategoryId ? (
                     <p className="text-xs text-muted-foreground text-center py-8">
-                      Sélectionnez une catégorie parente
+                      {t('settings.selectParentCategoryPrompt')}
                     </p>
                   ) : subLoading ? (
                     <div className="flex items-center justify-center py-8">
@@ -1289,7 +1288,7 @@ export function SettingsPillar() {
                     </div>
                   ) : subCategories.length === 0 ? (
                     <p className="text-xs text-muted-foreground text-center py-8">
-                      Aucune sous-catégorie
+                      {t('settings.noSubcategories')}
                     </p>
                   ) : (
                     <div className="space-y-1">
@@ -1325,7 +1324,7 @@ export function SettingsPillar() {
                                   setEditingSubId(sub.id);
                                   setEditingSubLabel(sub.label);
                                 }}
-                                title="Double-cliquer pour renommer"
+                                title={t('settings.doubleClickToRename')}
                               >
                                 {sub.label}
                               </span>
@@ -1354,7 +1353,7 @@ export function SettingsPillar() {
                               </TooltipTrigger>
                               {count > 0 && (
                                 <TooltipContent side="left">
-                                  Impossible : {count} produit{count !== 1 ? 's' : ''} associé{count !== 1 ? 's' : ''}
+                                  {count === 1 ? t('settings.cannotDeleteProductsOne') : t('settings.cannotDeleteProductsMany').replace('{n}', String(count))}
                                 </TooltipContent>
                               )}
                             </Tooltip>
@@ -1370,7 +1369,7 @@ export function SettingsPillar() {
                         <Input
                           value={newSubLabel}
                           onChange={e => setNewSubLabel(e.target.value)}
-                          placeholder="Nom de la sous-catégorie"
+                          placeholder={t('settings.subcategoryNamePlaceholder')}
                           className="h-7 text-xs flex-1"
                           autoFocus
                           onKeyDown={e => {
@@ -1392,7 +1391,7 @@ export function SettingsPillar() {
                           className="h-7 text-xs"
                           onClick={() => { setShowNewSub(false); setNewSubLabel(''); }}
                         >
-                          Annuler
+                          {t('settings.cancel')}
                         </Button>
                       </div>
                     ) : (
@@ -1403,7 +1402,7 @@ export function SettingsPillar() {
                         onClick={() => setShowNewSub(true)}
                         style={{ borderColor: '#C9A84C', color: '#C9A84C' }}
                       >
-                        <Plus className="w-3 h-3" /> Ajouter
+                        <Plus className="w-3 h-3" /> {t('settings.add')}
                       </Button>
                     )
                   )}

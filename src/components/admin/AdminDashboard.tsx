@@ -1,6 +1,7 @@
 'use client';
 
 import { useAppStore } from '@/lib/store';
+import { useTranslation } from '@/lib/i18n';
 import { useEffect, useState } from 'react';
 import {
   Database,
@@ -67,6 +68,7 @@ interface AdminDashboardProps {
 }
 
 export function AdminDashboard({ admin }: AdminDashboardProps) {
+  const { t } = useTranslation();
   const {
     setView, setPillar, setSettingsTab,
     setIsAdmin, setAdminUser,
@@ -186,13 +188,13 @@ export function AdminDashboard({ admin }: AdminDashboardProps) {
         }
       }
       // If we reach here, Google OAuth isn't configured
-      toast.error('Google non configuré', {
-        description: 'Veuillez d\'abord configurer les identifiants Google OAuth dans les paramètres.',
+      toast.error(t('admin.googleNotConfigured'), {
+        description: t('admin.googleNotConfiguredDesc'),
       });
       // Navigate to Settings > Admin where OAuth credentials can be configured
       navigateTo('builder', { pillar: 'settings', settingsTab: 'admin' });
     } catch {
-      toast.error('Erreur de connexion Google');
+      toast.error(t('admin.googleConnectError'));
     } finally {
       setGoogleConnecting(false);
     }
@@ -205,15 +207,15 @@ export function AdminDashboard({ admin }: AdminDashboardProps) {
       const res = await fetch('/api/google/session', { method: 'DELETE' });
       if (res.ok) {
         useAppStore.getState().setGoogleSession(null);
-        toast.success('Google déconnecté', {
-          description: 'La connexion Google a été supprimée.',
+        toast.success(t('admin.googleDisconnected'), {
+          description: t('admin.googleDisconnectedDesc'),
         });
         setShowGooglePanel(false);
       } else {
-        toast.error('Erreur lors de la déconnexion');
+        toast.error(t('admin.disconnectError'));
       }
     } catch {
-      toast.error('Erreur de connexion');
+      toast.error(t('admin.connectionError'));
     } finally {
       setGoogleDisconnecting(false);
     }
@@ -253,7 +255,7 @@ export function AdminDashboard({ admin }: AdminDashboardProps) {
   // ── Add Admin: directly open the add admin modal ──
   const handleAddAdmin = async () => {
     if (!addAdminForm.email.trim()) {
-      toast.error('L\'email est requis');
+      toast.error(t('admin.emailRequired'));
       return;
     }
     setAddAdminLoading(true);
@@ -269,7 +271,7 @@ export function AdminDashboard({ admin }: AdminDashboardProps) {
         }),
       });
       if (res.ok) {
-        toast.success('Administrateur ajouté avec succès');
+        toast.success(t('admin.adminAdded'));
         setAddAdminForm({ email: '', name: '', role: 'admin', password: '' });
         setAddAdminDialogOpen(false);
         // Refresh stats
@@ -280,10 +282,10 @@ export function AdminDashboard({ admin }: AdminDashboardProps) {
         });
       } else {
         const json = await res.json();
-        toast.error(json.error || 'Erreur lors de l\'ajout');
+        toast.error(json.error || t('admin.addError'));
       }
     } catch {
-      toast.error('Erreur de connexion');
+      toast.error(t('admin.connectionError'));
     } finally {
       setAddAdminLoading(false);
     }
@@ -302,45 +304,51 @@ export function AdminDashboard({ admin }: AdminDashboardProps) {
   // ── Quick access cards ──
   const cards = [
     {
-      title: 'Éditer',
-      description: 'Édition directe des données du catalogue',
+      id: 'edit',
+      title: t('admin.edit'),
+      description: t('admin.editDesc'),
       icon: Pencil,
       action: handleEdit,
       color: BRAND.vertFonce,
     },
     {
-      title: 'Aperçu',
-      description: 'Visualiser le catalogue tel que le voient les visiteurs',
+      id: 'preview',
+      title: t('admin.preview'),
+      description: t('admin.previewDesc'),
       icon: Eye,
       action: () => navigateTo('preview'),
       color: '#455d68',
     },
     {
-      title: 'Données',
-      description: 'Sources de données, colonnes, import',
+      id: 'data',
+      title: t('admin.data'),
+      description: t('admin.dataDesc'),
       icon: Database,
       action: () => navigateTo('builder', { pillar: 'data' }),
       color: BRAND.vertFonce,
     },
     {
-      title: 'Mise en page',
-      description: 'Sections, configuration du catalogue',
+      id: 'layout',
+      title: t('admin.layout'),
+      description: t('admin.layoutDesc'),
       icon: Layout,
       action: () => navigateTo('builder', { pillar: 'layout' }),
       color: BRAND.dore,
     },
     {
-      title: 'Paramètres',
-      description: 'Couleurs, WhatsApp, réseaux sociaux',
+      id: 'settings',
+      title: t('admin.settings'),
+      description: t('admin.settingsDesc'),
       icon: Settings,
       action: () => navigateTo('builder', { pillar: 'settings', settingsTab: 'general' }),
       color: '#8B4513',
     },
     {
-      title: googleSession ? 'Google Sheets' : 'Connexion Google',
+      id: 'googleConnect',
+      title: googleSession ? t('admin.googleSheets') : t('admin.googleConnect'),
       description: googleSession
-        ? `Connecté : ${googleSession.email || googleSession.name || 'Compte Google'}`
-        : 'Lier votre compte Google Drive/Sheets',
+        ? `${t('admin.googleConnectedPrefix')} ${googleSession.email || googleSession.name || t('admin.googleAccount')}`
+        : t('admin.googleConnectDesc'),
       icon: googleSession ? Sheet : Unplug,
       action: handleGoogleSheets,
       color: googleSession ? '#16a34a' : '#4285F4',
@@ -356,8 +364,8 @@ export function AdminDashboard({ admin }: AdminDashboardProps) {
           <button
             onClick={() => navigateTo('builder')}
             className="flex items-center justify-center w-9 h-9 rounded-full hover:bg-gray-100 transition-colors shrink-0"
-            aria-label="Retour au catalogue"
-            title="Retour au catalogue"
+            aria-label={t('admin.backToCatalog')}
+            title={t('admin.backToCatalog')}
           >
             <ArrowLeft className="w-5 h-5" style={{ color: BRAND.noir }} />
           </button>
@@ -369,7 +377,7 @@ export function AdminDashboard({ admin }: AdminDashboardProps) {
             </div>
             <div className="min-w-0">
               <h1 className="font-bold text-base sm:text-lg truncate" style={{ color: BRAND.noir, fontFamily: "'Playfair Display', serif" }}>
-                Dashboard
+                {t('admin.dashboard')}
               </h1>
               <p className="text-[11px] sm:text-xs text-gray-500 truncate">
                 {admin.name || admin.email} · <span className="capitalize font-medium" style={{ color: admin.role === 'owner' ? BRAND.vertFonce : '#8B4513' }}>{admin.role}</span>
@@ -383,10 +391,10 @@ export function AdminDashboard({ admin }: AdminDashboardProps) {
               onClick={() => navigateTo('preview')}
               className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium hover:bg-gray-100 transition-colors"
               style={{ color: BRAND.vertFonce }}
-              title="Voir le catalogue"
+              title={t('admin.viewCatalog')}
             >
               <ExternalLink className="w-3.5 h-3.5" />
-              <span className="hidden sm:inline">Catalogue</span>
+              <span className="hidden sm:inline">{t('admin.catalog')}</span>
             </button>
 
             {/* User avatar button → opens Google-style menu */}
@@ -394,7 +402,7 @@ export function AdminDashboard({ admin }: AdminDashboardProps) {
               <button
                 onClick={() => setShowUserMenu(prev => !prev)}
                 className="flex items-center gap-2 px-2 py-1 rounded-lg hover:bg-gray-100 transition-colors"
-                title="Menu utilisateur"
+                title={t('admin.userMenu')}
               >
                 {admin.picture ? (
                   <img
@@ -442,7 +450,7 @@ export function AdminDashboard({ admin }: AdminDashboardProps) {
                         )}
                         <div className="min-w-0 flex-1">
                           <p className="text-sm font-semibold truncate" style={{ color: BRAND.noir }}>
-                            Bonjour {admin.name || admin.email.split('@')[0]} !
+                            {t('admin.hello')} {admin.name || admin.email.split('@')[0]} !
                           </p>
                           <p className="text-[11px] text-gray-500 truncate">{admin.email}</p>
                         </div>
@@ -460,7 +468,7 @@ export function AdminDashboard({ admin }: AdminDashboardProps) {
                         style={{ color: BRAND.noir }}
                       >
                         <Settings2 className="w-4 h-4 text-gray-400" />
-                        Gérer votre compte
+                        {t('admin.manageAccount')}
                       </button>
                       <button
                         onClick={() => {
@@ -471,7 +479,7 @@ export function AdminDashboard({ admin }: AdminDashboardProps) {
                         style={{ color: BRAND.noir }}
                       >
                         <UserPlus className="w-4 h-4 text-gray-400" />
-                        Ajouter un compte
+                        {t('admin.addAccount')}
                       </button>
                     </div>
 
@@ -485,15 +493,15 @@ export function AdminDashboard({ admin }: AdminDashboardProps) {
                         className="w-full flex items-center gap-3 px-4 py-2.5 text-sm hover:bg-gray-50 transition-colors text-left text-red-600"
                       >
                         <LogOut className="w-4 h-4" />
-                        Se déconnecter
+                        {t('admin.logout')}
                       </button>
                     </div>
 
                     {/* Footer links */}
                     <div className="border-t px-4 py-2 flex items-center gap-2 text-[10px] text-gray-400" style={{ borderColor: 'rgba(0,0,0,0.06)' }}>
-                      <span>Règles de confidentialité</span>
+                      <span>{t('admin.privacyPolicy')}</span>
                       <span>·</span>
-                      <span>Conditions d&apos;utilisation</span>
+                      <span>{t('admin.termsOfUse')}</span>
                     </div>
                   </div>
                 </>
@@ -507,10 +515,10 @@ export function AdminDashboard({ admin }: AdminDashboardProps) {
         {/* ── Stats Grid ── */}
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4 mb-8">
           {[
-            { label: 'Sources', value: stats?.datasources ?? '–', icon: Database, color: BRAND.vertFonce },
-            { label: 'Sections', value: stats?.sections ?? '–', icon: Layout, color: BRAND.dore },
-            { label: 'Produits', value: stats?.totalRows ?? '–', icon: BarChart3, color: '#8B4513' },
-            { label: 'Admins', value: stats?.admins ?? '–', icon: Users, color: BRAND.bordeaux },
+            { label: t('admin.sources'), value: stats?.datasources ?? '–', icon: Database, color: BRAND.vertFonce },
+            { label: t('admin.sections'), value: stats?.sections ?? '–', icon: Layout, color: BRAND.dore },
+            { label: t('admin.products'), value: stats?.totalRows ?? '–', icon: BarChart3, color: '#8B4513' },
+            { label: t('admin.admins'), value: stats?.admins ?? '–', icon: Users, color: BRAND.bordeaux },
           ].map(s => (
             <div key={s.label} className="bg-white rounded-xl p-4 sm:p-5 border" style={{ borderColor: 'rgba(0,0,0,0.05)' }}>
               <div className="flex items-center gap-2 mb-2">
@@ -527,7 +535,7 @@ export function AdminDashboard({ admin }: AdminDashboardProps) {
         </div>
 
         {/* ── Quick Access Cards ── */}
-        <h2 className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">Accès rapides</h2>
+        <h2 className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">{t('admin.quickAccess')}</h2>
         <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 sm:gap-4 mb-4">
           {cards.map(card => (
             <button
@@ -541,7 +549,7 @@ export function AdminDashboard({ admin }: AdminDashboardProps) {
                   <card.icon className="w-5 h-5" style={{ color: card.color }} />
                 </div>
                 {/* Show connecting spinner for Google */}
-                {card.title === 'Connexion Google' && googleConnecting && (
+                {card.id === 'googleConnect' && googleConnecting && (
                   <Loader2 className="w-4 h-4 animate-spin" style={{ color: '#4285F4' }} />
                 )}
               </div>
@@ -560,11 +568,11 @@ export function AdminDashboard({ admin }: AdminDashboardProps) {
                   <Sheet className="w-5 h-5" style={{ color: '#16a34a' }} />
                 </div>
                 <div className="flex-1 min-w-0">
-                  <h3 className="font-semibold text-sm" style={{ color: BRAND.noir }}>Connexion Google</h3>
-                  <p className="text-[11px] text-gray-500 truncate">{googleSession.email || googleSession.name || 'Compte Google connecté'}</p>
+                  <h3 className="font-semibold text-sm" style={{ color: BRAND.noir }}>{t('admin.googleConnect')}</h3>
+                  <p className="text-[11px] text-gray-500 truncate">{googleSession.email || googleSession.name || t('admin.googleConnected')}</p>
                 </div>
                 <span className="px-2.5 py-1 rounded-full text-[10px] font-semibold" style={{ backgroundColor: '#16a34a15', color: '#16a34a' }}>
-                  Connecté
+                  {t('admin.connected')}
                 </span>
               </div>
 
@@ -578,7 +586,7 @@ export function AdminDashboard({ admin }: AdminDashboardProps) {
                   style={{ borderColor: 'rgba(0,0,0,0.1)', color: BRAND.noir }}
                 >
                   <Cable className="w-3.5 h-3.5" />
-                  Configurer OAuth
+                  {t('admin.configureOAuth')}
                 </button>
                 <button
                   onClick={() => {
@@ -599,7 +607,7 @@ export function AdminDashboard({ admin }: AdminDashboardProps) {
                   style={{ borderColor: 'rgba(0,0,0,0.1)', color: BRAND.noir }}
                 >
                   <Sheet className="w-3.5 h-3.5" />
-                  Importer une feuille
+                  {t('admin.importSheet')}
                 </button>
                 <button
                   onClick={handleDisconnectGoogle}
@@ -607,7 +615,7 @@ export function AdminDashboard({ admin }: AdminDashboardProps) {
                   className="flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg text-xs font-medium border border-red-200 text-red-600 hover:bg-red-50 transition-colors disabled:opacity-50"
                 >
                   {googleDisconnecting ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <LogOut className="w-3.5 h-3.5" />}
-                  Déconnecter
+                  {t('admin.disconnectBtn')}
                 </button>
               </div>
             </div>
@@ -617,7 +625,7 @@ export function AdminDashboard({ admin }: AdminDashboardProps) {
         {/* ── Admin Management ── */}
         {admin.role === 'owner' && (
           <div className="mb-8">
-            <h2 className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">Administration</h2>
+            <h2 className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">{t('admin.administration')}</h2>
             <div
               onClick={handleAdminManagement}
               className="w-full bg-white rounded-xl p-4 sm:p-5 border text-left hover:shadow-md transition-all duration-200 flex items-center gap-4 cursor-pointer"
@@ -627,8 +635,8 @@ export function AdminDashboard({ admin }: AdminDashboardProps) {
                 <Shield className="w-5 h-5" style={{ color: BRAND.bordeaux }} />
               </div>
               <div className="min-w-0 flex-1">
-                <h3 className="font-semibold text-sm" style={{ color: BRAND.noir }}>Gestion des administrateurs</h3>
-                <p className="text-[11px] text-gray-500">{stats?.admins ?? 0} administrateur(s) · Ajouter, modifier, supprimer</p>
+                <h3 className="font-semibold text-sm" style={{ color: BRAND.noir }}>{t('admin.adminManagement')}</h3>
+                <p className="text-[11px] text-gray-500">{stats?.admins ?? 0} {t('admin.adminCount')} · {t('admin.adminActions')}</p>
               </div>
               <button
                 onClick={(e) => { e.stopPropagation(); setAddAdminDialogOpen(true); }}
@@ -636,7 +644,7 @@ export function AdminDashboard({ admin }: AdminDashboardProps) {
                 style={{ backgroundColor: BRAND.vertFonce }}
               >
                 <UserPlus className="w-3.5 h-3.5" />
-                Ajouter
+                {t('admin.addBtn')}
               </button>
             </div>
           </div>
@@ -646,60 +654,60 @@ export function AdminDashboard({ admin }: AdminDashboardProps) {
         <Dialog open={addAdminDialogOpen} onOpenChange={setAddAdminDialogOpen}>
           <DialogContent className="sm:max-w-md">
             <DialogHeader>
-              <DialogTitle>Ajouter un administrateur</DialogTitle>
+              <DialogTitle>{t('admin.addAdmin')}</DialogTitle>
               <DialogDescription>
-                Créez un nouvel accès administrateur. L&apos;utilisateur pourra se connecter avec son email et le mot de passe défini ci-dessous, ou via Google OAuth si son email correspond.
+                {t('admin.addAdminDesc')}
               </DialogDescription>
             </DialogHeader>
             <div className="space-y-4 py-2">
               <div>
-                <Label className="text-xs">Email *</Label>
+                <Label className="text-xs">{t('admin.emailLabel')}</Label>
                 <div className="relative mt-1">
                   <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                   <Input
                     type="email"
                     value={addAdminForm.email}
                     onChange={e => setAddAdminForm(f => ({ ...f, email: e.target.value }))}
-                    placeholder="admin@exemple.com"
+                    placeholder={t('admin.emailPlaceholder')}
                     className="h-9 pl-10 text-xs"
                   />
                 </div>
               </div>
               <div>
-                <Label className="text-xs">Nom (optionnel)</Label>
+                <Label className="text-xs">{t('admin.nameLabel')}</Label>
                 <Input
                   value={addAdminForm.name}
                   onChange={e => setAddAdminForm(f => ({ ...f, name: e.target.value }))}
-                  placeholder="Prénom Nom"
+                  placeholder={t('admin.namePlaceholder')}
                   className="h-9 text-xs mt-1"
                 />
               </div>
               <div>
-                <Label className="text-xs">Rôle</Label>
+                <Label className="text-xs">{t('admin.roleLabel')}</Label>
                 <Select value={addAdminForm.role} onValueChange={v => setAddAdminForm(f => ({ ...f, role: v }))}>
                   <SelectTrigger className="h-9 text-xs mt-1">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="admin">Admin — Gestion complète</SelectItem>
-                    <SelectItem value="editor">Éditeur — Modification du contenu uniquement</SelectItem>
+                    <SelectItem value="admin">{t('admin.roleAdmin')}</SelectItem>
+                    <SelectItem value="editor">{t('admin.roleEditor')}</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
               <div>
-                <Label className="text-xs">Mot de passe (optionnel)</Label>
+                <Label className="text-xs">{t('admin.passwordLabel')}</Label>
                 <div className="relative mt-1">
                   <Key className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                   <Input
                     type="password"
                     value={addAdminForm.password}
                     onChange={e => setAddAdminForm(f => ({ ...f, password: e.target.value }))}
-                    placeholder="Min. 8 caractères"
+                    placeholder={t('admin.passwordPlaceholder')}
                     className="h-9 pl-10 text-xs"
                   />
                 </div>
                 <p className="text-[10px] text-muted-foreground mt-1">
-                  Si aucun mot de passe n&apos;est défini, l&apos;utilisateur devra se connecter via Google OAuth.
+                  {t('admin.passwordHint')}
                 </p>
               </div>
             </div>
@@ -708,7 +716,7 @@ export function AdminDashboard({ admin }: AdminDashboardProps) {
                 onClick={() => setAddAdminDialogOpen(false)}
                 className="px-4 py-2 text-sm rounded-md border hover:bg-gray-50 transition-colors"
               >
-                Annuler
+                {t('admin.cancel')}
               </button>
               <button
                 onClick={handleAddAdmin}
@@ -717,7 +725,7 @@ export function AdminDashboard({ admin }: AdminDashboardProps) {
                 style={{ backgroundColor: BRAND.vertFonce }}
               >
                 {addAdminLoading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <UserPlus className="w-3.5 h-3.5" />}
-                Ajouter
+                {t('admin.addBtn')}
               </button>
             </DialogFooter>
           </DialogContent>
@@ -728,9 +736,9 @@ export function AdminDashboard({ admin }: AdminDashboardProps) {
           <div className="flex items-start gap-3">
             <Shield className="w-4 h-4 shrink-0 mt-0.5" style={{ color: BRAND.vertFonce }} />
             <div>
-              <h3 className="font-semibold text-xs mb-0.5" style={{ color: BRAND.vertFonce }}>Accès sécurisé</h3>
+              <h3 className="font-semibold text-xs mb-0.5" style={{ color: BRAND.vertFonce }}>{t('admin.secureAccess')}</h3>
               <p className="text-[11px] text-gray-500 leading-relaxed">
-                Espace réservé aux rôles <strong>owner</strong> et <strong>admin</strong>. Les éditeurs et visiteurs sont redirigés vers le catalogue.
+                {t('admin.secureAccessDesc')}
               </p>
             </div>
           </div>
@@ -740,7 +748,7 @@ export function AdminDashboard({ admin }: AdminDashboardProps) {
       {/* ── Footer ── */}
       <footer className="border-t py-4 text-center" style={{ borderColor: `${BRAND.dore}20` }}>
         <p className="text-[11px] text-gray-400">
-          Abaya Collection Dashboard · {new Date().getFullYear()}
+          {t('admin.dashboardTitle')} · {new Date().getFullYear()}
         </p>
       </footer>
     </div>

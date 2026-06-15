@@ -6,6 +6,7 @@ import { useAppStore } from '@/lib/store';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import SearchOverlay from './SearchOverlay';
+import { useClientTranslation } from '@/lib/i18n/useClientTranslation';
 
 export default function Header() {
   const {
@@ -20,6 +21,7 @@ export default function Header() {
 
   const [showMobileSearch, setShowMobileSearch] = useState(false);
   const [localSearch, setLocalSearch] = useState(searchQuery);
+  const { t } = useClientTranslation();
 
   const handleSearchChange = (value: string) => {
     setLocalSearch(value);
@@ -45,7 +47,7 @@ export default function Header() {
               size="icon"
               onClick={handleAdminClick}
               className="size-9 text-muted-foreground hover:text-gold"
-              aria-label={isAdmin ? 'Basculer la vue' : 'Connexion admin'}
+              aria-label={isAdmin ? t('header.toggleView') : t('header.adminLogin')}
             >
               {isAdmin ? (
                 view === 'gallery' ? (
@@ -59,7 +61,7 @@ export default function Header() {
             </Button>
             {isAdmin && (
               <span className="hidden text-xs text-muted-foreground sm:inline">
-                {view === 'gallery' ? 'Administration' : 'Galerie'}
+                {view === 'gallery' ? t('header.administration') : t('header.gallery')}
               </span>
             )}
           </div>
@@ -78,7 +80,7 @@ export default function Header() {
               <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
               <Input
                 type="text"
-                placeholder="Rechercher un produit..."
+                placeholder={t('header.searchProduct')}
                 value={localSearch}
                 onChange={(e) => handleSearchChange(e.target.value)}
                 className="h-9 w-full rounded-xl border-border bg-secondary/50 pl-9 pr-9 text-sm placeholder:text-muted-foreground focus-visible:border-gold focus-visible:ring-gold/30"
@@ -102,7 +104,7 @@ export default function Header() {
               size="icon"
               onClick={() => setShowMobileSearch(true)}
               className="size-9 text-muted-foreground hover:text-gold sm:hidden"
-              aria-label="Rechercher"
+              aria-label={t('header.search')}
             >
               <Search className="size-4" />
             </Button>
@@ -118,18 +120,18 @@ export default function Header() {
                 view === 'gallery' ? (
                   <>
                     <LayoutDashboard className="size-4" />
-                    Admin
+                    {t('header.admin')}
                   </>
                 ) : (
                   <>
                     <Store className="size-4" />
-                    Galerie
+                    {t('header.gallery')}
                   </>
                 )
               ) : (
                 <>
                   <Lock className="size-4" />
-                  Admin
+                  {t('header.admin')}
                 </>
               )}
             </Button>

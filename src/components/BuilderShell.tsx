@@ -41,6 +41,7 @@ import {
 } from '@/components/ui/dialog';
 import { useToast } from '@/hooks/use-toast';
 import { toast as sonnerToast } from 'sonner';
+import { useTranslation } from '@/lib/i18n';
 
 // ── Brand Constants ──
 const BRAND = {
@@ -51,6 +52,7 @@ const BRAND = {
 export function BuilderShell() {
   const { pillar, setPillar, view, setView, catalog, sidebarCollapsed, setSidebarCollapsed, dataPanelCollapsed, setDataPanelCollapsed, setIsAdmin, setAdminUser, adminUser, googleSession, setShowGoogleSheetsBrowser, setSettingsTab, setActiveDataSourceId, dataSources } = useAppStore();
   const { toast } = useToast();
+  const { t } = useTranslation();
   const [showUserMenu, setShowUserMenu] = useState(false);
   const [addAdminDialogOpen, setAddAdminDialogOpen] = useState(false);
   const [addAdminForm, setAddAdminForm] = useState({ email: '', name: '', role: 'admin', password: '' });
@@ -60,7 +62,7 @@ export function BuilderShell() {
     await fetch('/api/auth', { method: 'DELETE' });
     setIsAdmin(false);
     setAdminUser(null);
-    toast({ title: 'Déconnecté', description: 'Vous avez été déconnecté' });
+    toast({ title: t('builder.disconnected'), description: t('builder.disconnectedMsg') });
   };
 
   const handleConnectGoogle = async () => {
@@ -72,10 +74,10 @@ export function BuilderShell() {
           window.location.href = json.data.authUrl;
         }
       } else {
-        toast({ title: 'Google non configuré', description: 'Veuillez configurer les identifiants Google dans Paramètres > Admin' });
+        toast({ title: t('builder.googleNotConfigured'), description: t('builder.googleConfigRequired') });
       }
     } catch {
-      toast({ title: 'Erreur', description: 'Impossible de se connecter à Google' });
+      toast({ title: t('builder.error'), description: t('builder.googleConnectError') });
     }
   };
 
@@ -94,7 +96,7 @@ export function BuilderShell() {
   // ── Add Admin: directly open the add admin modal ──
   const handleAddAdmin = async () => {
     if (!addAdminForm.email.trim()) {
-      sonnerToast.error('L\'email est requis');
+      sonnerToast.error(t('builder.emailRequired'));
       return;
     }
     setAddAdminLoading(true);
@@ -110,24 +112,24 @@ export function BuilderShell() {
         }),
       });
       if (res.ok) {
-        sonnerToast.success('Administrateur ajouté avec succès');
+        sonnerToast.success(t('builder.adminAdded'));
         setAddAdminForm({ email: '', name: '', role: 'admin', password: '' });
         setAddAdminDialogOpen(false);
       } else {
         const json = await res.json();
-        sonnerToast.error(json.error || 'Erreur lors de l\'ajout');
+        sonnerToast.error(json.error || t('builder.addError'));
       }
     } catch {
-      sonnerToast.error('Erreur de connexion');
+      sonnerToast.error(t('builder.connectionError'));
     } finally {
       setAddAdminLoading(false);
     }
   };
 
   const pillars = [
-    { id: 'data' as const, icon: Database, label: 'Données' },
-    { id: 'layout' as const, icon: Layout, label: 'Mise en page' },
-    { id: 'settings' as const, icon: Settings, label: 'Paramètres' },
+    { id: 'data' as const, icon: Database, label: t('builder.data') },
+    { id: 'layout' as const, icon: Layout, label: t('builder.layout') },
+    { id: 'settings' as const, icon: Settings, label: t('builder.settings') },
   ];
 
   // Get display name and picture for user menu (prefer adminUser, fallback to googleSession)
@@ -144,8 +146,8 @@ export function BuilderShell() {
             <BookOpen className="w-4 h-4 text-gold" />
           </div>
           <div className="hidden sm:block">
-            <h1 className="text-sm font-semibold leading-none">{catalog?.name || 'Mon Catalogue'}</h1>
-            <p className="text-[11px] text-muted-foreground">Constructeur</p>
+            <h1 className="text-sm font-semibold leading-none">{catalog?.name || t('builder.myCatalog')}</h1>
+            <p className="text-[11px] text-muted-foreground">{t('builder.builder')}</p>
           </div>
         </div>
 
@@ -198,7 +200,7 @@ export function BuilderShell() {
                       )}
                       <div className="min-w-0 flex-1">
                         <p className="text-sm font-semibold truncate" style={{ color: BRAND.noir }}>
-                          Bonjour {displayName} !
+                          {t('builder.hello')} {displayName} !
                         </p>
                         <p className="text-[11px] text-gray-500 truncate">{displayEmail}</p>
                       </div>
@@ -217,7 +219,7 @@ export function BuilderShell() {
                       style={{ color: BRAND.noir }}
                     >
                       <Settings2 className="w-4 h-4 text-gray-400" />
-                      Gérer votre compte
+                      {t('builder.manageAccount')}
                     </button>
                     <button
                       onClick={() => {
@@ -228,7 +230,7 @@ export function BuilderShell() {
                       style={{ color: BRAND.noir }}
                     >
                       <UserPlus className="w-4 h-4 text-gray-400" />
-                      Ajouter un compte
+                      {t('builder.addAccount')}
                     </button>
                   </div>
 
@@ -242,15 +244,15 @@ export function BuilderShell() {
                       className="w-full flex items-center gap-3 px-4 py-2.5 text-sm hover:bg-gray-50 transition-colors text-left text-red-600"
                     >
                       <LogOut className="w-4 h-4" />
-                      Se déconnecter
+                      {t('builder.logout')}
                     </button>
                   </div>
 
                   {/* Footer links */}
                   <div className="border-t px-4 py-2 flex items-center gap-2 text-[10px] text-gray-400" style={{ borderColor: 'rgba(0,0,0,0.06)' }}>
-                    <span>Règles de confidentialité</span>
+                    <span>{t('builder.privacyPolicy')}</span>
                     <span>·</span>
-                    <span>Conditions d&apos;utilisation</span>
+                    <span>{t('builder.termsOfUse')}</span>
                   </div>
                 </div>
               </>
@@ -264,10 +266,10 @@ export function BuilderShell() {
                 onClick={handleConnectGoogle}
               >
                 <Sheet className="w-4 h-4" />
-                <span className="text-xs hidden sm:inline">Connecter Google</span>
+                <span className="text-xs hidden sm:inline">{t('builder.connectGoogle')}</span>
               </button>
             </TooltipTrigger>
-            <TooltipContent>Connecter votre compte Google Sheets</TooltipContent>
+            <TooltipContent>{t('builder.connectGoogleTooltip')}</TooltipContent>
           </Tooltip>
         )}
 
@@ -282,7 +284,7 @@ export function BuilderShell() {
             onClick={handleEdit}
           >
             <Pen className="w-3.5 h-3.5" />
-            <span className="hidden sm:inline">Éditer</span>
+            <span className="hidden sm:inline">{t('builder.edit')}</span>
           </Button>
           <Button
             variant={view === 'preview' ? 'default' : 'ghost'}
@@ -291,7 +293,7 @@ export function BuilderShell() {
             onClick={() => setView('preview')}
           >
             <Eye className="w-3.5 h-3.5" />
-            <span className="hidden sm:inline">Aperçu</span>
+            <span className="hidden sm:inline">{t('builder.preview')}</span>
           </Button>
         </div>
 
@@ -303,7 +305,7 @@ export function BuilderShell() {
               <LogOut className="w-4 h-4" />
             </Button>
           </TooltipTrigger>
-          <TooltipContent>Déconnexion</TooltipContent>
+          <TooltipContent>{t('builder.disconnect')}</TooltipContent>
         </Tooltip>
       </header>
 
@@ -325,7 +327,7 @@ export function BuilderShell() {
                 'w-7 h-7 rounded-md flex items-center justify-center transition-colors',
                 'text-muted-foreground hover:bg-muted hover:text-foreground'
               )}
-              title={sidebarCollapsed ? 'Déployer la sidebar' : 'Réduire la sidebar'}
+              title={sidebarCollapsed ? t('builder.expandSidebar') : t('builder.collapseSidebar')}
             >
               {sidebarCollapsed
                 ? <ChevronsRight className="w-4 h-4" />
@@ -347,7 +349,7 @@ export function BuilderShell() {
                     <LayoutDashboard className="w-5 h-5" />
                   </button>
                 </TooltipTrigger>
-                <TooltipContent side="right">Dashboard</TooltipContent>
+                <TooltipContent side="right">{t('builder.dashboard')}</TooltipContent>
               </Tooltip>
             ) : (
               <button
@@ -355,7 +357,7 @@ export function BuilderShell() {
                 className="flex items-center gap-3 h-10 px-3 mx-2 rounded-lg transition-all text-muted-foreground hover:bg-muted hover:text-foreground"
               >
                 <LayoutDashboard className="w-5 h-5 shrink-0" />
-                <span className="text-sm truncate">Dashboard</span>
+                <span className="text-sm truncate">{t('builder.dashboard')}</span>
               </button>
             )}
 
@@ -420,8 +422,8 @@ export function BuilderShell() {
                     </TooltipTrigger>
                     <TooltipContent side="right">
                       {dataPanelCollapsed
-                        ? (pillar === 'data' ? 'Afficher les tables' : 'Afficher les sections')
-                        : (pillar === 'data' ? 'Masquer les tables' : 'Masquer les sections')
+                        ? (pillar === 'data' ? t('builder.showTables') : t('builder.showSections'))
+                        : (pillar === 'data' ? t('builder.hideTables') : t('builder.hideSections'))
                       }
                     </TooltipContent>
                   </Tooltip>
@@ -441,8 +443,8 @@ export function BuilderShell() {
                     }
                     <span className="truncate">
                       {dataPanelCollapsed
-                        ? (pillar === 'data' ? 'Afficher tables' : 'Afficher sections')
-                        : (pillar === 'data' ? 'Masquer tables' : 'Masquer sections')
+                        ? (pillar === 'data' ? t('builder.showTablesShort') : t('builder.showSectionsShort'))
+                        : (pillar === 'data' ? t('builder.hideTablesShort') : t('builder.hideSectionsShort'))
                       }
                     </span>
                   </button>
@@ -474,14 +476,14 @@ export function BuilderShell() {
       <Dialog open={addAdminDialogOpen} onOpenChange={setAddAdminDialogOpen}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>Ajouter un administrateur</DialogTitle>
+            <DialogTitle>{t('builder.addAdmin')}</DialogTitle>
             <DialogDescription>
-              Créez un nouvel accès administrateur. L&apos;utilisateur pourra se connecter avec son email et le mot de passe défini ci-dessous, ou via Google OAuth si son email correspond.
+              {t('builder.addAdminDesc')}
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-2">
             <div>
-              <Label className="text-xs">Email *</Label>
+              <Label className="text-xs">{t('builder.emailStar')}</Label>
               <div className="relative mt-1">
                 <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                 <Input
@@ -494,7 +496,7 @@ export function BuilderShell() {
               </div>
             </div>
             <div>
-              <Label className="text-xs">Nom (optionnel)</Label>
+              <Label className="text-xs">{t('builder.nameOptional')}</Label>
               <Input
                 value={addAdminForm.name}
                 onChange={e => setAddAdminForm(f => ({ ...f, name: e.target.value }))}
@@ -503,31 +505,31 @@ export function BuilderShell() {
               />
             </div>
             <div>
-              <Label className="text-xs">Rôle</Label>
+              <Label className="text-xs">{t('builder.role')}</Label>
               <Select value={addAdminForm.role} onValueChange={v => setAddAdminForm(f => ({ ...f, role: v }))}>
                 <SelectTrigger className="h-9 text-xs mt-1">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="admin">Admin — Gestion complète</SelectItem>
-                  <SelectItem value="editor">Éditeur — Modification du contenu uniquement</SelectItem>
+                  <SelectItem value="admin">{t('builder.roleAdmin')}</SelectItem>
+                  <SelectItem value="editor">{t('builder.roleEditor')}</SelectItem>
                 </SelectContent>
               </Select>
             </div>
             <div>
-              <Label className="text-xs">Mot de passe (optionnel)</Label>
+              <Label className="text-xs">{t('builder.passwordOptional')}</Label>
               <div className="relative mt-1">
                 <Key className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                 <Input
                   type="password"
                   value={addAdminForm.password}
                   onChange={e => setAddAdminForm(f => ({ ...f, password: e.target.value }))}
-                  placeholder="Min. 8 caractères"
+                  placeholder={t('builder.min8Chars')}
                   className="h-9 pl-10 text-xs"
                 />
               </div>
               <p className="text-[10px] text-muted-foreground mt-1">
-                Si aucun mot de passe n&apos;est défini, l&apos;utilisateur devra se connecter via Google OAuth.
+                {t('builder.noPasswordHint')}
               </p>
             </div>
           </div>
@@ -536,7 +538,7 @@ export function BuilderShell() {
               onClick={() => setAddAdminDialogOpen(false)}
               className="px-4 py-2 text-sm rounded-md border hover:bg-gray-50 transition-colors"
             >
-              Annuler
+              {t('builder.cancel')}
             </button>
             <button
               onClick={handleAddAdmin}
@@ -545,7 +547,7 @@ export function BuilderShell() {
               style={{ backgroundColor: BRAND.vertFonce }}
             >
               {addAdminLoading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <UserPlus className="w-3.5 h-3.5" />}
-              Ajouter
+              {t('builder.add')}
             </button>
           </DialogFooter>
         </DialogContent>

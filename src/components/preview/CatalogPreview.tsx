@@ -967,7 +967,7 @@ export function CatalogPreview({ onAdminLogin }: CatalogPreviewProps) {
                         window.scrollTo({ top: 0, behavior: 'instant' });
                       }}
                     >
-                      {resolveT(cat.translations, locale, cat.label)}{count > 0 ? ` (${count})` : ''}
+                      {resolveT(cat.translations, cat.label)}{count > 0 ? ` (${count})` : ''}
                     </button>
                   );
                 });
@@ -1008,7 +1008,7 @@ export function CatalogPreview({ onAdminLogin }: CatalogPreviewProps) {
                         )}
                         onClick={() => { setActiveMicroFilter(sub.slug); setCurrentPage(1); }}
                       >
-                        {resolveT(sub.translations, locale, sub.label)}{count > 0 ? ` (${count})` : ''}
+                        {resolveT(sub.translations, sub.label)}{count > 0 ? ` (${count})` : ''}
                       </button>
                     );
                   })}
@@ -1043,7 +1043,7 @@ export function CatalogPreview({ onAdminLogin }: CatalogPreviewProps) {
         return (
           <div className="mx-auto max-w-[1270px] px-4 sm:px-8 pt-5 pb-1">
             <h2 className="text-2xl sm:text-3xl font-bold" style={{ color: 'var(--pivot-text)', fontFamily: "'Playfair Display', serif" }}>
-              {resolveT(selectedCat.translations, locale, selectedCat.label)}
+              {resolveT(selectedCat.translations, selectedCat.label)}
             </h2>
           </div>
         );
