@@ -37,6 +37,7 @@ import type { Pillar, AppView, SettingsTab } from '@/types';
 function withErrorBoundary<P extends object>(Component: ComponentType<P>, fallbackTitle: string) {
   return function ErrorBoundaried(props: P) {
     const [error, setError] = useState<Error | null>(null);
+    const { t } = useClientTranslation();
 
     if (error) {
       return (
@@ -46,7 +47,7 @@ function withErrorBoundary<P extends object>(Component: ComponentType<P>, fallba
           </div>
           <h2 className="text-lg font-semibold">{fallbackTitle}</h2>
           <p className="text-sm text-muted-foreground text-center max-w-md">
-            {error.message || 'Une erreur inattendue s\'est produite.'}
+            {error.message || t('error.unexpected')}
           </p>
           <Button
             variant="outline"
@@ -56,7 +57,7 @@ function withErrorBoundary<P extends object>(Component: ComponentType<P>, fallba
               window.location.reload();
             }}
           >
-            <RefreshCw className="w-4 h-4" /> Recharger la page
+            <RefreshCw className="w-4 h-4" /> {t('error.reload')}
           </Button>
         </div>
       );

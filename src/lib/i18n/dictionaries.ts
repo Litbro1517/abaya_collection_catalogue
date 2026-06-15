@@ -183,6 +183,15 @@ export const dictionaries: Record<Locale, TranslationDict> = {
     'upload.fileTooLarge': 'Fichier trop volumineux (max 2 Mo)',
     'upload.invalidType': 'Type de fichier non supporté',
 
+    // ── Error Messages ──
+    'error.loadData': 'Erreur de chargement des données',
+    'error.unexpected': 'Une erreur inattendue s\'est produite.',
+    'error.reload': 'Recharger la page',
+
+    // ── Carousel ──
+    'carousel.image': 'Image',
+    'carousel.thumbnail': 'Vignette',
+
     // ── Catalog Navigation ──
     'catalog.backToCatalog': 'Retour au catalogue',
     'catalog.back': 'Retour',
@@ -381,6 +390,15 @@ export const dictionaries: Record<Locale, TranslationDict> = {
     'upload.fileTooLarge': 'File too large (max 2 MB)',
     'upload.invalidType': 'Unsupported file type',
 
+    // ── Error Messages ──
+    'error.loadData': 'Failed to load data',
+    'error.unexpected': 'An unexpected error occurred.',
+    'error.reload': 'Reload page',
+
+    // ── Carousel ──
+    'carousel.image': 'Image',
+    'carousel.thumbnail': 'Thumbnail',
+
     // ── Catalog Navigation ──
     'catalog.backToCatalog': 'Back to catalog',
     'catalog.back': 'Back',
@@ -578,6 +596,15 @@ export const dictionaries: Record<Locale, TranslationDict> = {
     'upload.remove': 'إزالة',
     'upload.fileTooLarge': 'الملف كبير جدًا (الحد الأقصى 2 ميجابايت)',
     'upload.invalidType': 'نوع الملف غير مدعوم',
+
+    // ── Error Messages ──
+    'error.loadData': 'خطأ في تحميل البيانات',
+    'error.unexpected': 'حدث خطأ غير متوقع.',
+    'error.reload': 'إعادة تحميل الصفحة',
+
+    // ── Carousel ──
+    'carousel.image': 'صورة',
+    'carousel.thumbnail': 'صورة مصغرة',
 
     // ── Catalog Navigation ──
     'catalog.backToCatalog': 'العودة إلى الكتالوج',

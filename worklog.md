@@ -1206,3 +1206,32 @@ Created a server-side `/api/translate` route that uses the z-ai-web-dev-sdk LLM 
 ### Verification
 - ESLint: 0 errors, 0 warnings on all three files (`translate/route.ts`, `categories/route.ts`, `categories/seed/route.ts`)
 - Dev server running with no compilation errors
+
+---
+Task ID: 1
+Agent: main
+Task: Complete i18n translation overhaul — fix categories showing locale codes, translate all user-facing strings, fix currency display, RTL support
+
+Work Log:
+- Diagnosed "er", "en", "fr" bug: resolveTranslation() could return locale codes if JSONB was corrupted
+- Added LOCALE_CODES guard in resolveTranslation() to reject "fr"/"en"/"ar" as translation values
+- Added Array.isArray() check to prevent array translations from being used
+- Fixed seed route: update translations on existing categories (was update: {}, now update: { translations })
+- Added 16 new dictionary keys × 3 languages (FR/EN/AR) = 48 new translations
+- CatalogPreview: translated 8 hardcoded French strings (back button, cache clear, dashboard, retry, footer social links)
+- ProductPage: translated 11 hardcoded French strings (Colors, Sizes, Details, image nav, share/favorite aria labels, WhatsApp CTA)
+- ProductPage: fixed currency display using formatPrice() in 3 locations (desktop price, mobile CTA price, CodForm price prop)
+- SocialStickyTickets: translated 'Discuter sur WhatsApp' → t('contact.chatWhatsApp')
+- page.tsx: translated loading screen 'Chargement...' → t('catalog.loading')
+- ThemeInjector: fixed RTL to use clientLocale for non-admin users (was only using it for 'preview' view)
+- CatalogPreview: added dir={rtl ? 'rtl' : 'ltr'} to root div for full RTL layout support
+- Lint passed with no errors
+- Committed and pushed to GitHub (auto-deploys to Vercel)
+
+Stage Summary:
+- resolveTranslation() now robust against corrupted JSONB data
+- All user-facing strings in catalog components are now fully translated (FR/EN/AR)
+- Currency display uses formatPrice() consistently
+- RTL layout works for Arabic across all catalog views
+- Seed route now fixes missing/corrupted translations on re-seed
+- Pushed commit 85f9e4a to main branch

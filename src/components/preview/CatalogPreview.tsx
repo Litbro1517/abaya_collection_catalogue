@@ -445,7 +445,7 @@ export function CatalogPreview({ onAdminLogin }: CatalogPreviewProps) {
         console.error('Section loading failed:', err);
         const cachedSections = readCache<CachedSectionData[]>(CACHE_KEYS.sections);
         if (!cachedSections || cachedSections.length === 0) {
-          setLoadError('Erreur de chargement des données');
+          setLoadError(t('error.loadData'));
         }
         setSectionsLoaded(true);
       }
@@ -589,7 +589,7 @@ export function CatalogPreview({ onAdminLogin }: CatalogPreviewProps) {
   // Legacy filter options (fallback when no dynamic categories loaded)
   const getFilterOptions = (): { value: string; label: string }[] => {
     const options = new Map<string, string>();
-    options.set('all', 'Tout');
+    options.set('all', t('catalog.all'));
     sections.forEach(({ section, rows }) => {
       const config = section.config as SectionConfig;
       if (!config.filterColumn) return;
@@ -853,7 +853,7 @@ export function CatalogPreview({ onAdminLogin }: CatalogPreviewProps) {
           <button
             onClick={() => setSelectedProduct(null)}
             className="flex items-center justify-center shrink-0 hover:opacity-60 transition-opacity"
-            aria-label="Retour"
+            aria-label={t('catalog.back')}
           >
             <ArrowLeft className="w-3.5 h-3.5" style={{ color: 'var(--muted-foreground)' }} />
           </button>
@@ -927,7 +927,7 @@ export function CatalogPreview({ onAdminLogin }: CatalogPreviewProps) {
             <Input
               value={searchQuery}
               onChange={e => { setSearchQuery(e.target.value); setCurrentPage(1); }}
-              placeholder="Rechercher..."
+              placeholder={t('catalog.search')}
               className="h-10 pl-10 text-sm rounded-full border-gray-200 bg-gray-50 focus:bg-white"
             />
           </div>

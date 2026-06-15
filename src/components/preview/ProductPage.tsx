@@ -508,23 +508,23 @@ export function ProductPage({
                           key={i}
                           className={i === carouselIdx ? 'active' : ''}
                           onClick={() => goTo(i)}
-                          aria-label={`Image ${i + 1}`}
+                          aria-label={`${t('carousel.image')} ${i + 1}`}
                         />
                       ))
                     ) : (
                       <>
-                        <button className={carouselIdx === 0 ? 'active' : ''} onClick={() => goTo(0)} aria-label="Image 1" />
+                        <button className={carouselIdx === 0 ? 'active' : ''} onClick={() => goTo(0)} aria-label={`${t('carousel.image')} 1`} />
                         {carouselIdx > 3 && <span className="carousel-ellipsis">…</span>}
                         {Array.from({ length: carouselImages.length }, (_, i) => i)
                           .filter(i => i !== 0 && i !== carouselImages.length - 1 && Math.abs(i - carouselIdx) <= 2)
                           .map(i => (
-                            <button key={i} className={i === carouselIdx ? 'active' : ''} onClick={() => goTo(i)} aria-label={`Image ${i + 1}`} />
+                            <button key={i} className={i === carouselIdx ? 'active' : ''} onClick={() => goTo(i)} aria-label={`${t('carousel.image')} ${i + 1}`} />
                           ))}
                         {carouselIdx < carouselImages.length - 4 && <span className="carousel-ellipsis">…</span>}
                         <button
                           className={carouselIdx === carouselImages.length - 1 ? 'active' : ''}
                           onClick={() => goTo(carouselImages.length - 1)}
-                          aria-label={`Image ${carouselImages.length}`}
+                          aria-label={`${t('carousel.image')} ${carouselImages.length}`}
                         />
                         <span className="carousel-counter">{carouselIdx + 1}/{carouselImages.length}</span>
                       </>
@@ -558,11 +558,11 @@ export function ProductPage({
                     key={i}
                     className={cn('product-page-thumb', i === carouselIdx && 'active')}
                     onClick={() => goTo(i)}
-                    aria-label={`Vignette ${i + 1}`}
+                    aria-label={`${t('carousel.thumbnail')} ${i + 1}`}
                   >
                     <img
                       src={thumbUrl}
-                      alt={`${title} vignette ${i + 1}`}
+                      alt={`${title} - ${t('carousel.thumbnail')} ${i + 1}`}
                       loading="lazy"
                       decoding="async"
                       onError={(e) => {
