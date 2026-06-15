@@ -428,6 +428,7 @@ export const dictionaries: Record<Locale, TranslationDict> = {
     'builder.add': 'Ajouter',
 
     // ── Login Modal ──
+    'login.title': 'Abaya Collection',
     'login.checking': 'Vérification...',
     'login.firstSetup': 'Première configuration',
     'login.adminAccess': 'Accès Administrateur',
@@ -877,6 +878,7 @@ export const dictionaries: Record<Locale, TranslationDict> = {
     'builder.add': 'Add',
 
     // ── Login Modal ──
+    'login.title': 'Abaya Collection',
     'login.checking': 'Checking...',
     'login.firstSetup': 'First setup',
     'login.adminAccess': 'Admin Access',
@@ -1326,6 +1328,7 @@ export const dictionaries: Record<Locale, TranslationDict> = {
     'builder.add': 'إضافة',
 
     // ── Login Modal ──
+    'login.title': 'مجموعة العبايات',
     'login.checking': '...جارٍ التحقق',
     'login.firstSetup': 'الإعداد الأول',
     'login.adminAccess': 'وصول المشرف',

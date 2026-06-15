@@ -200,7 +200,7 @@ export function LoginModal({ onLoginSuccess, onCancel }: LoginModalProps) {
               <BookOpen className="w-7 h-7 text-gold" />
             </div>
             <div>
-              <h2 className="text-xl font-semibold text-foreground">Abaya Collection</h2>
+              <h2 className="text-xl font-semibold text-foreground">{t('login.title')}</h2>
               <p className="text-sm text-muted-foreground mt-1">
                 {isRegister ? t('login.firstSetup') : t('login.adminAccess')}
               </p>
