@@ -1,23 +1,65 @@
 import { NextResponse } from 'next/server';
-import { supabase, supabaseAdmin, STORAGE_BUCKET } from '@/lib/supabase';
+import { supabase, STORAGE_BUCKET } from '@/lib/supabase';
+
+/**
+ * SQL script to run in Supabase Dashboard → SQL Editor
+ * Creates the 'assets' bucket and sets up RLS policies for anon uploads.
+ */
+const SETUP_SQL = `
+-- ═══════════════════════════════════════════════════════════
+-- Supabase Storage Setup for Abaya Collection Catalog
+-- Run this in: Supabase Dashboard → SQL Editor
+-- ═══════════════════════════════════════════════════════════
+
+-- 1. Create the 'assets' bucket (public, 2MB limit, images only)
+INSERT INTO storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
+VALUES (
+  'assets',
+  'assets',
+  true,
+  2097152,
+  ARRAY['image/png','image/jpeg','image/webp','image/svg+xml','image/x-icon','image/vnd.microsoft.icon','image/gif']
+)
+ON CONFLICT (id) DO NOTHING;
+
+-- 2. Allow anyone to read files from the assets bucket
+CREATE POLICY "Public read access" ON storage.objects
+  FOR SELECT USING (bucket_id = 'assets');
+
+-- 3. Allow anyone to upload files to the assets bucket
+CREATE POLICY "Allow public uploads" ON storage.objects
+  FOR INSERT WITH CHECK (bucket_id = 'assets');
+
+-- 4. Allow anyone to update files (for upsert) in the assets bucket
+CREATE POLICY "Allow public updates" ON storage.objects
+  FOR UPDATE USING (bucket_id = 'assets');
+
+-- 5. Allow anyone to delete files in the assets bucket
+CREATE POLICY "Allow public deletes" ON storage.objects
+  FOR DELETE USING (bucket_id = 'assets');
+`;
 
 /**
  * GET /api/setup/storage
- * Diagnoses Supabase Storage configuration and auto-creates the bucket if missing.
- * Uses service_role key (supabaseAdmin) to bypass RLS for bucket creation.
+ * Diagnoses Supabase Storage configuration.
+ * Works with just the anon key — no service_role key required.
  */
 export async function GET() {
   const diagnostics: Record<string, unknown> = {};
 
   // 1. Check environment variables
-  const hasUrl = !!process.env.SUPABASE_URL && process.env.SUPABASE_URL !== 'https://your-project.supabase.co';
-  const hasAnonKey = !!process.env.SUPABASE_ANON_KEY && process.env.SUPABASE_ANON_KEY !== 'your-anon-key-here';
+  const supabaseUrl = process.env.SUPABASE_URL || '';
+  const supabaseKey = process.env.SUPABASE_ANON_KEY || '';
+  const hasUrl = !!(supabaseUrl && supabaseUrl !== 'https://your-project.supabase.co');
+  const hasAnonKey = !!(supabaseKey && supabaseKey !== 'your-anon-key-here');
   const hasServiceKey = !!process.env.SUPABASE_SERVICE_ROLE_KEY;
 
   diagnostics.envVars = {
-    SUPABASE_URL: hasUrl ? `✅ Set (${process.env.SUPABASE_URL?.slice(0, 30)}...)` : '❌ Missing or placeholder',
-    SUPABASE_ANON_KEY: hasAnonKey ? `✅ Set (length: ${process.env.SUPABASE_ANON_KEY?.length})` : '❌ Missing or placeholder',
-    SUPABASE_SERVICE_ROLE_KEY: hasServiceKey ? `✅ Set (length: ${process.env.SUPABASE_SERVICE_ROLE_KEY?.length})` : '❌ Missing — required for bucket creation & server uploads (bypasses RLS)',
+    SUPABASE_URL: hasUrl ? `✅ Set (${supabaseUrl.slice(0, 35)}...)` : '❌ Missing or placeholder',
+    SUPABASE_ANON_KEY: hasAnonKey ? `✅ Set (length: ${supabaseKey.length})` : '❌ Missing or placeholder',
+    SUPABASE_SERVICE_ROLE_KEY: hasServiceKey
+      ? `✅ Set (length: ${process.env.SUPABASE_SERVICE_ROLE_KEY!.length}) — admin uploads (bypasses RLS)`
+      : '⚠️ Not set — uploads use anon key with RLS policies (run SQL setup script below)',
   };
 
   if (!hasUrl || !hasAnonKey) {
@@ -25,56 +67,48 @@ export async function GET() {
       status: 'error',
       message: 'Supabase environment variables are not configured.',
       diagnostics,
-      action: 'Add SUPABASE_URL, SUPABASE_ANON_KEY, and SUPABASE_SERVICE_ROLE_KEY to your .env file or Vercel Environment Variables.',
+      action: 'Add SUPABASE_URL and SUPABASE_ANON_KEY to your Vercel Environment Variables.',
     }, { status: 503 });
   }
 
-  if (!hasServiceKey) {
-    return NextResponse.json({
-      status: 'error',
-      message: 'SUPABASE_SERVICE_ROLE_KEY is missing — needed to bypass RLS for bucket creation and server-side uploads.',
-      diagnostics,
-      action: 'Get it from: Supabase Dashboard → Settings → API → service_role key (secret). Add it to Vercel Environment Variables.',
-    }, { status: 503 });
-  }
-
-  // 2. Check if bucket exists
+  // 2. Check if bucket exists (using anon key — works if bucket is public or if RLS allows)
   try {
-    const { data: buckets, error: listError } = await supabaseAdmin.storage.listBuckets();
+    const { data: buckets, error: listError } = await supabase.storage.listBuckets();
 
     if (listError) {
       diagnostics.bucketCheck = `❌ Error listing buckets: ${listError.message}`;
-      return NextResponse.json({ status: 'error', diagnostics }, { status: 500 });
+      diagnostics.setupSQL = SETUP_SQL;
+      return NextResponse.json({
+        status: 'error',
+        message: 'Cannot check Supabase Storage. You may need to run the setup SQL script.',
+        diagnostics,
+        setupInstructions: {
+          step1: 'Go to your Supabase Dashboard → SQL Editor',
+          step2: 'Copy the SQL from setupSQL field below',
+          step3: 'Paste and run the SQL in the editor',
+          step4: 'Refresh this endpoint to verify',
+        },
+        setupSQL: SETUP_SQL,
+      }, { status: 500 });
     }
 
     const bucketExists = buckets?.some(b => b.name === STORAGE_BUCKET);
-    diagnostics.bucketExists = bucketExists ? `✅ Bucket "${STORAGE_BUCKET}" exists` : `❌ Bucket "${STORAGE_BUCKET}" does NOT exist`;
+    diagnostics.bucketExists = bucketExists
+      ? `✅ Bucket "${STORAGE_BUCKET}" exists`
+      : `❌ Bucket "${STORAGE_BUCKET}" does NOT exist — run the setup SQL script`;
 
-    // 3. Auto-create bucket if missing
-    if (!bucketExists) {
-      const { error: createError } = await supabaseAdmin.storage.createBucket(STORAGE_BUCKET, {
-        public: true,
-        fileSizeLimit: 2 * 1024 * 1024, // 2MB
-        allowedMimeTypes: ['image/png', 'image/jpeg', 'image/webp', 'image/svg+xml', 'image/x-icon', 'image/vnd.microsoft.icon', 'image/gif'],
-      });
-
-      if (createError) {
-        diagnostics.bucketCreate = `❌ Failed to create bucket: ${createError.message}`;
-        diagnostics.bucketCreateHint = 'Create it manually: Supabase Dashboard → Storage → New Bucket (name: "assets", Public: ✅)';
-      } else {
-        diagnostics.bucketCreate = `✅ Bucket "${STORAGE_BUCKET}" created successfully (public: true, 2MB limit)`;
-      }
-    } else {
-      // Check if bucket is public
+    if (bucketExists) {
       const bucket = buckets?.find(b => b.name === STORAGE_BUCKET);
-      diagnostics.bucketPublic = bucket?.public ? '✅ Bucket is public' : '⚠️ Bucket is NOT public — set it to public in Supabase Dashboard';
+      diagnostics.bucketPublic = bucket?.public
+        ? '✅ Bucket is public'
+        : '⚠️ Bucket is NOT public — set it to public in Supabase Dashboard → Storage';
     }
 
-    // 4. Test upload capability using admin client (bypasses RLS)
+    // 3. Test upload capability (using anon key — depends on RLS policies)
     const testPath = `branding/_diagnostic_test_${Date.now()}.txt`;
     const testBuffer = Buffer.from('supabase-storage-diagnostic-test');
 
-    const { data: uploadData, error: uploadError } = await supabaseAdmin.storage
+    const { data: uploadData, error: uploadError } = await supabase.storage
       .from(STORAGE_BUCKET)
       .upload(testPath, testBuffer, {
         contentType: 'text/plain',
@@ -83,6 +117,7 @@ export async function GET() {
 
     if (uploadError) {
       diagnostics.uploadTest = `❌ Upload test failed: ${uploadError.message}`;
+      diagnostics.uploadHint = 'This usually means RLS policies are not set up. Run the SQL setup script in Supabase Dashboard → SQL Editor.';
     } else {
       diagnostics.uploadTest = '✅ Upload test succeeded';
 
@@ -91,8 +126,8 @@ export async function GET() {
       diagnostics.testPublicUrl = urlData.publicUrl;
 
       // Clean up test file
-      await supabaseAdmin.storage.from(STORAGE_BUCKET).remove([testPath]);
-      diagnostics.cleanup = '✅ Test file cleaned up';
+      const { error: removeError } = await supabase.storage.from(STORAGE_BUCKET).remove([testPath]);
+      diagnostics.cleanup = removeError ? `⚠️ Cleanup failed: ${removeError.message}` : '✅ Test file cleaned up';
     }
 
   } catch (err) {
@@ -101,11 +136,25 @@ export async function GET() {
 
   const allOk = typeof diagnostics.uploadTest === 'string' && diagnostics.uploadTest.startsWith('✅');
 
-  return NextResponse.json({
+  const response: Record<string, unknown> = {
     status: allOk ? 'ok' : 'error',
     message: allOk
       ? '✅ Supabase Storage is fully configured and working! Upload feature is ready.'
-      : '❌ Supabase Storage needs attention — see diagnostics above.',
+      : '❌ Supabase Storage needs setup — see diagnostics and setupSQL below.',
     diagnostics,
-  });
+  };
+
+  // Always include setup SQL when things aren't working
+  if (!allOk || !diagnostics.bucketExists?.toString().startsWith('✅')) {
+    response.setupInstructions = {
+      step1: 'Go to your Supabase Dashboard → SQL Editor (https://supabase.com/dashboard/project/ldvbfsnqgulynwxqwzau/sql)',
+      step2: 'Click "New query"',
+      step3: 'Copy the SQL from the setupSQL field below',
+      step4: 'Paste and click "Run"',
+      step5: 'Come back here and refresh to verify',
+    };
+    response.setupSQL = SETUP_SQL;
+  }
+
+  return NextResponse.json(response);
 }

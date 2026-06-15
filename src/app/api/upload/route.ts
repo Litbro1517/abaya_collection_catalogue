@@ -22,6 +22,9 @@ const MAX_SIZE = 2 * 1024 * 1024;
  *
  * - If SUPABASE_URL + SUPABASE_ANON_KEY are set → uploads to Supabase (Vercel-compatible)
  * - Otherwise → saves to public/uploads/ (local dev, read-only on Vercel)
+ *
+ * Uses the anon key with RLS policies (no service_role key required).
+ * Run /api/setup/storage to get the SQL setup script for Supabase.
  */
 export async function POST(request: NextRequest) {
   try {
@@ -60,10 +63,14 @@ export async function POST(request: NextRequest) {
 
     if (isSupabaseConfigured) {
       try {
-        const { supabaseAdmin, STORAGE_BUCKET } = await import('@/lib/supabase');
+        const { supabase, supabaseAdmin, STORAGE_BUCKET } = await import('@/lib/supabase');
+
+        // Prefer admin client (bypasses RLS) if service_role key is available,
+        // otherwise use anon client (requires RLS policies to be set up)
+        const client = process.env.SUPABASE_SERVICE_ROLE_KEY ? supabaseAdmin : supabase;
 
         const storagePath = `branding/${safeName}`;
-        const { data, error } = await supabaseAdmin.storage
+        const { data, error } = await client.storage
           .from(STORAGE_BUCKET)
           .upload(storagePath, buffer, {
             contentType: file.type,
@@ -72,14 +79,36 @@ export async function POST(request: NextRequest) {
 
         if (error) {
           console.error('[Upload API] Supabase upload error:', error);
+
+          // Provide helpful error message for common RLS issues
+          if (error.message?.includes('row-level security') || error.message?.includes('policy') || error.message?.includes('new row violates')) {
+            return NextResponse.json(
+              {
+                error: 'Upload blocked by Supabase RLS policies. Run the SQL setup script from /api/setup/storage to configure storage policies.',
+                details: error.message,
+              },
+              { status: 500 }
+            );
+          }
+
+          // Bucket not found
+          if (error.message?.includes('not found') || error.message?.includes('does not exist')) {
+            return NextResponse.json(
+              {
+                error: 'Supabase storage bucket "assets" not found. Run the SQL setup script from /api/setup/storage to create it.',
+                details: error.message,
+              },
+              { status: 500 }
+            );
+          }
+
           return NextResponse.json(
             { error: `Storage upload failed: ${error.message}` },
             { status: 500 }
           );
         }
 
-        // Get the public URL (using public client is fine for reading URLs)
-        const { supabase } = await import('@/lib/supabase');
+        // Get the public URL
         const { data: urlData } = supabase.storage
           .from(STORAGE_BUCKET)
           .getPublicUrl(data.path);
