@@ -1235,3 +1235,24 @@ Stage Summary:
 - RTL layout works for Arabic across all catalog views
 - Seed route now fixes missing/corrupted translations on re-seed
 - Pushed commit 85f9e4a to main branch
+
+---
+Task ID: 2
+Agent: main
+Task: Complete remaining i18n strings — second pass fixing all remaining hardcoded French
+
+Work Log:
+- Added 5 more dictionary keys × 3 languages: error.loadData, error.unexpected, error.reload, carousel.image, carousel.thumbnail
+- CatalogPreview: translated 'Erreur de chargement' → t('error.loadData'), 'Tout' → t('catalog.all'), search placeholder → t('catalog.search'), breadcrumb back aria-label → t('catalog.back')
+- ProductPage: all 6 carousel/thumbnail aria-labels now use t('carousel.image') and t('carousel.thumbnail')
+- page.tsx: error boundary strings now use t('error.unexpected') and t('error.reload')
+- Lint passed, committed and pushed (669e6df)
+
+Stage Summary:
+- Total new dictionary keys across both commits: 21 keys × 3 languages = 63 translations
+- All user-facing strings in the public catalog (CatalogPreview, ProductPage, CodForm, SocialStickyTickets, Merci page) are now fully translated
+- resolveTranslation() now guards against corrupted JSONB data (locale codes as values, arrays)
+- Currency display uses formatPrice() consistently
+- RTL layout fully supported with dir attribute on root catalog container
+- ThemeInjector uses clientLocale for non-admin users
+- Seed route now updates translations on existing categories
