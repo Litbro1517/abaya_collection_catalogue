@@ -75,6 +75,29 @@ export async function POST(req: NextRequest) {
       },
     });
 
+    // Auto-translate if translations not provided
+    if (!body.translations) {
+      try {
+        const translateRes = await fetch(new URL('/api/translate', req.url), {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ text: label.trim(), sourceLang: 'fr', targetLangs: ['ar', 'en'] }),
+        });
+        if (translateRes.ok) {
+          const translateJson = await translateRes.json();
+          if (translateJson.data) {
+            await db.category.update({
+              where: { id: category.id },
+              data: { translations: translateJson.data },
+            });
+            category.translations = translateJson.data;
+          }
+        }
+      } catch {
+        // Auto-translation failed — non-critical, continue without it
+      }
+    }
+
     return NextResponse.json({ data: category }, { status: 201 });
   } catch (error: unknown) {
     const prismaError = error as { code?: string };
@@ -109,6 +132,29 @@ export async function PATCH(req: NextRequest) {
         subCategories: { orderBy: { ordre: 'asc' } },
       },
     });
+
+    // Auto-translate if label changed but translations not provided
+    if (body.label !== undefined && !body.translations) {
+      try {
+        const translateRes = await fetch(new URL('/api/translate', req.url), {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ text: body.label.trim(), sourceLang: 'fr', targetLangs: ['ar', 'en'] }),
+        });
+        if (translateRes.ok) {
+          const translateJson = await translateRes.json();
+          if (translateJson.data) {
+            await db.category.update({
+              where: { id: category.id },
+              data: { translations: translateJson.data },
+            });
+            category.translations = translateJson.data;
+          }
+        }
+      } catch {
+        // Auto-translation failed — non-critical
+      }
+    }
 
     return NextResponse.json({ data: category });
   } catch (error: unknown) {

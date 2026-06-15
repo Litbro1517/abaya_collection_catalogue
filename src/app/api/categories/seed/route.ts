@@ -3,6 +3,11 @@ import { NextResponse } from 'next/server';
 
 // Seed default categories and sub-categories for the Abaya Collection Catalogue
 // POST /api/categories/seed — Idempotent (upsert, won't duplicate)
+//
+// NOTE: This seed route includes hardcoded translations for all categories and sub-categories.
+// For any future category/sub-category creation outside the seed (via POST /api/categories or PATCH),
+// auto-translation is automatically triggered via the /api/translate endpoint (z-ai-web-dev-sdk LLM)
+// when translations are not explicitly provided in the request body. No manual translation step needed.
 export async function POST() {
   try {
     const defaultCategories = [

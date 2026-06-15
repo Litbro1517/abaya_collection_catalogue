@@ -5,6 +5,7 @@ import { ThemeProvider } from '@/components/ThemeProvider';
 import { THEME_DEFAULTS } from '@/lib/theme.config';
 import type { ThemePivots, ThemeExceptions } from '@/lib/theme.config';
 import { isRTL, type Locale } from '@/lib/i18n';
+import { useAppStore } from '@/lib/store';
 
 /**
  * ThemeInjector — Fetches theme settings from DB and passes to ThemeProvider.
@@ -64,14 +65,22 @@ export function ThemeInjector() {
   }, [refreshKey]);
 
   // ── Apply dir and lang to <html> when language changes ──
+  // For the public catalog (preview view), use clientLocale;
+  // for admin views, use the admin settings.language.
+  const clientLocale = useAppStore(s => s.clientLocale);
+  const view = useAppStore(s => s.view);
+
   useEffect(() => {
-    if (!themeData?.language) return;
-    const locale = themeData.language as Locale;
-    const rtl = isRTL(locale);
+    // Determine which locale to use: clientLocale for preview, admin language otherwise
+    const effectiveLocale = view === 'preview'
+      ? (clientLocale as Locale) || 'fr'
+      : (themeData?.language as Locale) || 'fr';
+
+    const rtl = isRTL(effectiveLocale);
 
     const html = document.documentElement;
     html.setAttribute('dir', rtl ? 'rtl' : 'ltr');
-    html.setAttribute('lang', locale);
+    html.setAttribute('lang', effectiveLocale);
 
     // Add/remove RTL class for CSS targeting
     if (rtl) {
@@ -79,7 +88,7 @@ export function ThemeInjector() {
     } else {
       html.classList.remove('rtl');
     }
-  }, [themeData?.language]);
+  }, [themeData?.language, clientLocale, view]);
 
   // Listen for theme-updated events (from SettingsPillar save)
   useEffect(() => {

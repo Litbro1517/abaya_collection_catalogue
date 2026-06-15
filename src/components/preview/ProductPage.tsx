@@ -17,7 +17,7 @@ import {
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { CodForm } from './CodForm';
-import { useTranslation } from '@/lib/i18n';
+import { useClientTranslation } from '@/lib/i18n';
 
 // ── Brand Constants ──
 const BRAND = {
@@ -149,7 +149,7 @@ export function ProductPage({
 }: ProductPageProps) {
   const config = section.config as SectionConfig;
   const rawData = row.data as Record<string, unknown>;
-  const { t, locale, formatPrice, rtl } = useTranslation();
+  const { t, locale, formatPrice, rtl } = useClientTranslation();
   const stockState = computeStockState(rawData);
   const stock = typeof rawData.__stock__ === 'number'
     ? rawData.__stock__

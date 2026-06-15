@@ -3,6 +3,7 @@
 import { useState, type FormEvent } from 'react';
 import { ShoppingBag, Loader2, CheckCircle2, User, Phone, MapPin, Home } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { useClientTranslation } from '@/lib/i18n';
 
 // ── Brand Constants (matching ProductPage) ──
 const BRAND = {
@@ -29,6 +30,7 @@ interface FormState {
 }
 
 export function CodForm({ productId, productName, productPrice }: CodFormProps) {
+  const { t, rtl } = useClientTranslation();
   const [form, setForm] = useState<FormState>({
     customerName: '',
     customerPhone: '',
@@ -50,19 +52,19 @@ export function CodForm({ productId, productName, productPrice }: CodFormProps) 
 
     // Validate
     if (!form.customerName.trim()) {
-      setError('Veuillez entrer votre nom complet.');
+      setError(t('order.errorName'));
       return;
     }
     if (!form.customerPhone.trim() || form.customerPhone.trim().length < 6) {
-      setError('Veuillez entrer un numéro de téléphone valide.');
+      setError(t('order.errorPhone'));
       return;
     }
     if (!form.customerCity.trim()) {
-      setError('Veuillez entrer votre ville.');
+      setError(t('order.errorCity'));
       return;
     }
     if (!form.customerAddress.trim()) {
-      setError('Veuillez entrer votre adresse de livraison.');
+      setError(t('order.errorAddress'));
       return;
     }
 
@@ -86,7 +88,7 @@ export function CodForm({ productId, productName, productPrice }: CodFormProps) 
       const data = await res.json();
 
       if (!res.ok || data.error) {
-        setError(data.error || 'Erreur lors de la commande. Veuillez réessayer.');
+        setError(data.error || t('order.errorGeneric'));
         return;
       }
 
@@ -98,7 +100,7 @@ export function CodForm({ productId, productName, productPrice }: CodFormProps) 
         window.location.href = `/merci${orderId ? `?order_id=${orderId}` : ''}`;
       }, 800);
     } catch {
-      setError('Erreur réseau. Veuillez vérifier votre connexion et réessayer.');
+      setError(t('order.errorNetwork'));
     } finally {
       setIsSubmitting(false);
     }
@@ -106,28 +108,28 @@ export function CodForm({ productId, productName, productPrice }: CodFormProps) 
 
   if (success) {
     return (
-      <div className="cod-form-success">
+      <div className="cod-form-success" dir={rtl ? 'rtl' : 'ltr'}>
         <CheckCircle2 className="w-10 h-10" style={{ color: BRAND.vertFonce }} />
         <h3 style={{ fontSize: 18, fontWeight: 700, color: BRAND.vertFonce, fontFamily: "'Playfair Display', serif" }}>
-          Commande envoyée !
+          {t('order.sent')}
         </h3>
         <p style={{ fontSize: 14, color: BRAND.grisMoyen }}>
-          Redirection en cours...
+          {t('order.redirecting')}
         </p>
       </div>
     );
   }
 
   return (
-    <div className="cod-form-wrapper" id="cod-form">
+    <div className="cod-form-wrapper" id="cod-form" dir={rtl ? 'rtl' : 'ltr'}>
       {/* Header */}
       <div className="cod-form-header">
         <div className="cod-form-header-icon">
           <ShoppingBag className="w-5 h-5" style={{ color: BRAND.dore }} />
         </div>
         <div>
-          <h3 className="cod-form-title">Commander maintenant</h3>
-          <p className="cod-form-subtitle">Paiement à la livraison (COD)</p>
+          <h3 className="cod-form-title">{t('order.title')}</h3>
+          <p className="cod-form-subtitle">{t('order.cod')}</p>
         </div>
       </div>
 
@@ -146,7 +148,7 @@ export function CodForm({ productId, productName, productPrice }: CodFormProps) 
         {/* Name */}
         <div className="cod-form-field">
           <label className="cod-form-label" htmlFor="customer-name">
-            Nom complet <span style={{ color: '#800020' }}>*</span>
+            {t('order.fullName')} <span style={{ color: '#800020' }}>{t('order.required')}</span>
           </label>
           <div className="cod-form-input-wrapper">
             <User className="cod-form-input-icon" />
@@ -154,7 +156,7 @@ export function CodForm({ productId, productName, productPrice }: CodFormProps) 
               id="customer-name"
               type="text"
               className="cod-form-input"
-              placeholder="Votre nom complet"
+              placeholder={t('order.fullNamePlaceholder')}
               value={form.customerName}
               onChange={e => handleChange('customerName', e.target.value)}
               disabled={isSubmitting}
@@ -166,7 +168,7 @@ export function CodForm({ productId, productName, productPrice }: CodFormProps) 
         {/* Phone */}
         <div className="cod-form-field">
           <label className="cod-form-label" htmlFor="customer-phone">
-            Téléphone <span style={{ color: '#800020' }}>*</span>
+            {t('order.phone')} <span style={{ color: '#800020' }}>{t('order.required')}</span>
           </label>
           <div className="cod-form-input-wrapper">
             <Phone className="cod-form-input-icon" />
@@ -174,7 +176,7 @@ export function CodForm({ productId, productName, productPrice }: CodFormProps) 
               id="customer-phone"
               type="tel"
               className="cod-form-input"
-              placeholder="06XXXXXXXX"
+              placeholder={t('order.phonePlaceholder')}
               value={form.customerPhone}
               onChange={e => handleChange('customerPhone', e.target.value)}
               disabled={isSubmitting}
@@ -187,7 +189,7 @@ export function CodForm({ productId, productName, productPrice }: CodFormProps) 
         {/* City */}
         <div className="cod-form-field">
           <label className="cod-form-label" htmlFor="customer-city">
-            Ville <span style={{ color: '#800020' }}>*</span>
+            {t('order.city')} <span style={{ color: '#800020' }}>{t('order.required')}</span>
           </label>
           <div className="cod-form-input-wrapper">
             <MapPin className="cod-form-input-icon" />
@@ -195,7 +197,7 @@ export function CodForm({ productId, productName, productPrice }: CodFormProps) 
               id="customer-city"
               type="text"
               className="cod-form-input"
-              placeholder="Votre ville"
+              placeholder={t('order.cityPlaceholder')}
               value={form.customerCity}
               onChange={e => handleChange('customerCity', e.target.value)}
               disabled={isSubmitting}
@@ -207,7 +209,7 @@ export function CodForm({ productId, productName, productPrice }: CodFormProps) 
         {/* Address */}
         <div className="cod-form-field">
           <label className="cod-form-label" htmlFor="customer-address">
-            Adresse de livraison <span style={{ color: '#800020' }}>*</span>
+            {t('order.address')} <span style={{ color: '#800020' }}>{t('order.required')}</span>
           </label>
           <div className="cod-form-input-wrapper">
             <Home className="cod-form-input-icon" />
@@ -215,7 +217,7 @@ export function CodForm({ productId, productName, productPrice }: CodFormProps) 
               id="customer-address"
               type="text"
               className="cod-form-input"
-              placeholder="Adresse complète de livraison"
+              placeholder={t('order.addressPlaceholder')}
               value={form.customerAddress}
               onChange={e => handleChange('customerAddress', e.target.value)}
               disabled={isSubmitting}
@@ -244,19 +246,19 @@ export function CodForm({ productId, productName, productPrice }: CodFormProps) 
           {isSubmitting ? (
             <>
               <Loader2 className="w-5 h-5 animate-spin" />
-              Envoi en cours...
+              {t('order.sending')}
             </>
           ) : (
             <>
               <ShoppingBag className="w-5 h-5" />
-              Confirmer la commande
+              {t('order.confirm')}
             </>
           )}
         </button>
 
         {/* Trust badge */}
         <p className="cod-form-trust">
-          🔒 Vos données sont sécurisées · Paiement à la livraison
+          {t('order.secureData')}
         </p>
       </form>
     </div>

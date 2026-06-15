@@ -3,8 +3,10 @@
 import { Suspense, useEffect, useRef } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { CheckCircle2, ArrowLeft, ShieldCheck } from 'lucide-react';
+import { useClientTranslation } from '@/lib/i18n';
 
 function MerciContent() {
+  const { t, rtl } = useClientTranslation();
   const searchParams = useSearchParams();
   const orderId = searchParams.get('order_id');
   const tracked = useRef(false);
@@ -23,7 +25,7 @@ function MerciContent() {
   }, [orderId]);
 
   return (
-    <div className="merci-page">
+    <div className="merci-page" dir={rtl ? 'rtl' : 'ltr'}>
       <div className="merci-card">
         {/* Success icon */}
         <div className="merci-icon-wrapper">
@@ -31,40 +33,40 @@ function MerciContent() {
         </div>
 
         {/* Title */}
-        <h1 className="merci-title">Commande confirmée !</h1>
+        <h1 className="merci-title">{t('thanks.title')}</h1>
         <p className="merci-subtitle">
-          Merci pour votre commande. Notre équipe vous contactera prochainement pour confirmer la livraison.
+          {t('thanks.subtitle')}
         </p>
 
         {/* Order ID */}
         {orderId && (
           <div className="merci-order-id">
-            Commande <span>#{orderId.slice(-8).toUpperCase()}</span>
+            {t('thanks.orderLabel')} <span>#{orderId.slice(-8).toUpperCase()}</span>
           </div>
         )}
 
         {/* Details */}
         <div className="merci-details">
           <div className="merci-detail-row">
-            <span className="merci-detail-label">Mode de paiement</span>
-            <span className="merci-detail-value">Paiement à la livraison</span>
+            <span className="merci-detail-label">{t('thanks.paymentMode')}</span>
+            <span className="merci-detail-value">{t('thanks.paymentCOD')}</span>
           </div>
           <div className="merci-detail-row">
-            <span className="merci-detail-label">Statut</span>
-            <span className="merci-detail-value" style={{ color: '#C9A84C' }}>En attente de confirmation</span>
+            <span className="merci-detail-label">{t('thanks.status')}</span>
+            <span className="merci-detail-value" style={{ color: '#C9A84C' }}>{t('thanks.statusPending')}</span>
           </div>
         </div>
 
         {/* Back button */}
         <a href="/" className="merci-back-btn">
           <ArrowLeft className="w-4 h-4" />
-          Retour au catalogue
+          {t('thanks.backToCatalog')}
         </a>
 
         {/* Tracking notice */}
         <div className="merci-tracking">
           <ShieldCheck className="w-4 h-4 flex-shrink-0" />
-          <span>Vous recevrez une confirmation par téléphone sous peu.</span>
+          <span>{t('thanks.trackingNotice')}</span>
         </div>
       </div>
     </div>
@@ -72,6 +74,7 @@ function MerciContent() {
 }
 
 export default function MerciPage() {
+  const { t } = useClientTranslation();
   return (
     <Suspense fallback={
       <div className="merci-page">
@@ -79,7 +82,7 @@ export default function MerciPage() {
           <div className="merci-icon-wrapper">
             <CheckCircle2 className="w-8 h-8 text-white" />
           </div>
-          <h1 className="merci-title">Chargement...</h1>
+          <h1 className="merci-title">{t('thanks.loading')}</h1>
         </div>
       </div>
     }>

@@ -4,6 +4,7 @@ import type { DataSource, Column, Row, Catalog, Section, CatalogSettings, Pillar
 // ── localStorage helpers for sidebar persistence ──
 const LS_SIDEBAR_COLLAPSED = 'abaya_sidebarCollapsed';
 const LS_DATA_PANEL_COLLAPSED = 'abaya_dataPanelCollapsed';
+const LS_CLIENT_LOCALE = 'abaya_clientLocale';
 
 function readBoolLS(key: string, fallback: boolean): boolean {
   if (typeof window === 'undefined') return fallback;
@@ -80,6 +81,10 @@ interface AppState {
   // ── Settings ──
   settings: CatalogSettings | null;
   setSettings: (s: CatalogSettings | null) => void;
+
+  // ── Client Locale (independent of admin settings) ──
+  clientLocale: string;
+  setClientLocale: (locale: string) => void;
 
   // ── UI State ──
   loading: boolean;
@@ -158,6 +163,15 @@ export const useAppStore = create<AppState>((set, get) => ({
   // ── Settings ──
   settings: null,
   setSettings: (settings) => set({ settings }),
+
+  // ── Client Locale ──
+  clientLocale: typeof window !== 'undefined' ? (localStorage.getItem(LS_CLIENT_LOCALE) || 'fr') : 'fr',
+  setClientLocale: (clientLocale) => {
+    if (typeof window !== 'undefined') {
+      localStorage.setItem(LS_CLIENT_LOCALE, clientLocale);
+    }
+    set({ clientLocale });
+  },
 
   // ── UI State ──
   loading: false,

@@ -1068,3 +1068,141 @@ Replaced the static `metadata` export in `layout.tsx` with an async `generateMet
 ### Verification
 - `bun run lint` — only pre-existing `daemon.js` errors (unrelated to this task)
 - No new lint errors introduced
+
+---
+
+## Task 1: Decouple Client Language from Admin Language
+
+## Date
+2025-03-04
+
+## Summary
+Separated the public catalog language (`clientLocale`) from the admin settings language (`settings.language`). Previously, `useTranslation()` read from `settings.language`, meaning when the admin changed language in Settings, the public catalog also changed. Now the public catalog uses its own independent locale stored in localStorage.
+
+## Changes Made
+
+### Part A: Added `clientLocale` to Zustand Store (`src/lib/store.ts`)
+- Added `LS_CLIENT_LOCALE` localStorage key constant (`'abaya_clientLocale'`)
+- Added `clientLocale: string` and `setClientLocale: (locale: string) => void` to `AppState` interface
+- Added implementation: reads from localStorage on init (defaults to `'fr'`), persists on set
+
+### Part B: Created `useClientTranslation` hook (`src/lib/i18n/useClientTranslation.ts`)
+- New hook that reads from `clientLocale` instead of `settings.language`
+- Provides same API as `useTranslation()`: `t`, `locale`, `rtl`, `currency`, `formatPrice`, `dir`
+- Also provides `resolveTranslation()` method for resolving translated field values
+- Completely independent of admin settings — uses `clientLocale` from Zustand/localStorage
+
+### Part C: Exported from barrel file (`src/lib/i18n/index.ts`)
+- Added `export { useClientTranslation } from './useClientTranslation'`
+
+### Part D: Switched CatalogPreview to `useClientTranslation` (`src/components/preview/CatalogPreview.tsx`)
+- Changed import from `useTranslation, resolveTranslation` to `useClientTranslation`
+- Changed hook call to `useClientTranslation()` with destructured `resolveTranslation: resolveT`
+- Replaced all 3 occurrences of `resolveTranslation(` with `resolveT(` in the component
+
+### Part E: Added Language Selector to Public Navbar (`src/components/preview/CatalogPreview.tsx`)
+- Added FR/EN/AR toggle buttons in the navbar, before the admin actions section
+- Active locale is highlighted with pivot accent/text colors
+- Clicking a language button calls `useAppStore.getState().setClientLocale(loc)`
+
+### Part F: Switched ProductPage to `useClientTranslation` (`src/components/preview/ProductPage.tsx`)
+- Changed import from `useTranslation` to `useClientTranslation`
+- Changed hook call to `useClientTranslation()`
+
+### Part G: Updated ThemeInjector for client locale (`src/components/ThemeInjector.tsx`)
+- Imported `useAppStore` to read `clientLocale` and `view`
+- Updated the `dir`/`lang` effect to use `clientLocale` when `view === 'preview'`
+- Falls back to `themeData.language` (admin setting) for non-preview views
+- Effect now depends on `[themeData?.language, clientLocale, view]`
+
+### Verification
+- ESLint passed with zero errors on all 6 modified/created files
+- Dev server running successfully with no new errors
+
+---
+
+## Task 2 — Translate CodForm + Merci page + add dictionary keys
+
+### Date
+2025-03-04
+
+### Summary
+
+Internationalised the COD order form (`CodForm.tsx`) and the thank-you page (`merci/page.tsx`) by adding all necessary translation keys to the three-locale dictionary (`dictionaries.ts`) and replacing every hardcoded French string with `t()` calls via the `useClientTranslation` hook.
+
+### Part A — Dictionary keys added
+
+Added **38 new keys** to **all three locales** (fr, en, ar) in `src/lib/i18n/dictionaries.ts`:
+
+- `order.*` (25 keys): form title, COD label, field labels, placeholders, button states, error messages, trust badge, required marker
+- `thanks.*` (12 keys): title, subtitle, order label, payment details, status, back button, tracking notice, loading text
+
+Verified: no `thacks` typo exists — `thanks.subtitle` is used consistently across all locales.
+
+### Part B — CodForm.tsx i18n rewrite
+
+- Added `import { useClientTranslation } from '@/lib/i18n'`
+- Added `const { t, rtl } = useClientTranslation()` inside `CodForm`
+- Replaced all 16 hardcoded French strings with `t('order.*')` calls
+- Replaced all 6 validation/network error messages with `t('order.error*')` calls
+- Added `dir={rtl ? 'rtl' : 'ltr'}` to both the success wrapper and the main form wrapper
+- Kept `dir="ltr"` on the phone input (phone numbers are always LTR)
+- Replaced `*` required markers with `t('order.required')`
+
+### Part C — Merci page i18n rewrite
+
+- Added `import { useClientTranslation } from '@/lib/i18n'`
+- Added `const { t, rtl } = useClientTranslation()` inside `MerciContent`
+- Added `const { t } = useClientTranslation()` inside `MerciPage` (for Suspense fallback)
+- Replaced all 9 hardcoded French strings with `t('thanks.*')` calls
+- Added `dir={rtl ? 'rtl' : 'ltr'}` to the main merci-page div
+
+### Verification
+
+- ESLint: 0 errors, 0 warnings across all three files
+- No `thacks` typo in any file — `thanks.subtitle` used consistently
+- Dev server running with no compilation errors
+
+---
+
+## Task 3 — Create Auto-Translation API and Hook into Category Creation/Update
+
+### Date
+2025-03-04
+
+### Summary
+Created a server-side `/api/translate` route that uses the z-ai-web-dev-sdk LLM to translate text into multiple languages (French → Arabic + English by default). Then hooked auto-translation into the Category POST (create) and PATCH (update) handlers so that translations are auto-generated whenever they are not explicitly provided.
+
+### Part A: Created `/api/translate` Route
+- **File**: `src/app/api/translate/route.ts` (NEW)
+- Accepts POST with `{ text, sourceLang?, targetLangs? }`
+- Defaults: sourceLang = `'fr'`, targetLangs = `['ar', 'en']`
+- Uses `z-ai-web-dev-sdk` LLM with a system prompt tuned for e-commerce fashion catalog translation
+- Parses LLM JSON response with fallback for markdown-wrapped code blocks
+- In-memory cache (Map, max 500 entries) keyed by `source:text` to avoid redundant API calls
+- Returns `{ data: { fr: "...", ar: "...", en: "..." } }`
+
+### Part B: Hooked Auto-Translation into Category POST Handler
+- **File**: `src/app/api/categories/route.ts` (MODIFIED)
+- After `db.category.create()`, if `body.translations` was NOT provided:
+  - Calls `/api/translate` internally via `fetch(new URL('/api/translate', req.url))`
+  - On success, updates the newly created category with the translations
+  - Assigns translations to the response object so the caller gets them immediately
+  - Wrapped in try/catch — auto-translation failure is non-critical, category creation still succeeds
+
+### Part C: Hooked Auto-Translation into Category PATCH Handler
+- **File**: `src/app/api/categories/route.ts` (MODIFIED)
+- After `db.category.update()`, if `body.label` is changed AND `body.translations` is NOT provided:
+  - Same auto-translation logic as POST
+  - Re-translates the new label and updates the category's translations field
+  - Non-critical — update still succeeds even if translation fails
+
+### Part D: Seed Route Comment
+- **File**: `src/app/api/categories/seed/route.ts` (MODIFIED)
+- Added documentation comment explaining that the seed route has hardcoded translations
+- Noted that any future category/sub-category creation outside the seed will automatically trigger `/api/translate`
+- No code changes needed since seed already includes translations
+
+### Verification
+- ESLint: 0 errors, 0 warnings on all three files (`translate/route.ts`, `categories/route.ts`, `categories/seed/route.ts`)
+- Dev server running with no compilation errors

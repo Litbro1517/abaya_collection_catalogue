@@ -16,7 +16,7 @@ import { readCache, writeCache, clearAllCache, sanitizeSections, CACHE_KEYS } fr
 import type { CachedSectionData } from '@/lib/cache';
 import { ProductPage } from './ProductPage';
 import { SocialStickyTickets } from './SocialStickyTickets';
-import { useTranslation, resolveTranslation } from '@/lib/i18n';
+import { useClientTranslation } from '@/lib/i18n';
 
 // ── Brand Constants removed — all values migrated to CSS pivot variables & global classes ──
 
@@ -265,7 +265,7 @@ interface CatalogPreviewProps {
 
 export function CatalogPreview({ onAdminLogin }: CatalogPreviewProps) {
   const { catalog, settings, isAdmin, adminUser, setView } = useAppStore();
-  const { t, formatPrice, rtl, locale } = useTranslation();
+  const { t, formatPrice, rtl, locale, resolveTranslation: resolveT } = useClientTranslation();
 
   // Only owner/admin can access the builder — editors and public users cannot
   const canAccessBuilder = isAdmin && adminUser && (adminUser.role === 'owner' || adminUser.role === 'admin' || adminUser.role === 'super_admin');
@@ -772,6 +772,25 @@ export function CatalogPreview({ onAdminLogin }: CatalogPreviewProps) {
           </h1>
         </div>
 
+        {/* ── Public Language Selector ── */}
+        <div className="flex items-center gap-0.5 shrink-0 mr-1">
+          {(['fr', 'en', 'ar'] as const).map(loc => (
+            <button
+              key={loc}
+              onClick={() => useAppStore.getState().setClientLocale(loc)}
+              className={cn(
+                'px-1.5 py-0.5 rounded text-[10px] font-semibold transition-all duration-200',
+                locale === loc
+                  ? 'bg-foreground text-background'
+                  : 'text-muted-foreground hover:text-foreground hover:bg-muted/50'
+              )}
+              style={locale === loc ? { color: 'var(--pivot-accent)', backgroundColor: 'var(--pivot-text)' } : {}}
+            >
+              {loc.toUpperCase()}
+            </button>
+          ))}
+        </div>
+
         {/* Admin actions — only visible for owner/admin roles */}
         {canAccessBuilder ? (
           <div className="flex items-center gap-1 shrink-0">
@@ -948,7 +967,7 @@ export function CatalogPreview({ onAdminLogin }: CatalogPreviewProps) {
                         window.scrollTo({ top: 0, behavior: 'instant' });
                       }}
                     >
-                      {resolveTranslation(cat.translations, locale, cat.label)}{count > 0 ? ` (${count})` : ''}
+                      {resolveT(cat.translations, locale, cat.label)}{count > 0 ? ` (${count})` : ''}
                     </button>
                   );
                 });
@@ -989,7 +1008,7 @@ export function CatalogPreview({ onAdminLogin }: CatalogPreviewProps) {
                         )}
                         onClick={() => { setActiveMicroFilter(sub.slug); setCurrentPage(1); }}
                       >
-                        {resolveTranslation(sub.translations, locale, sub.label)}{count > 0 ? ` (${count})` : ''}
+                        {resolveT(sub.translations, locale, sub.label)}{count > 0 ? ` (${count})` : ''}
                       </button>
                     );
                   })}
@@ -1024,7 +1043,7 @@ export function CatalogPreview({ onAdminLogin }: CatalogPreviewProps) {
         return (
           <div className="mx-auto max-w-[1270px] px-4 sm:px-8 pt-5 pb-1">
             <h2 className="text-2xl sm:text-3xl font-bold" style={{ color: 'var(--pivot-text)', fontFamily: "'Playfair Display', serif" }}>
-              {resolveTranslation(selectedCat.translations, locale, selectedCat.label)}
+              {resolveT(selectedCat.translations, locale, selectedCat.label)}
             </h2>
           </div>
         );

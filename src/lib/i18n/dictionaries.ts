@@ -137,6 +137,42 @@ export const dictionaries: Record<Locale, TranslationDict> = {
     // ── Order ──
     'order.subject': 'Commande',
 
+    // ── Order Form (COD) ──
+    'order.title': 'Commander maintenant',
+    'order.cod': 'Paiement à la livraison (COD)',
+    'order.fullName': 'Nom complet',
+    'order.fullNamePlaceholder': 'Votre nom complet',
+    'order.phone': 'Téléphone',
+    'order.phonePlaceholder': '06XXXXXXXX',
+    'order.city': 'Ville',
+    'order.cityPlaceholder': 'Votre ville',
+    'order.address': 'Adresse de livraison',
+    'order.addressPlaceholder': 'Adresse complète de livraison',
+    'order.confirm': 'Confirmer la commande',
+    'order.sending': 'Envoi en cours...',
+    'order.sent': 'Commande envoyée !',
+    'order.redirecting': 'Redirection en cours...',
+    'order.secureData': '🔒 Vos données sont sécurisées · Paiement à la livraison',
+    'order.errorName': 'Veuillez entrer votre nom complet.',
+    'order.errorPhone': 'Veuillez entrer un numéro de téléphone valide.',
+    'order.errorCity': 'Veuillez entrer votre ville.',
+    'order.errorAddress': 'Veuillez entrer votre adresse de livraison.',
+    'order.errorNetwork': 'Erreur réseau. Veuillez vérifier votre connexion et réessayer.',
+    'order.errorGeneric': 'Erreur lors de la commande. Veuillez réessayer.',
+    'order.required': '*',
+
+    // ── Thank You Page ──
+    'thanks.title': 'Commande confirmée !',
+    'thanks.subtitle': 'Merci pour votre commande. Notre équipe vous contactera prochainement pour confirmer la livraison.',
+    'thanks.orderLabel': 'Commande',
+    'thanks.paymentMode': 'Mode de paiement',
+    'thanks.paymentCOD': 'Paiement à la livraison',
+    'thanks.status': 'Statut',
+    'thanks.statusPending': 'En attente de confirmation',
+    'thanks.backToCatalog': 'Retour au catalogue',
+    'thanks.trackingNotice': 'Vous recevrez une confirmation par téléphone sous peu.',
+    'thanks.loading': 'Chargement...',
+
     // ── Upload ──
     'upload.dragDrop': 'Glisser-déposer ou cliquer',
     'upload.clickOrDrop': 'Cliquez ou glissez un fichier ici',
@@ -273,6 +309,42 @@ export const dictionaries: Record<Locale, TranslationDict> = {
     // ── Order ──
     'order.subject': 'Order',
 
+    // ── Order Form (COD) ──
+    'order.title': 'Order now',
+    'order.cod': 'Cash on delivery (COD)',
+    'order.fullName': 'Full name',
+    'order.fullNamePlaceholder': 'Your full name',
+    'order.phone': 'Phone',
+    'order.phonePlaceholder': '06XXXXXXXX',
+    'order.city': 'City',
+    'order.cityPlaceholder': 'Your city',
+    'order.address': 'Delivery address',
+    'order.addressPlaceholder': 'Full delivery address',
+    'order.confirm': 'Confirm order',
+    'order.sending': 'Sending...',
+    'order.sent': 'Order sent!',
+    'order.redirecting': 'Redirecting...',
+    'order.secureData': '🔒 Your data is secure · Cash on delivery',
+    'order.errorName': 'Please enter your full name.',
+    'order.errorPhone': 'Please enter a valid phone number.',
+    'order.errorCity': 'Please enter your city.',
+    'order.errorAddress': 'Please enter your delivery address.',
+    'order.errorNetwork': 'Network error. Please check your connection and try again.',
+    'order.errorGeneric': 'Order error. Please try again.',
+    'order.required': '*',
+
+    // ── Thank You Page ──
+    'thanks.title': 'Order confirmed!',
+    'thanks.subtitle': 'Thank you for your order. Our team will contact you shortly to confirm delivery.',
+    'thanks.orderLabel': 'Order',
+    'thanks.paymentMode': 'Payment method',
+    'thanks.paymentCOD': 'Cash on delivery',
+    'thanks.status': 'Status',
+    'thanks.statusPending': 'Pending confirmation',
+    'thanks.backToCatalog': 'Back to catalog',
+    'thanks.trackingNotice': 'You will receive a phone confirmation shortly.',
+    'thanks.loading': 'Loading...',
+
     // ── Upload ──
     'upload.dragDrop': 'Drag & drop or click',
     'upload.clickOrDrop': 'Click or drag a file here',
@@ -408,6 +480,42 @@ export const dictionaries: Record<Locale, TranslationDict> = {
 
     // ── Order ──
     'order.subject': 'طلب',
+
+    // ── Order Form (COD) ──
+    'order.title': 'اطلب الآن',
+    'order.cod': 'الدفع عند الاستلام',
+    'order.fullName': 'الاسم الكامل',
+    'order.fullNamePlaceholder': 'الاسم الكامل',
+    'order.phone': 'رقم الهاتف',
+    'order.phonePlaceholder': '06XXXXXXXX',
+    'order.city': 'المدينة',
+    'order.cityPlaceholder': 'المدينة',
+    'order.address': 'عنوان التوصيل',
+    'order.addressPlaceholder': 'عنوان التوصيل الكامل',
+    'order.confirm': 'تأكيد الطلب',
+    'order.sending': '...جارٍ الإرسال',
+    'order.sent': '!تم إرسال الطلب',
+    'order.redirecting': '...جارٍ إعادة التوجيه',
+    'order.secureData': '🔒 بياناتك مؤمّنة · الدفع عند الاستلام',
+    'order.errorName': '.الرجاء إدخال الاسم الكامل',
+    'order.errorPhone': '.الرجاء إدخال رقم هاتف صالح',
+    'order.errorCity': '.الرجاء إدخال المدينة',
+    'order.errorAddress': '.الرجاء إدخال عنوان التوصيل',
+    'order.errorNetwork': '.خطأ في الشبكة. تحقق من اتصالك وحاول مرة أخرى',
+    'order.errorGeneric': '.خطأ في الطلب. حاول مرة أخرى',
+    'order.required': '*',
+
+    // ── Thank You Page ──
+    'thanks.title': '!تم تأكيد الطلب',
+    'thanks.subtitle': '.شكرًا على طلبك. سيتواصل فريقنا معك قريبًا لتأكيد التوصيل',
+    'thanks.orderLabel': 'الطلب',
+    'thanks.paymentMode': 'طريقة الدفع',
+    'thanks.paymentCOD': 'الدفع عند الاستلام',
+    'thanks.status': 'الحالة',
+    'thanks.statusPending': 'في انتظار التأكيد',
+    'thanks.backToCatalog': 'العودة إلى الكتالوج',
+    'thanks.trackingNotice': '.ستتلقى تأكيدًا هاتفيًا قريبًا',
+    'thanks.loading': '...جارٍ التحميل',
 
     // ── Upload ──
     'upload.dragDrop': 'اسحب وأفلت أو انقر',
