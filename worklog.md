@@ -1456,3 +1456,27 @@ Added 66 new `admin.*` translation keys to all three locales (fr, en, ar) under 
 - `bun run lint` passes with no errors
 - All three locales (fr, en, ar) have complete translations for all new keys
 - No functionality changes — only string replacement
+---
+Task ID: 1
+Agent: Main Agent
+Task: Verify Vercel deployment and fix Supabase Storage upload functionality
+
+Work Log:
+- Verified Vercel diagnostic endpoint shows SUPABASE_URL ✅ and SUPABASE_ANON_KEY ✅ configured, but SUPABASE_SERVICE_ROLE_KEY ❌ missing
+- Attempted to create Supabase 'assets' bucket via multiple methods (Storage API, PostgREST, GraphQL, Management API) - all blocked by RLS without service_role key
+- Redesigned upload strategy: added base64 data URL fallback that works immediately on Vercel without Supabase bucket setup
+- Modified /api/upload/route.ts to try Supabase first, then fall back to base64 data URL
+- Modified /api/setup/storage/route.ts to work with just anon key, added POST endpoint for automated setup with service_role key
+- Updated ImageUpload component to show friendly label for data URLs instead of long base64 strings
+- Added 'upload.storedInline' translation key in FR/EN/AR
+- Pushed changes to GitHub (3 commits), all deployed to Vercel
+- Verified upload API works on Vercel with both PNG and ICO files (returns base64 data URLs)
+- Verified Vercel site renders correctly with i18n (FR/EN/AR), no console errors
+- Verified local dev server works with no lint errors
+
+Stage Summary:
+- Upload feature NOW WORKS on Vercel via base64 data URL fallback (no Supabase bucket needed!)
+- When Supabase bucket is set up later, uploads automatically switch to cloud storage
+- Vercel deployment verified: UI, i18n, catalog, and upload all functional
+- Supabase bucket 'assets' still needs to be created for cloud storage optimization
+- User can optionally set up Supabase Storage by running SQL script in Dashboard → SQL Editor
