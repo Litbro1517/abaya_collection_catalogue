@@ -60,10 +60,10 @@ export async function POST(request: NextRequest) {
 
     if (isSupabaseConfigured) {
       try {
-        const { supabase, STORAGE_BUCKET } = await import('@/lib/supabase');
+        const { supabaseAdmin, STORAGE_BUCKET } = await import('@/lib/supabase');
 
         const storagePath = `branding/${safeName}`;
-        const { data, error } = await supabase.storage
+        const { data, error } = await supabaseAdmin.storage
           .from(STORAGE_BUCKET)
           .upload(storagePath, buffer, {
             contentType: file.type,
@@ -78,7 +78,8 @@ export async function POST(request: NextRequest) {
           );
         }
 
-        // Get the public URL
+        // Get the public URL (using public client is fine for reading URLs)
+        const { supabase } = await import('@/lib/supabase');
         const { data: urlData } = supabase.storage
           .from(STORAGE_BUCKET)
           .getPublicUrl(data.path);
