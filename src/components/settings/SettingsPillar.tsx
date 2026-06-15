@@ -909,7 +909,7 @@ export function SettingsPillar() {
               <CardContent className="space-y-4">
                 <div>
                   <Label className="text-xs">{t('settings.logoLabel')}</Label>
-                  <p className="text-[10px] text-muted-foreground mb-1.5">{t('settings.logoHint')}</p>
+                  <p className="text-[11px] text-muted-foreground mb-1.5 leading-relaxed">{t('settings.logoHint')}</p>
                   <ImageUpload
                     value={local.logo}
                     onChange={(url) => updateField('logo', url)}
