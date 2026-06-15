@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { writeFile, mkdir } from 'fs/promises';
-import path from 'path';
+import { supabase, STORAGE_BUCKET } from '@/lib/supabase';
 import { randomUUID } from 'crypto';
 
 // Allowed MIME types
@@ -19,6 +18,15 @@ const MAX_SIZE = 2 * 1024 * 1024;
 
 export async function POST(request: NextRequest) {
   try {
+    // ── Validate Supabase configuration ──
+    if (!process.env.SUPABASE_URL || !process.env.SUPABASE_ANON_KEY) {
+      console.error('[Upload API] Supabase not configured — missing SUPABASE_URL or SUPABASE_ANON_KEY');
+      return NextResponse.json(
+        { error: 'Storage not configured. Please set SUPABASE_URL and SUPABASE_ANON_KEY.' },
+        { status: 503 }
+      );
+    }
+
     const formData = await request.formData();
     const file = formData.get('file') as File | null;
 
@@ -36,22 +44,38 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'File too large (max 2 MB)' }, { status: 400 });
     }
 
-    // Ensure the uploads directory exists
-    const uploadsDir = path.join(process.cwd(), 'public', 'uploads');
-    await mkdir(uploadsDir, { recursive: true });
+    // Generate a unique filename
+    const ext = mimeToExt(file.type, file.name);
+    const safeName = `branding/${randomUUID()}${ext}`;
 
-    // Generate a unique filename to prevent collisions and path traversal
-    const ext = path.extname(file.name) || mimeToExt(file.type);
-    const safeName = `${randomUUID()}${ext}`;
+    // Convert to buffer for Supabase upload
+    const arrayBuffer = await file.arrayBuffer();
+    const buffer = Buffer.from(arrayBuffer);
 
-    // Write the file
-    const buffer = Buffer.from(await file.arrayBuffer());
-    const filePath = path.join(uploadsDir, safeName);
-    await writeFile(filePath, buffer);
+    // Upload to Supabase Storage
+    const { data, error } = await supabase.storage
+      .from(STORAGE_BUCKET)
+      .upload(safeName, buffer, {
+        contentType: file.type,
+        upsert: true,
+      });
 
-    // Return the public URL
-    const url = `/uploads/${safeName}`;
-    return NextResponse.json({ data: { url } });
+    if (error) {
+      console.error('[Upload API] Supabase upload error:', error);
+      return NextResponse.json(
+        { error: `Storage upload failed: ${error.message}` },
+        { status: 500 }
+      );
+    }
+
+    // Get the public URL
+    const { data: urlData } = supabase.storage
+      .from(STORAGE_BUCKET)
+      .getPublicUrl(data.path);
+
+    const publicUrl = urlData.publicUrl;
+
+    return NextResponse.json({ data: { url: publicUrl } });
   } catch (err) {
     console.error('[Upload API] Error:', err);
     return NextResponse.json({ error: 'Upload failed' }, { status: 500 });
@@ -59,9 +83,16 @@ export async function POST(request: NextRequest) {
 }
 
 /**
- * Map MIME type to file extension when the original filename has none
+ * Map MIME type to file extension, preserving original extension if available
  */
-function mimeToExt(mime: string): string {
+function mimeToExt(mime: string, originalName: string): string {
+  // Prefer the original extension if present
+  const originalExt = originalName.includes('.')
+    ? originalName.slice(originalName.lastIndexOf('.'))
+    : '';
+
+  if (originalExt) return originalExt;
+
   const map: Record<string, string> = {
     'image/png': '.png',
     'image/jpeg': '.jpg',
