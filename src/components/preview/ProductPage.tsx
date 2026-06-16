@@ -698,8 +698,8 @@ export function ProductPage({
                 disabled={isEpuise}
                 onClick={isEpuise ? undefined : handleCtaClick}
                 style={{
-                  backgroundColor: isEpuise ? BRAND.grisClair : '#D4B570',
-                  color: isEpuise ? BRAND.grisMoyen : '#fff',
+                  backgroundColor: isEpuise ? BRAND.grisClair : 'rgb(0 0 0 / 89%)',
+                  color: isEpuise ? BRAND.grisMoyen : 'rgb(255, 255, 255)',
                 }}
               >
                 <ShoppingBag className="w-5 h-5 shrink-0" />
@@ -713,8 +713,8 @@ export function ProductPage({
                 rel={isEpuise ? undefined : 'noopener noreferrer'}
                 onClick={isEpuise ? (e) => e.preventDefault() : undefined}
                 style={{
-                  backgroundColor: isEpuise ? BRAND.grisClair : '#D4B570',
-                  color: isEpuise ? BRAND.grisMoyen : '#fff',
+                  backgroundColor: isEpuise ? BRAND.grisClair : 'rgb(0 0 0 / 89%)',
+                  color: isEpuise ? BRAND.grisMoyen : 'rgb(255, 255, 255)',
                   textDecoration: 'none',
                 }}
               >
@@ -777,8 +777,8 @@ export function ProductPage({
             disabled={isEpuise}
             onClick={isEpuise ? undefined : handleCtaClick}
             style={{
-              backgroundColor: isEpuise ? BRAND.grisClair : '#D4B570',
-              color: isEpuise ? BRAND.grisMoyen : '#fff',
+              backgroundColor: isEpuise ? BRAND.grisClair : 'rgb(0 0 0 / 89%)',
+              color: isEpuise ? BRAND.grisMoyen : 'rgb(255, 255, 255)',
             }}
           >
             <ShoppingBag className="w-4 h-4" />
@@ -792,8 +792,8 @@ export function ProductPage({
             rel={isEpuise ? undefined : 'noopener noreferrer'}
             onClick={isEpuise ? (e) => e.preventDefault() : undefined}
             style={{
-              backgroundColor: isEpuise ? BRAND.grisClair : '#D4B570',
-              color: isEpuise ? BRAND.grisMoyen : '#fff',
+              backgroundColor: isEpuise ? BRAND.grisClair : 'rgb(0 0 0 / 89%)',
+              color: isEpuise ? BRAND.grisMoyen : 'rgb(255, 255, 255)',
               textDecoration: 'none',
             }}
           >

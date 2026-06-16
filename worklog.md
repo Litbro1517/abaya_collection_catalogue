@@ -1277,3 +1277,24 @@ Stage Summary:
 - The Luminous Sand CTA is now live for both <button> (landing/ACHETER MAINTENANT) and <a> (whatsapp) variants of .product-page-cta.
 - Key artifact: src/app/globals.css lines ~1826-1871 (LUMINOUS SAND CTA block).
 - Verification screenshot: /home/z/my-project/luminous-sand-cta-verify.png
+
+---
+Task ID: black-cta-inspected-spec
+Agent: Z.ai Code (main)
+Task: Integrate user's inspected button changes — replace previous Luminous Sand CTA with a black button (bg rgb(0 0 0 / 89%), white text, border-radius 6px) per the exact .product-page-cta CSS spec the user provided from browser inspection.
+
+Work Log:
+- Read user's inspected specs: element.style { background-color: rgb(0 0 0 / 89%); color: rgb(255, 255, 255); } + .product-page-cta { border-radius:6px; padding:16px 20px; font-weight:700; font-size:15px; letter-spacing:.04em; gap:10px; box-shadow:none; display:flex; width:100%; ... }.
+- globals.css: updated base .product-page-cta rule — changed border-radius 14px → 6px (all other props already matched user's spec). Removed the entire LUMINOUS SAND override block (.product-page-actions > .product-page-cta with !important sand colors) that was added in the previous task.
+- ProductPage.tsx: updated all 4 CTA instances (desktop <button>, desktop <a>, mobile <button>, mobile <a>) — inline backgroundColor '#D4B570' → 'rgb(0 0 0 / 89%)' and color '#fff' → 'rgb(255, 255, 255)'. Kept isEpuise fallback (grisClair/grisMoyen).
+- Hit a Next.js dev cache issue: the stale compiled CSS chunk [root-of-the-server]__36d17863._.css still served the old Luminous Sand !important rules even though source globals.css was clean. Touching the file didn't trigger HMR. Deleted the chunk — but then the .product-page-cta class rules disappeared entirely (browser still requested the deleted chunk URL → 404).
+- Resolved by clearing .next/dev cache and restarting the dev server. The original dev server (started by root at 09:07 via sudo -u z) had been killed; restarted as user z using Python subprocess.Popen with start_new_session=True for robust daemonization (nohup/setsid/disown all failed — processes died when bash tool call ended).
+- Verified with Agent Browser on http://localhost:3000 → click product → .product-page-actions > .product-page-cta computed styles: backgroundColor rgba(0,0,0,0.89) ✓, color rgb(255,255,255) ✓, borderRadius 6px ✓, fontWeight 700 ✓, fontSize 15px ✓, letterSpacing 0.6px (=.04em@15px) ✓, padding 16px 20px ✓, gap 10px ✓, boxShadow none ✓, display flex ✓. ALL match user's inspected spec.
+- VLM visual verification of screenshot confirmed: black/near-black bg, white text, ~6px rounded corners, no drop shadow, sleek dark aesthetic.
+- bun run lint: clean (no errors). dev.log: no errors.
+
+Stage Summary:
+- Previous Luminous Sand CTA fully reverted; user's inspected black-button spec now live.
+- Changes: src/app/globals.css (.product-page-cta border-radius 14px→6px; Luminous Sand block removed) + src/components/preview/ProductPage.tsx (4 inline style color updates to rgb(0 0 0 / 89%)/rgb(255,255,255)).
+- Dev server restarted cleanly (PID 5875, port 3000, persistent via Python daemonization, logs → dev.log).
+- Verification screenshot: /home/z/my-project/black-cta-verify.png
