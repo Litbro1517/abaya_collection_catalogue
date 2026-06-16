@@ -1256,3 +1256,24 @@ Stage Summary:
 - RTL layout fully supported with dir attribute on root catalog container
 - ThemeInjector uses clientLocale for non-admin users
 - Seed route now updates translations on existing categories
+
+---
+Task ID: luminous-sand-cta
+Agent: Z.ai Code (main)
+Task: Surgical CSS edit to restyle the product-page CTA button (.product-page-actions > button) to the "Luminous Sand" model from upload/Copilot_20260616_161801.png.
+
+Work Log:
+- Analyzed reference image (Copilot_20260616_161801.png) with VLM to extract exact specs: bg #EFE3D3 (matte sand), text #4A4A4A (anthracite), ~4px radius, ultra-light diffuse shadow, uppercase "ACHETER MAINTENANT", cart icon on the right.
+- Located target button: src/components/preview/ProductPage.tsx renders <button class="product-page-cta"> (landing mode) and <a class="product-page-cta"> (whatsapp mode) inside div.product-page-actions. Legacy inline style set backgroundColor:#D4B570 (gold) + color:#fff.
+- Added a surgical CSS override block in src/app/globals.css (after .cta-disabled, ~line 1826) using selector `.product-page-actions > .product-page-cta` (covers both button & anchor variants — same CTA role).
+- Used !important to defeat the legacy inline backgroundColor/color: sand bg #EFE3D3, anthracite text #4A4A4A, border-radius 4px, font-weight 500, text-transform uppercase, letter-spacing 0.14em, flex-direction row-reverse (icon → right), ultra-light box-shadow `0 2px 6px rgba(0,0,0,.05), 0 1px 2px rgba(0,0,0,.03)`, background-image:none (kills any gradient/glow).
+- Added hover (#E8DAC6 + slightly stronger shadow), active (translateY 1px), and .cta-disabled (gray #F0F0F0 / #808080) states.
+- Verified with Agent Browser on http://localhost:3000/?product=abaya-noire-classique: computed styles confirmed backgroundColor rgb(239,227,211)=#EFE3D3, color rgb(74,74,74)=#4A4A4A, borderRadius 4px, fontWeight 500, textTransform uppercase, flexDirection row-reverse, ultra-light shadow. Legacy gold #D4B570 fully overridden.
+- VLM re-verification of screenshot confirmed: warm matte sand bg + dark anthracite text + uppercase + ~4px radius + ultra-light shadow + icon on right = matches Luminous Sand aesthetic.
+- Lint passed (bun run lint: no errors). Dev server running cleanly on port 3000.
+
+Stage Summary:
+- Single surgical CSS insertion in globals.css (no TSX changes) — maximally faithful to "surgical strict" + exact-selector instruction.
+- The Luminous Sand CTA is now live for both <button> (landing/ACHETER MAINTENANT) and <a> (whatsapp) variants of .product-page-cta.
+- Key artifact: src/app/globals.css lines ~1826-1871 (LUMINOUS SAND CTA block).
+- Verification screenshot: /home/z/my-project/luminous-sand-cta-verify.png
