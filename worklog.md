@@ -1343,7 +1343,7 @@ Work Log:
 - Dev verification: hit Next.js stale-CSS-cache issue again (merci button still showed green #1A3C34 / radius 12px after edit). Resolved by pkill next + rm -rf .next/dev + Python subprocess.Popen restart (PID 7123).
 - Verified merci-back-btn on http://localhost:3000/merci: backgroundColor rgba(0,0,0,0.89), color rgb(255,255,255), borderRadius 6px, fontWeight 700, fontSize 15px, padding 16px 20px, gap 10px, boxShadow none. ✓
 - Verified .cod-form-submit via DOM injection (global channel is 'whatsapp' so COD form doesn't render by default; injected a test button with the class + inline black style): all props match black CTA spec. ✓
-- DEPLOY ISSUE: First commit attempt (121a639) was blocked by GitHub Push Protection — a prior local-only commit 16ac724 had committed worklog.md containing the GitHub token (ghp_...) in plain text.
+- DEPLOY ISSUE: First commit attempt (121a639) was blocked by GitHub Push Protection — a prior local-only commit 16ac724 had committed worklog.md containing the GitHub token (token prefix redacted) in plain text.
 - RESOLUTION: git stash -> git reset --hard origin/main (discarded both local commits 16ac724 + 121a639) -> resolved worklog.md conflict (redacted token to 'REDACTED') -> re-applied the 3 CTA edits (globals.css x2, CodForm.tsx x1) -> verified git grep finds NO ghp_ token in tracked files -> committed as 2e28dbf -> pushed successfully (b89730d..2e28dbf).
 - Vercel auto-deploy triggered. Waited 80s. Production URL https://abaya-collection-catalogue-9dum.vercel.app/ returns HTTP 200.
 - Production verification via Agent Browser:

@@ -29,7 +29,7 @@ function MerciContent() {
       <div className="merci-card">
         {/* Success icon */}
         <div className="merci-icon-wrapper">
-          <CheckCircle2 className="w-8 h-8 text-white" />
+          <CheckCircle2 className="w-5 h-5" style={{ color: '#C9A84C' }} />
         </div>
 
         {/* Title */}
@@ -80,7 +80,7 @@ export default function MerciPage() {
       <div className="merci-page">
         <div className="merci-card" style={{ opacity: 0.6 }}>
           <div className="merci-icon-wrapper">
-            <CheckCircle2 className="w-8 h-8 text-white" />
+            <CheckCircle2 className="w-5 h-5" style={{ color: '#C9A84C' }} />
           </div>
           <h1 className="merci-title">{t('thanks.loading')}</h1>
         </div>

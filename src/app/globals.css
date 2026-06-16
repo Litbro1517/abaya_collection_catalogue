@@ -2240,14 +2240,14 @@ img {
 }
 
 .merci-icon-wrapper {
-  width: 72px;
-  height: 72px;
-  border-radius: 50%;
+  width: 40px;
+  height: 40px;
+  border-radius: 12px;
   display: flex;
   align-items: center;
   justify-content: center;
   margin: 0 auto 20px;
-  background: linear-gradient(135deg, #1A3C34, #2D5F4F);
+  background: #F5F0E8;
 }
 
 .merci-title {
