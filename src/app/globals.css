@@ -2194,6 +2194,345 @@ html.rtl .product-page-quantity-control {
 }
 
 /* ═══════════════════════════════════════════════════════════════
+   CHECKOUT / FINALISATION PAGE — dedicated two-column checkout
+   Recap (left/top) + clean order form (right/bottom).
+   NO internal scroll: the whole page scrolls naturally.
+   ═══════════════════════════════════════════════════════════════ */
+
+.checkout-page {
+  flex: 1;
+  width: 100%;
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: 16px 16px 48px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.checkout-topbar {
+  display: flex;
+  align-items: center;
+}
+
+.checkout-back-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 14px;
+  border-radius: 9999px;
+  border: 1px solid var(--border, #e5e1da);
+  background: #fff;
+  color: var(--pivot-text, #1F1F1F);
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+
+.checkout-back-btn:hover {
+  background: #f7f4ef;
+  border-color: #d8d2c6;
+}
+
+.checkout-header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.checkout-title {
+  font-family: 'Playfair Display', serif;
+  font-size: clamp(22px, 4vw, 30px);
+  font-weight: 700;
+  color: var(--pivot-text, #1F1F1F);
+  margin: 0;
+  letter-spacing: -0.01em;
+}
+
+/* ── Two-column grid: stacks vertically on mobile ── */
+.checkout-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 20px;
+  align-items: start;
+}
+
+@media (min-width: 900px) {
+  .checkout-grid {
+    grid-template-columns: minmax(0, 0.92fr) minmax(0, 1.08fr);
+    gap: 28px;
+  }
+}
+
+/* ═══ LEFT / TOP — Récapitulatif Couture ═══ */
+.checkout-recap {
+  background: #fff;
+  border: 1px solid #ece7df;
+  border-radius: 14px;
+  padding: 22px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.03);
+}
+
+.checkout-recap-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.checkout-recap-title {
+  font-family: 'Playfair Display', serif;
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--pivot-text, #1F1F1F);
+  margin: 0;
+}
+
+.checkout-recap-product {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.checkout-recap-thumb {
+  width: 76px;
+  height: 76px;
+  border-radius: 10px;
+  overflow: hidden;
+  background: #f4f1ea;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid #ece7df;
+}
+
+.checkout-recap-thumb img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.checkout-recap-thumb--empty {
+  background: #f4f1ea;
+}
+
+.checkout-recap-product-info {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.checkout-recap-product-name {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--pivot-text, #1F1F1F);
+  line-height: 1.3;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+}
+
+.checkout-recap-product-price {
+  font-size: 14px;
+  color: var(--muted-foreground, #808080);
+}
+
+.checkout-recap-list {
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.checkout-recap-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 8px 0;
+  border-top: 1px solid #f0ece4;
+}
+
+.checkout-recap-row:first-child {
+  border-top: none;
+  padding-top: 0;
+}
+
+.checkout-recap-key {
+  font-size: 13px;
+  color: var(--muted-foreground, #808080);
+  font-weight: 500;
+  margin: 0;
+}
+
+.checkout-recap-val {
+  font-size: 14px;
+  color: var(--pivot-text, #1F1F1F);
+  font-weight: 600;
+  margin: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.checkout-recap-val--color {
+  gap: 8px;
+}
+
+.checkout-color-chip {
+  display: inline-block;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  border: 1px solid rgba(0, 0, 0, 0.15);
+  flex-shrink: 0;
+  background-clip: padding-box;
+}
+
+.checkout-size-pill {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 32px;
+  padding: 4px 10px;
+  border-radius: 6px;
+  border: 1.5px solid var(--pivot-text, #1F1F1F);
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--pivot-text, #1F1F1F);
+  line-height: 1;
+}
+
+.checkout-recap-total {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 14px 0 4px;
+  border-top: 1.5px solid #e4dfd4;
+  margin-top: 2px;
+}
+
+.checkout-recap-total-label {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--pivot-text, #1F1F1F);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.checkout-recap-total-value {
+  font-family: 'Playfair Display', serif;
+  font-size: clamp(22px, 4vw, 28px);
+  font-weight: 700;
+  color: var(--pivot-text, #1F1F1F);
+}
+
+/* ── COD reassurance box ── */
+.checkout-cod-box {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 14px 16px;
+  border-radius: 10px;
+  background: #f3f7f4;
+  border: 1px solid #d7e3dc;
+}
+
+.checkout-cod-box-icon {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: #e7f0ea;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.checkout-cod-box-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.checkout-cod-box-title {
+  font-size: 13.5px;
+  font-weight: 700;
+  color: #1A3C34;
+  line-height: 1.35;
+}
+
+.checkout-cod-box-sub {
+  font-size: 12.5px;
+  color: #5a6b62;
+  line-height: 1.4;
+}
+
+/* ═══ RIGHT / BOTTOM — Clean order form ═══ */
+.checkout-form {
+  background: #fff;
+  border: 1px solid #ece7df;
+  border-radius: 14px;
+  padding: 22px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.03);
+  /* NO max-height / NO overflow scroll — the page scrolls naturally */
+}
+
+.checkout-form-head {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.checkout-form-title {
+  font-family: 'Playfair Display', serif;
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--pivot-text, #1F1F1F);
+  margin: 0;
+}
+
+.checkout-cod-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  align-self: flex-start;
+  padding: 5px 10px;
+  border-radius: 9999px;
+  background: #f3f7f4;
+  border: 1px solid #d7e3dc;
+  font-size: 12px;
+  font-weight: 600;
+  color: #1A3C34;
+}
+
+.checkout-form-fields {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  margin: 0;
+}
+
+/* ── RTL: keep phone input LTR ── */
+[dir="rtl"] .checkout-form-fields input[type="tel"] {
+  text-align: right;
+}
+
+/* ═══════════════════════════════════════════════════════════════
    SOCIAL STICKY TICKET — Floating WhatsApp badge (Landing Page mode only)
    ═══════════════════════════════════════════════════════════════ */
 

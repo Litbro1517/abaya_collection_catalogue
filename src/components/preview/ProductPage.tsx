@@ -16,8 +16,8 @@ import {
   ShoppingBag,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { CodForm } from './CodForm';
 import { useClientTranslation } from '@/lib/i18n';
+import type { CheckoutPayload } from './CheckoutPage';
 
 // ── Brand Constants ──
 const BRAND = {
@@ -133,6 +133,7 @@ interface ProductPageProps {
   primaryColor: string;
   secondaryColor: string;
   onBack: () => void;
+  onCheckout: (payload: CheckoutPayload) => void;
 }
 
 export function ProductPage({
@@ -146,6 +147,7 @@ export function ProductPage({
   primaryColor,
   secondaryColor,
   onBack,
+  onCheckout,
 }: ProductPageProps) {
   const config = section.config as SectionConfig;
   const rawData = row.data as Record<string, unknown>;
@@ -321,30 +323,26 @@ export function ProductPage({
   const [isLiked, setIsLiked] = useState(false);
   const [showShareToast, setShowShareToast] = useState(false);
   const [imageLoaded, setImageLoaded] = useState<Set<number>>(new Set());
-  const [showCodForm, setShowCodForm] = useState(false);
-  const codFormRef = useRef<HTMLDivElement>(null);
 
-  // Only used in Landing Page mode
-  const scrollToCodForm = () => {
-    setShowCodForm(true);
-    setTimeout(() => {
-      codFormRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
-    }, 100);
-  };
+  // ── Selected color hex (for the checkout recap swatch) ──
+  const selectedColorHex = selectedColor
+    ? (colorData.find(c => c.name === selectedColor)?.hex || null)
+    : null;
 
-  // CTA click handler — dynamic based on mode
+  // CTA click handler — tunnels to the dedicated checkout page in ALL modes.
+  // The selected variants (color, size, quantity) + product info are transmitted.
   const handleCtaClick = () => {
     if (isEpuise) return;
-    if (isLandingMode) {
-      scrollToCodForm();
-    } else {
-      // WhatsApp mode: open WhatsApp directly
-      const dl = (window as unknown as Record<string, unknown[]>).dataLayer;
-      if (dl) {
-        dl.push({ event: 'whatsapp_contact', product_title: title });
-      }
-      window.open(whatsappLink, '_blank', 'noopener noreferrer');
-    }
+    onCheckout({
+      productId: row.id,
+      productTitle: title,
+      productPrice: price,
+      productImage: resolveProxyImageUrl(carouselImages[0] || '', 400),
+      selectedColor,
+      selectedColorHex,
+      selectedSize,
+      quantity,
+    });
   };
 
   const touchStartX = useRef(0);
@@ -718,37 +716,19 @@ export function ProductPage({
               </div>
             </div>
 
-            {/* Main CTA — dynamic based on conversion mode */}
-            {isLandingMode ? (
-              <button
-                className={cn('product-page-cta', isEpuise && 'cta-disabled')}
-                disabled={isEpuise}
-                onClick={isEpuise ? undefined : handleCtaClick}
-                style={{
-                  backgroundColor: isEpuise ? BRAND.grisClair : 'rgb(0 0 0 / 89%)',
-                  color: isEpuise ? BRAND.grisMoyen : 'rgb(255, 255, 255)',
-                }}
-              >
-                <ShoppingBag className="w-5 h-5 shrink-0" />
-                {isEpuise ? t('product.soldOut') : isSurCommande ? t('product.onOrder') : t('product.quickBuy')}
-              </button>
-            ) : (
-              <a
-                className={cn('product-page-cta', isEpuise && 'cta-disabled')}
-                href={isEpuise ? '#' : whatsappLink}
-                target={isEpuise ? undefined : '_blank'}
-                rel={isEpuise ? undefined : 'noopener noreferrer'}
-                onClick={isEpuise ? (e) => e.preventDefault() : undefined}
-                style={{
-                  backgroundColor: isEpuise ? BRAND.grisClair : 'rgb(0 0 0 / 89%)',
-                  color: isEpuise ? BRAND.grisMoyen : 'rgb(255, 255, 255)',
-                  textDecoration: 'none',
-                }}
-              >
-                <MessageCircle className="w-5 h-5 shrink-0" />
-                {isEpuise ? t('product.soldOut') : t('product.whatsappOrder')}
-              </a>
-            )}
+            {/* Main CTA — tunnels to the dedicated checkout page */}
+            <button
+              className={cn('product-page-cta', isEpuise && 'cta-disabled')}
+              disabled={isEpuise}
+              onClick={isEpuise ? undefined : handleCtaClick}
+              style={{
+                backgroundColor: isEpuise ? BRAND.grisClair : 'rgb(0 0 0 / 89%)',
+                color: isEpuise ? BRAND.grisMoyen : 'rgb(255, 255, 255)',
+              }}
+            >
+              <ShoppingBag className="w-5 h-5 shrink-0" />
+              {isEpuise ? t('product.soldOut') : isSurCommande ? t('product.onOrder') : t('product.quickBuy')}
+            </button>
 
             {/* Like + Share */}
             <div className="product-page-secondary-actions">
@@ -769,17 +749,6 @@ export function ProductPage({
             </div>
           </div>
 
-          {/* ── COD Form — only in Landing Page mode ── */}
-          {isLandingMode && showCodForm && !isEpuise && (
-            <div ref={codFormRef}>
-              <CodForm
-                productId={row.id}
-                productName={title}
-                productPrice={formatPrice(price)}
-              />
-            </div>
-          )}
-
           {/* ── Share toast ── */}
           {showShareToast && (
             <div className="product-page-toast">
@@ -798,36 +767,18 @@ export function ProductPage({
           {isEpuise && <span className="product-page-status status-epuise">{t('product.soldOut')}</span>}
           {isSurCommande && <span className="product-page-status status-sur-commande">{t('product.onOrder')}</span>}
         </div>
-        {isLandingMode ? (
-          <button
-            className={cn('mobile-cta-button', isEpuise && 'cta-disabled')}
-            disabled={isEpuise}
-            onClick={isEpuise ? undefined : handleCtaClick}
-            style={{
-              backgroundColor: isEpuise ? BRAND.grisClair : 'rgb(0 0 0 / 89%)',
-              color: isEpuise ? BRAND.grisMoyen : 'rgb(255, 255, 255)',
-            }}
-          >
-            <ShoppingBag className="w-4 h-4" />
-            {isEpuise ? t('product.soldOut') : t('product.commander')}
-          </button>
-        ) : (
-          <a
-            className={cn('mobile-cta-button', isEpuise && 'cta-disabled')}
-            href={isEpuise ? '#' : whatsappLink}
-            target={isEpuise ? undefined : '_blank'}
-            rel={isEpuise ? undefined : 'noopener noreferrer'}
-            onClick={isEpuise ? (e) => e.preventDefault() : undefined}
-            style={{
-              backgroundColor: isEpuise ? BRAND.grisClair : 'rgb(0 0 0 / 89%)',
-              color: isEpuise ? BRAND.grisMoyen : 'rgb(255, 255, 255)',
-              textDecoration: 'none',
-            }}
-          >
-            <MessageCircle className="w-4 h-4" />
-            {isEpuise ? t('product.soldOut') : t('product.whatsappOrder')}
-          </a>
-        )}
+        <button
+          className={cn('mobile-cta-button', isEpuise && 'cta-disabled')}
+          disabled={isEpuise}
+          onClick={isEpuise ? undefined : handleCtaClick}
+          style={{
+            backgroundColor: isEpuise ? BRAND.grisClair : 'rgb(0 0 0 / 89%)',
+            color: isEpuise ? BRAND.grisMoyen : 'rgb(255, 255, 255)',
+          }}
+        >
+          <ShoppingBag className="w-4 h-4" />
+          {isEpuise ? t('product.soldOut') : t('product.commander')}
+        </button>
       </div>
     </main>
   );

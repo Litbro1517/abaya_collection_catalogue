@@ -16,6 +16,7 @@ import { readCache, writeCache, clearAllCache, sanitizeSections, CACHE_KEYS } fr
 import type { CachedSectionData } from '@/lib/cache';
 import { ProductPage } from './ProductPage';
 import { SocialStickyTickets } from './SocialStickyTickets';
+import { CheckoutPage, type CheckoutPayload } from './CheckoutPage';
 import { useClientTranslation } from '@/lib/i18n';
 
 // ── Brand Constants removed — all values migrated to CSS pivot variables & global classes ──
@@ -271,6 +272,8 @@ export function CatalogPreview({ onAdminLogin }: CatalogPreviewProps) {
   const canAccessBuilder = isAdmin && adminUser && (adminUser.role === 'owner' || adminUser.role === 'admin' || adminUser.role === 'super_admin');
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedProduct, setSelectedProduct] = useState<{ row: Row; columns: Column[]; section: Section } | null>(null);
+  // ━━ Checkout tunnel: when set, the dedicated CheckoutPage replaces the product detail ━━
+  const [checkoutData, setCheckoutData] = useState<CheckoutPayload | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
   const [likedProducts, setLikedProducts] = useState<Set<string>>(new Set);
   const [activeFilter, setActiveFilter] = useState<string>('all');
@@ -386,7 +389,7 @@ export function CatalogPreview({ onAdminLogin }: CatalogPreviewProps) {
   // Scroll to top when switching views
   useEffect(() => {
     window.scrollTo({ top: 0, behavior: 'smooth' });
-  }, [selectedProduct]);
+  }, [selectedProduct, checkoutData]);
 
   // ━━━ Sections Network Sync (FROZEN MODE + stable trigger) ━━━━━━━━━━
   // Replaced [catalog] dependency with stable boolean catalogReady.
@@ -912,6 +915,20 @@ export function CatalogPreview({ onAdminLogin }: CatalogPreviewProps) {
         primaryColor={primaryColor}
         secondaryColor={secondaryColor}
         onBack={() => setSelectedProduct(null)}
+        onCheckout={(payload) => setCheckoutData(payload)}
+      />
+    );
+  };
+
+  // ═══════════════════════════════════════════════════════════════════════
+  // ── CHECKOUT / FINALISATION VIEW — dedicated two-column checkout page ──
+  // ═══════════════════════════════════════════════════════════════════════
+  const renderCheckoutView = () => {
+    if (!checkoutData) return null;
+    return (
+      <CheckoutPage
+        product={checkoutData}
+        onBack={() => setCheckoutData(null)}
       />
     );
   };
@@ -1338,14 +1355,20 @@ export function CatalogPreview({ onAdminLogin }: CatalogPreviewProps) {
       {/* Persistent Header — always visible */}
       {renderHeader()}
 
-      {/* Conditional: Grid or Detail */}
-      {isDetailView ? renderDetailView() : renderGridView()}
+      {/* Conditional: Checkout tunnel > Product detail > Catalog grid */}
+      {checkoutData
+        ? renderCheckoutView()
+        : isDetailView
+          ? renderDetailView()
+          : renderGridView()}
 
-      {/* Floating WhatsApp badge — only in Landing Page mode */}
-      <SocialStickyTickets
-        whatsappNumber={s?.whatsappNumber || ''}
-        conversionChannel={resolvedConversionChannel}
-      />
+      {/* Floating WhatsApp badge — only in Landing Page mode (hidden during checkout) */}
+      {!checkoutData && (
+        <SocialStickyTickets
+          whatsappNumber={s?.whatsappNumber || ''}
+          conversionChannel={resolvedConversionChannel}
+        />
+      )}
     </div>
   );
 }

@@ -253,6 +253,22 @@ export const dictionaries: Record<Locale, TranslationDict> = {
     'order.errorGeneric': 'Erreur lors de la commande. Veuillez réessayer.',
     'order.required': '*',
 
+    // ── Checkout / Finalisation Page ──
+    'checkout.title': 'Finaliser la commande',
+    'checkout.back': 'Retour au produit',
+    'checkout.recapTitle': 'Récapitulatif Couture',
+    'checkout.formTitle': 'Vos coordonnées de livraison',
+    'checkout.product': 'Produit',
+    'checkout.color': 'Couleur choisie',
+    'checkout.size': 'Taille choisie',
+    'checkout.quantity': 'Quantité',
+    'checkout.unitPrice': 'Prix unitaire',
+    'checkout.total': 'Prix total',
+    'checkout.notSelected': '—',
+    'checkout.paymentCod': 'Mode de paiement : Payer à la livraison (COD)',
+    'checkout.codBadge': 'Paiement à la livraison (COD)',
+    'checkout.codReassure': 'Vous ne payez qu’à la réception de votre commande.',
+
     // ── Thank You Page ──
     'thanks.title': 'Commande confirmée !',
     'thanks.subtitle': 'Merci pour votre commande. Notre équipe vous contactera prochainement pour confirmer la livraison.',
@@ -706,6 +722,22 @@ export const dictionaries: Record<Locale, TranslationDict> = {
     'order.errorGeneric': 'Order error. Please try again.',
     'order.required': '*',
 
+    // ── Checkout / Finalisation Page ──
+    'checkout.title': 'Finalize your order',
+    'checkout.back': 'Back to product',
+    'checkout.recapTitle': 'Tailoring Summary',
+    'checkout.formTitle': 'Your delivery details',
+    'checkout.product': 'Product',
+    'checkout.color': 'Selected color',
+    'checkout.size': 'Selected size',
+    'checkout.quantity': 'Quantity',
+    'checkout.unitPrice': 'Unit price',
+    'checkout.total': 'Total price',
+    'checkout.notSelected': '—',
+    'checkout.paymentCod': 'Payment method: Cash on delivery (COD)',
+    'checkout.codBadge': 'Cash on delivery (COD)',
+    'checkout.codReassure': 'You only pay upon receipt of your order.',
+
     // ── Thank You Page ──
     'thanks.title': 'Order confirmed!',
     'thanks.subtitle': 'Thank you for your order. Our team will contact you shortly to confirm delivery.',
@@ -1158,6 +1190,22 @@ export const dictionaries: Record<Locale, TranslationDict> = {
     'order.errorNetwork': '.خطأ في الشبكة. تحقق من اتصالك وحاول مرة أخرى',
     'order.errorGeneric': '.خطأ في الطلب. حاول مرة أخرى',
     'order.required': '*',
+
+    // ── Checkout / Finalisation Page ──
+    'checkout.title': 'إتمام الطلب',
+    'checkout.back': 'العودة إلى المنتج',
+    'checkout.recapTitle': 'ملخص الخياطة',
+    'checkout.formTitle': 'بيانات التوصيل الخاصة بك',
+    'checkout.product': 'المنتج',
+    'checkout.color': 'اللون المختار',
+    'checkout.size': 'المقاس المختار',
+    'checkout.quantity': 'الكمية',
+    'checkout.unitPrice': 'سعر الوحدة',
+    'checkout.total': 'السعر الإجمالي',
+    'checkout.notSelected': '—',
+    'checkout.paymentCod': 'طريقة الدفع: الدفع عند الاستلام (COD)',
+    'checkout.codBadge': 'الدفع عند الاستلام (COD)',
+    'checkout.codReassure': 'تدفع فقط عند استلام طلبك.',
 
     // ── Thank You Page ──
     'thanks.title': '!تم تأكيد الطلب',
