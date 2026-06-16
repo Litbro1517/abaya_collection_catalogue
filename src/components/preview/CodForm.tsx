@@ -239,8 +239,8 @@ export function CodForm({ productId, productName, productPrice }: CodFormProps) 
           className={cn('cod-form-submit', isSubmitting && 'cod-form-submit-loading')}
           disabled={isSubmitting}
           style={{
-            backgroundColor: isSubmitting ? BRAND.grisClair : BRAND.vertFonce,
-            color: isSubmitting ? BRAND.grisMoyen : BRAND.blanc,
+            backgroundColor: isSubmitting ? BRAND.grisClair : 'rgb(0 0 0 / 89%)',
+            color: isSubmitting ? BRAND.grisMoyen : 'rgb(255, 255, 255)',
           }}
         >
           {isSubmitting ? (

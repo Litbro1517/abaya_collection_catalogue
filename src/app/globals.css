@@ -2077,15 +2077,17 @@ img {
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 8px;
+  gap: 10px;
   width: 100%;
-  padding: 14px;
+  padding: 16px 20px;
   border: none;
-  border-radius: 12px;
+  border-radius: 6px;
   font-weight: 700;
   font-size: 15px;
+  letter-spacing: 0.04em;
   cursor: pointer;
-  transition: opacity 0.2s, transform 0.1s;
+  transition: opacity 0.2s, transform 0.15s;
+  box-shadow: none;
 }
 
 .cod-form-submit:hover:not(.cod-form-submit-loading) {
@@ -2308,16 +2310,20 @@ img {
 .merci-back-btn {
   display: inline-flex;
   align-items: center;
-  gap: 8px;
-  padding: 12px 28px;
-  border-radius: 12px;
+  justify-content: center;
+  gap: 10px;
+  width: 100%;
+  padding: 16px 20px;
+  border-radius: 6px;
   border: none;
-  background: #1A3C34;
-  color: white;
+  background: rgb(0 0 0 / 89%);
+  color: rgb(255, 255, 255);
   font-weight: 700;
-  font-size: 14px;
+  font-size: 15px;
+  letter-spacing: 0.04em;
   cursor: pointer;
-  transition: opacity 0.2s;
+  transition: opacity 0.2s, transform 0.15s;
+  box-shadow: none;
   text-decoration: none;
 }
 

@@ -1298,3 +1298,34 @@ Stage Summary:
 - Changes: src/app/globals.css (.product-page-cta border-radius 14px→6px; Luminous Sand block removed) + src/components/preview/ProductPage.tsx (4 inline style color updates to rgb(0 0 0 / 89%)/rgb(255,255,255)).
 - Dev server restarted cleanly (PID 5875, port 3000, persistent via Python daemonization, logs → dev.log).
 - Verification screenshot: /home/z/my-project/black-cta-verify.png
+
+---
+Task ID: vercel-deploy-black-cta
+Agent: Z.ai Code (main)
+Task: Deploy the black CTA button changes to Vercel.
+
+Work Log:
+- Verified local git state: working tree clean, HEAD at b89730d, 2 commits ahead of origin/main (remote was at ddba570 — old gold/ochre CTA).
+- Confirmed the black CTA spec is committed in HEAD: globals.css has border-radius:6px (no Luminous Sand block), ProductPage.tsx has 4 instances of 'rgb(0 0 0 / 89%)' inline backgroundColor.
+- No Vercel CLI credentials in this environment, but git remote has embedded GitHub token (REDACTED) for Litbro1517/abaya_collection_catalogue.git.
+- Pushed to GitHub: git push origin main → ddba570..b89730d main -> main (SUCCESS). Vercel GitHub integration auto-triggers deploy on push.
+- Installed Vercel CLI v54.14.0 globally (for monitoring), but no token available so could not use vercel whoami/inspect. Used HTTP polling instead.
+- Waited 75s for Vercel build, then verified production URL https://abaya-collection-catalogue-9dum.vercel.app/ returns HTTP 200.
+- Used Agent Browser to open prod site, clicked a product card (Voir Kitma montoni), inspected .product-page-actions > .product-page-cta computed styles on production:
+  • backgroundColor: rgba(0, 0, 0, 0.89) ✓ (black, matches spec)
+  • color: rgb(255, 255, 255) ✓ (white)
+  • borderRadius: 6px ✓
+  • fontWeight: 700 ✓
+  • fontSize: 15px ✓
+  • padding: 16px 20px ✓
+  • boxShadow: none ✓
+  • display: flex ✓
+  • text: "Achat Rapide" (landing mode CTA)
+- x-vercel-id header confirms fresh deployment served from hkg1 CDN node.
+
+Stage Summary:
+- Production deployment LIVE at https://abaya-collection-catalogue-9dum.vercel.app/
+- Deployed commit: b89730d (includes black CTA: bg rgb(0 0 0 / 89%), white text, 6px radius).
+- Previous gold/ochre (#D4B570) and Luminous Sand (#EFE3D3) CTA styles fully replaced in production.
+- Verification screenshot: /home/z/my-project/vercel-deployed-black-cta.png
+- No Vercel env var changes needed (NEXT_PUBLIC_BASE_URL already set in prior task).
