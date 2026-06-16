@@ -1413,3 +1413,30 @@ Stage Summary:
 - Total price computed dynamically (unit × quantity). Order POST enriches productName with variant summary so admin sees color/size/qty in the order record.
 - Files: NEW src/components/preview/CheckoutPage.tsx; MODIFIED src/components/preview/ProductPage.tsx, src/components/preview/CatalogPreview.tsx, src/lib/i18n/dictionaries.ts, src/app/globals.css.
 - Verification screenshots: /home/z/my-project/checkout-desktop.png, /home/z/my-project/checkout-mobile-actual.png
+
+---
+Task ID: merci-recap-step3
+Agent: Z.ai Code (main)
+Task: Étape 3 — Récapitulatif sur la Page Merci avec les données de commande réelles (Nom de l'article, Couleur, Taille, Quantité finale, Montant Total payé) + mention "Paiement à la livraison", en conservant le style de l'icône de validation harmonisé. + Deploy Étape 2 & 3 to Vercel.
+
+Work Log:
+- PART 1 — Deploy Étape 2: committed Étape 2 changes (d850fd3, already committed by prior session) pushed to GitHub origin/main. Vercel auto-deployed. Production HTTP 200 confirmed.
+- PART 2 — Schema: added 4 structured fields to prisma Order model: productColor (String?), productSize (String?), productQuantity (Int @default(1)), productImage (String?). Ran `bun run db:push` locally (SQLite) — DB synced, Prisma client regenerated. In production, the `build` script runs `prisma db push --accept-data-loss` which auto-applies the schema to the Vercel Postgres DB.
+- PART 3 — API: updated POST /api/orders to accept + store productColor, productSize, productQuantity (normalized: Math.max(1, parseInt)||1), productImage. Created NEW route GET /api/orders/[id] (dynamic route) to fetch a single order by ID for the Merci page.
+- PART 4 — CheckoutPage: updated the submit handler to send the structured variant fields (productColor, productSize, productQuantity, productImage) instead of enriching the productName string. productName is now the clean product title.
+- PART 5 — Merci page (src/app/merci/page.tsx): REBUILT. Added OrderData interface + state (order, loading, fetchError). useEffect fetches GET /api/orders/[id] on mount. Renders a new .merci-recap card between the order ID and the details section: product thumbnail (56px, from order.productImage), product name, variant list (Couleur choisie / Taille choisie as pill / Quantité), MONTANT À PAYER total (Playfair Display 24px), and a green COD reassurance box ("Mode de paiement: Paiement à la livraison" + subtext). Shows "—" for null color/size. Loading state shows "Chargement...". Preserved the harmonized gold CheckCircle2 icon (40px, cream #F5F0E8 wrapper), black back button, status details, and tracking notice.
+- PART 6 — i18n: added 2 new keys × 3 languages: thanks.recapTitle ("Récapitulatif de votre commande" / "Your order summary" / "ملخص طلبك") and thanks.amountPaid ("Montant à payer" / "Amount to pay" / "المبلغ المطلوب دفعه"). Reused checkout.* keys (color, size, quantity, notSelected, codReassure) for the recap rows.
+- PART 7 — CSS: added ~200 lines of .merci-recap-* and .merci-cod-box-* styles to globals.css after .merci-tracking. Recap card: white bg, 14px radius, subtle shadow. Product thumbnail 56px. Variant rows with dividers. Total row with serif font. Green COD box matching the checkout page style.
+- PART 8 — .gitignore: added db/*.db, db/*.db-journal, and screenshot patterns (*-dev.png, *-verify.png, *-actual.png) to prevent committing local DB test data and verification screenshots.
+- Lint: clean (only pre-existing daemon.js errors). Dev server restarted with Python daemonization (PID 6141).
+- DEV VERIFICATION (Agent Browser, port 3000): opened Abaya Noire Classique → qty 3 → checkout → filled form (Aicha Bennani) → submit → redirected to /merci?order_id=cmqh9g2lj0000r9qzcbg2m4xo. Merci recap loaded: product "Abaya Noire Classique", Couleur "—", Taille "—", Quantité 3, MONTANT À PAYER 3600 MAD (1200×3), green COD box. VLM confirmed all elements + no visual issues. DB record verified: all structured fields stored correctly.
+- PRODUCTION VERIFICATION (Agent Browser, https://abaya-collection-catalogue-9dum.vercel.app): opened "Kitma montoni" (has color variants + image) → selected "Beige" → qty 3 → checkout (recap showed image + name + Beige + qty) → filled form (Khadija Alami, Marrakech) → submit → redirected to /merci?order_id=cmqh9lqky0000l2041q90ycw9. Merci recap loaded with REAL ORDER DATA: product thumbnail IMAGE (not empty!), name "Kitma montoni", Couleur choisie "Beige", Quantité 3, MONTANT À PAYER 840 MAD (280×3), green COD box "Mode de paiement: Paiement à la livraison". VLM confirmed: Quantity 3, Total 840 MAD. Production DB record verified via GET /api/orders/[id]: productColor="Beige", productQuantity=3, productImage=SET (67 chars proxy URL), productPrice="840 MAD", productName="Kitma montoni" (clean). All structured fields persisted in production Postgres.
+
+Stage Summary:
+- ÉTAPE 2 + ÉTAPE 3 BOTH LIVE on production: https://abaya-collection-catalogue-9dum.vercel.app/
+- Deployed commit: 5bef2f5 (includes both Étape 2 checkout tunnel + Étape 3 Merci recap).
+- Full COD order tunnel now works end-to-end on production: Product page (select color/size/qty) → Checkout page (two-column recap + form) → Merci page (real order recap with product image, name, color, size, quantity, total, COD mention).
+- Structured variant data (productColor, productSize, productQuantity, productImage) is now stored in dedicated DB columns (both SQLite dev + Postgres prod) instead of being crammed into the productName string.
+- NEW API route: GET /api/orders/[id] for fetching a single order (used by Merci page).
+- Merci page preserves the harmonized validation icon style (gold CheckCircle2 in cream #F5F0E8 40px wrapper) + black back button.
+- Verification screenshots: /home/z/my-project/merci-recap-dev.png (dev), /home/z/my-project/merci-recap-prod.png (production, with real image + color).
