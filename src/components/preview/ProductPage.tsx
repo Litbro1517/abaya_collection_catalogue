@@ -317,6 +317,7 @@ export function ProductPage({
   const [carouselIdx, setCarouselIdx] = useState(0);
   const [selectedSize, setSelectedSize] = useState<string | null>(null);
   const [selectedColor, setSelectedColor] = useState<string | null>(null);
+  const [quantity, setQuantity] = useState(1);
   const [isLiked, setIsLiked] = useState(false);
   const [showShareToast, setShowShareToast] = useState(false);
   const [imageLoaded, setImageLoaded] = useState<Set<number>>(new Set());
@@ -691,6 +692,32 @@ export function ProductPage({
 
           {/* ── Action buttons ── */}
           <div className="product-page-actions">
+            {/* Quantity selector — minimalist, sits just above the main CTA */}
+            <div className="product-page-quantity">
+              <span className="product-page-quantity-label">{t('product.quantity')}</span>
+              <div className="product-page-quantity-control" role="group" aria-label={t('product.quantity')}>
+                <button
+                  type="button"
+                  className="product-page-quantity-btn"
+                  onClick={() => setQuantity(q => Math.max(1, q - 1))}
+                  disabled={quantity <= 1 || isEpuise}
+                  aria-label={t('product.decreaseQuantity')}
+                >
+                  <Minus className="w-4 h-4" />
+                </button>
+                <span className="product-page-quantity-value" aria-live="polite">{quantity}</span>
+                <button
+                  type="button"
+                  className="product-page-quantity-btn"
+                  onClick={() => setQuantity(q => Math.min(99, q + 1))}
+                  disabled={isEpuise}
+                  aria-label={t('product.increaseQuantity')}
+                >
+                  <Plus className="w-4 h-4" />
+                </button>
+              </div>
+            </div>
+
             {/* Main CTA — dynamic based on conversion mode */}
             {isLandingMode ? (
               <button

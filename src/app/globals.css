@@ -1789,6 +1789,81 @@ img {
   margin-top: 24px;
 }
 
+/* ── Quantity Selector — minimalist, sits just above the main CTA ── */
+/* Design aligned with .product-page-size-chip (same border vars, height)
+   but border-radius 4px per spec. Does NOT touch product-page-layout. */
+.product-page-quantity {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.product-page-quantity-label {
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--client-text-muted);
+}
+
+.product-page-quantity-control {
+  display: inline-flex;
+  align-items: stretch;
+  border: 1.5px solid var(--client-pp-chip-border);
+  border-radius: 4px;
+  background: white;
+  overflow: hidden;
+}
+
+.product-page-quantity-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  border: none;
+  background: transparent;
+  color: var(--client-pp-detail-value);
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+}
+
+.product-page-quantity-btn:hover:not(:disabled) {
+  background: var(--client-pp-chip-hover-bg);
+  color: var(--client-pp-chip-hover-border);
+}
+
+.product-page-quantity-btn:active:not(:disabled) {
+  background: var(--client-pp-chip-selected-bg);
+  color: white;
+}
+
+.product-page-quantity-btn:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+}
+
+.product-page-quantity-value {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 48px;
+  height: 40px;
+  border-left: 1.5px solid var(--client-pp-chip-border);
+  border-right: 1.5px solid var(--client-pp-chip-border);
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--client-pp-detail-value);
+  user-select: none;
+}
+
+/* RTL: keep the quantity control LTR so - is always on the left, + on the right */
+html.rtl .product-page-quantity-control {
+  direction: ltr;
+}
+
 .product-page-cta {
   display: flex;
   align-items: center;
