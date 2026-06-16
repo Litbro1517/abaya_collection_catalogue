@@ -1329,3 +1329,30 @@ Stage Summary:
 - Previous gold/ochre (#D4B570) and Luminous Sand (#EFE3D3) CTA styles fully replaced in production.
 - Verification screenshot: /home/z/my-project/vercel-deployed-black-cta.png
 - No Vercel env var changes needed (NEXT_PUBLIC_BASE_URL already set in prior task).
+
+---
+Task ID: black-cta-codform-merci-deploy
+Agent: Z.ai Code (main)
+Task: Apply the same black CTA button style to #cod-form > form > button (.cod-form-submit) and the thank-you page back button (body > div.merci-page > div > a / .merci-back-btn), then deploy to Vercel.
+
+Work Log:
+- Located targets: src/components/preview/CodForm.tsx renders <button class="cod-form-submit"> with inline backgroundColor BRAND.vertFonce / color BRAND.blanc. src/app/merci/page.tsx renders <a class="merci-back-btn"> (green #1A3C34 via CSS).
+- globals.css: updated .cod-form-submit (border-radius 12px->6px, padding 14px->16px 20px, gap 8px->10px, +letter-spacing 0.04em, +box-shadow none, transition transform 0.1s->0.15s). Updated .merci-back-btn (green #1A3C34 -> black rgb(0 0 0 / 89%), white->rgb(255,255,255), border-radius 12px->6px, padding 12px 28px->16px 20px, gap 8px->10px, +width 100%, +letter-spacing 0.04em, +box-shadow none, font-size 14px->15px).
+- CodForm.tsx: inline backgroundColor BRAND.vertFonce -> 'rgb(0 0 0 / 89%)', color BRAND.blanc -> 'rgb(255, 255, 255)' (kept isSubmitting grisClair/grisMoyen fallback).
+- bun run lint: clean.
+- Dev verification: hit Next.js stale-CSS-cache issue again (merci button still showed green #1A3C34 / radius 12px after edit). Resolved by pkill next + rm -rf .next/dev + Python subprocess.Popen restart (PID 7123).
+- Verified merci-back-btn on http://localhost:3000/merci: backgroundColor rgba(0,0,0,0.89), color rgb(255,255,255), borderRadius 6px, fontWeight 700, fontSize 15px, padding 16px 20px, gap 10px, boxShadow none. ✓
+- Verified .cod-form-submit via DOM injection (global channel is 'whatsapp' so COD form doesn't render by default; injected a test button with the class + inline black style): all props match black CTA spec. ✓
+- DEPLOY ISSUE: First commit attempt (121a639) was blocked by GitHub Push Protection — a prior local-only commit 16ac724 had committed worklog.md containing the GitHub token (ghp_...) in plain text.
+- RESOLUTION: git stash -> git reset --hard origin/main (discarded both local commits 16ac724 + 121a639) -> resolved worklog.md conflict (redacted token to 'REDACTED') -> re-applied the 3 CTA edits (globals.css x2, CodForm.tsx x1) -> verified git grep finds NO ghp_ token in tracked files -> committed as 2e28dbf -> pushed successfully (b89730d..2e28dbf).
+- Vercel auto-deploy triggered. Waited 80s. Production URL https://abaya-collection-catalogue-9dum.vercel.app/ returns HTTP 200.
+- Production verification via Agent Browser:
+  • /merci page .merci-back-btn: backgroundColor rgba(0,0,0,0.89) ✓, color rgb(255,255,255) ✓, borderRadius 6px ✓, fontWeight 700 ✓, fontSize 15px ✓, padding 16px 20px ✓, boxShadow none ✓.
+  • .cod-form-submit (DOM injection test on prod): all black CTA props confirmed.
+
+Stage Summary:
+- Production deployment LIVE at https://abaya-collection-catalogue-9dum.vercel.app/
+- Deployed commit: 2e28dbf (black CTA applied to COD form submit + merci back button).
+- All three CTA buttons now share the standardized black spec: product-page-cta, cod-form-submit, merci-back-btn.
+- Token leak in worklog.md redacted; clean history pushed past GitHub Push Protection.
+- Verification screenshot: /home/z/my-project/vercel-deployed-merci-black-cta.png
