@@ -1440,3 +1440,44 @@ Stage Summary:
 - NEW API route: GET /api/orders/[id] for fetching a single order (used by Merci page).
 - Merci page preserves the harmonized validation icon style (gold CheckCircle2 in cream #F5F0E8 40px wrapper) + black back button.
 - Verification screenshots: /home/z/my-project/merci-recap-dev.png (dev), /home/z/my-project/merci-recap-prod.png (production, with real image + color).
+
+---
+Task ID: merci-trust-mention-step3-refine
+Agent: Z.ai Code (main)
+Task: [SURGICAL EDITING] Étape 3 — Refine the Merci page trust mention to the EXACT spec text "Paiement à la livraison — Votre colis est en cours de préparation" as a single elegant line. Keep the recap (item, color, size, qty, total) and the harmonized validation icon.
+
+Work Log:
+- Read prior worklog: Étape 3 was already implemented (commit 5bef2f5) with recap + harmonized icon. The COD box used a two-line stacked layout ("Mode de paiement: Paiement à la livraison" bold title + "Vous ne payez qu'à la réception..." subtext). User's surgical spec required the EXACT single-line mention.
+- dictionaries.ts: added thanks.preparing key × 3 languages — FR "Votre colis est en cours de préparation", EN "Your parcel is being prepared", AR "طردك قيد التجهيز". Reused existing thanks.paymentCOD ("Paiement à la livraison") for the lead part.
+- merci/page.tsx: restructured .merci-cod-box — replaced the <div class="merci-cod-box-text"> containing <strong class="-title"> + <span class="-sub"> with a single <p class="merci-cod-box-text"> holding 3 inline spans: .merci-cod-box-lead (paymentCOD), .merci-cod-box-dash (em-dash "—", aria-hidden), .merci-cod-box-tail (preparing). Truck icon + green box kept.
+- globals.css: .merci-cod-box align-items flex-start→center (single line, vertically centered). .merci-cod-box-text changed from flex-column to block <p> (margin:0, font-size:13px). Replaced .merci-cod-box-title (bold green) / .merci-cod-box-sub (muted) with .merci-cod-box-lead (font-weight:700, color:#1A3C34) / .merci-cod-box-dash (margin:0 6px, color:#9aa8a1) / .merci-cod-box-tail (color:#1F1F1F, font-weight:400).
+- NO changes to: recap structure (product thumbnail+name, color/size/quantity rows, total), harmonized icon (.merci-icon-wrapper gold CheckCircle2 in cream #F5F0E8 40px wrapper), black back button, status details, tracking notice.
+- bun run lint: clean (only pre-existing daemon.js require-import errors).
+- DEV VERIFICATION (Agent Browser, port 3000):
+  • Existing order cmqh9g2lj0000r9qzcbg2m4xo: JS eval confirmed fullText="Paiement à la livraison—Votre colis est en cours de préparation" (visually with 6px dash margins), lead color rgb(26,60,52)=#1A3C34 weight 700, tail color rgb(31,31,31) weight 400, box bg #f3f7f4 border #d7e3dc radius 10px align center. Recap: Abaya Noire Classique, Couleur/Taille "—", Quantité 3, Montant à payer 3600 MAD. Icon: cream #F5F0E8 40px 12px radius, svg color #C9A84C.
+  • VLM (zoomed screenshot) confirmed EXACT text: "Paiement à la livraison — Votre colis est en cours de préparation" in light green-tinted rounded box with truck icon. Recap rows + total 3600 MAD confirmed. Gold checkmark in cream wrapper confirmed.
+  • FULL FLOW: opened Abaya Dorée Luxe → qty 1→2 → CTA "Sur commande" → checkout (title "Finaliser la commande", product "Abaya Dorée Luxe", qty 2, total 5000 MAD) → filled form (Sara El Idrissi / 0612345678 / Rabat / 12 Rue Atlas Agdal) → submit → POST /api/orders 201 → redirected to /merci?order_id=cmqhabwn10001r9qzqsbdl9ov. Merci recap loaded with REAL order: product "Abaya Dorée Luxe", Couleur/Taille "—", Quantité 2, Montant à payer 5000 MAD (2500×2). Trust mention EXACT: lead "Paiement à la livraison" (bold #1A3C34) + dash "—" + tail "Votre colis est en cours de préparation". Icon preserved.
+- Committed 36bcf50, pushed to GitHub (5bef2f5..36bcf50). Vercel auto-deploy triggered.
+
+Stage Summary:
+- Surgical edit complete: the Merci page COD trust mention now renders the EXACT spec text "Paiement à la livraison — Votre colis est en cours de préparation" as a single elegant line (bold brand-green lead + muted em-dash + normal-weight dark tail), in a green-tinted box with a truck icon. Visible but elegant.
+- Recap (Nom de l'article, Couleur, Taille, Quantité finale, Montant Total) unchanged — still pulls real order data via GET /api/orders/[id].
+- Harmonized validation icon (gold CheckCircle2 in cream #F5F0E8 40px wrapper) preserved.
+- Files: src/app/merci/page.tsx (COD box restructure), src/app/globals.css (.merci-cod-box-* CSS), src/lib/i18n/dictionaries.ts (+thanks.preparing × 3 langs). 3 files, +23/-16 lines.
+- Deployed commit: 36bcf50. Production verification pending (Vercel build in progress).
+- Verification screenshots: /home/z/my-project/merci-trust-mention-dev.png, /home/z/my-project/merci-trust-box-zoom-dev.png, /home/z/my-project/merci-trust-mention-final-dev.png
+
+PRODUCTION VERIFICATION (Agent Browser, https://abaya-collection-catalogue-9dum.vercel.app):
+- Opened Kitma montoni (has color variants) → selected "Beige" → qty 1→2 → CTA "Achat Rapide" → checkout recap showed product image + name "Kitma montoni" + Couleur "Beige" + Quantité 2 + Total 560 MAD (280×2) → filled form (Khadija Alami / 0698765432 / Marrakech / 45 Rue de la Koutoubia) → submit → POST /api/orders 201 → redirected to /merci?order_id=cmqhagqrh0000l404npyhp24n.
+- JS eval confirmed on PRODUCTION merci page:
+  • Trust mention: fullText "Paiement à la livraison—Votre colis est en cours de préparation" (visually with 6px dash margins = "Paiement à la livraison — Votre colis est en cours de préparation"), lead color rgb(26,60,52)=#1A3C34 weight 700, dash "—", tail "Votre colis est en cours de préparation".
+  • Recap: productName "Kitma montoni", hasProductImage true, Couleur choisie "Beige", Taille choisie "—", Quantité "2", totalValue "560 MAD".
+  • Icon: bg rgb(245,240,232)=#F5F0E8 (cream), size 40px, radius 12px, svg color #C9A84C (gold).
+- VLM (production zoom screenshot): "The exact text inside the light green-tinted rounded box is: 'Paiement à la livraison — Votre colis est en cours de préparation'". Recap rows confirmed (Kitma montoni + image, Couleur Beige, Taille —, Quantité 2, Total 560 MAD).
+- VLM (production full-page screenshot): "At the very top of the card, there is a small, cream/beige rounded square icon containing a gold/yellow checkmark. The overall layout is elegant and clean, with a minimalist design, clear typography, and well-organized sections."
+
+FINAL STATUS: Étape 3 surgical edit LIVE on production. Deployed commit 36bcf50. All 3 specs satisfied:
+1. Recap reuses exactly the same info as checkout (item name + image, color, size, final quantity, total amount).
+2. Trust mention renders EXACTLY "Paiement à la livraison — Votre colis est en cours de préparation" — visible (green box + truck icon, bold brand-green lead) but elegant (single line, em-dash separator, normal-weight tail).
+3. Harmonized validation icon (gold CheckCircle2 in cream #F5F0E8 40px wrapper) preserved.
+- Verification screenshots: /home/z/my-project/merci-trust-mention-prod.png (full), /home/z/my-project/merci-trust-mention-prod-zoom.png (trust box zoom)
