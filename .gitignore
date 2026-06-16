@@ -73,3 +73,11 @@ start.sh
 run-server.sh
 server.log
 tool-results/
+
+# Local SQLite database (do not commit)
+db/*.db
+db/*.db-journal
+# Verification screenshots
+*-dev.png
+*-verify.png
+*-actual.png

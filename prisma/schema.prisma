@@ -308,6 +308,11 @@ model Order {
   status          String   @default("pending")
   productName     String?  @map("product_name")
   productPrice    String?  @map("product_price")
+  // ━━ Structured variant data (Étape 3 — Merci page recap) ━━
+  productColor    String?  @map("product_color")
+  productSize     String?  @map("product_size")
+  productQuantity Int      @default(1) @map("product_quantity")
+  productImage    String?  @map("product_image")
   createdAt       DateTime @default(now()) @map("created_at")
   updatedAt       DateTime @updatedAt @map("updated_at")
 

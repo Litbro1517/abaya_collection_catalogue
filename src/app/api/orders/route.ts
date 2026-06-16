@@ -5,7 +5,20 @@ import { db } from '@/lib/db';
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
-    const { productId, customerName, customerPhone, customerCity, customerAddress, productName, productPrice } = body;
+    const {
+      productId,
+      customerName,
+      customerPhone,
+      customerCity,
+      customerAddress,
+      productName,
+      productPrice,
+      // ━━ Structured variant data (Étape 3 — Merci page recap) ━━
+      productColor,
+      productSize,
+      productQuantity,
+      productImage,
+    } = body;
 
     // Validate required fields
     if (!productId || !customerName || !customerPhone || !customerCity || !customerAddress) {
@@ -29,6 +42,9 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    // Normalize quantity (default 1, min 1)
+    const qty = Math.max(1, parseInt(String(productQuantity)) || 1);
+
     const order = await db.order.create({
       data: {
         productId: String(productId),
@@ -38,6 +54,10 @@ export async function POST(req: NextRequest) {
         customerAddress: customerAddress.trim(),
         productName: productName || null,
         productPrice: productPrice || null,
+        productColor: productColor ? String(productColor) : null,
+        productSize: productSize ? String(productSize) : null,
+        productQuantity: qty,
+        productImage: productImage || null,
         status: 'pending',
       },
     });

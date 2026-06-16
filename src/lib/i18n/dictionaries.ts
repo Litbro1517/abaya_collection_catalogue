@@ -280,6 +280,8 @@ export const dictionaries: Record<Locale, TranslationDict> = {
     'thanks.backToCatalog': 'Retour au catalogue',
     'thanks.trackingNotice': 'Vous recevrez une confirmation par téléphone sous peu.',
     'thanks.loading': 'Chargement...',
+    'thanks.recapTitle': 'Récapitulatif de votre commande',
+    'thanks.amountPaid': 'Montant à payer',
 
     // ── Upload ──
     'upload.dragDrop': 'Glisser-déposer ou cliquer',
@@ -749,6 +751,8 @@ export const dictionaries: Record<Locale, TranslationDict> = {
     'thanks.backToCatalog': 'Back to catalog',
     'thanks.trackingNotice': 'You will receive a phone confirmation shortly.',
     'thanks.loading': 'Loading...',
+    'thanks.recapTitle': 'Your order summary',
+    'thanks.amountPaid': 'Amount to pay',
 
     // ── Upload ──
     'upload.dragDrop': 'Drag & drop or click',
@@ -1218,6 +1222,8 @@ export const dictionaries: Record<Locale, TranslationDict> = {
     'thanks.backToCatalog': 'العودة إلى الكتالوج',
     'thanks.trackingNotice': '.ستتلقى تأكيدًا هاتفيًا قريبًا',
     'thanks.loading': '...جارٍ التحميل',
+    'thanks.recapTitle': 'ملخص طلبك',
+    'thanks.amountPaid': 'المبلغ المطلوب دفعه',
 
     // ── Upload ──
     'upload.dragDrop': 'اسحب وأفلت أو انقر',

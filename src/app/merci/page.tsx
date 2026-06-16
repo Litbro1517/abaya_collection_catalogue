@@ -1,15 +1,36 @@
 'use client';
 
-import { Suspense, useEffect, useRef } from 'react';
+import { Suspense, useEffect, useRef, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
-import { CheckCircle2, ArrowLeft, ShieldCheck } from 'lucide-react';
+import { CheckCircle2, ArrowLeft, ShieldCheck, ShoppingBag, Truck } from 'lucide-react';
 import { useClientTranslation } from '@/lib/i18n';
+
+// ── Order type (matches the Prisma Order model) ──
+interface OrderData {
+  id: string;
+  productName: string | null;
+  productPrice: string | null;
+  productColor: string | null;
+  productSize: string | null;
+  productQuantity: number;
+  productImage: string | null;
+  status: string;
+  customerName: string;
+  customerPhone: string;
+  customerCity: string;
+  customerAddress: string;
+  createdAt: string;
+}
 
 function MerciContent() {
   const { t, rtl } = useClientTranslation();
   const searchParams = useSearchParams();
   const orderId = searchParams.get('order_id');
   const tracked = useRef(false);
+
+  const [order, setOrder] = useState<OrderData | null>(null);
+  const [loading, setLoading] = useState(!!orderId);
+  const [fetchError, setFetchError] = useState<string | null>(null);
 
   // Push conversion tracking event once on mount
   useEffect(() => {
@@ -24,10 +45,41 @@ function MerciContent() {
     }
   }, [orderId]);
 
+  // Fetch the real order data for the recap
+  useEffect(() => {
+    if (!orderId) {
+      setLoading(false);
+      return;
+    }
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetch(`/api/orders/${orderId}`);
+        const json = await res.json();
+        if (cancelled) return;
+        if (res.ok && json.data) {
+          setOrder(json.data as OrderData);
+        } else {
+          setFetchError(json.error || 'not_found');
+        }
+      } catch {
+        if (!cancelled) setFetchError('network');
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [orderId]);
+
+  const na = t('checkout.notSelected');
+  const productName = order?.productName || '';
+  const productPrice = order?.productPrice || '';
+  const hasRecap = !!order && (!!productName || !!productPrice);
+
   return (
     <div className="merci-page" dir={rtl ? 'rtl' : 'ltr'}>
       <div className="merci-card">
-        {/* Success icon */}
+        {/* Success icon — harmonized style (40px gold CheckCircle2 in cream wrapper) */}
         <div className="merci-icon-wrapper">
           <CheckCircle2 className="w-5 h-5" style={{ color: '#C9A84C' }} />
         </div>
@@ -45,7 +97,82 @@ function MerciContent() {
           </div>
         )}
 
-        {/* Details */}
+        {/* ━━ Real order recap (Étape 3) ━━ */}
+        {loading ? (
+          <div className="merci-recap merci-recap--loading">
+            <span className="merci-recap-loading-text">{t('thanks.loading')}</span>
+          </div>
+        ) : hasRecap ? (
+          <div className="merci-recap">
+            <div className="merci-recap-head">
+              <h2 className="merci-recap-title">{t('thanks.recapTitle')}</h2>
+            </div>
+
+            {/* Product line: thumbnail + name */}
+            <div className="merci-recap-product">
+              {order!.productImage ? (
+                <div className="merci-recap-thumb">
+                  <img
+                    src={order!.productImage}
+                    alt={productName}
+                    loading="lazy"
+                    decoding="async"
+                  />
+                </div>
+              ) : (
+                <div className="merci-recap-thumb merci-recap-thumb--empty">
+                  <ShoppingBag className="w-5 h-5" style={{ color: '#808080' }} />
+                </div>
+              )}
+              <div className="merci-recap-product-info">
+                <span className="merci-recap-product-name">{productName}</span>
+              </div>
+            </div>
+
+            {/* Variant summary list */}
+            <dl className="merci-recap-list">
+              <div className="merci-recap-row">
+                <dt className="merci-recap-key">{t('checkout.color')}</dt>
+                <dd className="merci-recap-val">
+                  {order!.productColor ? order!.productColor : na}
+                </dd>
+              </div>
+              <div className="merci-recap-row">
+                <dt className="merci-recap-key">{t('checkout.size')}</dt>
+                <dd className="merci-recap-val">
+                  {order!.productSize ? (
+                    <span className="merci-size-pill">{order!.productSize}</span>
+                  ) : na}
+                </dd>
+              </div>
+              <div className="merci-recap-row">
+                <dt className="merci-recap-key">{t('checkout.quantity')}</dt>
+                <dd className="merci-recap-val">{order!.productQuantity || 1}</dd>
+              </div>
+            </dl>
+
+            {/* Total amount to pay */}
+            {productPrice && (
+              <div className="merci-recap-total">
+                <span className="merci-recap-total-label">{t('thanks.amountPaid')}</span>
+                <span className="merci-recap-total-value">{productPrice}</span>
+              </div>
+            )}
+
+            {/* COD reassurance box */}
+            <div className="merci-cod-box" role="note">
+              <div className="merci-cod-box-icon">
+                <Truck className="w-4 h-4" style={{ color: '#1A3C34' }} />
+              </div>
+              <div className="merci-cod-box-text">
+                <strong className="merci-cod-box-title">{t('thanks.paymentMode')}: {t('thanks.paymentCOD')}</strong>
+                <span className="merci-cod-box-sub">{t('checkout.codReassure')}</span>
+              </div>
+            </div>
+          </div>
+        ) : null}
+
+        {/* Status detail (kept from original) */}
         <div className="merci-details">
           <div className="merci-detail-row">
             <span className="merci-detail-label">{t('thanks.paymentMode')}</span>

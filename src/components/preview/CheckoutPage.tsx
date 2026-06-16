@@ -108,15 +108,8 @@ export function CheckoutPage({ product, onBack }: CheckoutPageProps) {
 
     setIsSubmitting(true);
 
-    // Enrich productName with the selected variants so the admin sees them in the order.
-    const variantParts: string[] = [];
-    if (product.selectedColor) variantParts.push(`${t('checkout.color')}: ${product.selectedColor}`);
-    if (product.selectedSize) variantParts.push(`${t('checkout.size')}: ${product.selectedSize}`);
-    if (product.quantity > 1) variantParts.push(`${t('checkout.quantity')}: ${product.quantity}`);
-    const enrichedProductName = variantParts.length > 0
-      ? `${product.productTitle} (${variantParts.join(' · ')})`
-      : product.productTitle;
-
+    // Keep productName as the clean product title (the structured variant data
+    // is now stored in dedicated columns: productColor, productSize, productQuantity, productImage).
     try {
       const res = await fetch('/api/orders', {
         method: 'POST',
@@ -127,8 +120,13 @@ export function CheckoutPage({ product, onBack }: CheckoutPageProps) {
           customerPhone: form.customerPhone.trim(),
           customerCity: form.customerCity.trim(),
           customerAddress: form.customerAddress.trim(),
-          productName: enrichedProductName,
+          productName: product.productTitle,
           productPrice: totalFormatted,
+          // ━━ Structured variant data for the Merci page recap ━━
+          productColor: product.selectedColor || null,
+          productSize: product.selectedSize || null,
+          productQuantity: product.quantity,
+          productImage: product.productImage || null,
         }),
       });
 
