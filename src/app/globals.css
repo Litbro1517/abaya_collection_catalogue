@@ -2926,7 +2926,7 @@ html.rtl .product-page-quantity-control {
 
 .merci-cod-box {
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   gap: 10px;
   padding: 12px 14px;
   border-radius: 10px;
@@ -2946,21 +2946,24 @@ html.rtl .product-page-quantity-control {
 }
 
 .merci-cod-box-text {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.4;
   min-width: 0;
 }
 
-.merci-cod-box-title {
-  font-size: 13px;
+.merci-cod-box-lead {
   font-weight: 700;
   color: #1A3C34;
-  line-height: 1.35;
 }
 
-.merci-cod-box-sub {
-  font-size: 12px;
-  color: #5a6b62;
-  line-height: 1.4;
+.merci-cod-box-dash {
+  margin: 0 6px;
+  color: #9aa8a1;
+  font-weight: 400;
+}
+
+.merci-cod-box-tail {
+  color: #1F1F1F;
+  font-weight: 400;
 }

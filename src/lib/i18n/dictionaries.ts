@@ -282,6 +282,7 @@ export const dictionaries: Record<Locale, TranslationDict> = {
     'thanks.loading': 'Chargement...',
     'thanks.recapTitle': 'Récapitulatif de votre commande',
     'thanks.amountPaid': 'Montant à payer',
+    'thanks.preparing': 'Votre colis est en cours de préparation',
 
     // ── Upload ──
     'upload.dragDrop': 'Glisser-déposer ou cliquer',
@@ -753,6 +754,7 @@ export const dictionaries: Record<Locale, TranslationDict> = {
     'thanks.loading': 'Loading...',
     'thanks.recapTitle': 'Your order summary',
     'thanks.amountPaid': 'Amount to pay',
+    'thanks.preparing': 'Your parcel is being prepared',
 
     // ── Upload ──
     'upload.dragDrop': 'Drag & drop or click',
@@ -1224,6 +1226,7 @@ export const dictionaries: Record<Locale, TranslationDict> = {
     'thanks.loading': '...جارٍ التحميل',
     'thanks.recapTitle': 'ملخص طلبك',
     'thanks.amountPaid': 'المبلغ المطلوب دفعه',
+    'thanks.preparing': 'طردك قيد التجهيز',
 
     // ── Upload ──
     'upload.dragDrop': 'اسحب وأفلت أو انقر',

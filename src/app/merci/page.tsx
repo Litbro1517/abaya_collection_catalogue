@@ -159,15 +159,16 @@ function MerciContent() {
               </div>
             )}
 
-            {/* COD reassurance box */}
+            {/* Trust mention — single elegant line: "Paiement à la livraison — Votre colis est en cours de préparation" */}
             <div className="merci-cod-box" role="note">
               <div className="merci-cod-box-icon">
                 <Truck className="w-4 h-4" style={{ color: '#1A3C34' }} />
               </div>
-              <div className="merci-cod-box-text">
-                <strong className="merci-cod-box-title">{t('thanks.paymentMode')}: {t('thanks.paymentCOD')}</strong>
-                <span className="merci-cod-box-sub">{t('checkout.codReassure')}</span>
-              </div>
+              <p className="merci-cod-box-text">
+                <span className="merci-cod-box-lead">{t('thanks.paymentCOD')}</span>
+                <span className="merci-cod-box-dash" aria-hidden="true">—</span>
+                <span className="merci-cod-box-tail">{t('thanks.preparing')}</span>
+              </p>
             </div>
           </div>
         ) : null}
