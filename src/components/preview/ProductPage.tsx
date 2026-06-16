@@ -698,7 +698,7 @@ export function ProductPage({
                 disabled={isEpuise}
                 onClick={isEpuise ? undefined : handleCtaClick}
                 style={{
-                  backgroundColor: isEpuise ? BRAND.grisClair : BRAND.vertFonce,
+                  backgroundColor: isEpuise ? BRAND.grisClair : 'rgba(26, 60, 52, 0.82)',
                   color: isEpuise ? BRAND.grisMoyen : '#fff',
                 }}
               >
@@ -713,7 +713,7 @@ export function ProductPage({
                 rel={isEpuise ? undefined : 'noopener noreferrer'}
                 onClick={isEpuise ? (e) => e.preventDefault() : undefined}
                 style={{
-                  backgroundColor: isEpuise ? BRAND.grisClair : '#25D366',
+                  backgroundColor: isEpuise ? BRAND.grisClair : 'rgba(26, 60, 52, 0.82)',
                   color: isEpuise ? BRAND.grisMoyen : '#fff',
                   textDecoration: 'none',
                 }}
@@ -777,7 +777,7 @@ export function ProductPage({
             disabled={isEpuise}
             onClick={isEpuise ? undefined : handleCtaClick}
             style={{
-              backgroundColor: isEpuise ? BRAND.grisClair : BRAND.vertFonce,
+              backgroundColor: isEpuise ? BRAND.grisClair : 'rgba(26, 60, 52, 0.82)',
               color: isEpuise ? BRAND.grisMoyen : '#fff',
             }}
           >
@@ -792,7 +792,7 @@ export function ProductPage({
             rel={isEpuise ? undefined : 'noopener noreferrer'}
             onClick={isEpuise ? (e) => e.preventDefault() : undefined}
             style={{
-              backgroundColor: isEpuise ? BRAND.grisClair : '#25D366',
+              backgroundColor: isEpuise ? BRAND.grisClair : 'rgba(26, 60, 52, 0.82)',
               color: isEpuise ? BRAND.grisMoyen : '#fff',
               textDecoration: 'none',
             }}
