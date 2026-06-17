@@ -586,12 +586,13 @@ export function ProductPage({
               </div>
             )}
 
-            {/* ── Floating action buttons — fixed 200px from top of image zone ──
-                top-[200px] places the block safely BELOW the Nouveau badge
-                (top-4) and ABOVE the center carousel navigation arrow (>),
-                eliminating any visual overlap. z-20 ensures the buttons stay
-                above the carousel arrows (which are z-auto inside the section). */}
-            <div className="absolute top-[200px] right-4 z-20 flex flex-col gap-3">
+            {/* ── Floating action buttons — Mobile-first responsive ──
+                MOBILE (default): compact top-right (top-3 right-3, gap-2) so the
+                rigid 200px offset doesn't break short mobile carousels.
+                DESKTOP (md+): validated 200px offset (md:top-[200px] md:right-4
+                md:gap-3) sitting below the Nouveau badge and above the center
+                carousel arrow (>). z-20 keeps buttons above carousel arrows. */}
+            <div className="absolute top-3 right-3 z-20 flex flex-col gap-2 md:top-[200px] md:right-4 md:gap-3">
               <button
                 className="product-page-float-action"
                 onClick={() => setIsLiked(!isLiked)}

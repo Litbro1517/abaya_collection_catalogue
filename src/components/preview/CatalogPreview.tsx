@@ -8,7 +8,7 @@ import { Input } from '@/components/ui/input';
 import {
   ArrowLeft, Search, MessageCircle, ChevronLeft, ChevronRight,
   Mail, Instagram, ImageIcon, BookOpen, Settings, Heart,
-  ShoppingBag, LayoutDashboard, Lock, RefreshCw, Globe, Check, X
+  ShoppingBag, LayoutDashboard, Lock, RefreshCw, Globe, Check, X, Menu
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { resolveColorHex, buildColorLookupMap, normalizeCouleurKey } from '@/lib/color-utils';
@@ -316,6 +316,7 @@ export function CatalogPreview({ onAdminLogin }: CatalogPreviewProps) {
   // Level 2: Micro sub-filters (Nouveau, Saison, Discount) — contextual
   const [activeMacroFilter, setActiveMacroFilter] = useState<string>('all'); // category slug or 'all'
   const [activeMicroFilter, setActiveMicroFilter] = useState<string>('all'); // subcategory slug or 'all'
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false); // mobile burger drawer state
   // ━━━ Categories: useState starts empty (SSR can't read localStorage) ━━━
   const [dynamicCategories, setDynamicCategories] = useState<DynamicCategory[]>([]);
   // ━━━ Cache-first categories sync ━━━
@@ -1042,8 +1043,171 @@ export function CatalogPreview({ onAdminLogin }: CatalogPreviewProps) {
           The big input field here is intentionally removed to declutter the layout. */}
 
       {/* ═══ Règle 2 & 3: Filters on cream white background ═══ */}
+
+      {/* ═══ Mobile Burger Menu (block md:hidden) — minimalist drawer ═══ */}
+      {(dynamicCategories.length > 0 || filterOptions.length > 1) && (
+        <div className="block md:hidden" style={{ backgroundColor: '#FAF8F5', borderBottom: '1px solid var(--client-border, #e7e5e4)' }}>
+          <div className="mx-auto max-w-[1270px] px-4 py-2.5">
+            <button
+              onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+              className="flex items-center gap-2 px-4 py-2 rounded-full bg-white text-sm font-medium shadow-sm transition-all duration-200"
+              style={{ border: '1px solid #e7e5e4', color: 'var(--client-text, #1B1713)' }}
+              aria-expanded={mobileMenuOpen}
+              aria-label={t('catalog.categories')}
+            >
+              {mobileMenuOpen ? <X className="w-4 h-4" /> : <Menu className="w-4 h-4" />}
+              <span>{t('catalog.categories')}</span>
+            </button>
+          </div>
+
+          {/* Slide-down drawer */}
+          {mobileMenuOpen && (
+            <div
+              className="mx-auto max-w-[1270px] px-4 pb-3"
+            >
+              <div
+                className="rounded-xl overflow-hidden shadow-lg"
+                style={{ backgroundColor: '#fff', border: '1px solid #e7e5e4' }}
+              >
+                {dynamicCategories.length > 0 ? (
+                  <>
+                    {/* "Tout" — all categories */}
+                    <button
+                      className={cn(
+                        'w-full text-left px-4 py-3 text-sm font-medium transition-colors duration-150',
+                        activeMacroFilter === 'all'
+                          ? 'text-white'
+                          : 'hover:bg-[#FAF8F5]'
+                      )}
+                      style={activeMacroFilter === 'all' ? { backgroundColor: '#1B1713' } : { color: 'var(--client-text, #1B1713)' }}
+                      onClick={() => {
+                        setActiveMacroFilter('all');
+                        setActiveMicroFilter('all');
+                        setCurrentPage(1);
+                        setMobileMenuOpen(false);
+                        window.scrollTo({ top: 0, behavior: 'instant' });
+                      }}
+                    >
+                      {t('catalog.all')}
+                    </button>
+
+                    {/* Macro categories */}
+                    {dynamicCategories
+                      .filter(cat => cat.visible)
+                      .map(cat => {
+                        const count = categoryProductCounts.get(cat.slug) || 0;
+                        const isActive = activeMacroFilter === cat.slug;
+                        const visibleSubs = isActive
+                          ? (cat.subCategories?.filter(sub => sub.visible) || [])
+                          : [];
+                        return (
+                          <div key={cat.slug}>
+                            <button
+                              className={cn(
+                                'w-full text-left px-4 py-3 text-sm font-medium transition-colors duration-150 flex items-center justify-between',
+                                isActive ? 'text-white' : 'hover:bg-[#FAF8F5]'
+                              )}
+                              style={isActive ? { backgroundColor: '#1B1713' } : { color: 'var(--client-text, #1B1713)' }}
+                              onClick={() => {
+                                setActiveMacroFilter(cat.slug);
+                                setActiveMicroFilter('all');
+                                setCurrentPage(1);
+                                setMobileMenuOpen(false);
+                                window.scrollTo({ top: 0, behavior: 'instant' });
+                              }}
+                            >
+                              <span>{resolveT(cat.translations, cat.label)}</span>
+                              {count > 0 && (
+                                <span className={cn('text-xs', isActive ? 'text-white/60' : 'text-gray-400')}>
+                                  {count}
+                                </span>
+                              )}
+                            </button>
+
+                            {/* Sub-categories — shown when this macro is active */}
+                            {isActive && visibleSubs.length > 0 && (
+                              <div style={{ backgroundColor: '#FAF8F5' }}>
+                                <button
+                                  className={cn(
+                                    'w-full text-left pl-8 pr-4 py-2 text-xs font-medium transition-colors duration-150',
+                                    activeMicroFilter === 'all' ? 'font-bold' : 'hover:text-black'
+                                  )}
+                                  style={{
+                                    color: activeMicroFilter === 'all'
+                                      ? 'var(--client-text, #1B1713)'
+                                      : '#8B4513',
+                                  }}
+                                  onClick={() => {
+                                    setActiveMicroFilter('all');
+                                    setCurrentPage(1);
+                                    setMobileMenuOpen(false);
+                                  }}
+                                >
+                                  {t('filter.all')}
+                                </button>
+                                {visibleSubs.map(sub => {
+                                  const subCount = subCategoryProductCounts.get(sub.slug) || 0;
+                                  return (
+                                    <button
+                                      key={sub.slug}
+                                      className={cn(
+                                        'w-full text-left pl-8 pr-4 py-2 text-xs font-medium transition-colors duration-150 flex items-center justify-between',
+                                        activeMicroFilter === sub.slug ? 'font-bold' : 'hover:text-black'
+                                      )}
+                                      style={{
+                                        color: activeMicroFilter === sub.slug
+                                          ? 'var(--client-text, #1B1713)'
+                                          : '#8B4513',
+                                      }}
+                                      onClick={() => {
+                                        setActiveMicroFilter(sub.slug);
+                                        setCurrentPage(1);
+                                        setMobileMenuOpen(false);
+                                      }}
+                                    >
+                                      <span>{resolveT(sub.translations, sub.label)}</span>
+                                      {subCount > 0 && (
+                                        <span className="text-[10px] text-gray-400">{subCount}</span>
+                                      )}
+                                    </button>
+                                  );
+                                })}
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })}
+                  </>
+                ) : (
+                  /* Legacy filter options (fallback when no dynamic categories) */
+                  filterOptions.map(opt => (
+                    <button
+                      key={opt.value}
+                      className={cn(
+                        'w-full text-left px-4 py-3 text-sm font-medium transition-colors duration-150',
+                        activeFilter === opt.value ? 'text-white' : 'hover:bg-[#FAF8F5]'
+                      )}
+                      style={activeFilter === opt.value ? { backgroundColor: '#1B1713' } : { color: 'var(--client-text, #1B1713)' }}
+                      onClick={() => {
+                        setActiveFilter(opt.value);
+                        setCurrentPage(1);
+                        setMobileMenuOpen(false);
+                        window.scrollTo({ top: 0, behavior: 'instant' });
+                      }}
+                    >
+                      {opt.label}
+                    </button>
+                  ))
+                )}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ═══ Desktop Filter Bar (hidden md:block) — horizontal capsule pills ═══ */}
       {dynamicCategories.length > 0 ? (
-        <div className="catalog-filter-bar-wrap">
+        <div className="catalog-filter-bar-wrap hidden md:block">
           {/* ── Level 1: Macro Categories — elongated capsule pills ── */}
           <div className="catalog-filter-bar no-scrollbar">
             <button
@@ -1125,7 +1289,7 @@ export function CatalogPreview({ onAdminLogin }: CatalogPreviewProps) {
           })()}
         </div>
       ) : filterOptions.length > 1 ? (
-        <div className="catalog-filter-bar-wrap">
+        <div className="catalog-filter-bar-wrap hidden md:block">
           <div className="catalog-filter-bar no-scrollbar">
             {filterOptions.map(opt => (
               <button
