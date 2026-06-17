@@ -1640,6 +1640,22 @@ img {
   gap: 10px;
 }
 
+/* ── Missing-variant red highlight (surrounds the color block) ── */
+.product-page-colors--error {
+  padding: 6px;
+  margin: -6px;
+  border-radius: 10px;
+  border: 1.5px solid #DC2626;
+  box-shadow: 0 0 0 3px rgba(220, 38, 38, 0.12);
+  animation: pp-variant-shake 0.3s ease;
+}
+
+@keyframes pp-variant-shake {
+  0%, 100% { transform: translateX(0); }
+  25% { transform: translateX(-2px); }
+  75% { transform: translateX(2px); }
+}
+
 .product-page-color-circle {
   position: relative;
   width: 40px;
@@ -1712,6 +1728,16 @@ img {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
+}
+
+/* ── Missing-variant red highlight (surrounds the size block) ── */
+.product-page-sizes--error {
+  padding: 6px;
+  margin: -6px;
+  border-radius: 10px;
+  border: 1.5px solid #DC2626;
+  box-shadow: 0 0 0 3px rgba(220, 38, 38, 0.12);
+  animation: pp-variant-shake 0.3s ease;
 }
 
 .product-page-size-chip {
@@ -1787,6 +1813,20 @@ img {
 /* ── Actions ── */
 .product-page-actions {
   margin-top: 24px;
+}
+
+/* ── Variant error alert (red text, just above the main CTA) ── */
+.product-page-variant-error {
+  margin: 0 0 10px 0;
+  padding: 8px 12px;
+  border-radius: 6px;
+  background: #FEF2F2;
+  border: 1px solid #FECACA;
+  color: #DC2626;
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1.4;
+  text-align: center;
 }
 
 /* ── Quantity Selector — minimalist, sits just above the main CTA ── */

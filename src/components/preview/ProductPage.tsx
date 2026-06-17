@@ -323,16 +323,28 @@ export function ProductPage({
   const [isLiked, setIsLiked] = useState(false);
   const [showShareToast, setShowShareToast] = useState(false);
   const [imageLoaded, setImageLoaded] = useState<Set<number>>(new Set());
+  // ── Variant validation: shown only AFTER a failed checkout attempt ──
+  const [showVariantError, setShowVariantError] = useState(false);
 
   // ── Selected color hex (for the checkout recap swatch) ──
   const selectedColorHex = selectedColor
     ? (colorData.find(c => c.name === selectedColor)?.hex || null)
     : null;
 
+  // ── Missing-variant flags (derived: true only when the product HAS that variant) ──
+  const colorMissing = colorData.length > 0 && !selectedColor;
+  const sizeMissing = sizes.length > 0 && !selectedSize;
+  const hasMissingVariant = colorMissing || sizeMissing;
+
   // CTA click handler — tunnels to the dedicated checkout page in ALL modes.
-  // The selected variants (color, size, quantity) + product info are transmitted.
+  // BLOCKING: if a required variant (color/size) is missing, stop immediately
+  // and surface red alerts. The checkout redirect does NOT happen.
   const handleCtaClick = () => {
     if (isEpuise) return;
+    if (hasMissingVariant) {
+      setShowVariantError(true);
+      return; // ← hard stop: no checkout redirect
+    }
     onCheckout({
       productId: row.id,
       productTitle: title,
@@ -343,6 +355,19 @@ export function ProductPage({
       selectedSize,
       quantity,
     });
+  };
+
+  // Select a color and instantly clear its error state (spec: réinitialisation immédiate).
+  const handleSelectColor = (name: string) => {
+    setSelectedColor(prev => (prev === name ? null : name));
+    if (showVariantError) setShowVariantError(false);
+  };
+
+  // Select a size and instantly clear its error state (spec: réinitialisation immédiate).
+  const handleSelectSize = (size: string) => {
+    if (isEpuise) return;
+    setSelectedSize(prev => (prev === size ? null : size));
+    if (showVariantError) setShowVariantError(false);
   };
 
   const touchStartX = useRef(0);
@@ -616,7 +641,11 @@ export function ProductPage({
               <div className="product-page-section-title">
                 {t('product.colors')}{selectedColor ? <span className="selected-value">: {selectedColor}</span> : ''}
               </div>
-              <div className="product-page-colors">
+              <div
+                className={cn('product-page-colors', showVariantError && colorMissing && 'product-page-colors--error')}
+                role="group"
+                aria-label={showVariantError && colorMissing ? t('product.colorRequiredAria') : t('product.colors')}
+              >
                 {colorData.map(({ name, hex }) => {
                   const isSelected = selectedColor === name;
                   return (
@@ -626,7 +655,7 @@ export function ProductPage({
                         'product-page-color-circle',
                         isSelected && 'selected'
                       )}
-                      onClick={() => setSelectedColor(isSelected ? null : name)}
+                      onClick={() => handleSelectColor(name)}
                       title={name}
                       aria-label={`${t('product.colorAria')} ${name}${isSelected ? ` ${t('product.selectedAria')}` : ''}`}
                     >
@@ -656,7 +685,11 @@ export function ProductPage({
               <div className="product-page-section-title">
                 {t('product.sizes')}{selectedSize ? <span className="selected-value">: {selectedSize}</span> : ''}
               </div>
-              <div className="product-page-sizes">
+              <div
+                className={cn('product-page-sizes', showVariantError && sizeMissing && 'product-page-sizes--error')}
+                role="group"
+                aria-label={showVariantError && sizeMissing ? t('product.sizeRequiredAria') : t('product.sizes')}
+              >
                 {sizes.map(size => (
                   <button
                     key={size}
@@ -665,7 +698,7 @@ export function ProductPage({
                       selectedSize === size && 'selected',
                       isEpuise && 'disabled'
                     )}
-                    onClick={() => !isEpuise && setSelectedSize(selectedSize === size ? null : size)}
+                    onClick={() => handleSelectSize(size)}
                     disabled={isEpuise}
                   >
                     {size}
@@ -715,6 +748,13 @@ export function ProductPage({
                 </button>
               </div>
             </div>
+
+            {/* ── Variant error alert (red, above the main CTA) ── */}
+            {showVariantError && hasMissingVariant && (
+              <p className="product-page-variant-error" role="alert" aria-live="assertive">
+                {t('product.selectMissingVariants')}
+              </p>
+            )}
 
             {/* Main CTA — tunnels to the dedicated checkout page */}
             <button

@@ -390,6 +390,9 @@ export const dictionaries: Record<Locale, TranslationDict> = {
     'product.details': 'Détails',
     'product.colorAria': 'Couleur',
     'product.selectedAria': '(sélectionnée)',
+    'product.selectMissingVariants': 'Veuillez sélectionner les options manquantes.',
+    'product.colorRequiredAria': 'Veuillez choisir une couleur',
+    'product.sizeRequiredAria': 'Veuillez choisir une taille',
 
     // ── Contact Extended ──
     'contact.chatWhatsApp': 'Discuter sur WhatsApp',
@@ -863,6 +866,9 @@ export const dictionaries: Record<Locale, TranslationDict> = {
     'product.details': 'Details',
     'product.colorAria': 'Color',
     'product.selectedAria': '(selected)',
+    'product.selectMissingVariants': 'Please select the missing options.',
+    'product.colorRequiredAria': 'Please choose a color',
+    'product.sizeRequiredAria': 'Please choose a size',
 
     // ── Contact Extended ──
     'contact.chatWhatsApp': 'Chat on WhatsApp',
@@ -1336,6 +1342,9 @@ export const dictionaries: Record<Locale, TranslationDict> = {
     'product.details': 'التفاصيل',
     'product.colorAria': 'لون',
     'product.selectedAria': '(محدد)',
+    'product.selectMissingVariants': '.يرجى اختيار الخيارات الناقصة',
+    'product.colorRequiredAria': 'يرجى اختيار لون',
+    'product.sizeRequiredAria': 'يرجى اختيار مقاس',
 
     // ── Contact Extended ──
     'contact.chatWhatsApp': 'تواصل عبر واتساب',
