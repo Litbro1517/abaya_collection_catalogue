@@ -339,6 +339,9 @@ export function ProductPage({
   // CTA click handler — tunnels to the dedicated checkout page in ALL modes.
   // BLOCKING: if a required variant (color/size) is missing, stop immediately
   // and surface red alerts. The checkout redirect does NOT happen.
+  // showVariantError is a one-way "attempted" gate: once set true it stays true,
+  // and the DERIVED colorMissing/sizeMissing flags handle instant per-field
+  // clearing (spec: selecting a missing variant clears ONLY that field's border).
   const handleCtaClick = () => {
     if (isEpuise) return;
     if (hasMissingVariant) {
@@ -357,17 +360,17 @@ export function ProductPage({
     });
   };
 
-  // Select a color and instantly clear its error state (spec: réinitialisation immédiate).
+  // Select a color. The derived colorMissing flag updates instantly, so the
+  // color border + (if size also selected) the global alert clear automatically.
   const handleSelectColor = (name: string) => {
     setSelectedColor(prev => (prev === name ? null : name));
-    if (showVariantError) setShowVariantError(false);
   };
 
-  // Select a size and instantly clear its error state (spec: réinitialisation immédiate).
+  // Select a size. The derived sizeMissing flag updates instantly, so the
+  // size border + (if color also selected) the global alert clear automatically.
   const handleSelectSize = (size: string) => {
     if (isEpuise) return;
     setSelectedSize(prev => (prev === size ? null : size));
-    if (showVariantError) setShowVariantError(false);
   };
 
   const touchStartX = useRef(0);
