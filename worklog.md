@@ -1780,3 +1780,53 @@ Stage Summary:
 - z-20 ensures buttons render above carousel arrows.
 - Only file changed: src/components/preview/ProductPage.tsx (25 insertions, 29 deletions). No CSS changes.
 - Task fully complete and verified on production. No outstanding issues.
+
+---
+Task ID: mobile-first-refonte
+Agent: main (Z.ai Code)
+Task: [SURGICAL EDITING] Mobile-First strict — (1) Responsive floating buttons (Cœur/Partage): mobile top-3 right-3 gap-2, desktop md:top-[200px] md:right-4 md:gap-3. (2) Category menu: hide horizontal pills on mobile (hidden md:block), add burger (Menu icon, block md:hidden) opening a drawer with vertical categories. (3) Verify line-clamp + buy button above fold at 528px.
+
+Work Log:
+PART 1 — Floating buttons mobile-first responsive:
+- Changed className from `absolute top-[200px] right-4 z-20 flex flex-col gap-3` to `absolute top-3 right-3 z-20 flex flex-col gap-2 md:top-[200px] md:right-4 md:gap-3` in ProductPage.tsx.
+- Mobile (default): top-3 (12px) right-3 (12px) gap-2 (8px) — compact top-right, doesn't break short mobile carousels.
+- Desktop (md+): md:top-[200px] (200px) md:right-4 (16px) md:gap-3 (12px) — validated 200px offset below Nouveau badge, above center carousel arrow.
+
+PART 2 — Category menu mobile-first refactoring:
+- Added `Menu` to lucide-react imports in CatalogPreview.tsx.
+- Added `mobileMenuOpen` state (useState(false)).
+- Added `catalog.categories` i18n key (FR: Catégories, EN: Categories, AR: الفئات) in dictionaries.ts.
+- Restructured filter section (CatalogPreview.tsx lines 1044-1308):
+  - Mobile burger section (`block md:hidden`): burger button (Menu/X icon + "Catégories" label) on cream white bg. Click toggles slide-down drawer.
+  - Drawer: minimalist white panel with shadow-lg, rounded-xl. Vertical list: "Tout" + all macro categories (with product counts). Active macro highlighted with #1B1713 bg + white text. When a macro is active and has sub-categories, they appear indented below (pl-8) with #8B4513 text. Legacy filterOptions fallback when no dynamic categories. Auto-close on selection + scroll to top.
+  - Desktop filter: added `hidden md:block` to both `.catalog-filter-bar-wrap` instances (dynamic + legacy). Horizontal capsule pills only visible on md+ screens.
+
+PART 3 — Mobile height budget (528px):
+- Catalog card has NO description field (only title line-clamp:2, color dots, price). Micro-cta "Commander" is position:absolute on image bottom — always visible when card is visible.
+- Verified at 528px production: 2-column grid (243px cards), first row bottom=398px < viewport 900px (above fold). 16 cards loaded.
+
+LINT: clean (0 errors).
+
+DEV VERIFICATION (528px viewport):
+- Burger visible ("Catégories"), desktop filter hidden (display:none). ✓
+- Burger click opens drawer with 7 categories (Tout, Ensemble, Abaya, Kimono, Robe, Accessoires, Sport). VLM: "minimalist and clean, professional". ✓
+- Category click filters products + auto-closes drawer. ✓
+- Product page: floating buttons at top-3 right-3 gap-2 (12px/12px/8px). VLM: "top-right, compact, no overlap". ✓
+- Desktop (1280px): burger hidden, horizontal pills visible (8 pills with counts). ✓
+
+PRODUCTION VERIFICATION:
+- Mobile (528px): burger "Catégories" visible, desktop filter hidden, 2-col grid (243px). ✓
+- Burger drawer: 7 categories vertical, "Tout" active (dark bg), VLM: "minimalist, clean, professional". ✓
+- Category click (Abaya): drawer auto-closes, 3 products shown. ✓
+- Product page mobile: floating buttons at top-3 (12px) right-3 (12px) gap-2 (8px). ✓
+- Catalog cards: 16 cards, first row bottom=398px < viewport 900px (above fold), micro-cta visible. ✓
+- Desktop (1280px): burger hidden, horizontal pills visible (Tout, Ensemble (3), Abaya (3), Kimono, Robe (3), Accessoires, Sport (1), Tous). ✓
+- Desktop product page: floating buttons at md:top-[200px] (200px) md:right-4 (16px) md:gap-3 (12px). badgeToActionsGap=162px, actionsToArrowGap=189px (no overlap). VLM: "all 3 elements have clear spacing with no overlap". ✓
+
+Stage Summary:
+- Part 1: Floating buttons are mobile-first responsive — compact top-3 right-3 gap-2 on mobile, md:top-[200px] md:right-4 md:gap-3 on desktop. ✓
+- Part 2: Horizontal category pills hidden on mobile (hidden md:block), burger menu (block md:hidden) with Menu icon opens minimalist slide-down drawer with vertical categories + sub-categories. Auto-close on selection. ✓
+- Part 3: At 528px, catalog cards (2-col grid, 243px each) fit above fold, micro-cta "Commander" overlaid on image always visible, title line-clamp:2 keeps cards compact. No buy button pushed below fold. ✓
+- Files changed: ProductPage.tsx (floating buttons classes), CatalogPreview.tsx (burger menu + hidden md:block), dictionaries.ts (catalog.categories i18n key).
+- Committed 87545c9, pushed (b1f1817..87545c9). Deployed and verified on production at both 528px (mobile) and 1280px (desktop).
+- Task fully complete and verified on production. No outstanding issues.
