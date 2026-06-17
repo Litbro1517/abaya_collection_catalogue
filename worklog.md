@@ -1857,3 +1857,31 @@ Stage Summary:
 - Key insight: `overflow-x: clip` > `overflow-x: hidden` when sticky descendants exist (clip doesn't create a scroll container).
 - Key insight: flex children with `margin: 0 auto` need explicit `width: 100%` to fill the cross axis on mobile.
 - Production deploy in progress (Vercel auto-deploy ~90s).
+
+---
+Task ID: right-column-lockdown-528px
+Agent: main
+Task: Verrouillage final de la colonne droite avec marge de sécurité (Zéro Scrollbar) — lock .product-page-info to 528px on desktop with no scrollbar, justify-between to push buy button to bottom, pb-2 cushion.
+
+Work Log:
+- Read worklog.md (previous responsive-overflow-fix task), ProductPage.tsx (right column structure lines 650-821), globals.css (.product-page-info, .product-page-info-inner, .product-page-description, .product-page-colors, .product-page-color-circle).
+- Identified structure: .product-page-info (outer, sticky) > .product-page-info-inner (inner, margin:auto 0) > [title, price, description, colors, sizes, details, actions].
+- Part 1 (wrapper): Added Tailwind classes to .product-page-info div in JSX: md:max-h-[528px] md:h-[528px] overflow-hidden flex flex-col justify-between pb-2. Removed conflicting CSS rules (height:calc(100vh-88px), display:flex, flex-direction:column, overflow-y:auto) from .product-page-info base rule. Mobile media query updated with overflow:visible + justify-content:flex-start + max-height:none overrides.
+- Part 2 (description): Added classes to <p>: md:max-h-[80px] line-clamp-3 md:line-clamp-4 overflow-hidden text-ellipsis.
+- Part 3 (colors): Added classes to .product-page-colors div: h-[80px] grid grid-cols-6 gap-2 content-start. Removed display:flex/flex-wrap/gap from CSS (let Tailwind grid take over).
+- Part 4 (remove overflow residue): Removed overflow-y:auto from .product-page-info CSS. Removed display:block + overflow-y:visible from mobile media query (replaced with targeted overrides).
+- Key architectural change: .product-page-info-inner CSS changed from margin:auto 0 (vertical centering) to flex:1 1 auto + display:flex + flex-direction:column + justify-content:space-between + min-height:0. This makes the inner wrapper FILL the 528px parent and DISTRIBUTE its children (title at top, buy button at bottom). margin:auto 0 was removed because auto margins absorb free space, defeating justify-between's distribute-to-edges intent.
+- Mobile: .product-page-info-inner gets flex:none + justify-content:flex-start to override desktop flex behavior (content flows naturally on mobile).
+- Verified via Agent Browser:
+  - Desktop 1280px: info height=528px, maxHeight=528px, overflow=hidden, overflowY=hidden, display=flex, flexDirection=column, justifyContent=space-between, paddingBottom=8px, hasScrollbar=false. CTA at bottom (gap=40px on dev product with minimal content; production product with full content will have CTA closer to bottom with just 8px pb-2 cushion).
+  - Mobile 375px: height=237px (natural), maxHeight=none, overflow=visible, display=flex, justifyContent=flex-start, position=static. No fixed height, no clipping, content flows naturally. No horizontal overflow.
+- Lint passed. Committed 2702725. Pushed to main.
+
+Stage Summary:
+- Right column locked to 528px on desktop with zero scrollbar (overflow:hidden).
+- justify-between distributes content: title at top, buy button at bottom.
+- pb-2 (8px) air cushion between CTA and container edge.
+- Description: 3 lines mobile / 4 lines desktop, hard 80px cap, clean '...' truncation.
+- Colors: sanctuarised 80px block, 6-col grid, content-start. 1 row leaves breathing space; 2 rows fill exactly.
+- Mobile unaffected: natural flow, no fixed height, overflow visible.
+- Production deploy in progress (Vercel auto-deploy ~90s).

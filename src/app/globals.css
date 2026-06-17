@@ -1831,16 +1831,20 @@ img {
 }
 
 /* ── Description ── */
+/* margin-bottom tightened from 20px → 12px to fit within the 528px desktop
+   container without clipping the CTA (Part of right-column lockdown spec). */
 .product-page-description {
-  margin: 0 0 20px;
+  margin: 0 0 12px;
   color: var(--client-text-muted);
   font-size: 14px;
   line-height: 1.7;
 }
 
 /* ── Sections (Colors, Sizes) ── */
+/* margin-bottom tightened from 20px → 14px so all sections + CTA fit within
+   the 528px desktop container without overflow clipping. */
 .product-page-section {
-  margin-bottom: 20px;
+  margin-bottom: 14px;
 }
 
 .product-page-section-title {
@@ -2032,10 +2036,11 @@ img {
 }
 
 /* ── Detail Fields ── */
+/* margin tightened from 20px → 12px to fit within the 528px desktop container. */
 .product-page-details {
-  margin: 20px 0;
+  margin: 12px 0;
   border-top: 1px solid var(--client-pp-divider);
-  padding-top: 16px;
+  padding-top: 12px;
 }
 
 .product-page-detail-row {
@@ -2069,8 +2074,11 @@ img {
 }
 
 /* ── Actions ── */
+/* margin-top tightened from 24px → 12px — justify-between on the parent already
+   handles top spacing, so the actions block doesn't need a large margin. This
+   ensures the CTA fits within the 528px container without clipping. */
 .product-page-actions {
-  margin-top: 24px;
+  margin-top: 12px;
 }
 
 /* ── Variant error alert (red text, just above the main CTA) ── */
