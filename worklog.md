@@ -1623,3 +1623,30 @@ Stage Summary:
 - Hover (non-selected): `transition: all 0.2s ease` + `transform: scale(1.05)` + subtle gold tint, no heavy white opaque bg.
 - All changes confined to `src/app/globals.css` (4 rules in `.product-page-size-chip` block). No TSX/JS changes needed — ProductPage already toggles the `selected` class correctly.
 - BLOCKER: cannot push to production — GitHub personal access token in remote URL is invalid. Commit 586ea1e is local-only until token is refreshed.
+
+---
+Task ID: size-selector-harmonization-prod-verify
+Agent: main (Z.ai Code)
+Task: Push the size-selector harmonization commit to production (new GitHub token provided by user) and verify on the live Vercel deployment.
+
+Work Log:
+- Updated git remote URL with new GitHub token `ghp_ETRUPMc9...` (token provided by user in this turn).
+- `git push origin main` succeeded: `bfbfe05..546f223 main -> main` (carried the harmonization commit 586ea1e + earlier local commits to GitHub, triggering Vercel auto-deploy).
+- Waited 90s for Vercel build, then opened production URL https://abaya-collection-catalogue-9dum.vercel.app/ in Agent Browser.
+- Opened product "Kitma montoni" (4 sizes: L/Xl/2xl/3xl + 3 colors) — confirmed via DOM eval.
+- Clicked size "L" → computed style of `.selected`: bg rgb(26,26,26)=#1A1A1A ✓, color rgb(255,255,255)=#FFFFFF ✓, border rgb(201,168,76)=#C9A84C gold ✓, transition 0.2s ✓.
+- Clicked a color → compared gold rings: colorRingBorder rgb(201,168,76) === sizeBorder rgb(201,168,76) → match:true (perfect gold ring match between color selector and size selector).
+- CSS rule audit on production: only hover rule touching `.selected` is the new `.product-page-size-chip.selected:hover:not(.disabled)` (keeps black+gold). No non-selected hover rule can override the selected state.
+- CRITICAL hover-conflict test: hovered the selected "L" chip via `agent-browser hover` and read computed style WHILE `:hover` active → bg stays rgb(26,26,26) black, color stays white, border stays gold, transform=scale(1.05). Original bug (gold-on-white until cursor leaves) is FIXED.
+- Non-selected hover test: hovered "Xl" → bg rgba(201,168,76,0.05) = 5% gold tint (NOT heavy opaque white), border gold, transform scale(1.05). Default non-selected: white bg + gray (#aaa6a0) border.
+- VLM (glm-4.6v) verification on zoomed production screenshot of size row: (1) selected label = "L", (2) background = BLACK, (3) border = GOLD, (4) text = WHITE, (5) non-selected = white background. Also confirmed "no green color visible anywhere".
+- Cleaned up all temporary screenshots; closed browser.
+
+Stage Summary:
+- Size selector harmonization is LIVE on production (Vercel deploy from commit 546f223).
+- All 3 spec requirements verified end-to-end on production with real variants (Kitma montoni):
+  1. Green eliminated — selected is matte black #1A1A1A + pure white text.
+  2. Gold border on selected matches the color selector's gold ring EXACTLY (same #C9A84C variable).
+  3. Hover/selected conflict fixed — clicking a size applies black+gold INSTANTLY; hovering the selected chip keeps it black+gold (only adds scale 1.05). Original "display delay until cursor leaves" bug is gone.
+- Hover on non-selected: subtle 5% gold tint + scale(1.05), no heavy opaque white bg.
+- Task fully complete and verified on production. No outstanding issues.
