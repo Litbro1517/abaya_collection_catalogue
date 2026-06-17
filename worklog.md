@@ -1830,3 +1830,30 @@ Stage Summary:
 - Files changed: ProductPage.tsx (floating buttons classes), CatalogPreview.tsx (burger menu + hidden md:block), dictionaries.ts (catalog.categories i18n key).
 - Committed 87545c9, pushed (b1f1817..87545c9). Deployed and verified on production at both 528px (mobile) and 1280px (desktop).
 - Task fully complete and verified on production. No outstanding issues.
+
+---
+Task ID: responsive-overflow-fix
+Agent: main
+Task: Correction stricte du débordement horizontal (Overflow Mobile-First) — seal horizontal overflow on mobile so page width = viewport width.
+
+Work Log:
+- Read worklog.md, ProductPage.tsx, CatalogPreview.tsx (full), page.tsx, layout.tsx, globals.css (relevant sections: root containers, header, filter bar, product-page, carousel).
+- Confirmed mobile burger menu (block md:hidden) + desktop filter bar (hidden md:block) already implemented from prior session.
+- Identified root cause: layout containers (.catalog-container, .detail-container, .product-page) used `margin: 0 auto` as flex children of the root wrapper (flex flex-col) WITHOUT an explicit width → Flexbox spec says auto cross-axis margins prevent stretch → containers shrank to content width (359px on 528px viewport) instead of filling viewport.
+- Applied Fix 1 (root wrapper): added `w-full max-w-full overflow-x-clip` to CatalogPreview root div. Used `clip` instead of `hidden` because `overflow-x:hidden` forces `overflow-y` to compute to `auto` (CSS spec), creating a scroll container that BREAKS position:sticky on the header. Verified: with `hidden`, header scrolled away (headerTop=-45 after scroll); with `clip`, header sticks (headerTop=0).
+- Applied Fix 2 (layout containers): added `width: 100%` to .catalog-container, .detail-container, .product-page in globals.css. Auto margins can't shrink a 100% width, so containers now fill viewport on mobile while remaining centered on desktop (max-width:1270px caps).
+- Applied Fix 3 (carousel): added `max-width: 100%` to .product-page-carousel-wrap as defensive seal.
+- Applied Fix 4 (categories): added `overflow-x:hidden` + `max-width:100%` to .catalog-filter-bar-wrap; added `white-space:nowrap` + hidden scrollbar to .catalog-filter-bar so pills scroll internally.
+- Applied Fix 5 (toolbar): added `max-width:100%` + `flex-wrap:wrap` to .catalog-toolbar; `min-width:0` + `word-break:break-word` to h2; mobile media query (gap:8px, font-size:22px).
+- Restarted dev server (old process PID 1093 was serving stale CSS — killed and started fresh on port 3000).
+- Verified via Agent Browser at 375px, 528px, 1280px:
+  - 375px: scrollWidth=375=innerWidth, no overflow, sticky header works (headerTop=0), carousel right=359<375, burger visible, desktop bar hidden
+  - 528px: scrollWidth=528=innerWidth, no overflow, container fills (528px)
+  - 1280px: scrollWidth=1280=innerWidth, container capped (1270px), desktop bar visible, burger hidden
+- Lint passed cleanly. Committed (9332328). Pushed to main.
+
+Stage Summary:
+- Horizontal overflow eliminated at all breakpoints (375/528/1280px).
+- Key insight: `overflow-x: clip` > `overflow-x: hidden` when sticky descendants exist (clip doesn't create a scroll container).
+- Key insight: flex children with `margin: 0 auto` need explicit `width: 100%` to fill the cross axis on mobile.
+- Production deploy in progress (Vercel auto-deploy ~90s).
