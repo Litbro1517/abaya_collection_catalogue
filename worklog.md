@@ -1912,3 +1912,39 @@ Stage Summary:
 - Mobile: natural flow, no fixed height, no clipping.
 - Production verified with full-content product (Kitma montoni: 5 images, 4 sizes, 3 colors, description, details).
 - Commits: 2702725 (lockdown) + b0f3d61 (spacing fix). Both deployed and verified on production.
+
+---
+Task ID: drawers-1
+Agent: main (Z.ai Code)
+Task: Retour au Layout Fluide et Intégration du Double Tiroir Latéral (Texte & Couleurs) — abandon fixed heights on right column, add side drawers for long description (>3 lines) and abundant colors (>12).
+
+Work Log:
+- Added i18n keys (FR/EN/AR) for product.readMore, product.productDetails, product.allColors, product.moreColors in src/lib/i18n/dictionaries.ts.
+- Imported Sheet/SheetContent/SheetHeader/SheetTitle/SheetDescription from @/components/ui/sheet in ProductPage.tsx.
+- Added module-level ARABIC_COLOR_NAMES map (45 FR→AR color translations) + arabicColorName() helper that normalizes keys via normalizeCouleurKey, tries direct/collapsed/per-word lookup, falls back to original name.
+- Added state: descSheetOpen, colorSheetOpen, descOverflow + descriptionRef (useRef<HTMLParagraphElement>).
+- Added computed: MAX_VISIBLE_COLORS=11, colorOverflow = colorData.length > 12, visibleColorData (sliced to 11), hiddenColorCount.
+- Added useEffect with rAF-deferred measurement (requestAnimationFrame) to detect description overflow (scrollHeight - clientHeight > 1) without synchronous setState in effect body (lint-clean). Re-measures on window resize.
+- Part 1 (Liberation): removed md:max-h-[528px] md:h-[528px] overflow-hidden flex flex-col justify-between pb-2 from .product-page-info; outer is now just "product-page-info". Updated globals.css .product-page-info-inner to remove flex:1, justify-content:space-between, min-height:0 — now simple flex column with padding. Simplified mobile override.
+- Part 2 (Description drawer): changed <p> from "md:max-h-[80px] line-clamp-3 md:line-clamp-4 overflow-hidden text-ellipsis" to just "line-clamp-3". Added "Lire la suite" micro-button (.product-page-read-more, underlined thin muted text) that appears only when descOverflow is true; opens descSheetOpen.
+- Part 3 (Color drawer): removed h-[80px] from .product-page-colors grid. Mapped visibleColorData (11 max) instead of all colors. Added matte-black "+X" overflow button (.product-page-color-overflow, 40×40 circle, #1F1F1F bg, white text) when colorOverflow; opens colorSheetOpen.
+- Part 4 (Drawer code): two Sheet components (side="right", className="w-full max-w-md bg-[#E8E2E0] p-6 shadow-xl overflow-y-auto"). Description drawer shows full text in whitespace-pre-line div (dir RTL aware). Color drawer lists ALL colors vertically as .product-page-drawer-color-row buttons (swatch + Arabic name dir=rtl + selected check), clicking selects + closes. Each Sheet has SheetHeader + SheetTitle (Playfair serif) + sr-only SheetDescription (Radix accessibility). SheetContent includes built-in X close button (top-right).
+- Added CSS in globals.css: .product-page-read-more (underline micro-button), .product-page-color-overflow (matte black circle), .product-page-drawer-color-row/.swatch/.name (drawer list rows). Relaxed .product-page-description margin (12px→8px) and .product-page-section margin (14px→20px) for fluid spacing. Updated comments throughout.
+- Fixed lint error react-hooks/set-state-in-effect by deferring measure() via requestAnimationFrame instead of calling synchronously in effect body.
+- Fixed Radix accessibility warning (Missing Description for DialogContent) by adding sr-only SheetDescription to both drawers.
+
+Verification (Agent Browser, dev localhost:3000):
+- Injected test data into cache (724-char description + 15 colors) blocking /api/catalog to force cache use; updated both abaya_cache_catalog.sections[0].config AND abaya_cache_sections[0].section.config (the latter is what ProductPage reads).
+- Desktop 1280×800: infoHeight=544 (natural fluid, NOT 528), maxHeight=none, innerJustify=normal. descOverflow=true, readMoreExists=true ("Lire la suite"). colorCount=11, overflowExists=true ("+4"). No horizontal overflow (1280=1280).
+- Description drawer: sheetOpen=true, title="Détails du produit", full 724-char text visible (not clamped), X close button present (absolute top-4 right-4 with XIcon).
+- Color drawer: sheetOpen=true, title="Toutes les couleurs", rowCount=15 (ALL colors), Arabic names correct (أسود/أبيض/كراميل/بني/أزرق/أحمر/وردي/أخضر/بوردو/كريمي/كحلي/توب/شوكولاتة) with matching swatch bg colors, X close button present.
+- Mobile 375×812: no horizontal overflow (375=375), infoPosition=static, infoHeight=487. Drawer full-width (sheetWidth=375=coversFullWidth=true), title + full desc + close button all present.
+- Console: no accessibility warnings after SheetDescription fix. No runtime errors (only expected "Failed to fetch" from the temporary network block, now removed).
+- Restored clean cache state (cleared injected data, unblocked network). Catalog reloads normally with 5 products.
+
+Stage Summary:
+- Right column is fully fluid again (no fixed heights, no justify-between, no overflow lock).
+- Long descriptions clamp to 3 lines with a "Lire la suite" micro-button opening a right-side Sheet drawer with the full text.
+- Abundant colors (>12) collapse to 11 pills + a matte-black "+X" button opening a right-side Sheet drawer listing every color with Arabic calligraphic names beside each swatch.
+- Both drawers use the shadcn Sheet (right side, w-full max-w-md, bg #E8E2E0, p-6, shadow-xl) with an X close button top-right and Playfair serif titles.
+- Fully responsive (full-width drawer on mobile, capped at max-w-md on desktop), lint-clean, no console warnings.

@@ -1670,9 +1670,9 @@ img {
    margin:auto 0 on inner wrapper centers content when it fits,
    allows natural scroll when content overflows (no clipping). */
 /* Right column wrapper: sticky on desktop, static on mobile.
-   Height/overflow/display/flex now controlled by Tailwind classes on the element:
-     md:max-h-[528px] md:h-[528px] overflow-hidden flex flex-col justify-between pb-2
-   CSS here only retains positioning, width, background, z-index. */
+   Fluid layout — no fixed height, no overflow lock. Content flows naturally;
+   long descriptions and abundant colors are delegated to side drawers (Sheets).
+   CSS here retains positioning, width, background, z-index. */
 .product-page-info {
   position: sticky;
   top: 72px;
@@ -1689,17 +1689,12 @@ img {
   }
 }
 
-/* Inner wrapper: flex-1 so it fills the 528px parent, then flex-column with
-   justify-content:space-between to distribute its children (title at top, buy
-   button at bottom). min-height:0 prevents flex blowout when content overflows.
-   margin:auto 0 removed — it conflicted with justify-between (auto margins absorb
-   free space, defeating the distribute-to-edges intent). */
+/* Inner wrapper: simple flex column. Children stack top-to-bottom with their
+   own section margins providing fluid spacing. No justify-between (buy button
+   sits right after the details, not pinned to the bottom). */
 .product-page-info-inner {
-  flex: 1 1 auto;
   display: flex;
   flex-direction: column;
-  justify-content: space-between;
-  min-height: 0;
   padding: 32px 24px;
   width: 100%;
 }
@@ -1708,15 +1703,9 @@ img {
   .product-page-info {
     position: static;
     width: 100%;
-    height: auto;
-    max-height: none;          /* override md:max-h-[528px] which doesn't apply on mobile anyway */
     background: transparent;
-    overflow: visible;          /* override Tailwind overflow-hidden — mobile shows all content */
-    justify-content: flex-start; /* override justify-between — mobile content flows naturally */
   }
   .product-page-info-inner {
-    flex: none;                 /* override flex:1 — mobile takes natural content height */
-    justify-content: flex-start; /* override justify-between on mobile */
     padding: 20px 0 0 0;
   }
 }
@@ -1831,20 +1820,20 @@ img {
 }
 
 /* ── Description ── */
-/* margin-bottom tightened from 20px → 12px to fit within the 528px desktop
-   container without clipping the CTA (Part of right-column lockdown spec). */
+/* Fluid layout: long descriptions clamp to 3 lines (line-clamp-3 on the element).
+   A "Lire la suite" micro-button appears below when the text overflows, opening
+   a side drawer with the full text. Small bottom margin leaves air before the button. */
 .product-page-description {
-  margin: 0 0 12px;
+  margin: 0 0 8px;
   color: var(--client-text-muted);
   font-size: 14px;
   line-height: 1.7;
 }
 
 /* ── Sections (Colors, Sizes) ── */
-/* margin-bottom tightened from 20px → 14px so all sections + CTA fit within
-   the 528px desktop container without overflow clipping. */
+/* Fluid spacing between sections. No fixed-height container to fit within. */
 .product-page-section {
-  margin-bottom: 14px;
+  margin-bottom: 20px;
 }
 
 .product-page-section-title {
@@ -1878,11 +1867,12 @@ img {
 }
 
 /* ── Color Circles (40×40px — ColorMap-driven, no text) ──
-   Layout now controlled by Tailwind classes on the element:
-     h-[80px] grid grid-cols-6 gap-2 content-start
-   CSS here only retains the error-state styling. */
+   Layout controlled by Tailwind classes on the element:
+     grid grid-cols-6 gap-2 content-start
+   Fluid height (no fixed h-[80px]) — the grid grows with the number of rows.
+   When colors > 12, only 11 pills render inline + a matte-black "+X" button. */
 .product-page-colors {
-  /* display:flex/flex-wrap/gap removed — Tailwind grid utilities take over */
+  /* Tailwind grid utilities take over; CSS here only retains error-state styling */
 }
 
 /* ── Missing-variant red highlight (surrounds the color block) ── */
@@ -1899,6 +1889,93 @@ img {
   0%, 100% { transform: translateX(0); }
   25% { transform: translateX(-2px); }
   75% { transform: translateX(2px); }
+}
+
+/* ── "Lire la suite" micro-button (under the clamped description) ──
+   Minimalist: underline, thin weight, muted color. Opens the description drawer. */
+.product-page-read-more {
+  display: inline-block;
+  margin: 2px 0 0;
+  padding: 0;
+  background: none;
+  border: none;
+  font-size: 12px;
+  font-weight: 400;
+  letter-spacing: 0.02em;
+  color: var(--client-text-muted);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  text-decoration-thickness: 1px;
+  cursor: pointer;
+  transition: color 0.2s;
+  line-height: 1.4;
+}
+.product-page-read-more:hover {
+  color: var(--client-text-heading);
+}
+
+/* ── Color overflow "+X" button (matte black, replaces the 12th pill) ──
+   Matches the 40×40 circle footprint of color pills so the grid stays aligned. */
+.product-page-color-overflow {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  border: 2.5px solid transparent;
+  background: #1F1F1F;
+  color: #FFFFFF;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  transition: transform 0.15s, box-shadow 0.2s, background 0.2s;
+}
+.product-page-color-overflow:hover {
+  transform: scale(1.12);
+  box-shadow: 0 2px 8px rgba(0,0,0,0.25);
+  background: #000000;
+}
+
+/* ── Drawer (Sheet) color list rows ──
+   Horizontal row: swatch + Arabic name (RTL) + optional selected check. */
+.product-page-drawer-color-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 10px;
+  border-radius: 10px;
+  border: 1.5px solid transparent;
+  background: transparent;
+  cursor: pointer;
+  transition: background 0.18s, border-color 0.18s;
+  text-align: right;
+}
+.product-page-drawer-color-row:hover {
+  background: rgba(0, 0, 0, 0.05);
+}
+.product-page-drawer-color-row.selected {
+  border-color: var(--client-pp-color-circle-selected-border);
+  background: rgba(201, 168, 76, 0.08);
+}
+
+.product-page-drawer-color-swatch {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  box-shadow: inset 0 0 0 1px rgba(0,0,0,0.08);
+}
+
+.product-page-drawer-color-name {
+  flex: 1 1 auto;
+  font-size: 15px;
+  font-weight: 500;
+  color: var(--client-text-heading);
+  font-family: 'Amiri', 'Noto Naskh Arabic', 'Segoe UI', serif;
+  line-height: 1.4;
 }
 
 .product-page-color-circle {

@@ -397,6 +397,10 @@ export const dictionaries: Record<Locale, TranslationDict> = {
     'product.selectMissingVariants': 'Veuillez sélectionner les options manquantes.',
     'product.colorRequiredAria': 'Veuillez choisir une couleur',
     'product.sizeRequiredAria': 'Veuillez choisir une taille',
+    'product.readMore': 'Lire la suite',
+    'product.productDetails': 'Détails du produit',
+    'product.allColors': 'Toutes les couleurs',
+    'product.moreColors': 'couleurs',
 
     // ── Contact Extended ──
     'contact.chatWhatsApp': 'Discuter sur WhatsApp',
@@ -877,6 +881,10 @@ export const dictionaries: Record<Locale, TranslationDict> = {
     'product.selectMissingVariants': 'Please select the missing options.',
     'product.colorRequiredAria': 'Please choose a color',
     'product.sizeRequiredAria': 'Please choose a size',
+    'product.readMore': 'Read more',
+    'product.productDetails': 'Product details',
+    'product.allColors': 'All colors',
+    'product.moreColors': 'colors',
 
     // ── Contact Extended ──
     'contact.chatWhatsApp': 'Chat on WhatsApp',
@@ -1357,6 +1365,10 @@ export const dictionaries: Record<Locale, TranslationDict> = {
     'product.selectMissingVariants': '.يرجى اختيار الخيارات الناقصة',
     'product.colorRequiredAria': 'يرجى اختيار لون',
     'product.sizeRequiredAria': 'يرجى اختيار مقاس',
+    'product.readMore': 'اقرأ المزيد',
+    'product.productDetails': 'تفاصيل المنتج',
+    'product.allColors': 'كل الألوان',
+    'product.moreColors': 'ألوان',
 
     // ── Contact Extended ──
     'contact.chatWhatsApp': 'تواصل عبر واتساب',

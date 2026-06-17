@@ -18,6 +18,13 @@ import {
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useClientTranslation } from '@/lib/i18n';
+import {
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetHeader,
+  SheetTitle,
+} from '@/components/ui/sheet';
 import type { CheckoutPayload } from './CheckoutPage';
 
 // ── Brand Constants ──
@@ -135,6 +142,75 @@ interface ProductPageProps {
   secondaryColor: string;
   onBack: () => void;
   onCheckout: (payload: CheckoutPayload) => void;
+}
+
+// ── Arabic color name map for the color drawer (calligraphic display) ──
+// Falls back to the original name when no translation is available.
+const ARABIC_COLOR_NAMES: Record<string, string> = {
+  'noir': 'أسود',
+  'blanc': 'أبيض',
+  'gris': 'رمادي',
+  'beige': 'بيج',
+  'caramel': 'كراميل',
+  'marron': 'بني',
+  'bleu': 'أزرق',
+  'rouge': 'أحمر',
+  'rose': 'وردي',
+  'vert': 'أخضر',
+  'bordeaux': 'بوردو',
+  'creme': 'كريمي',
+  'marine': 'كحلي',
+  'taupe': 'توب',
+  'abricot': 'مشمشي',
+  'lavande': 'خزامى',
+  'moutarde': 'خردلي',
+  'terracotta': 'طيني',
+  'turquoise': 'فيروزي',
+  'chocolat': 'شوكولاتة',
+  'or': 'ذهبي',
+  'argent': 'فضي',
+  'violet': 'بنفسجي',
+  'violette': 'بنفسجي',
+  'jaune': 'أصفر',
+  'orange': 'برتقالي',
+  'kaki': 'كاكي',
+  'corail': 'مرجاني',
+  'ivoire': 'عاجي',
+  'anthracite': 'فحمي',
+  'prune': 'خوخي',
+  'fushia': 'فوشيا',
+  'fuchsia': 'فوشيا',
+  'parme': 'بنفسجي فاتح',
+  'saumon': 'سلمون',
+  'aqua': 'أكوا',
+  'gold': 'ذهبي',
+  'silver': 'فضي',
+  'black': 'أسود',
+  'white': 'أبيض',
+  'grey': 'رمادي',
+  'gray': 'رمادي',
+  'brown': 'بني',
+  'red': 'أحمر',
+  'blue': 'أزرق',
+  'green': 'أخضر',
+  'pink': 'وردي',
+  'purple': 'بنفسجي',
+  'yellow': 'أصفر',
+};
+
+function arabicColorName(name: string): string {
+  const key = normalizeCouleurKey(name);
+  if (ARABIC_COLOR_NAMES[key]) return ARABIC_COLOR_NAMES[key];
+  const collapsed = key.replace(/[\s,;]+/g, '');
+  if (ARABIC_COLOR_NAMES[collapsed]) return ARABIC_COLOR_NAMES[collapsed];
+  // Compound name: translate each word, keep original for unknown words
+  const words = name.trim().split(/[\s,;]+/).filter(Boolean);
+  if (words.length > 1) {
+    return words
+      .map(w => ARABIC_COLOR_NAMES[normalizeCouleurKey(w)] || w)
+      .join(' ');
+  }
+  return name;
 }
 
 export function ProductPage({
@@ -327,6 +403,19 @@ export function ProductPage({
   // ── Variant validation: shown only AFTER a failed checkout attempt ──
   const [showVariantError, setShowVariantError] = useState(false);
 
+  // ── Side drawers (Drawers) for long description & abundant colors ──
+  const [descSheetOpen, setDescSheetOpen] = useState(false);
+  const [colorSheetOpen, setColorSheetOpen] = useState(false);
+  // ── Description overflow detection: shows "Lire la suite" only when clamped ──
+  const descriptionRef = useRef<HTMLParagraphElement>(null);
+  const [descOverflow, setDescOverflow] = useState(false);
+
+  // ── Color overflow: show max 11 pills + a matte-black "+X" button when > 12 colors ──
+  const MAX_VISIBLE_COLORS = 11;
+  const colorOverflow = colorData.length > 12;
+  const visibleColorData = colorOverflow ? colorData.slice(0, MAX_VISIBLE_COLORS) : colorData;
+  const hiddenColorCount = colorOverflow ? colorData.length - MAX_VISIBLE_COLORS : 0;
+
   // ── Selected color hex (for the checkout recap swatch) ──
   const selectedColorHex = selectedColor
     ? (colorData.find(c => c.name === selectedColor)?.hex || null)
@@ -336,6 +425,23 @@ export function ProductPage({
   const colorMissing = colorData.length > 0 && !selectedColor;
   const sizeMissing = sizes.length > 0 && !selectedSize;
   const hasMissingVariant = colorMissing || sizeMissing;
+
+  // ── Detect if the description overflows its 3-line clamp (re-measure on resize) ──
+  // Measurement is deferred via rAF so setState never fires synchronously in the
+  // effect body (avoids cascading renders). The resize listener re-measures on the
+  // next animation frame after the viewport changes.
+  useEffect(() => {
+    const el = descriptionRef.current;
+    if (!el) return;
+    const measure = () => { setDescOverflow(el.scrollHeight - el.clientHeight > 1); };
+    const raf = requestAnimationFrame(measure);
+    const onResize = () => requestAnimationFrame(measure);
+    window.addEventListener('resize', onResize);
+    return () => {
+      cancelAnimationFrame(raf);
+      window.removeEventListener('resize', onResize);
+    };
+  }, [description]);
 
   // CTA click handler — tunnels to the dedicated checkout page in ALL modes.
   // BLOCKING: if a required variant (color/size) is missing, stop immediately
@@ -647,11 +753,11 @@ export function ProductPage({
           )}
         </div>
 
-        {/* ═══════ RIGHT: Product Info — fixed, centered in viewport ═══════ */}
-        {/* Mobile-first: natural flow. Desktop (md+): 528px fixed height, overflow hidden
-            (no scrollbar), flex column with justify-between to push the buy button to the
-            bottom. pb-2 = 8px air cushion so the CTA never collides with the container edge. */}
-        <div className="product-page-info md:max-h-[528px] md:h-[528px] overflow-hidden flex flex-col justify-between pb-2">
+        {/* ═══════ RIGHT: Product Info — fluid layout, natural top-to-bottom flow ═══════ */}
+        {/* Abandoned fixed-height lockdown. Content flows naturally with section margins.
+            Long descriptions are clamped to 3 lines + "Lire la suite" opens a side drawer.
+            Abundant colors (>12) collapse to 11 pills + a matte-black "+X" drawer button. */}
+        <div className="product-page-info">
           <div className="product-page-info-inner" dir={rtl ? 'rtl' : 'ltr'}>
           {/* ── Statut badge moved to floating overlay on the carousel (top-left) ── */}
 
@@ -671,9 +777,19 @@ export function ProductPage({
           {description && (
             <div className="product-page-section">
               <div className="product-page-section-title">{t('product.description')}</div>
-              {/* line-clamp-3 on mobile, md:line-clamp-4 on desktop. md:max-h-[80px] is the
-                  hard pixel cap so even 4 lines never push the buy button below the fold. */}
-              <p className="product-page-description md:max-h-[80px] line-clamp-3 md:line-clamp-4 overflow-hidden text-ellipsis">{description}</p>
+              {/* Fluid layout: line-clamp-3 clamps long descriptions. A "Lire la suite"
+                  micro-button appears only when the text overflows 3 lines, opening a
+                  side drawer (Sheet) with the full description for comfortable reading. */}
+              <p ref={descriptionRef} className="product-page-description line-clamp-3">{description}</p>
+              {descOverflow && (
+                <button
+                  type="button"
+                  className="product-page-read-more"
+                  onClick={() => setDescSheetOpen(true)}
+                >
+                  {t('product.readMore')}
+                </button>
+              )}
             </div>
           )}
 
@@ -683,14 +799,16 @@ export function ProductPage({
               <div className="product-page-section-title">
                 {t('product.colors')}{selectedColor ? <span className="selected-value">: {selectedColor}</span> : ''}
               </div>
-              {/* Sanctuarised 80px block: 6-col grid, content-start. 1 row (40px) leaves 40px
-                  breathing space; 2 rows fill exactly. Parent overflow-hidden clips any excess. */}
+              {/* Fluid 6-col grid, content-start. Max 11 pills shown inline; when the
+                  product has more than 12 colors, the 12th cell becomes a matte-black
+                  "+X" button that opens a side drawer listing every color with its
+                  Arabic name calligraphied beside the swatch. */}
               <div
-                className={cn('product-page-colors h-[80px] grid grid-cols-6 gap-2 content-start', showVariantError && colorMissing && 'product-page-colors--error')}
+                className={cn('product-page-colors grid grid-cols-6 gap-2 content-start', showVariantError && colorMissing && 'product-page-colors--error')}
                 role="group"
                 aria-label={showVariantError && colorMissing ? t('product.colorRequiredAria') : t('product.colors')}
               >
-                {colorData.map(({ name, hex }) => {
+                {visibleColorData.map(({ name, hex }) => {
                   const isSelected = selectedColor === name;
                   return (
                     <button
@@ -719,6 +837,17 @@ export function ProductPage({
                     </button>
                   );
                 })}
+                {colorOverflow && (
+                  <button
+                    type="button"
+                    className="product-page-color-overflow"
+                    onClick={() => setColorSheetOpen(true)}
+                    title={t('product.allColors')}
+                    aria-label={`${t('product.allColors')} (+${hiddenColorCount})`}
+                  >
+                    +{hiddenColorCount}
+                  </button>
+                )}
               </div>
             </div>
           )}
@@ -848,6 +977,76 @@ export function ProductPage({
           {isEpuise ? t('product.soldOut') : t('product.commander')}
         </button>
       </div>
+
+      {/* ═══════ Side Drawer: Full product description ═══════ */}
+      <Sheet open={descSheetOpen} onOpenChange={setDescSheetOpen}>
+        <SheetContent
+          side="right"
+          className="w-full max-w-md bg-[#E8E2E0] p-6 shadow-xl overflow-y-auto"
+        >
+          <SheetHeader className="p-0 pr-8">
+            <SheetTitle
+              className="text-xl"
+              style={{ fontFamily: "'Playfair Display', serif" }}
+            >
+              {t('product.productDetails')}
+            </SheetTitle>
+            <SheetDescription className="sr-only">
+              {t('product.productDetails')}
+            </SheetDescription>
+          </SheetHeader>
+          <div
+            dir={rtl ? 'rtl' : 'ltr'}
+            className="text-sm leading-7 text-foreground/90 whitespace-pre-line"
+          >
+            {description}
+          </div>
+        </SheetContent>
+      </Sheet>
+
+      {/* ═══════ Side Drawer: All color nuances (with Arabic names) ═══════ */}
+      <Sheet open={colorSheetOpen} onOpenChange={setColorSheetOpen}>
+        <SheetContent
+          side="right"
+          className="w-full max-w-md bg-[#E8E2E0] p-6 shadow-xl overflow-y-auto"
+        >
+          <SheetHeader className="p-0 pr-8">
+            <SheetTitle
+              className="text-xl"
+              style={{ fontFamily: "'Playfair Display', serif" }}
+            >
+              {t('product.allColors')}
+            </SheetTitle>
+            <SheetDescription className="sr-only">
+              {t('product.allColors')}
+            </SheetDescription>
+          </SheetHeader>
+          <div className="mt-2 flex flex-col gap-1.5">
+            {colorData.map(({ name, hex }) => {
+              const isSelected = selectedColor === name;
+              return (
+                <button
+                  key={name}
+                  type="button"
+                  className={cn(
+                    'product-page-drawer-color-row',
+                    isSelected && 'selected'
+                  )}
+                  onClick={() => { handleSelectColor(name); setColorSheetOpen(false); }}
+                  dir="rtl"
+                >
+                  <span
+                    className={cn('product-page-drawer-color-swatch', !hex && 'color-circle-missing')}
+                    style={hex ? { backgroundColor: hex } : undefined}
+                  />
+                  <span className="product-page-drawer-color-name">{arabicColorName(name)}</span>
+                  {isSelected && <Check className="w-4 h-4 shrink-0" style={{ color: BRAND.vertFonce }} />}
+                </button>
+              );
+            })}
+          </div>
+        </SheetContent>
+      </Sheet>
     </main>
   );
 }
