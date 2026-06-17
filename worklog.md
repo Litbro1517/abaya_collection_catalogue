@@ -1740,3 +1740,43 @@ Stage Summary:
 - "Nouveau" badge unchanged (stays in carousel-wrap, top-4 left-4).
 - Only file changed: src/components/preview/ProductPage.tsx (1 file, 29 insertions, 21 deletions). No CSS changes needed (.product-page-gallery already had position: relative).
 - Task fully complete and verified on production. No outstanding issues.
+
+---
+Task ID: pivot-actions-fixed-200px
+Agent: main (Z.ai Code)
+Task: [SURGICAL EDITING] Pivot — abandon previous center-vertical strategy. Apply fixed top-[200px] positioning for Cœur/Partage block inside the image container, with exact classes `absolute top-[200px] right-4 z-20 flex flex-col gap-3`. Must sit BELOW the Nouveau badge and ABOVE the center carousel arrow (>), no overlap.
+
+Work Log:
+- Read current state: buttons were in .product-page-gallery (direct child) at `absolute top-1/2 -translate-y-1/2 right-4 z-10 flex flex-col gap-3` (previous center-vertical strategy).
+- Moved buttons BACK inside .product-page-carousel-wrap (the image container) — restored to sibling of the Nouveau badge, both inside carousel-wrap.
+- Changed className to exact spec: `absolute top-[200px] right-4 z-20 flex flex-col gap-3`.
+  - top-[200px]: fixed 200px from top of carousel-wrap (which has position: relative).
+  - right-4: 16px from right edge of image.
+  - z-20: raised from z-10 to ensure buttons stay above carousel arrows (z-auto inside section).
+  - flex flex-col gap-3: vertical stack of Heart + Share.
+- Fixed a stray `\n` literal that slipped into the onClick attribute during the MultiEdit.
+- Lint: clean.
+- DEV verification (Abaya Noire Classique — empty carousel, no badge/arrow):
+  - actionsDivParentIsCarouselWrap: true ✓
+  - actionsDivClass: "absolute top-[200px] right-4 z-20 flex flex-col gap-3" ✓
+  - actionsDivTop: "200px", actionsDivZIndex: "20" ✓
+- Committed b1f1817, pushed (5d82dfd..b1f1817). Vercel auto-deploy.
+- PRODUCTION verification (Kitma montoni — 5 images + Nouveau + arrows):
+  - actionsDivParentIsCarouselWrap: true ✓
+  - actionsDivClass: "absolute top-[200px] right-4 z-20 flex flex-col gap-3" ✓
+  - actionsDivTop: "200px", actionsDivZIndex: "20" ✓
+  - expectedActionsTop (wrapTop 169 + 200) = 369 === actualActionsTop = 369 ✓ (top-[200px] correctly relative to carousel-wrap)
+  - Badge: top=185, bottom=207 (top-left)
+  - Actions: top=369, bottom=465 (right edge, 16px from right)
+  - Arrow (>): top=654, bottom=694, center=674 (= carousel center 674 — confirmed center arrow)
+  - badgeBottomVsActionsTop: 162px gap (NO overlap — buttons safely below badge) ✓
+  - actionsBottomVsArrowTop: 189px gap (NO overlap — buttons safely above arrow) ✓
+  - VLM (glm-4.6v) on full carousel crop: Nouveau badge ~2% from top, action buttons ~20% from top, center arrow ~48% from top, "No elements overlap", "layout is clean with proper spacing between all 3 elements" ✓
+
+Stage Summary:
+- Cœur/Partage buttons are back inside .product-page-carousel-wrap (image container) — simple, direct, robust positioning per the pivot request.
+- Exact classes applied: `absolute top-[200px] right-4 z-20 flex flex-col gap-3`.
+- top-[200px] correctly calibrated: 162px below the Nouveau badge (top-4) and 189px above the center carousel navigation arrow (>), eliminating all visual overlap (reference image_447aee.jpg).
+- z-20 ensures buttons render above carousel arrows.
+- Only file changed: src/components/preview/ProductPage.tsx (25 insertions, 29 deletions). No CSS changes.
+- Task fully complete and verified on production. No outstanding issues.
