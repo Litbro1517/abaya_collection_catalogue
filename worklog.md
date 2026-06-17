@@ -1697,3 +1697,46 @@ Stage Summary:
   4. Right column cleaned: old badge + heart/share row removed ✓
 - Files changed: src/components/preview/ProductPage.tsx (imports, carousel wrap, floating overlay JSX, removed old badge + secondary-actions), src/app/globals.css (.product-page-carousel-wrap, .product-page-float-badge, .product-page-float-action rules).
 - Task fully complete and verified on production. No outstanding issues.
+
+---
+Task ID: fix-actions-center-right-image-zone
+Agent: main (Z.ai Code)
+Task: [SURGICAL EDITING] Fix Cœur/Partage buttons to float at CENTER-RIGHT of the image zone, inside the root left container, outside the scroll flow, scroll-immobile, never encroaching on the right info column.
+
+Work Log:
+- Examined current DOM: buttons were inside .product-page-carousel-wrap (child of .product-page-gallery) at `absolute top-4 right-4` (top-right corner). The scroll flow is .product-page-carousel-track (translateX) nested 2 levels deeper.
+- Confirmed .product-page-gallery already has position: relative (globals.css:1441) — prerequisite met, no CSS change needed.
+- Explained plan to user BEFORE applying: move buttons 1 level up (from carousel-wrap → gallery as direct child), change positioning from `top-4 right-4` to `top-1/2 -translate-y-1/2 right-4`. Badge "Nouveau" stays in carousel-wrap (not part of this request).
+- Applied the move in ProductPage.tsx: extracted the action buttons div from inside .product-page-carousel-wrap and placed it as a SIBLING (direct child of .product-page-gallery), between carousel-wrap and thumbnails. Changed className from `absolute top-4 right-4 z-10 flex flex-col gap-3` to `absolute top-1/2 -translate-y-1/2 right-4 z-10 flex flex-col gap-3`.
+- Lint: clean.
+- DEV verification (Abaya Noire Classique — empty carousel, no thumbnails):
+  - actionsDivParentIsGallery: true (direct child of gallery) ✓
+  - actionsDivParentIsCarouselWrap: false (moved out of carousel-wrap) ✓
+  - galleryPosition: relative ✓
+  - actionsDivTranslate: "0px -50%" (Tailwind 4 uses `translate` property, not `transform`) ✓
+  - actionsCenterY === galleryCenterY === 366 (centered on gallery) ✓
+  - Dev offset from carousel center: 46px (no thumbnails to balance breadcrumb) — expected, resolves on production.
+- Committed 5d82dfd, pushed (10645e8..5d82dfd). Vercel auto-deploy.
+- PRODUCTION verification (Kitma montoni — 5 real images + Nouveau + thumbnails):
+  - actionsDivParentIsGallery: true ✓
+  - actionsDivClass: "absolute top-1/2 -translate-y-1/2 right-4 z-10 flex flex-col gap-3" ✓
+  - galleryPosition: relative ✓
+  - actionsDivTranslate: "0px -50%" ✓
+  - galleryCenter: 676, carouselCenter: 674, actionsCenter: 676 → actionsCenterVsCarouselCenter: -2 (essentially PERFECT center — breadcrumb 92px + thumbnails 96px balance out) ✓
+  - action1BorderRadius: 50%, 42×42 ✓
+  - actionsDivRect.right: 501 → 16px from gallery/image right edge (right-4) ✓, buttons extend leftward (42px wide), never encroaching on right info column ✓
+  - SCROLL IMMOBILITY TEST (critical):
+    - Before scroll: btnTop=628, btnRight=501, track at 0px, image 1/5
+    - After scroll to img 2: btnTop=628, btnRight=501, track at -758px, image 2/5
+    - After scroll to img 3: btnTop=628, btnRight=501, track at -1516px, image 3/5
+    - Buttons stayed at EXACT same position while track translated -758px then -1516px. Images slid freely underneath, buttons immovable. ✓
+  - VLM (glm-4.6v) on full-carousel crop: buttons in "MIDDLE third" of image height ✓ (corroborates computed center = 2px from carousel center).
+  - VLM also confirmed "Nouveau" badge still in TOP-LEFT corner of image (unchanged). ✓
+
+Stage Summary:
+- Cœur/Partage buttons are now a direct child of .product-page-gallery (root left container, position: relative — unique spatial reference), completely outside the image scroll flow (.product-page-carousel-track translateX is nested 2 levels deeper).
+- Positioning: `absolute top-1/2 -translate-y-1/2 right-4 z-10 flex flex-col gap-3` — vertical center of the image zone (2px from carousel true center on production), right edge of image block (16px from right = right-4), never encroaching on the right info column.
+- Scroll-immobile: verified by clicking through 5 images — buttons stayed at exact same pixel position (top=628, right=501) while track translated -758px and -1516px.
+- "Nouveau" badge unchanged (stays in carousel-wrap, top-4 left-4).
+- Only file changed: src/components/preview/ProductPage.tsx (1 file, 29 insertions, 21 deletions). No CSS changes needed (.product-page-gallery already had position: relative).
+- Task fully complete and verified on production. No outstanding issues.
