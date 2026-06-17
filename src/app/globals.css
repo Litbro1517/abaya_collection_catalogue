@@ -1887,18 +1887,35 @@ img {
   font-size: 13px;
   font-weight: 500;
   cursor: pointer;
-  transition: all 0.15s;
+  transition: all 0.2s ease;
 }
 
-.product-page-size-chip:hover:not(.disabled) {
+/* Hover — excludes .selected so the selected styling is never overridden
+   while the cursor stays on the chosen chip (fixes the hover/active conflict
+   that caused the "display delay" on click). */
+.product-page-size-chip:hover:not(.disabled):not(.selected) {
   border-color: var(--client-pp-chip-hover-border);
   background: var(--client-pp-chip-hover-bg);
+  transform: scale(1.05);
 }
 
+/* Selected — matte black (#1A1A1A) + pure white text + thin gold ring that
+   matches the color selector's gold ring exactly. Hardcoded to definitively
+   eliminate the legacy green (--pp-chip-selected-* variables). */
 .product-page-size-chip.selected {
-  border-color: var(--client-pp-chip-selected-border);
-  background: var(--client-pp-chip-selected-bg);
-  color: white;
+  border-color: var(--client-pp-color-circle-selected-border);
+  background: #1A1A1A;
+  color: #FFFFFF;
+}
+
+/* Selected stays black + gold on hover — only a gentle scale is added.
+   Declared after the non-selected hover rule and with higher specificity so
+   the selected state always wins visually. */
+.product-page-size-chip.selected:hover:not(.disabled) {
+  border-color: var(--client-pp-color-circle-selected-border);
+  background: #1A1A1A;
+  color: #FFFFFF;
+  transform: scale(1.05);
 }
 
 .product-page-size-chip.disabled {
