@@ -105,6 +105,24 @@ if (typeof window !== 'undefined' && !_cacheHydrated) {
         localStorage.removeItem('abaya_admin_state');
       }
     }
+
+    // ━━━ Public-catalog override when returning from /merci ━━━━━━━━━━━━
+    // The Thank You page back button (href="/") sets a sessionStorage flag
+    // to signal that the visitor wants the PUBLIC catalog, even if they happen
+    // to be authenticated as an admin. Without this, an admin's restored
+    // `isAdmin: true` combined with the default Zustand `view: 'builder'`
+    // would hijack the navigation into the admin BuilderShell on first render
+    // (before useEffect has a chance to read URL params).
+    // We read AND clear the flag here so it only applies to the immediate
+    // return trip, not to subsequent navigations.
+    try {
+      if (sessionStorage.getItem('merci_return') === '1') {
+        sessionStorage.removeItem('merci_return');
+        useAppStore.getState().setView('preview');
+      }
+    } catch {
+      // sessionStorage unavailable (private mode, etc.) — skip override
+    }
   } catch {
     // Cache hydration failure — will fall back to network
   }

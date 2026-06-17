@@ -179,8 +179,18 @@ function MerciContent() {
           </div>
         </div>
 
-        {/* Back button */}
-        <a href="/" className="merci-back-btn">
+        {/* Back button — navigates to public catalog root.
+            Sets a sessionStorage flag so the home page forces `view: 'preview'`
+            BEFORE first render, preventing admin session state (localStorage
+            `abaya_admin_state` + default Zustand `view: 'builder'`) from
+            hijacking the navigation into the admin BuilderShell. */}
+        <a
+          href="/"
+          className="merci-back-btn"
+          onClick={() => {
+            try { sessionStorage.setItem('merci_return', '1'); } catch { /* ignore */ }
+          }}
+        >
           <ArrowLeft className="w-4 h-4" />
           {t('thanks.backToCatalog')}
         </a>
