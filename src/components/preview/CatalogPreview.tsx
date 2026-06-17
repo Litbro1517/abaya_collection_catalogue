@@ -1603,7 +1603,7 @@ export function CatalogPreview({ onAdminLogin }: CatalogPreviewProps) {
   // ── MAIN RENDER ──
   // ═══════════════════════════════════════════════════════════════════════
   return (
-    <div className="min-h-screen flex flex-col" style={{ backgroundColor: '#FAF8F5' }} dir={rtl ? 'rtl' : 'ltr'}>
+    <div className="min-h-screen flex flex-col w-full max-w-full overflow-x-clip" style={{ backgroundColor: '#FAF8F5' }} dir={rtl ? 'rtl' : 'ltr'}>
       {/* Persistent Header — always visible */}
       {renderHeader()}
 

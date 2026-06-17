@@ -321,14 +321,16 @@ html.rtl .mobile-cta-button svg {
 
 /* ── Global Layout Containers ── */
 .catalog-container {
+  width: 100%;            /* Mobile-first: fill viewport (margin:auto can't shrink a 100% width) */
   min-height: calc(100vh - 220px);
-  max-width: 1270px;
+  max-width: 1270px;      /* Desktop cap — centered via margin:0 auto when viewport > 1270px */
   margin: 0 auto;
   padding: 16px 32px 48px;
   background-color: #FAF8F5;
 }
 
 .detail-container {
+  width: 100%;            /* Mobile-first: fill viewport */
   max-width: 1270px;
   margin: 0 auto;
   padding: 24px 32px 48px;
@@ -539,6 +541,8 @@ html.rtl .mobile-cta-button svg {
 .catalog-filter-bar-wrap {
   position: relative;
   width: 100%;
+  max-width: 100%;          /* Mobile-first seal: never exceeds viewport */
+  overflow-x: hidden;       /* Clip any stray horizontal bleed from pill row */
   background-color: #FAF8F5;
   /* No border, no backdrop-filter — clean flat look */
 }
@@ -565,6 +569,12 @@ html.rtl .mobile-cta-button svg {
   gap: 10px;
   align-items: center;
   overflow-x: auto;
+  white-space: nowrap;      /* Pills stay on one line; bar scrolls internally via overflow-x:auto */
+  scrollbar-width: none;    /* Firefox: hide scrollbar */
+}
+
+.catalog-filter-bar::-webkit-scrollbar {
+  display: none;            /* Chrome/Safari: hide scrollbar */
 }
 
 @media (max-width: 640px) {
@@ -620,12 +630,26 @@ html.rtl .mobile-cta-button svg {
   justify-content: space-between;
   gap: 24px;
   margin-bottom: 16px;
+  max-width: 100%;
+  flex-wrap: wrap;          /* Mobile-first: allow title + subtitle to wrap instead of overflowing */
 }
 
 .catalog-toolbar h2 {
   margin: 0;
   font-size: 28px;
   line-height: 1.1;
+  min-width: 0;             /* Allow shrink inside flex so long titles don't force overflow */
+  word-break: break-word;
+  overflow-wrap: anywhere;
+}
+
+@media (max-width: 640px) {
+  .catalog-toolbar {
+    gap: 8px;
+  }
+  .catalog-toolbar h2 {
+    font-size: 22px;
+  }
 }
 
 /* ── Catalog Grid ── */
@@ -1329,7 +1353,8 @@ img {
    ═══════════════════════════════════════════════════════════════════════════ */
 
 .product-page {
-  max-width: 1270px;
+  width: 100%;            /* Mobile-first: fill viewport (margin:auto can't shrink a 100% width) */
+  max-width: 1270px;      /* Desktop cap — centered via margin:0 auto when viewport > 1270px */
   margin: 0 auto;
   padding: 0 32px 100px;
   flex: 1;
@@ -1456,10 +1481,12 @@ img {
 }
 
 /* Wrapper that hosts the carousel + floating overlay (badge + actions).
-   Provides the relative positioning context for the absolute children. */
+   Provides the relative positioning context for the absolute children.
+   max-width:100% seals mobile-first confinement — never exceeds viewport. */
 .product-page-carousel-wrap {
   position: relative;
   width: 100%;
+  max-width: 100%;
   display: block;
 }
 
