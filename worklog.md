@@ -1885,3 +1885,30 @@ Stage Summary:
 - Colors: sanctuarised 80px block, 6-col grid, content-start. 1 row leaves breathing space; 2 rows fill exactly.
 - Mobile unaffected: natural flow, no fixed height, overflow visible.
 - Production deploy in progress (Vercel auto-deploy ~90s).
+
+---
+Task ID: right-column-lockdown-528px-contd
+Agent: main
+Task: Follow-up fix — tighten internal spacing so full-content product (Kitma montoni) fits within 528px container without CTA clipping.
+
+Work Log:
+- Initial deployment (commit 2702725) applied the 528px lockdown. Production verification with "Kitma montoni" (full content: 5 images, 4 sizes, 3 colors, description, details) revealed content height 551px > container 528px → 23px overflow → CTA bottom clipped by overflow:hidden.
+- Root cause: Internal margins (section margin-bottom 20px, description margin-bottom 20px, actions margin-top 24px, details margin 20px + padding-top 16px) accumulated to exceed the 528px budget when ALL sections are present (description + colors + sizes + details + actions).
+- Applied tightening (commit b0f3d61):
+  - .product-page-description margin-bottom: 20px → 12px (saves 8px)
+  - .product-page-section margin-bottom: 20px → 14px (saves 6px × 3 = 18px)
+  - .product-page-actions margin-top: 24px → 12px (saves 12px)
+  - .product-page-details margin: 20px → 12px, padding-top: 16px → 12px (saves 12px)
+  - Total savings: ~50px (comfortably covers 23px overflow with breathing room)
+- Verified on production with "Kitma montoni" (full content):
+  - Desktop 1280px: info height=528px, scrollHeight=528=clientHeight=528, contentFits=true, overflow=hidden, justifyContent=space-between, paddingBottom=8px. CTA gapFromBottom=15px, ctaFullyVisible=true. Description lineClamp=4, maxHeight=80px, textOverflow=ellipsis. Colors height=80px, grid 6-col, gap=8px, alignContent=flex-start, 3 children (1 row + 40px breathing space).
+  - Mobile 375px: info height=496px (natural), maxHeight=none, overflow=visible, display=flex, justifyContent=flex-start, position=static. CTA fully visible. No horizontal overflow.
+
+Stage Summary:
+- Right column locked to 528px on desktop with ZERO scrollbar and ZERO content clipping.
+- CTA fully visible with 15px gap from bottom (8px pb-2 cushion + 7px justify-between free space).
+- Description: line-clamp-4 + 80px max-height + ellipsis truncation.
+- Colors: 80px sanctuarised grid, content-start, 1 row leaves 40px breathing space.
+- Mobile: natural flow, no fixed height, no clipping.
+- Production verified with full-content product (Kitma montoni: 5 images, 4 sizes, 3 colors, description, details).
+- Commits: 2702725 (lockdown) + b0f3d61 (spacing fix). Both deployed and verified on production.
