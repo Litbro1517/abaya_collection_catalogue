@@ -8,7 +8,7 @@ import { Input } from '@/components/ui/input';
 import {
   ArrowLeft, Search, MessageCircle, ChevronLeft, ChevronRight,
   Mail, Instagram, ImageIcon, BookOpen, Settings, Heart,
-  ShoppingBag, LayoutDashboard, Lock, RefreshCw
+  ShoppingBag, LayoutDashboard, Lock, RefreshCw, Globe, Check, X
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { resolveColorHex, buildColorLookupMap, normalizeCouleurKey } from '@/lib/color-utils';
@@ -272,6 +272,12 @@ export function CatalogPreview({ onAdminLogin }: CatalogPreviewProps) {
   const canAccessBuilder = isAdmin && adminUser && (adminUser.role === 'owner' || adminUser.role === 'admin' || adminUser.role === 'super_admin');
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedProduct, setSelectedProduct] = useState<{ row: Row; columns: Column[]; section: Section } | null>(null);
+  // ── Header refonte state ──
+  const [langMenuOpen, setLangMenuOpen] = useState(false);       // language dropdown open?
+  const [searchOpen, setSearchOpen] = useState(false);           // compact search expanded?
+  const langMenuRef = useRef<HTMLDivElement | null>(null);       // for click-outside
+  const searchOverlayRef = useRef<HTMLDivElement | null>(null);  // for click-outside / ESC
+  const searchInputRef = useRef<HTMLInputElement | null>(null);  // autofocus on expand
   // ━━ Checkout tunnel: when set, the dedicated CheckoutPage replaces the product detail ━━
   const [checkoutData, setCheckoutData] = useState<CheckoutPayload | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
@@ -737,6 +743,39 @@ export function CatalogPreview({ onAdminLogin }: CatalogPreviewProps) {
 
   const filterOptions = getFilterOptions();
 
+  // ── Header refonte: click-outside + ESC handlers ──
+  useEffect(() => {
+    if (!langMenuOpen && !searchOpen) return;
+    const handleClickOutside = (e: MouseEvent) => {
+      const target = e.target as Node;
+      if (langMenuOpen && langMenuRef.current && !langMenuRef.current.contains(target)) {
+        setLangMenuOpen(false);
+      }
+      if (searchOpen && searchOverlayRef.current && !searchOverlayRef.current.contains(target)) {
+        setSearchOpen(false);
+      }
+    };
+    const handleEsc = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        setLangMenuOpen(false);
+        setSearchOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    document.addEventListener('keydown', handleEsc);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener('keydown', handleEsc);
+    };
+  }, [langMenuOpen, searchOpen]);
+
+  // Autofocus the search input when the overlay opens
+  useEffect(() => {
+    if (searchOpen && searchInputRef.current) {
+      searchInputRef.current.focus();
+    }
+  }, [searchOpen]);
+
   // ═══════════════════════════════════════════════════════════════════════
   // ── PERSISTENT HEADER (sticky top bar — always visible) ──
   // ═══════════════════════════════════════════════════════════════════════
@@ -756,14 +795,14 @@ export function CatalogPreview({ onAdminLogin }: CatalogPreviewProps) {
           <div className="w-9 h-9 shrink-0" />
         )}
 
-        {/* Logo or Catalog Name — dynamic from catalog_settings.logo */}
+        {/* Logo or Catalog Name — dynamic from catalog_settings.logo + logoHeight */}
         <div className="flex-1 min-w-0 flex items-center gap-2.5">
           {s?.logo ? (
             <img
               src={s.logo}
               alt={catalogName}
-              className="h-8 w-auto object-contain shrink-0"
-              style={{ maxHeight: 32 }}
+              className="w-auto object-contain shrink-0"
+              style={{ height: `${s.logoHeight || 40}px`, maxHeight: `${s.logoHeight || 40}px` }}
             />
           ) : (
             <>
@@ -777,23 +816,83 @@ export function CatalogPreview({ onAdminLogin }: CatalogPreviewProps) {
           )}
         </div>
 
-        {/* ── Public Language Selector ── */}
-        <div className="flex items-center gap-0.5 shrink-0 mr-1">
-          {(['fr', 'en', 'ar'] as const).map(loc => (
+        {/* ── Compact Search icon (ref: image_bf7a44.png) ── */}
+        {s?.enableSearch && (
+          <div ref={searchOverlayRef} className="relative shrink-0">
             <button
-              key={loc}
-              onClick={() => useAppStore.getState().setClientLocale(loc)}
-              className={cn(
-                'px-1.5 py-0.5 rounded text-[10px] font-semibold transition-all duration-200',
-                locale === loc
-                  ? 'bg-foreground text-background'
-                  : 'text-muted-foreground hover:text-foreground hover:bg-muted/50'
-              )}
-              style={locale === loc ? { color: 'var(--pivot-accent)', backgroundColor: 'var(--pivot-text)' } : {}}
+              type="button"
+              onClick={() => setSearchOpen(o => !o)}
+              className="flex items-center justify-center w-9 h-9 rounded-full hover:bg-gray-100 transition-colors"
+              aria-label={t('catalog.search')}
+              aria-expanded={searchOpen}
             >
-              {loc.toUpperCase()}
+              {searchOpen
+                ? <X className="w-4 h-4" style={{ color: 'var(--pivot-text)' }} />
+                : <Search className="w-4 h-4" style={{ color: 'var(--pivot-text)' }} />}
             </button>
-          ))}
+            {/* Expanding search overlay — slides down on click */}
+            {searchOpen && (
+              <div className="header-search-overlay" role="search">
+                <Search className="header-search-overlay-icon" style={{ color: 'var(--muted-foreground)' }} />
+                <input
+                  ref={searchInputRef}
+                  type="text"
+                  value={searchQuery}
+                  onChange={e => { setSearchQuery(e.target.value); setCurrentPage(1); }}
+                  placeholder={t('catalog.search')}
+                  className="header-search-overlay-input"
+                />
+                {searchQuery && (
+                  <button
+                    type="button"
+                    onClick={() => { setSearchQuery(''); searchInputRef.current?.focus(); }}
+                    className="header-search-overlay-clear"
+                    aria-label={t('catalog.search')}
+                  >
+                    <X className="w-3.5 h-3.5" />
+                  </button>
+                )}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* ── Language Dropdown (ref: image_bf7740.png) — Globe + code, menu with active dot ── */}
+        <div ref={langMenuRef} className="relative shrink-0">
+          <button
+            type="button"
+            onClick={() => setLangMenuOpen(o => !o)}
+            className="flex items-center gap-1 h-9 px-2 rounded-full hover:bg-gray-100 transition-colors"
+            aria-label={t('catalog.language')}
+            aria-expanded={langMenuOpen}
+          >
+            <Globe className="w-4 h-4" style={{ color: 'var(--pivot-text)' }} />
+            <span className="text-[11px] font-bold tracking-wide" style={{ color: 'var(--pivot-text)' }}>
+              {locale.toUpperCase()}
+            </span>
+          </button>
+          {langMenuOpen && (
+            <div className="header-lang-menu" role="menu">
+              {(['fr', 'en', 'ar'] as const).map(loc => {
+                const isActive = locale === loc;
+                return (
+                  <button
+                    key={loc}
+                    type="button"
+                    role="menuitem"
+                    onClick={() => {
+                      useAppStore.getState().setClientLocale(loc);
+                      setLangMenuOpen(false);
+                    }}
+                    className={cn('header-lang-item', isActive && 'header-lang-item--active')}
+                  >
+                    <span className="header-lang-code">{loc.toUpperCase()}</span>
+                    {isActive && <span className="header-lang-dot" aria-hidden="true" />}
+                  </button>
+                );
+              })}
+            </div>
+          )}
         </div>
 
         {/* Admin actions — only visible for owner/admin roles */}
@@ -939,19 +1038,8 @@ export function CatalogPreview({ onAdminLogin }: CatalogPreviewProps) {
   const renderGridView = () => (
     <>
       {/* Search bar below header — left-aligned with grid */}
-      {s?.enableSearch && (
-        <div className="mx-auto max-w-[1270px] px-4 sm:px-8 pt-4 pb-4">
-          <div className="relative w-full sm:max-w-md">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4" style={{ color: 'var(--muted-foreground)' }} />
-            <Input
-              value={searchQuery}
-              onChange={e => { setSearchQuery(e.target.value); setCurrentPage(1); }}
-              placeholder={t('catalog.search')}
-              className="h-10 pl-10 text-sm rounded-full border-gray-200 bg-gray-50 focus:bg-white"
-            />
-          </div>
-        </div>
-      )}
+      {/* Search bar moved into the compact header icon (ref: image_bf7a44.png).
+          The big input field here is intentionally removed to declutter the layout. */}
 
       {/* ═══ Règle 2 & 3: Filters on cream white background ═══ */}
       {dynamicCategories.length > 0 ? (
@@ -1307,7 +1395,7 @@ export function CatalogPreview({ onAdminLogin }: CatalogPreviewProps) {
         <div style={{ maxWidth: 1270, margin: '0 auto', padding: '0 32px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
             {s?.logo ? (
-              <img src={s.logo} alt={catalogName} className="h-6 w-auto object-contain" style={{ maxHeight: 24 }} />
+              <img src={s.logo} alt={catalogName} className="w-auto object-contain" style={{ height: `${Math.round((s.logoHeight || 40) * 0.6)}px`, maxHeight: `${Math.round((s.logoHeight || 40) * 0.6)}px` }} />
             ) : (
               <>
                 <div className="w-6 h-6 rounded-md flex items-center justify-center" style={{ background: 'linear-gradient(135deg, #C9A84C, #E8D48B)' }}>

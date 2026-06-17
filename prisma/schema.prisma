@@ -159,6 +159,7 @@ model CatalogSettings {
   clientOverrides   Json?    @map("client_overrides")
   favicon           String?
   logo              String?
+  logoHeight        Int?
   createdAt         DateTime @default(now()) @map("created_at")
   updatedAt         DateTime @updatedAt @map("updated_at")
 

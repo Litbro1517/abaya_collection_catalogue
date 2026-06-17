@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useAppStore } from '@/lib/store';
 import { useTranslation } from '@/lib/i18n';
 import type { CatalogSettings, SettingsTab } from '@/types';
@@ -489,6 +489,18 @@ export function SettingsPillar() {
     setLocal(updated);
   };
 
+  // ── Logo height: debounced real-time save ──
+  // The slider updates local state instantly (for live preview) and triggers
+  // a debounced PUT to /api/catalog/settings so the value persists without
+  // spamming the API on every pixel of drag movement.
+  const logoHeightTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const logoHeightSaveRef = useRef((height: number) => {
+    if (logoHeightTimer.current) clearTimeout(logoHeightTimer.current);
+    logoHeightTimer.current = setTimeout(() => {
+      handleSave({ logoHeight: height });
+    }, 450);
+  });
+
   const copyShareLink = () => {
     navigator.clipboard.writeText(window.location.origin);
     setCopied(true);
@@ -915,6 +927,36 @@ export function SettingsPillar() {
                     onChange={(url) => updateField('logo', url)}
                     onRemove={() => updateField('logo', '')}
                   />
+                  {/* Logo height slider — real-time save (debounced) */}
+                  <div className="mt-3 rounded-lg border border-border/60 bg-muted/30 p-3">
+                    <div className="flex items-center justify-between mb-1.5">
+                      <div>
+                        <p className="text-xs font-medium">{t('settings.logoHeightLabel')}</p>
+                        <p className="text-[10px] text-muted-foreground leading-relaxed">{t('settings.logoHeightHint')}</p>
+                      </div>
+                      <span className="text-xs font-semibold tabular-nums px-2 py-0.5 rounded bg-background border border-border/60">
+                        {local.logoHeight ?? 40}px
+                      </span>
+                    </div>
+                    <input
+                      type="range"
+                      min={20}
+                      max={100}
+                      step={1}
+                      value={local.logoHeight ?? 40}
+                      onChange={(e) => {
+                        const v = Number(e.target.value);
+                        updateField('logoHeight', v);
+                        logoHeightSaveRef.current(v);
+                      }}
+                      className="w-full h-1.5 cursor-pointer accent-[#1A3C34]"
+                      aria-label={t('settings.logoHeightLabel')}
+                    />
+                    <div className="flex justify-between mt-1 text-[9px] text-muted-foreground tabular-nums">
+                      <span>20px</span>
+                      <span>100px</span>
+                    </div>
+                  </div>
                 </div>
                 <div>
                   <Label className="text-xs">{t('settings.faviconLabel')}</Label>

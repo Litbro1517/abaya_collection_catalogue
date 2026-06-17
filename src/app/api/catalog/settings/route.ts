@@ -43,6 +43,7 @@ export async function PUT(req: NextRequest) {
           destructiveColor: body.destructiveColor || '#800020',
           borderColor: body.borderColor || '#E8E2D9',
           customCSS: body.customCSS || '',
+          logoHeight: body.logoHeight !== undefined ? Number(body.logoHeight) : null,
         },
       });
       return NextResponse.json({ data: settings, error: null });
@@ -55,11 +56,15 @@ export async function PUT(req: NextRequest) {
       'instagramHandle', 'primaryColor', 'secondaryColor', 'accentColor', 'backgroundColor',
       'fontFamily', 'enableZoom', 'enableSearch', 'enableSharing', 'conversionChannel',
       'conversionMessage', 'brandGreenColor', 'destructiveColor', 'borderColor',
-      'customCSS', 'clientOverrides', 'favicon', 'logo',
+      'customCSS', 'clientOverrides', 'favicon', 'logo', 'logoHeight',
     ];
 
     for (const field of allowedFields) {
-      if (body[field] !== undefined) updateData[field] = body[field];
+      if (body[field] !== undefined) {
+        updateData[field] = field === 'logoHeight'
+          ? (body[field] === null ? null : Number(body[field]))
+          : body[field];
+      }
     }
 
     const settings = await db.catalogSettings.update({

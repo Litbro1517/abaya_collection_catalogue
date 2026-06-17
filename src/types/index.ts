@@ -204,6 +204,7 @@ export interface CatalogSettings {
   clientOverrides: Record<string, string> | null;
   favicon: string | null;
   logo: string | null;
+  logoHeight: number | null;
   createdAt: string;
   updatedAt: string;
 }
