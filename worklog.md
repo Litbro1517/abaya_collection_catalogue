@@ -1481,3 +1481,40 @@ FINAL STATUS: Étape 3 surgical edit LIVE on production. Deployed commit 36bcf50
 2. Trust mention renders EXACTLY "Paiement à la livraison — Votre colis est en cours de préparation" — visible (green box + truck icon, bold brand-green lead) but elegant (single line, em-dash separator, normal-weight tail).
 3. Harmonized validation icon (gold CheckCircle2 in cream #F5F0E8 40px wrapper) preserved.
 - Verification screenshots: /home/z/my-project/merci-trust-mention-prod.png (full), /home/z/my-project/merci-trust-mention-prod-zoom.png (trust box zoom)
+
+---
+Task ID: merci-no-repetition-text-cleanup
+Agent: Z.ai Code (main)
+Task: [SURGICAL EDITING] Restructure Merci page texts to eliminate 100% of repetitions (per image_c15457.png / image_c1579c.png), while OBLIGATORILY preserving the visual structure of green frames, blocks, and icons.
+
+Work Log:
+- Read prior worklog (merci-trust-mention-step3-refine) to understand current state: recap green box had "Paiement à la livraison — Votre colis est en cours de préparation", beige block had 2 rows (Mode de paiement + Statut), bottom green box had "Vous recevrez une confirmation par téléphone sous peu.", subtitle had a phone-contact sentence.
+- Mapped all repetitions: (a) "Paiement à la livraison" appeared in BOTH recap green box AND beige block; (b) phone-contact info appeared in BOTH subtitle AND bottom tracking box.
+- dictionaries.ts (FR/EN/AR): thanks.subtitle dropped the phone-contact tail (FR "Merci pour votre commande.", EN "Thank you for your order.", AR ".شكرًا على طلبك"). thanks.statusPending changed confirmation→validation (FR "En attente de validation", EN "Pending validation", AR "في انتظار التحقق"). thanks.trackingNotice rewritten to the unique expédition sentence (FR "Notre équipe vous contactera par téléphone sous peu pour confirmer l'expédition.", EN "Our team will contact you by phone shortly to confirm shipment.", AR ".سيتواصل معك فريقنا هاتفيًا قريبًا لتأكيد الشحن"). Added NEW key thanks.paymentModeCod (FR "Mode de règlement : Paiement à la livraison (COD)", EN "Payment method: Cash on delivery (COD)", AR "طريقة الدفع: الدفع عند الاستلام (COD)"). thanks.title was already "Commande confirmée !" — no change.
+- merci/page.tsx: (1) Recap .merci-cod-box simplified from 3 spans (lead/dash/tail) to a SINGLE .merci-cod-box-lead span holding thanks.paymentModeCod. Truck icon + green box kept. (2) .merci-details reduced from 2 rows to 1 — removed the "Mode de paiement / Paiement à la livraison" doublon row entirely; kept only "Statut : En attente de validation".
+- CSS: NO changes. .merci-cod-box (green #f3f7f4, align-items center), .merci-cod-box-lead (bold #1A3C34 weight 700 — visual contrast preserved), .merci-details (beige #F5F0E8), .merci-tracking (green #F0FFF4 + ShieldCheck icon), .merci-icon-wrapper (cream #F5F0E8 40px gold CheckCircle2) all untouched. Unused .merci-cod-box-dash/.-tail rules left in place (harmless, no DOM references) to minimize CSS churn per "preserve structure" directive.
+- bun run lint: clean (only pre-existing daemon.js errors).
+- DEV VERIFICATION (Agent Browser, port 3000, order cmqhabwn10001r9qzqsbdl9ov): JS eval confirmed — title "Commande confirmée !", subtitle "Merci pour votre commande.", recap green box text "Mode de règlement : Paiement à la livraison (COD)" (bold green #1A3C34 w700, bg #f3f7f4, Truck icon), beige block SINGLE row "Statut / En attente de validation" (bg #F5F0E8), bottom green box "Notre équipe vous contactera par téléphone sous peu pour confirmer l'expédition." (bg #F0FFF4, ShieldCheck icon), validation icon cream #F5F0E8 40px. Repetition count across whole page: "Paiement à la livraison"=1, "Mode de paiement"=0, "Mode de règlement"=1, "téléphone"=1, "En attente"=1, "Commande confirmée"=1, "Merci pour votre commande"=1, "colis est en cours"=0. EVERY phrase appears exactly once.
+- VLM (full-page screenshot): confirmed all 5 texts literally + answered "(6) Do you see ANY repeated text? No."
+- Committed f211b1c, pushed to GitHub (36bcf50..f211b1c). Vercel auto-deploy triggered.
+
+Stage Summary:
+- All 4 spec requirements satisfied, all repetitions eliminated (100%), all green frames + beige block + icons strictly preserved.
+- Deployed commit: f211b1c. Production verification pending (Vercel build in progress).
+- Files: src/app/merci/page.tsx (+6/-12), src/lib/i18n/dictionaries.ts (+9/-6). 2 files, +15/-18 lines.
+- Verification screenshot: /home/z/my-project/merci-no-repetition-dev.png
+
+PRODUCTION VERIFICATION (Agent Browser, https://abaya-collection-catalogue-9dum.vercel.app):
+- Full flow: Kitma montoni → qty 2 → checkout (560 MAD) → filled form (Yasmine Tazi / 0655443322 / Tanger / 8 Avenue Mohammed V) → POST /api/orders 201 → redirected to /merci?order_id=cmqhc3yz30000l7040o7mhpzz.
+- JS eval confirmed on PRODUCTION:
+  • title "Commande confirmée !", subtitle "Merci pour votre commande."
+  • recapGreenBox: text "Mode de règlement : Paiement à la livraison (COD)", icon lucide-truck, bg rgb(243,247,244)=#f3f7f4, leadWeight 700 (bold — visual contrast preserved)
+  • recap: productName "Kitma montoni", hasImg true, rows Couleur/Taille "—", Quantité 2, total 560 MAD
+  • beigeBlock: SINGLE row "Statut / En attente de validation", bg rgb(245,240,232)=#F5F0E8
+  • bottomGreenBox: text "Notre équipe vous contactera par téléphone sous peu pour confirmer l'expédition.", icon lucide-shield-check, bg rgb(240,255,244)=#F0FFF4
+  • validationIcon: bg #F5F0E8, size 40px (gold CheckCircle2 preserved)
+  • repetitions: "Paiement à la livraison"=1, "Mode de paiement"=0, "Mode de règlement"=1, "téléphone"=1, "En attente"=1, "colis est en cours"=0 — EVERY phrase exactly once.
+- VLM (production full-page screenshot): confirmed all 5 texts literally + "(6) Are all THREE colored boxes visually present with their icons? Yes" + "(7) Do you see ANY phrase repeated more than once? No".
+
+FINAL STATUS: Merci page text-repetition cleanup LIVE on production. Deployed commit f211b1c. All 4 spec blocks satisfied, 100% of repetitions eliminated, all green frames + beige block + icons (Truck, ShieldCheck, gold CheckCircle2) strictly preserved.
+- Verification screenshots: /home/z/my-project/merci-no-repetition-dev.png (dev), /home/z/my-project/merci-no-repetition-prod.png (production)
