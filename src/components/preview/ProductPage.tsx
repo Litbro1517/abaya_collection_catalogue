@@ -648,7 +648,10 @@ export function ProductPage({
         </div>
 
         {/* ═══════ RIGHT: Product Info — fixed, centered in viewport ═══════ */}
-        <div className="product-page-info">
+        {/* Mobile-first: natural flow. Desktop (md+): 528px fixed height, overflow hidden
+            (no scrollbar), flex column with justify-between to push the buy button to the
+            bottom. pb-2 = 8px air cushion so the CTA never collides with the container edge. */}
+        <div className="product-page-info md:max-h-[528px] md:h-[528px] overflow-hidden flex flex-col justify-between pb-2">
           <div className="product-page-info-inner" dir={rtl ? 'rtl' : 'ltr'}>
           {/* ── Statut badge moved to floating overlay on the carousel (top-left) ── */}
 
@@ -668,7 +671,9 @@ export function ProductPage({
           {description && (
             <div className="product-page-section">
               <div className="product-page-section-title">{t('product.description')}</div>
-              <p className="product-page-description">{description}</p>
+              {/* line-clamp-3 on mobile, md:line-clamp-4 on desktop. md:max-h-[80px] is the
+                  hard pixel cap so even 4 lines never push the buy button below the fold. */}
+              <p className="product-page-description md:max-h-[80px] line-clamp-3 md:line-clamp-4 overflow-hidden text-ellipsis">{description}</p>
             </div>
           )}
 
@@ -678,8 +683,10 @@ export function ProductPage({
               <div className="product-page-section-title">
                 {t('product.colors')}{selectedColor ? <span className="selected-value">: {selectedColor}</span> : ''}
               </div>
+              {/* Sanctuarised 80px block: 6-col grid, content-start. 1 row (40px) leaves 40px
+                  breathing space; 2 rows fill exactly. Parent overflow-hidden clips any excess. */}
               <div
-                className={cn('product-page-colors', showVariantError && colorMissing && 'product-page-colors--error')}
+                className={cn('product-page-colors h-[80px] grid grid-cols-6 gap-2 content-start', showVariantError && colorMissing && 'product-page-colors--error')}
                 role="group"
                 aria-label={showVariantError && colorMissing ? t('product.colorRequiredAria') : t('product.colors')}
               >

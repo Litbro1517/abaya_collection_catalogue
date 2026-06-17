@@ -1669,15 +1669,15 @@ img {
    height:calc(100vh - 88px) keeps the column within visible viewport.
    margin:auto 0 on inner wrapper centers content when it fits,
    allows natural scroll when content overflows (no clipping). */
+/* Right column wrapper: sticky on desktop, static on mobile.
+   Height/overflow/display/flex now controlled by Tailwind classes on the element:
+     md:max-h-[528px] md:h-[528px] overflow-hidden flex flex-col justify-between pb-2
+   CSS here only retains positioning, width, background, z-index. */
 .product-page-info {
   position: sticky;
   top: 72px;
   width: auto;
-  height: calc(100vh - 88px);
   min-width: 0;
-  display: flex;
-  flex-direction: column;
-  overflow-y: auto;
   background: #FAF8F5;
   z-index: 10;
   border-radius: 0;
@@ -1689,11 +1689,17 @@ img {
   }
 }
 
-/* Inner wrapper: margin:auto 0 instead of justify-content:center on parent.
-   Justification: justify-content:center + overflow clips top content when it overflows.
-   margin:auto 0 centers when content fits, allows normal scroll when it overflows. */
+/* Inner wrapper: flex-1 so it fills the 528px parent, then flex-column with
+   justify-content:space-between to distribute its children (title at top, buy
+   button at bottom). min-height:0 prevents flex blowout when content overflows.
+   margin:auto 0 removed — it conflicted with justify-between (auto margins absorb
+   free space, defeating the distribute-to-edges intent). */
 .product-page-info-inner {
-  margin: auto 0;
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  min-height: 0;
   padding: 32px 24px;
   width: 100%;
 }
@@ -1703,12 +1709,14 @@ img {
     position: static;
     width: 100%;
     height: auto;
+    max-height: none;          /* override md:max-h-[528px] which doesn't apply on mobile anyway */
     background: transparent;
-    display: block;
-    overflow-y: visible;
+    overflow: visible;          /* override Tailwind overflow-hidden — mobile shows all content */
+    justify-content: flex-start; /* override justify-between — mobile content flows naturally */
   }
   .product-page-info-inner {
-    margin: 0;
+    flex: none;                 /* override flex:1 — mobile takes natural content height */
+    justify-content: flex-start; /* override justify-between on mobile */
     padding: 20px 0 0 0;
   }
 }
@@ -1865,11 +1873,12 @@ img {
   margin-bottom: 10px;
 }
 
-/* ── Color Circles (40×40px — ColorMap-driven, no text) ── */
+/* ── Color Circles (40×40px — ColorMap-driven, no text) ──
+   Layout now controlled by Tailwind classes on the element:
+     h-[80px] grid grid-cols-6 gap-2 content-start
+   CSS here only retains the error-state styling. */
 .product-page-colors {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 10px;
+  /* display:flex/flex-wrap/gap removed — Tailwind grid utilities take over */
 }
 
 /* ── Missing-variant red highlight (surrounds the color block) ── */
