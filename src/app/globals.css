@@ -3269,6 +3269,15 @@ html.rtl .product-page-quantity-control {
   margin: 0;
 }
 
+/* Color value variant — aligns the swatch chip with the color name inline,
+   mirroring the checkout recap (.checkout-recap-val--color) so the order
+   confirmation feels continuous with the checkout screen. */
+.merci-recap-val--color {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
 .merci-size-pill {
   display: inline-flex;
   align-items: center;

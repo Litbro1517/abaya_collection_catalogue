@@ -255,40 +255,22 @@ export function ProductPage({
   // so we always start with {}. The useEffect below populates from cache on mount.
   const [colorMap, setColorMap] = useState<Record<string, string>>({});
 
-  // ── Parse colors: colorColumn (ColorMap) → optionscouleurs fallback → variantColumn fallback ──
-  // Priority 1: dedicated colorColumn (ColorMap-driven, COLOR type)
+  // ── Parse colors: NATIVE color column only (single source of truth) ──
+  // Reads exclusively from `config.colorColumn` (the COLOR-type column
+  // validated in admin via ColorMap). Raw import fields (optionscouleurs,
+  // couleurs, …) and legacy variantColumn extraction are intentionally NOT
+  // read so the public product page never displays unvalidated colors.
+  // If the native column is empty/missing, `colorData` will be empty and the
+  // entire color section is hidden downstream ({colorData.length > 0 && …}).
   const rawColorValue = config.colorColumn ? getCellValue(config.colorColumn) : '';
-  const colorNames: string[] = rawColorValue
+  const finalColorNames: string[] = rawColorValue
     ? rawColorValue.split(/[,;]/).map(v => v.trim()).filter(Boolean)
-    : [];
-
-  // Priority 2: look for an "optionscouleurs" or similar column in raw data
-  const fallbackColorKeys = ['optionscouleurs', 'option-couleurs', 'couleurs'];
-  let fallbackColorValue = '';
-  if (colorNames.length === 0) {
-    for (const key of fallbackColorKeys) {
-      const val = getCellValue(key);
-      if (val) { fallbackColorValue = val; break; }
-    }
-  }
-  const fallbackColorNames = fallbackColorValue
-    ? fallbackColorValue.split(/[,;]/).map(v => v.trim()).filter(Boolean)
     : [];
 
   // ── Parse variants into sizes (from variantColumn) ──
   const variantList = variants ? variants.split(/[,;]/).map(v => v.trim()).filter(Boolean) : [];
   const sizePattern = /^(XS|S|M|L|XL|2XL|3XL|4XL|XXL|XXXL|\d{1,2})$/i;
   const sizes = variantList.filter(v => sizePattern.test(v));
-
-  // Priority 3: extract non-size values from variantColumn (legacy fallback)
-  const legacyColorNames = variantList.filter(v => !sizePattern.test(v));
-
-  // Final color list: colorColumn → optionscouleurs → variantColumn non-size
-  const finalColorNames = colorNames.length > 0
-    ? colorNames
-    : fallbackColorNames.length > 0
-      ? fallbackColorNames
-      : legacyColorNames;
 
   // ── Color data with hex resolution from ColorMap ──
   const colorData = finalColorNames.map(name => ({

@@ -31,6 +31,11 @@ function MerciContent() {
   const [order, setOrder] = useState<OrderData | null>(null);
   const [loading, setLoading] = useState(!!orderId);
   const [fetchError, setFetchError] = useState<string | null>(null);
+  // ── Color hex resolution (harmonized with CheckoutPage) ──
+  // The Order model stores only the color NAME (productColor). To render a
+  // colored chip consistent with the checkout recap, we resolve the hex from
+  // the same ColorMap (single source of truth) via /api/colormap/lookup.
+  const [colorHex, setColorHex] = useState<string | null>(null);
 
   // Push conversion tracking event once on mount
   useEffect(() => {
@@ -70,6 +75,34 @@ function MerciContent() {
     })();
     return () => { cancelled = true; };
   }, [orderId]);
+
+  // ── Resolve color hex from ColorMap (single source of truth) ──
+  // Triggered whenever the order's productColor name changes. Uses the same
+  // /api/colormap/lookup endpoint that validates colors in admin, so the
+  // Merci page chip is always consistent with the admin-validated palette.
+  useEffect(() => {
+    const colorName = order?.productColor;
+    if (!colorName) {
+      setColorHex(null);
+      return;
+    }
+    let cancelled = false;
+    (async () => {
+      try {
+        const url = `/api/colormap/lookup?names=${encodeURIComponent(colorName)}`;
+        const res = await fetch(url);
+        if (!res.ok) return;
+        const json = await res.json();
+        if (cancelled) return;
+        const arr = Array.isArray(json?.data) ? json.data : [];
+        const match = arr.find((c: { name: string; hex: string | null }) => c.name === colorName);
+        setColorHex(match?.hex ?? null);
+      } catch {
+        // Network error — leave colorHex null (chip simply not rendered)
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [order?.productColor]);
 
   const na = t('checkout.notSelected');
   const productName = order?.productName || '';
@@ -133,8 +166,23 @@ function MerciContent() {
             <dl className="merci-recap-list">
               <div className="merci-recap-row">
                 <dt className="merci-recap-key">{t('checkout.color')}</dt>
-                <dd className="merci-recap-val">
-                  {order!.productColor ? order!.productColor : na}
+                <dd className="merci-recap-val merci-recap-val--color">
+                  {order!.productColor ? (
+                    <>
+                      {/* Color chip — hex resolved from ColorMap (single source
+                          of truth). If hex is null (color not in map), the chip
+                          is simply not rendered; the name still shows. This
+                          mirrors the CheckoutPage recap exactly. */}
+                      {colorHex && (
+                        <span
+                          className="checkout-color-chip"
+                          style={{ backgroundColor: colorHex }}
+                          aria-hidden="true"
+                        />
+                      )}
+                      <span>{order!.productColor}</span>
+                    </>
+                  ) : na}
                 </dd>
               </div>
               <div className="merci-recap-row">

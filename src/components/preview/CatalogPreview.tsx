@@ -1463,18 +1463,15 @@ export function CatalogPreview({ onAdminLogin }: CatalogPreviewProps) {
                   <strong className="product-card-title">{title}</strong>
                 )}
 
-                {/* Color dots from ColorMap (with optionscouleurs fallback) */}
+                {/* Color dots — NATIVE color column only (single source of truth).
+                    Reads exclusively from `config.colorColumn` (the COLOR-type
+                    column validated in admin via ColorMap). Raw import fields
+                    (optionscouleurs, couleurs, …) are intentionally NOT read
+                    so the public catalog never displays unvalidated colors.
+                    If the native column is empty/missing, the entire block is
+                    hidden — no broken pills, no neutral placeholder. */}
                 {(() => {
-                  // Priority 1: colorColumn (ColorMap-driven)
-                  let rawColors = config.colorColumn ? getCellValue(row, config.colorColumn) : '';
-                  // Priority 2: fallback to optionscouleurs column
-                  if (!rawColors) {
-                    const fbKeys = ['optionscouleurs', 'option-couleurs', 'couleurs'];
-                    for (const k of fbKeys) {
-                      const v = getCellValue(row, k);
-                      if (v) { rawColors = v; break; }
-                    }
-                  }
+                  const rawColors = config.colorColumn ? getCellValue(row, config.colorColumn) : '';
                   if (!rawColors) return null;
                   const names = rawColors.split(/[,;]/).map(v => v.trim()).filter(Boolean);
                   if (names.length === 0) return null;
