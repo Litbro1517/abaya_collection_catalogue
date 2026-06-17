@@ -586,27 +586,35 @@ export function ProductPage({
               </div>
             )}
 
-            {/* ── Floating action buttons — absolute top-right of carousel ── */}
-            <div className="absolute top-4 right-4 z-10 flex flex-col gap-3">
-              <button
-                className="product-page-float-action"
-                onClick={() => setIsLiked(!isLiked)}
-                aria-label={t('product.favorite')}
-                aria-pressed={isLiked}
-              >
-                <Heart
-                  className={cn('w-5 h-5', isLiked && 'fill-current')}
-                  style={{ color: isLiked ? '#EF4444' : BRAND.noir }}
-                />
-              </button>
-              <button
-                className="product-page-float-action"
-                onClick={handleShare}
-                aria-label={t('product.share')}
-              >
-                <Share2 className="w-5 h-5" style={{ color: BRAND.noir }} />
-              </button>
-            </div>
+          </div>
+
+          {/* ── Floating action buttons — center-right of the image zone ──
+              Positioned against .product-page-gallery (the root left column
+              container, position: relative) so the buttons are spatially
+              independent from the carousel: images scroll freely inside
+              .product-page-carousel-track (translateX) while this block stays
+              immovable at the vertical center, right edge of the image block.
+              right-4 aligns to the gallery's right edge (= image right edge),
+              never encroaching on the right info column. */}
+          <div className="absolute top-1/2 -translate-y-1/2 right-4 z-10 flex flex-col gap-3">
+            <button
+              className="product-page-float-action"
+              onClick={() => setIsLiked(!isLiked)}
+              aria-label={t('product.favorite')}
+              aria-pressed={isLiked}
+            >
+              <Heart
+                className={cn('w-5 h-5', isLiked && 'fill-current')}
+                style={{ color: isLiked ? '#EF4444' : BRAND.noir }}
+              />
+            </button>
+            <button
+              className="product-page-float-action"
+              onClick={handleShare}
+              aria-label={t('product.share')}
+            >
+              <Share2 className="w-5 h-5" style={{ color: BRAND.noir }} />
+            </button>
           </div>
 
           {/* Thumbnail strip (desktop only) */}
