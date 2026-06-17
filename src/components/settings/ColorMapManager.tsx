@@ -112,8 +112,18 @@ export function ColorMapManager() {
         for (const row of rows) {
           const data = row.data as Record<string, unknown> | null;
           if (data) {
-            if (data.__color__ && typeof data.__color__ === 'string') {
-              counts[data.__color__] = (counts[data.__color__] || 0) + 1;
+            // The native COLOR column stores a comma-separated list of color
+            // NAMES (e.g. "Noir, Beige, Caramel"). Read it and tally each
+            // individual name so the "used by N products" badge is accurate.
+            // NOTE: the slug is `__colors__` (plural) — the previous
+            // `__color__` (singular) read was a typo that always returned
+            // undefined, so every counter showed 0.
+            const raw = data.__colors__;
+            if (typeof raw === 'string' && raw.trim()) {
+              const names = raw.split(/[,;]/).map(s => s.trim()).filter(Boolean);
+              for (const name of names) {
+                counts[name] = (counts[name] || 0) + 1;
+              }
             }
           }
         }

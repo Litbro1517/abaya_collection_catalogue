@@ -111,6 +111,12 @@ export function ColorSourceModal({
   const selectedTable = allTables.find(ds => ds.id === sourceTableId);
 
   // ── One-shot import: bulk copy color values from source ──
+  // IMPORTANT: we explicitly pass `targetColorColumnSlug` so the API writes
+  // the canonicalized colors into the ACTUAL COLOR column of the current
+  // datasource (whose slug may not always be the default '__colors__').
+  // Without this, the API falls back to '__colors__' and — if the real
+  // COLOR column has a different slug — the import silently writes to a
+  // phantom key that no column reads from.
   const performImport = async (config: ColorSourceConfig): Promise<{ updated: number; unknown?: string[] }> => {
     setImporting(true);
     try {
@@ -122,6 +128,7 @@ export function ColorSourceModal({
           matchColumnSlug: config.matchColumnSlug || '',
           colorColumnSlug: config.colorColumnSlug,
           matchTargetSlug: config.matchTargetSlug || '__n_ordre__',
+          targetColorColumnSlug: colorColumnSlug,  // ← native COLOR column slug in CURRENT table
         }),
       });
 

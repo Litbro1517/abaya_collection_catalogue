@@ -494,13 +494,32 @@ export function DataPillar() {
   // Used by optimistic handlers: updates a single row in the zustand store
   // without triggering loadDataSourceData() → no freeze
   // Uses getState() to always read the freshest rows (avoids stale closures)
+  //
+  // ━━━ CRITICAL: also persist to admin localStorage cache ━━━━━━━━━━━━━━━━
+  // Without this, a page reload within the 2-minute cache TTL would skip the
+  // network fetch (cache is "fresh") and inject the STALE pre-edit rows back
+  // into Zustand — making the admin believe their color edit (or any cell
+  // edit) was never saved, even though the DB actually has the new value.
+  // We update the cache in-place so the next reload sees the edited row.
   const handleUpdateRow = useCallback((rowId: string, newData: Record<string, unknown>) => {
     const currentRows = useAppStore.getState().rows;
-    setRows(currentRows.map(r => {
+    const newRows = currentRows.map(r => {
       if (r.id !== rowId) return r;
       return { ...r, data: newData };
-    }));
-  }, [setRows]);
+    });
+    setRows(newRows);
+
+    // Keep the admin rows cache in sync with the optimistic store update.
+    // Falls back to no-op if activeDataSourceId is unset or cache missing.
+    if (activeDataSourceId) {
+      const rKey = adminRowsKey(activeDataSourceId);
+      // Only write if a cache already exists — never create a fresh cache
+      // from an optimistic update (that would mask a cache-miss reload).
+      if (readAdminCache<Row[]>(rKey)) {
+        writeAdminCache(rKey, newRows);
+      }
+    }
+  }, [setRows, activeDataSourceId]);
 
   const handleLocalStatusChange = (rowId: string, newStatut: string) => {
     // Do NOT update the store rows — changes are held in pending state only.
