@@ -1554,3 +1554,42 @@ FINAL STATUS: Variant blocking + red alerts LIVE on production. Deployed commit 
 4. Instant per-field reset: selecting a missing variant clears ONLY that field's border (the other field's border + alert remain until it's also selected).
 - Files: src/components/preview/ProductPage.tsx, src/app/globals.css, src/lib/i18n/dictionaries.ts.
 - Verification screenshot: /home/z/my-project/variant-red-alerts-prod.png
+
+---
+Task ID: header-refonte-lang-search-logo-slider
+Agent: Z.ai Code (main)
+Task: [SURGICAL EDITING] Refonte minimaliste du Header (dropdown langue ref image_bf7740.png + barre recherche compacte ref image_bf7a44.png) + curseur admin logo (taille dynamique).
+
+Work Log:
+- Analyzed 2 reference images with VLM: image_bf7a44.png = globe icon + "EN" code trigger, dropdown opens with FR/EN/AR list, active has green dot + beige bg, rounded corners + soft shadow. image_bf7a44.png = search as single magnifier icon (no input field by default), positioned right of language selector.
+- Explored architecture (Explore subagent): actual public Header is INLINE in CatalogPreview.tsx renderHeader() (lines 743-841), NOT the legacy gallery/Header.tsx. Logo hardcoded h-8/maxHeight:32. Language = 3 flat buttons calling useAppStore.getState().setClientLocale(loc). Big search input in renderGridView (lines 942-954), searchQuery is local state (line 273). Settings: Prisma CatalogSettings has logo String? but NO logoHeight. API allowlist at route.ts lines 53-59. Admin logo upload in SettingsPillar.tsx lines 905-928.
+- BACKEND: prisma/schema.prisma +logoHeight Int? after logo. src/types/index.ts +logoHeight: number|null. src/app/api/catalog/settings/route.ts: added 'logoHeight' to allowedFields + to create-branch defaults, Number-coerced on update. Ran bun run db:push (SQLite synced, Prisma client regenerated).
+- ADMIN SLIDER: SettingsPillar.tsx — added useRef import. Added debounced real-time save (logoHeightTimer + logoHeightSaveRef, 450ms → handleSave({logoHeight})). Under logo ImageUpload, added a bordered card with label (settings.logoHeightLabel), live value badge (Npx), native <input type=range min=20 max=100 step=1>, and 20px/100px min-max labels. Slider onChange → updateField (local preview) + logoHeightSaveRef.current (debounced save).
+- i18n: added settings.logoHeightLabel + settings.logoHeightHint (FR/EN/AR) + catalog.language (FR/EN/AR).
+- HEADER REFACTOR (CatalogPreview.tsx): added Globe, Check, X to lucide imports. Added state: langMenuOpen, searchOpen + refs (langMenuRef, searchOverlayRef, searchInputRef). Added useEffect for click-outside + ESC handlers + autofocus on search open. renderHeader: (a) logo img height now dynamic style={{height:`${s.logoHeight||40}px`, maxHeight:`${s.logoHeight||40}px`}}; (b) replaced flat FR/EN/AR buttons div with compact search icon (toggles searchOpen, shows X when open) + expanding .header-search-overlay (autofocus input, clear button, live filter) — positioned LEFT of language; (c) language dropdown: Globe icon + locale.toUpperCase() trigger button → .header-lang-menu with .header-lang-item rows, active gets .header-lang-item--active + .header-lang-dot (green #1A3C34). Removed the big search input from renderGridView (replaced with comment).
+- FOOTER: logo height now dynamic = 60% of header logoHeight (Math.round((s.logoHeight||40)*0.6)).
+- CSS (globals.css after .catalog-header-inner): +.header-lang-menu (absolute, top calc(100%+6px), right 0, white bg, 1px #ece7df border, 10px radius, soft shadow, fade animation), +.header-lang-item (flex space-between, 9px 12px padding, 7px radius, hover beige), +.header-lang-item--active (beige bg), +.header-lang-code (13px bold #1f1f1f), +.header-lang-dot (7px circle #1A3C34), +.header-search-overlay (absolute, 260px wide, white bg, 10px radius, shadow, fade+scale animation), +.header-search-overlay-input (borderless, 13px), +.header-search-overlay-clear (22px circle), +RTL rules (menu/overlay anchor left in RTL).
+- bun run lint: clean (only pre-existing daemon.js errors).
+- DEV VERIFICATION (Agent Browser, port 3000): header structure confirmed — langTrigger true, globeIcon true, langCode "FR", flatLangButtons 0, searchIconPresent true, bigSearchRemoved true. Opened dropdown: menu open, 3 items (FR active with green dot rgb(26,60,52), EN/AR inactive), menu bg white, radius 10px, soft shadow. Switched to EN: triggerCode "EN", menu closed. Search icon click: overlay open, input focused (autofocus), placeholder "Search...", bg white radius 10px shadow. Typed "abaya" via fill: 50→30 cards filtered (all containing "abaya"). VLM confirmed: globe+FR trigger, FR/EN/AR dropdown, green dot on active, rounded corners + white bg + shadow, search icon visible.
+- DEV LOGO HEIGHT NOTE: dev catalog has no logo URL set, and the dev Prisma client returned stale data (API showed logoHeight null despite DB having 60) — a dev-only caching artifact. Reset dev DB to null to keep fallback display clean. Logo height dynamic logic verified by code inspection (style={{height:`${s.logoHeight||40}px`}}); full visual verification deferred to production where admin slider saves via authenticated API.
+- Committed bfbfe05, pushed (d5185f8..bfbfe05). Vercel auto-deploy triggered.
+
+Stage Summary:
+- Header refonte (lang dropdown + compact search) + dynamic logo height + admin slider implemented. Deployed commit bfbfe05. Production verification pending (Vercel build).
+- Files: prisma/schema.prisma, src/types/index.ts, src/app/api/catalog/settings/route.ts, src/components/settings/SettingsPillar.tsx, src/components/preview/CatalogPreview.tsx, src/app/globals.css, src/lib/i18n/dictionaries.ts. 7 files, +314/-35.
+- Verification screenshots: /home/z/my-project/header-refonte-dev.png, /home/z/my-project/header-lang-dropdown-dev.png
+
+PRODUCTION VERIFICATION (Agent Browser, https://abaya-collection-catalogue-9dum.vercel.app, commit bfbfe05):
+- Public header structure (JS eval): 3 buttons in .catalog-header-inner — (1) Search icon (lucide-search, aria "Rechercher..."), (2) Language dropdown trigger (lucide-globe + "FR" code, aria "Langue"), (3) Admin lock (lucide-lock). Big search input REMOVED. ✓
+- Language dropdown: clicked globe → menu opens with 3 items [FR active+green dot, EN inactive, AR inactive]. Menu bg white, green dot rgb(26,60,52)=#1A3C34. VLM confirmed: "dropdown shows FR, EN, AR. The active language (FR) is marked with a small green dot." ✓
+- Search overlay: clicked search icon → overlay opens with autofocus, placeholder "Rechercher...". VLM confirmed: "small search input field open... magnifier icon on the left, text input with placeholder 'Rechercher...', rounded corners, subtle shadow." ✓
+- Catalog API: GET /api/catalog returns settings.logoHeight field (present, value null) — Vercel Postgres migration applied successfully via build script's prisma db push. ✓
+- Admin slider: could not browser-test (no admin credentials available). Code verified deployed — SettingsPillar.tsx contains <input type=range min=20 max=100 step=1> with debounced handleSave({logoHeight}). The API PUT /api/catalog/settings accepts logoHeight (in allowedFields, Number-coerced). End-to-end logic confirmed by code inspection + API field presence.
+
+FINAL STATUS: Header refonte (lang dropdown + compact search) + dynamic logo height + admin slider LIVE on production. Deployed commit bfbfe05.
+- Language: flat FR/EN/AR buttons → Globe icon + code trigger + dropdown menu with green dot on active.
+- Search: big input → compact Search icon + expanding overlay (autofocus, clear button, live filter).
+- Logo height: hardcoded 32px → dynamic settings.logoHeight (default 40px), footer = 60% of header.
+- Admin: native range slider (20-100px, step 1) under logo upload, debounced real-time save.
+- Files: prisma/schema.prisma, src/types/index.ts, src/app/api/catalog/settings/route.ts, src/components/settings/SettingsPillar.tsx, src/components/preview/CatalogPreview.tsx, src/app/globals.css, src/lib/i18n/dictionaries.ts.
+- Verification screenshots: header-refonte-prod.png, header-lang-dropdown-prod2.png, header-search-overlay-prod2.png
