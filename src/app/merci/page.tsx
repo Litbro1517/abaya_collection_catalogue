@@ -159,26 +159,20 @@ function MerciContent() {
               </div>
             )}
 
-            {/* Trust mention — single elegant line: "Paiement à la livraison — Votre colis est en cours de préparation" */}
+            {/* Trust mention — single unique line: "Mode de règlement : Paiement à la livraison (COD)" */}
             <div className="merci-cod-box" role="note">
               <div className="merci-cod-box-icon">
                 <Truck className="w-4 h-4" style={{ color: '#1A3C34' }} />
               </div>
               <p className="merci-cod-box-text">
-                <span className="merci-cod-box-lead">{t('thanks.paymentCOD')}</span>
-                <span className="merci-cod-box-dash" aria-hidden="true">—</span>
-                <span className="merci-cod-box-tail">{t('thanks.preparing')}</span>
+                <span className="merci-cod-box-lead">{t('thanks.paymentModeCod')}</span>
               </p>
             </div>
           </div>
         ) : null}
 
-        {/* Status detail (kept from original) */}
+        {/* Status detail — single unique line (Statut only; "Mode de paiement" doublon removed) */}
         <div className="merci-details">
-          <div className="merci-detail-row">
-            <span className="merci-detail-label">{t('thanks.paymentMode')}</span>
-            <span className="merci-detail-value">{t('thanks.paymentCOD')}</span>
-          </div>
           <div className="merci-detail-row">
             <span className="merci-detail-label">{t('thanks.status')}</span>
             <span className="merci-detail-value" style={{ color: '#C9A84C' }}>{t('thanks.statusPending')}</span>
