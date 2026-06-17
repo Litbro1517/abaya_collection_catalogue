@@ -1455,10 +1455,82 @@ img {
   background: var(--bg-carousel, #f8f6f2);
 }
 
+/* Wrapper that hosts the carousel + floating overlay (badge + actions).
+   Provides the relative positioning context for the absolute children. */
+.product-page-carousel-wrap {
+  position: relative;
+  width: 100%;
+  display: block;
+}
+
 .product-page-carousel-empty {
   display: flex;
   align-items: center;
   justify-content: center;
+}
+
+/* ── Floating "Nouveau" badge — absolute top-left of carousel ──
+   Compact pill with Sparkles icon. Visible on any clothing color
+   thanks to the brand-colored bg + subtle shadow + backdrop blur. */
+.product-page-float-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 5px 11px;
+  border-radius: 999px;
+  background-color: var(--client-badge-new-bg);
+  color: #ffffff;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  line-height: 1;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.14);
+  -webkit-backdrop-filter: blur(4px);
+  backdrop-filter: blur(4px);
+  pointer-events: none;
+  white-space: nowrap;
+}
+
+.product-page-float-badge svg {
+  width: 12px;
+  height: 12px;
+  flex-shrink: 0;
+}
+
+/* ── Floating action circles — absolute top-right of carousel ──
+   Perfect minimalist circles, white semi-transparent at rest with
+   backdrop blur so they stay visible on any clothing color.
+   Delicate hover (scale + opacity bump). */
+.product-page-float-action {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 42px;
+  height: 42px;
+  border-radius: 50%;
+  border: 1px solid rgba(255, 255, 255, 0.55);
+  background: rgba(255, 255, 255, 0.72);
+  -webkit-backdrop-filter: blur(8px);
+  backdrop-filter: blur(8px);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.10);
+  cursor: pointer;
+  transition: transform 0.2s ease, background 0.2s ease, box-shadow 0.2s ease;
+}
+
+.product-page-float-action:hover {
+  background: rgba(255, 255, 255, 0.94);
+  transform: scale(1.08);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.16);
+}
+
+.product-page-float-action:active {
+  transform: scale(0.95);
+}
+
+.product-page-float-action:focus-visible {
+  outline: 2px solid var(--client-pp-color-circle-selected-border, #C9A84C);
+  outline-offset: 2px;
 }
 
 .product-page-carousel-track {

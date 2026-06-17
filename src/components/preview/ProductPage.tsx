@@ -14,6 +14,7 @@ import {
   Minus,
   Plus,
   ShoppingBag,
+  Sparkles,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useClientTranslation } from '@/lib/i18n';
@@ -479,8 +480,11 @@ export function ProductPage({
             <span className="breadcrumb-current">{title}</span>
           </nav>
 
-          {/* Main Carousel */}
-          {carouselImages.length > 0 ? (
+          {/* Main Carousel — wrapped in a relative container so the floating
+              overlay (badge + actions) positions against the carousel area
+              regardless of whether images are loaded. */}
+          <div className="product-page-carousel-wrap relative">
+            {carouselImages.length > 0 ? (
             <section
               className="product-page-carousel"
               onTouchStart={onTouchStart}
@@ -574,6 +578,37 @@ export function ProductPage({
             </div>
           )}
 
+            {/* ── Floating "Nouveau" badge — absolute top-left of carousel ── */}
+            {statut === 'Nouveau' && stockState === 'en_stock' && (
+              <div className="product-page-float-badge absolute top-4 left-4 z-10">
+                <Sparkles className="w-3 h-3" aria-hidden="true" />
+                <span>{t('product.new')}</span>
+              </div>
+            )}
+
+            {/* ── Floating action buttons — absolute top-right of carousel ── */}
+            <div className="absolute top-4 right-4 z-10 flex flex-col gap-3">
+              <button
+                className="product-page-float-action"
+                onClick={() => setIsLiked(!isLiked)}
+                aria-label={t('product.favorite')}
+                aria-pressed={isLiked}
+              >
+                <Heart
+                  className={cn('w-5 h-5', isLiked && 'fill-current')}
+                  style={{ color: isLiked ? '#EF4444' : BRAND.noir }}
+                />
+              </button>
+              <button
+                className="product-page-float-action"
+                onClick={handleShare}
+                aria-label={t('product.share')}
+              >
+                <Share2 className="w-5 h-5" style={{ color: BRAND.noir }} />
+              </button>
+            </div>
+          </div>
+
           {/* Thumbnail strip (desktop only) */}
           {carouselImages.length > 1 && (
             <div className="product-page-thumbnails">
@@ -610,13 +645,7 @@ export function ProductPage({
         {/* ═══════ RIGHT: Product Info — fixed, centered in viewport ═══════ */}
         <div className="product-page-info">
           <div className="product-page-info-inner" dir={rtl ? 'rtl' : 'ltr'}>
-          {/* ── Statut badge ── */}
-          {statut === 'Nouveau' && stockState === 'en_stock' && (
-            <div className="product-page-badge badge-nouveau">
-              <span className="badge-dot" />
-              {t('product.new')}
-            </div>
-          )}
+          {/* ── Statut badge moved to floating overlay on the carousel (top-left) ── */}
 
           {/* ── Title ── */}
           <h1 className="product-page-title">{title}</h1>
@@ -773,23 +802,7 @@ export function ProductPage({
               {isEpuise ? t('product.soldOut') : isSurCommande ? t('product.onOrder') : t('product.quickBuy')}
             </button>
 
-            {/* Like + Share */}
-            <div className="product-page-secondary-actions">
-              <button
-                className="product-page-icon-btn"
-                onClick={() => setIsLiked(!isLiked)}
-                aria-label={t('product.favorite')}
-              >
-                <Heart className={cn('w-5 h-5', isLiked && 'fill-current')} style={{ color: isLiked ? '#EF4444' : BRAND.grisMoyen }} />
-              </button>
-              <button
-                className="product-page-icon-btn"
-                onClick={handleShare}
-                aria-label={t('product.share')}
-              >
-                <Share2 className="w-5 h-5" style={{ color: BRAND.grisMoyen }} />
-              </button>
-            </div>
+            {/* ── Favoris / Partage moved to floating overlay on the carousel (top-right) ── */}
           </div>
 
           {/* ── Share toast ── */}
