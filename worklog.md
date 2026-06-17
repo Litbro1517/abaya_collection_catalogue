@@ -1593,3 +1593,33 @@ FINAL STATUS: Header refonte (lang dropdown + compact search) + dynamic logo hei
 - Admin: native range slider (20-100px, step 1) under logo upload, debounced real-time save.
 - Files: prisma/schema.prisma, src/types/index.ts, src/app/api/catalog/settings/route.ts, src/components/settings/SettingsPillar.tsx, src/components/preview/CatalogPreview.tsx, src/app/globals.css, src/lib/i18n/dictionaries.ts.
 - Verification screenshots: header-refonte-prod.png, header-lang-dropdown-prod2.png, header-search-overlay-prod2.png
+
+---
+Task ID: size-selector-harmonization
+Agent: main (Z.ai Code)
+Task: [SURGICAL EDITING] Harmonisation Couture du Sélecteur de Tailles — eliminate green, fix hover/selected click delay, apply matte black + gold border on selected state.
+
+Work Log:
+- Located size chip CSS in globals.css (lines 1876-1907): `.product-page-size-chip`, `:hover:not(.disabled)`, `.selected`, `.disabled`.
+- Root-caused the green: `--pp-chip-selected-bg` and `--pp-chip-selected-border` in :root (lines 209-210) both resolve to `var(--pivot-brand)` = green. theme.config.ts defaults also set these to `green`.
+- Root-caused the "display delay on click": specificity conflict — `.product-page-size-chip:hover:not(.disabled)` (specificity 0,3,0) beats `.product-page-size-chip.selected` (0,2,0), so while the cursor stayed on the just-clicked chip the gold hover state overrode the selected state until the mouse left the button.
+- Refactored the 4 rules in globals.css:
+  1. Base `.product-page-size-chip`: transition `all 0.15s` → `all 0.2s ease` (spec: transition-all duration-200).
+  2. Hover: selector changed `:hover:not(.disabled)` → `:hover:not(.disabled):not(.selected)` (excludes selected → fixes conflict); added `transform: scale(1.05)`. Kept subtle gold tint bg (5% gold, not "heavy white opaque").
+  3. Selected: hardcoded `background: #1A1A1A` (matte black), `color: #FFFFFF` (pure white), `border-color: var(--client-pp-color-circle-selected-border)` (gold — same variable as the color circle ring → perfect match). Removed all references to the green `--pp-chip-selected-*` variables so green is eliminated definitively regardless of theme.
+  4. Added `.product-page-size-chip.selected:hover:not(.disabled)` (specificity 0,4,0, declared last) → keeps black+gold on hover, only adds `scale(1.05)`. Guarantees selected always wins visually.
+- Did NOT modify `:root` `--pp-chip-selected-*` variables or theme.config.ts defaults — kept the change surgical to the exact target (`div.product-page-sizes`) so the quantity-stepper `:active` state (which also references `--client-pp-chip-selected-bg`) is unaffected.
+- Lint: `bun run lint` clean (0 errors).
+- Dev verification: dev products have no size/color variants configured (confirmed via DOM eval on all 5 products — hasSizes:false). Injected a test size-selector block (S/M/L/XL with M.selected) into the live product page to verify rendering.
+  - Computed style of `.selected`: bg rgb(26,26,26)=#1A1A1A ✓, color rgb(255,255,255)=#FFFFFF ✓, border rgb(201,168,76)=#C9A84C gold ✓, transition 0.2s ✓.
+  - CSS rule audit: `hoverWouldOverrideSelected: false` — no hover rule can match a selected chip (all have :not(.selected)).
+  - VLM (glm-4.6v) analysis of zoomed screenshot: selected M = "dark solid black bg, gold/yellow thin distinct border, white text"; non-selected = "white with thin gray border"; "no green color on any size button".
+- Fast Refresh recompiled CSS in 122ms, no console/page errors.
+- Committed as 586ea1e. Push to origin/main FAILED: GitHub token `ghp_...` in remote URL has been revoked/expired ("Invalid username or token. Password authentication is not supported"). Local commit is ready; user must refresh the GitHub token to trigger the Vercel production deploy.
+
+Stage Summary:
+- Size selector `.selected` state is now matte black (#1A1A1A) + pure white text + thin gold border matching the color selector's gold ring — green completely eliminated.
+- Hover/selected conflict fixed: hover rule gains `:not(.selected)` so clicking a size applies the black+gold selected state INSTANTLY without waiting for the cursor to leave the button.
+- Hover (non-selected): `transition: all 0.2s ease` + `transform: scale(1.05)` + subtle gold tint, no heavy white opaque bg.
+- All changes confined to `src/app/globals.css` (4 rules in `.product-page-size-chip` block). No TSX/JS changes needed — ProductPage already toggles the `selected` class correctly.
+- BLOCKER: cannot push to production — GitHub personal access token in remote URL is invalid. Commit 586ea1e is local-only until token is refreshed.
