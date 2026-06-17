@@ -2013,3 +2013,44 @@ Stage Summary:
 - No schema change (Order.productColor stays String? — hex resolved client-side from ColorMap on demand).
 - No dead code deleted (out of scope for this surgical edit; dead gallery/ProductCard.tsx etc. flagged for future cleanup).
 - Pending: production verification after ~90s Vercel deploy — expect products with populated __colors__ to show color dots (unchanged), products with empty __colors__ (Robe hiba, عباية بنت حوران) to cleanly hide the color block (was showing broken pills before).
+
+---
+Task ID: color-persistence-fix
+Agent: main
+Task: [SURGICAL EDITING] — Correction de la persistance : Écriture et Sauvegarde dans la Colonne Native. New colors added (via typing, selection, or import) are not saved to the DB in the native column. Only historical colors remain. Fix the write pipeline (Mutation / Save Function). Ensure payload key matches native column identifier. Verify onChange/onSelect updates native column state. Fix import script to push raw data into native column before commit. Confirm new values persist after page refresh.
+
+Work Log:
+- Delegated deep investigation to Explore subagent (Task ID: explore-color-write-pipeline) which produced a 9-section report identifying 5 bugs in the color write pipeline.
+- PRIMARY BUG (BUG #1): DataPillar.handleUpdateRow (src/components/data/DataPillar.tsx:497-503) updated Zustand store on cell edit but did NOT update the admin localStorage cache (abaya_cache_admin_rows_{dsId}). Combined with cache-first policy in loadDataSourceData (skips network when cache < 2 min old), a page reload within 2 minutes would: (1) readCache → stale pre-edit rows, (2) setRows(stale) → Zustand overwritten, (3) isAdminCacheStale → false, (4) skip network → admin sees stale data, concludes "save failed". The DB actually had the new value, but the cache was lying. This is the user's reported symptom.
+- Edit 1 (FIX #1 — DataPillar.tsx): handleUpdateRow now computes newRows array, calls setRows(newRows), THEN checks if activeDataSourceId is set and if readAdminCache(rKey) already has a cache (guard against creating fresh cache from optimistic update) — if so, calls writeAdminCache(rKey, newRows) to sync the cache in-place. Added activeDataSourceId to useCallback deps. 17 lines added, replacing the original 7-line function.
+- SECONDARY BUG (BUG #2): ColorSourceModal.performImport (src/components/data/ColorSourceModal.tsx:114-138) did NOT pass targetColorColumnSlug in the POST body. The API (color-import/route.ts:43) defaults targetColorColumnSlug to '__colors__'. If the production COLOR column has a different slug, bulk imports write to a phantom key no column reads from. Latent bug — bites if slug ≠ '__colors__'.
+- Edit 2 (FIX #2 — ColorSourceModal.tsx): performImport now passes targetColorColumnSlug: colorColumnSlug (the prop received from DataTable, which is the actual COLOR column slug of the current datasource) in the POST body. 1 line added + 6 lines of explanatory comment.
+- TERTIARY BUG (BUG #4): ColorMapManager.tsx (src/components/settings/ColorMapManager.tsx:113-117) the "used by N products" usage counter read data.__color__ (singular) — a typo that always returned undefined, so every counter showed 0. The admin couldn't see which colors were in use, and the delete-prevention check (which reads colorUsage) never blocked deletion of an in-use color at the UI level (the server-side /api/colormap DELETE has its own SQL safety check, so this was display-only, not a data-loss bug).
+- Edit 3 (FIX #3 — ColorMapManager.tsx): the usage counter now reads data.__colors__ (plural) and splits the comma-separated value to tally each color name individually (counts[name]++ per name in the list). 14 lines replacing the original 5-line block. The delete-prevention check at line 269 (colorUsage[color.slug] || colorUsage[color.name]) now finds the correct count.
+- Confirmed BUG #3 (rows/batch/route.ts JSON.parse on Prisma Json) is DEAD CODE — no callers in src/components. Left unfixed (out of scope for this surgical color edit).
+- Confirmed BUG #5 (columns/[columnId] PUT strips __ from slugs if updateSlug:true) only triggers on explicit admin rename with updateSlug flag. Left unfixed (defensive, not the reported symptom).
+- Ran bun run lint — clean (no errors).
+- End-to-end verification on dev server (localhost:3000):
+  • Created test __colors__ COLOR column in dev 'final Catalog_doss_Correct' datasource via Prisma script, populated 8 rows with canonical color names ('Noir, Beige', 'Gris, Rose', 'Bleu, Vert', etc.), seeded ColorMap with 10 colors (Noir, Beige, Gris, Rose, Bleu, Vert, Rouge, Marron, Caramel, Blanc).
+  • Reset dev admin (test@example.com) password to 'Test1234!' via Prisma script.
+  • Logged in as admin via fetch('/api/auth', {POST, email+password}) → admin_token cookie set.
+  • Set localStorage abaya_admin_state, navigated to BuilderShell → Données → final Catalog table → saw 'Couleurs (native) COULEUR' column.
+  • Clicked color cell on row 1 (Noir), popover opened showing checkboxes for all 10 ColorMap colors with Noir + Beige checked.
+  • Clicked 'Rouge' checkbox → toast appeared, cell updated to show 3 color circles.
+  • Verified CACHE updated: localStorage abaya_cache_admin_rows_{dsId} row 1 __colors__ = 'Noir, Beige, Rouge' (was 'Noir, Beige' before). Cache age 8 seconds (fresh write).
+  • Verified DB persisted: Prisma query row.data.__colors__ = 'Noir, Beige, Rouge'. PUT /api/datasources/.../rows/{rowId} returned 200 in dev.log.
+  • CRITICAL TEST: reloaded the page (within 2 min cache TTL).
+  • Verified CACHE STILL shows 'Noir, Beige, Rouge' after reload — NO stale rollback. This is the exact scenario that FAILED before the fix.
+  • Verified UI renders correctly: color cell title='Noir, Beige, Rouge', 3 color circles (Noir rgb(26,26,26), Beige, Rouge) visible.
+  • Cleaned up dev test data: removed __colors__ key from all 8 rows, deleted the __colors__ column, reset test admin password to original bcrypt hash. Dev DB restored to pre-test state.
+- Committed as 70bc4aa: "fix(color): persist new colors to native __colors__ column on save". 3 files changed, 41 insertions, 5 deletions.
+- Pushed to main (triggers Vercel auto-deploy).
+
+Stage Summary:
+- The user's reported symptom ("new colors not saved, only historical colors remain") was caused by a stale client-side cache, NOT a DB write failure. The DB was always correct; the cache was lying.
+- FIX #1 (primary): DataPillar.handleUpdateRow now syncs the admin localStorage cache (abaya_cache_admin_rows_{dsId}) in-place after every cell edit, so a page reload within the 2-minute TTL shows the edited values instead of stale pre-edit data.
+- FIX #2 (secondary, latent): ColorSourceModal.performImport now passes targetColorColumnSlug explicitly, so bulk imports always write to the actual COLOR column slug (not just the hardcoded '__colors__' default).
+- FIX #3 (tertiary, display): ColorMapManager usage counter now reads __colors__ (plural) and tallies each color name individually — the "used by N products" badge and delete-prevention check work correctly.
+- End-to-end verified on dev: color added via UI → cache synced → DB persisted → page reload → color STILL present (no stale rollback) → UI renders correctly. The exact scenario that failed before now works.
+- 3 files changed: DataPillar.tsx (+17/-7 cache sync in handleUpdateRow), ColorSourceModal.tsx (+7/-1 targetColorColumnSlug passed), ColorMapManager.tsx (+14/-5 __color__ → __colors__ + split).
+- Pending: production verification after ~90s Vercel deploy — the admin should now be able to add colors and see them persist after refresh.
