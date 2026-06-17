@@ -1650,3 +1650,50 @@ Stage Summary:
   3. Hover/selected conflict fixed — clicking a size applies black+gold INSTANTLY; hovering the selected chip keeps it black+gold (only adds scale 1.05). Original "display delay until cursor leaves" bug is gone.
 - Hover on non-selected: subtle 5% gold tint + scale(1.05), no heavy opaque white bg.
 - Task fully complete and verified on production. No outstanding issues.
+
+---
+Task ID: float-overlay-carousel-step1
+Agent: main (Z.ai Code)
+Task: [SURGICAL EDITING] Étape 1 — Migrate the "Nouveau" badge + Favoris/Partage utilities from the right info column to floating absolute elements on the left image carousel. Lighten the right info column.
+
+Work Log:
+- Read ProductPage.tsx: located badge (lines 614-619 in .product-page-info-inner), Favoris/Partage (.product-page-secondary-actions, lines 777-792 below CTA), and carousel section (lines 483-606).
+- Confirmed `.product-page-carousel` already has `position: relative` (globals.css:1449) — but to host the floating overlay in BOTH carousel branches (with images + empty), introduced a new `.product-page-carousel-wrap` (position: relative, width: 100%, display: block) wrapping the entire carousel conditional. This ensures Favoris/Partage remain available even for products without images (preserving prior UX where they were always visible in the right column).
+- Added `Sparkles` to lucide-react imports.
+- Wrapped the carousel conditional (`carouselImages.length > 0 ? <section> : <div empty>`) inside `<div className="product-page-carousel-wrap relative">`. After the carousel branch (inside the wrap), rendered:
+  - Floating "Nouveau" badge: `<div className="product-page-float-badge absolute top-4 left-4 z-10">` with `<Sparkles>` icon + `t('product.new')` text. Conditional on `statut === 'Nouveau' && stockState === 'en_stock'`.
+  - Floating actions: `<div className="absolute top-4 right-4 z-10 flex flex-col gap-3">` containing 2 `.product-page-float-action` buttons — Heart (isLiked toggle, red when liked) + Share2 (handleShare). Dark icons (BRAND.noir) on white semi-transparent bg.
+- Removed old badge block (`<div className="product-page-badge badge-nouveau">…</div>`) from `.product-page-info-inner`.
+- Removed old `.product-page-secondary-actions` block (Heart + Share2) from below the CTA in `.product-page-info-inner`.
+- Added CSS in globals.css after `.product-page-carousel`:
+  - `.product-page-carousel-wrap`: position relative, width 100%, display block.
+  - `.product-page-float-badge`: inline-flex pill, border-radius 999px, bg var(--client-badge-new-bg), white text, 10px/600/uppercase, letter-spacing 0.12em, box-shadow 0 2px 8px rgba(0,0,0,0.14), backdrop-filter blur(4px), pointer-events none. SVG 12×12.
+  - `.product-page-float-action`: 42×42, border-radius 50%, border 1px rgba(255,255,255,0.55), bg rgba(255,255,255,0.72), backdrop-filter blur(8px), box-shadow 0 2px 8px rgba(0,0,0,0.10), transition transform/bg/box-shadow 0.2s. Hover: bg 0.94 + scale 1.08 + deeper shadow. Active: scale 0.95. focus-visible: gold outline.
+- Lint: clean (0 errors).
+- DEV verification (Abaya Noire Classique — empty carousel, no Nouveau):
+  - wrapExists: true, wrapPosition: relative, wrapRect === carouselRect (149,219 394×526) — perfect alignment.
+  - floatActionsCount: 2, action1BorderRadius: 50%, action1Bg: rgba(255,255,255,0.72), action1Rect: 42×42.
+  - actionsParentClass: "absolute top-4 right-4 z-10 flex flex-col gap-3", parent position absolute, top 16px, right 16px, display flex, flexDirection column, gap 12px, zIndex 10 — all spec-exact.
+  - oldSecondaryActionsRemoved: true, oldInfoBadgeRemoved: true.
+  - Heart toggle works: aria-pressed false→true, color rgb(239,68,68) red, fill-current applied.
+  - VLM (glm-4.6v) on full-page screenshot: 2 circular buttons (heart+share) top-right of image area; right info column clean below buy button; layout balanced and clean.
+- Committed 10645e8, pushed to origin/main (546f223..10645e8). Vercel auto-deploy triggered.
+- PRODUCTION verification (Kitma montoni — 3 real images, Nouveau status):
+  - wrapExists: true, wrapPosition: relative, wrapRect === carouselRect (37,169 758×1011).
+  - carouselIsEmpty: false, imgCount: 3 — real images load.
+  - floatBadgePresent: true, floatBadgeText: "Nouveau", floatBadgeHasSparkles: true, badge rect top:185 left:53 (= wrap+16px = top-4 left-4).
+  - floatActionsCount: 2, action1BorderRadius: 50%, action1Bg: rgba(255,255,255,0.72), action1Rect top:185 right:501 (= wrap.top+16, wrap.right-16 = top-4 right-4).
+  - actionsParentClass: "absolute top-4 right-4 z-10 flex flex-col gap-3".
+  - oldSecondaryActionsRemoved: true, oldInfoBadgeRemoved: true.
+  - VLM (glm-4.6v) on carousel crop: "Nouveau" badge top-left (pill, dark green bg, white text, small star icon before text); 2 circular buttons top-right (heart + share, white bg); elements OVER the product image (overlay style); clean and elegant.
+  - VLM on right info column crop: price → DESCRIPTION → COULEURS → TAILLES → QUANTITÉ → Achat Rapide; NO Nouveau badge at top; NO heart/share row below buy button; column lighter and cleaner, no redundant elements.
+
+Stage Summary:
+- "Nouveau" badge + Favoris/Partage actions are now floating absolute overlays on the image carousel (top-left badge with Sparkles icon, top-right vertical stack of 2 perfect circle buttons). Right info column lightened — old badge + secondary-actions row fully removed.
+- All spec requirements verified on production with real images (Kitma montoni):
+  1. Prerequisite: carousel wrap has `relative` positioning context ✓
+  2. Badge top-left: `absolute top-4 left-4 z-10`, compact pill with Sparkles icon ✓
+  3. Actions top-right: `absolute top-4 right-4 z-10 flex flex-col gap-3`, perfect circles (border-radius 50%, 42×42), white semi-transparent bg (rgba(255,255,255,0.72)) + backdrop blur, delicate hover (scale 1.08) ✓
+  4. Right column cleaned: old badge + heart/share row removed ✓
+- Files changed: src/components/preview/ProductPage.tsx (imports, carousel wrap, floating overlay JSX, removed old badge + secondary-actions), src/app/globals.css (.product-page-carousel-wrap, .product-page-float-badge, .product-page-float-action rules).
+- Task fully complete and verified on production. No outstanding issues.
