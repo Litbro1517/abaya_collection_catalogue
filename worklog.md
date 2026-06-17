@@ -1948,3 +1948,37 @@ Stage Summary:
 - Abundant colors (>12) collapse to 11 pills + a matte-black "+X" button opening a right-side Sheet drawer listing every color with Arabic calligraphic names beside each swatch.
 - Both drawers use the shadcn Sheet (right side, w-full max-w-md, bg #E8E2E0, p-6, shadow-xl) with an X close button top-right and Playfair serif titles.
 - Fully responsive (full-width drawer on mobile, capped at max-w-md on desktop), lint-clean, no console warnings.
+
+---
+Task ID: merci-back-link-fix
+Agent: main
+Task: [SURGICAL EDITING] Correction du lien de retour sur la Thank You Page — the back button on /merci redirected to admin interface instead of public catalog. Fix the href target immediately and ensure no middleware/session state forces the link to /admin.
+
+Work Log:
+- Read /home/z/my-project/worklog.md for prior context (CSS pivot refactor, mobile overflow fix, fluid right column + double drawers).
+- Located the Thank You page at src/app/merci/page.tsx (selector body > div.merci-page > div > a matches the back-button anchor at line 183).
+- Discovered the back-button href was ALREADY "/" (not /admin) — confirmed via `git log -p -S 'merci-back-btn'` (href="/" since file creation in commit 761d4e4). So the user's literal diagnosis (href points to admin) was incorrect; the EFFECT they observed was real but the root cause lay elsewhere.
+- Investigated middleware (src/middleware.ts): no redirect from / to /admin. Middleware only PROTECTS /admin (redirects unauthenticated users FROM /admin TO /), never the reverse.
+- Identified the TRUE root cause in src/lib/store.ts line 100: `view: 'builder'` is the default Zustand state. Combined with module-level cache hydration in src/app/page.tsx (lines 80-111) that restores `isAdmin: true` + `adminUser` from localStorage `abaya_admin_state`, the HomeContent first render returns `<BuilderShell />` for any authenticated admin landing on `/` — BEFORE useEffect has a chance to read URL params. This is the "session state forces the link to switch to admin" that the user's section 3 warned about.
+- Designed a surgical fix that keeps href="/" (user's literal request) but uses a sessionStorage flag to force `view: 'preview'` BEFORE first render:
+  1. src/app/merci/page.tsx — added onClick handler to the existing `<a href="/">` that sets `sessionStorage.setItem('merci_return', '1')` before the full-page navigation.
+  2. src/app/page.tsx — in the module-level cache hydration block (runs synchronously before React renders), after restoring admin state, check the `merci_return` flag. If present, call `useAppStore.getState().setView('preview')` AND clear the flag. This forces view='preview' BEFORE first render, so HomeContent falls through to `<CatalogPreview />` instead of `<BuilderShell />`.
+- Why sessionStorage + module-level (not useEffect): useEffect runs AFTER first render → admins would briefly see BuilderShell flash before switching to CatalogPreview. Module-level hydration runs at JS bundle load, BEFORE React renders, so view='preview' is set in time for the first render. sessionStorage (not localStorage) so it doesn't persist across browser sessions — only the immediate return trip from /merci. Flag is consumed and cleared immediately, so subsequent navigations to / behave normally.
+- Ran `bun run lint` — clean (no errors).
+- Verified with Agent Browser on dev server (localhost:3000):
+  • /merci renders correctly with back button labeled "Retour au catalogue" [ref=e2], href="/" confirmed via `agent-browser get attr @e2 href`.
+  • Simulated admin session (owner role) via `localStorage.setItem('abaya_admin_state', ...)` → visited /merci → clicked back button → landed on http://localhost:3000/ → snapshot showed PUBLIC CATALOG (Mon Catalogue heading, product listings: Abaya Noire Classique, Abaya Dorée Luxe, Robe Émeraude, etc., category filters Tout/Ensemble/Abaya/Kimono/Robe/Accessoires, WhatsApp/Messenger/Instagram/E-mail links). Admin BuilderShell NOT shown. ✓
+  • Verified sessionStorage flag was cleared after consumption (`sessionStorage.getItem('merci_return')` returns null).
+  • Verified admin state preserved (`localStorage.getItem('abaya_admin_state')` still present) — admin can still access /admin route and Dashboard button.
+  • Non-admin flow (cleared all storage) → visited /merci → clicked back → public catalog shown with NO "Dashboard" button (only public features).
+  • Edge case: admin visiting / directly (no merci flag) → still sees admin BuilderShell with "T Test" avatar, "Éditer/Aperçu" toggle, "Tables de données" sidebar. Fix is surgical — doesn't break admin workflow.
+- Checked dev.log — no errors, only successful 200 responses for /merci and / routes.
+- Committed as b2cfc2b: "fix(merci): force public catalog view on back-button return (admin-safe)".
+- Pushed to main (triggers Vercel auto-deploy).
+
+Stage Summary:
+- True root cause was NOT the href (already "/") but the default Zustand `view: 'builder'` combined with module-level admin state restoration. For authenticated admins, the first render of / returned <BuilderShell /> before useEffect could intervene.
+- Fix: sessionStorage flag (`merci_return`) set by /merci back button onClick, consumed synchronously in module-level cache hydration of / to force `view: 'preview'` BEFORE first render. Flag is one-shot (cleared immediately after consumption).
+- Two files changed: src/app/merci/page.tsx (added onClick to existing <a>), src/app/page.tsx (added 17-line block in module-level hydration). 30 insertions, 2 deletions.
+- Verified on dev: admin → public catalog (not BuilderShell), non-admin → public catalog, admin direct visit → BuilderShell preserved. Admin session state preserved. Flag cleared after use.
+- Pending: production verification on https://abaya-collection-catalogue-9dum.vercel.app/merci after ~90s Vercel deploy.
