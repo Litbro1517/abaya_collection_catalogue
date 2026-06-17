@@ -57,6 +57,12 @@ export const dictionaries: Record<Locale, TranslationDict> = {
 
     // ── Footer ──
     'footer.rights': 'Tous droits réservés',
+    'footer.regulatoryPages': 'Pages Réglementaires',
+    'footer.cgv': 'CGV',
+    'footer.legalNotice': 'Mentions Légales',
+    'footer.privacyPolicy': 'Politique de Confidentialité',
+    'footer.quickNav': 'Navigation Catalogue',
+    'footer.followUs': 'Suivez-nous',
 
     // ── Status ──
     'status.courant': 'Courant',
@@ -541,6 +547,12 @@ export const dictionaries: Record<Locale, TranslationDict> = {
 
     // ── Footer ──
     'footer.rights': 'All rights reserved',
+    'footer.regulatoryPages': 'Regulatory Pages',
+    'footer.cgv': 'Terms & Conditions',
+    'footer.legalNotice': 'Legal Notice',
+    'footer.privacyPolicy': 'Privacy Policy',
+    'footer.quickNav': 'Catalog Navigation',
+    'footer.followUs': 'Follow us',
 
     // ── Status ──
     'status.courant': 'Current',
@@ -1025,6 +1037,12 @@ export const dictionaries: Record<Locale, TranslationDict> = {
 
     // ── Footer ──
     'footer.rights': 'جميع الحقوق محفوظة',
+    'footer.regulatoryPages': 'الصفحات القانونية',
+    'footer.cgv': 'شروط البيع',
+    'footer.legalNotice': 'إشعار قانوني',
+    'footer.privacyPolicy': 'سياسة الخصوصية',
+    'footer.quickNav': 'تصفح الكتالوج',
+    'footer.followUs': 'تابعنا',
 
     // ── Status ──
     'status.courant': 'جارٍ',

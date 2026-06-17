@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
+import Link from 'next/link';
 import { useAppStore } from '@/lib/store';
 import type { Section, SectionConfig, Column, ColumnConfig, Row, CatalogSettings } from '@/types';
 import { Button } from '@/components/ui/button';
@@ -784,7 +785,7 @@ export function CatalogPreview({ onAdminLogin }: CatalogPreviewProps) {
     <header className="catalog-header sticky top-0 z-30 bg-white" style={{ borderBottom: '1px solid rgba(0,0,0,0.06)' }}>
       <div className="catalog-header-inner">
         {/* Back arrow — only visible on detail view */}
-        {isDetailView ? (
+        {isDetailView && (
           <button
             onClick={() => setSelectedProduct(null)}
             className="flex items-center justify-center w-9 h-9 rounded-full hover:bg-gray-100 transition-colors shrink-0"
@@ -792,12 +793,24 @@ export function CatalogPreview({ onAdminLogin }: CatalogPreviewProps) {
           >
             <ArrowLeft className="w-5 h-5" style={{ color: 'var(--pivot-text)' }} />
           </button>
-        ) : (
-          <div className="w-9 h-9 shrink-0" />
         )}
 
-        {/* Logo or Catalog Name — dynamic from catalog_settings.logo + logoHeight */}
-        <div className="flex-1 min-w-0 flex items-center gap-2.5">
+        {/* Logo or Catalog Name — clickable, aligned with product grid left edge */}
+        {/* The back-arrow placeholder was removed so the logo sits flush at the
+            left padding edge — perfectly aligned with the product grid below. */}
+        <Link
+          href="/"
+          className="flex-1 min-w-0 flex items-center gap-2.5 cursor-pointer hover:opacity-80 transition-opacity"
+          aria-label={catalogName}
+          onClick={() => {
+            setSelectedProduct(null);
+            setActiveMacroFilter('all');
+            setActiveMicroFilter('all');
+            setSearchQuery('');
+            setCurrentPage(1);
+            if (typeof window !== 'undefined') window.scrollTo({ top: 0, behavior: 'smooth' });
+          }}
+        >
           {s?.logo ? (
             <img
               src={s.logo}
@@ -815,7 +828,7 @@ export function CatalogPreview({ onAdminLogin }: CatalogPreviewProps) {
               </h1>
             </>
           )}
-        </div>
+        </Link>
 
         {/* ── Compact Search icon (ref: image_bf7a44.png) ── */}
         {s?.enableSearch && (
@@ -1551,45 +1564,112 @@ export function CatalogPreview({ onAdminLogin }: CatalogPreviewProps) {
         />
       </main>
 
-      {/* Footer — sticky to bottom */}
-      <footer className="mt-auto py-4 sm:py-5" style={{ backgroundColor: secondaryColor }}>
-        <div style={{ maxWidth: 1270, margin: '0 auto', padding: '0 32px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12 }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            {s?.logo ? (
-              <img src={s.logo} alt={catalogName} className="w-auto object-contain" style={{ height: `${Math.round((s.logoHeight || 40) * 0.6)}px`, maxHeight: `${Math.round((s.logoHeight || 40) * 0.6)}px` }} />
-            ) : (
-              <>
-                <div className="w-6 h-6 rounded-md flex items-center justify-center" style={{ background: 'linear-gradient(135deg, #C9A84C, #E8D48B)' }}>
-                  <span className="text-[10px] font-bold" style={{ color: 'var(--pivot-text)' }}>A</span>
+      {/* Footer — sticky to bottom, 3-column responsive grid */}
+      <footer className="mt-auto py-8 sm:py-10" style={{ backgroundColor: secondaryColor }}>
+        <div className="mx-auto px-4 sm:px-8" style={{ maxWidth: 1270 }}>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-8 md:gap-10">
+
+            {/* ── Col 1: Logo (clickable, top-left) + Social block ── */}
+            <div className="flex flex-col items-start text-start gap-4">
+              <Link
+                href="/"
+                className="cursor-pointer inline-flex items-center gap-2 hover:opacity-80 transition-opacity"
+                aria-label={catalogName}
+                onClick={() => {
+                  setSelectedProduct(null);
+                  setActiveMacroFilter('all');
+                  setActiveMicroFilter('all');
+                  setSearchQuery('');
+                  setCurrentPage(1);
+                  if (typeof window !== 'undefined') window.scrollTo({ top: 0, behavior: 'smooth' });
+                }}
+              >
+                {s?.logo ? (
+                  <img src={s.logo} alt={catalogName} className="w-auto object-contain" style={{ height: `${Math.round((s.logoHeight || 40) * 0.6)}px`, maxHeight: `${Math.round((s.logoHeight || 40) * 0.6)}px` }} />
+                ) : (
+                  <>
+                    <div className="w-6 h-6 rounded-md flex items-center justify-center" style={{ background: 'linear-gradient(135deg, #C9A84C, #E8D48B)' }}>
+                      <span className="text-[10px] font-bold" style={{ color: 'var(--pivot-text)' }}>A</span>
+                    </div>
+                    <span className="font-semibold text-xs sm:text-sm text-white" style={{ fontFamily: "'Playfair Display', serif" }}>
+                      {catalogName}
+                    </span>
+                  </>
+                )}
+              </Link>
+
+              {/* Social block — WhatsApp, Messenger, Instagram, Email */}
+              {(s?.whatsappNumber || s?.messengerLink || s?.instagramHandle || s?.emailContact) && (
+                <div className="flex flex-col items-start text-start gap-2">
+                  <span className="text-[10px] font-semibold uppercase tracking-wider text-white/50">{t('footer.followUs')}</span>
+                  {s?.whatsappNumber && (
+                    <a href={`https://wa.me/${s.whatsappNumber}`} target="_blank" rel="noopener noreferrer" className="hover:text-green-400 transition-colors flex items-center gap-1.5 text-xs text-white/70">
+                      <MessageCircle className="w-4 h-4" /> {t('footer.whatsapp')}
+                    </a>
+                  )}
+                  {s?.messengerLink && (
+                    <a href={s.messengerLink.startsWith('http') ? s.messengerLink : `https://m.me/${s.messengerLink}`} target="_blank" rel="noopener noreferrer" className="hover:text-blue-400 transition-colors flex items-center gap-1.5 text-xs text-white/70">
+                      <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.477 2 2 6.145 2 11.243c0 2.907 1.2 5.426 3.15 7.1.165.141.263.345.274.564l.056 1.76c.018.554.595.916 1.1.69l1.963-.867a.878.878 0 0 1 .59-.045c.924.255 1.907.391 2.917.391 5.523 0 10-4.145 10-9.243S17.523 2 12 2zm5.974 7.487l-2.832 4.488c-.424.672-1.333.808-1.932.29l-2.254-1.944a.706.706 0 0 0-.894-.002l-3.048 2.316c-.406.309-.937-.162-.677-.6l2.832-4.488c.424-.672 1.333-.808 1.932-.29l2.254 1.944a.706.706 0 0 0 .894.002l3.048-2.316c.406-.309.937.162.677.6z"/></svg>
+                      {t('footer.messenger')}
+                    </a>
+                  )}
+                  {s?.instagramHandle && (
+                    <a href={`https://instagram.com/${s.instagramHandle.replace('@','')}`} target="_blank" rel="noopener noreferrer" className="hover:text-pink-400 transition-colors flex items-center gap-1.5 text-xs text-white/70">
+                      <Instagram className="w-4 h-4" /> {t('footer.instagram')}
+                    </a>
+                  )}
+                  {s?.emailContact && (
+                    <a href={`mailto:${s.emailContact}`} className="hover:text-blue-300 transition-colors flex items-center gap-1.5 text-xs text-white/70">
+                      <Mail className="w-4 h-4" /> {t('footer.email')}
+                    </a>
+                  )}
                 </div>
-                <span className="font-semibold text-xs sm:text-sm text-white" style={{ fontFamily: "'Playfair Display', serif" }}>
-                  {catalogName}
-                </span>
-              </>
-            )}
+              )}
+            </div>
+
+            {/* ── Col 2: Pages Réglementaires (structure for future links) ── */}
+            <div className="flex flex-col items-start text-start gap-2">
+              <h3 className="text-[10px] font-semibold uppercase tracking-wider text-white/50 mb-1" style={{ fontFamily: "'Playfair Display', serif" }}>
+                {t('footer.regulatoryPages')}
+              </h3>
+              {/* Placeholder links — wire to real routes when pages are created */}
+              <a href="#" className="text-xs text-white/70 hover:text-white transition-colors">{t('footer.cgv')}</a>
+              <a href="#" className="text-xs text-white/70 hover:text-white transition-colors">{t('footer.legalNotice')}</a>
+              <a href="#" className="text-xs text-white/70 hover:text-white transition-colors">{t('footer.privacyPolicy')}</a>
+            </div>
+
+            {/* ── Col 3: Catalog Navigation (quick access to categories) ── */}
+            <div className="flex flex-col items-start text-start gap-2">
+              <h3 className="text-[10px] font-semibold uppercase tracking-wider text-white/50 mb-1" style={{ fontFamily: "'Playfair Display', serif" }}>
+                {t('footer.quickNav')}
+              </h3>
+              <button
+                type="button"
+                onClick={() => { setActiveMacroFilter('all'); setActiveMicroFilter('all'); setSearchQuery(''); setCurrentPage(1); setSelectedProduct(null); if (typeof window !== 'undefined') window.scrollTo({ top: 0, behavior: 'smooth' }); }}
+                className="text-xs text-white/70 hover:text-white transition-colors text-start"
+              >
+                {t('catalog.all')}
+              </button>
+              {dynamicCategories
+                .filter(cat => cat.visible)
+                .map(cat => (
+                  <button
+                    key={cat.slug}
+                    type="button"
+                    onClick={() => { setActiveMacroFilter(cat.slug); setActiveMicroFilter('all'); setCurrentPage(1); setSelectedProduct(null); if (typeof window !== 'undefined') window.scrollTo({ top: 0, behavior: 'smooth' }); }}
+                    className="text-xs text-white/70 hover:text-white transition-colors text-start"
+                  >
+                    {cat.label}
+                  </button>
+                ))}
+            </div>
           </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 20, flexWrap: 'wrap', justifyContent: 'center' }} className="text-xs text-white/70">
-            {s?.whatsappNumber && (
-              <a href={`https://wa.me/${s.whatsappNumber}`} target="_blank" rel="noopener noreferrer" className="hover:text-green-400 transition-colors flex items-center gap-1.5">
-                <MessageCircle className="w-4 h-4" /> {t('footer.whatsapp')}
-              </a>
-            )}
-            {s?.messengerLink && (
-              <a href={s.messengerLink.startsWith('http') ? s.messengerLink : `https://m.me/${s.messengerLink}`} target="_blank" rel="noopener noreferrer" className="hover:text-blue-400 transition-colors flex items-center gap-1.5">
-                <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.477 2 2 6.145 2 11.243c0 2.907 1.2 5.426 3.15 7.1.165.141.263.345.274.564l.056 1.76c.018.554.595.916 1.1.69l1.963-.867a.878.878 0 0 1 .59-.045c.924.255 1.907.391 2.917.391 5.523 0 10-4.145 10-9.243S17.523 2 12 2zm5.974 7.487l-2.832 4.488c-.424.672-1.333.808-1.932.29l-2.254-1.944a.706.706 0 0 0-.894-.002l-3.048 2.316c-.406.309-.937-.162-.677-.6l2.832-4.488c.424-.672 1.333-.808 1.932-.29l2.254 1.944a.706.706 0 0 0 .894.002l3.048-2.316c.406-.309.937.162.677.6z"/></svg>
-                {t('footer.messenger')}
-              </a>
-            )}
-            {s?.instagramHandle && (
-              <a href={`https://instagram.com/${s.instagramHandle.replace('@','')}`} target="_blank" rel="noopener noreferrer" className="hover:text-pink-400 transition-colors flex items-center gap-1.5">
-                <Instagram className="w-4 h-4" /> {t('footer.instagram')}
-              </a>
-            )}
-            {s?.emailContact && (
-              <a href={`mailto:${s.emailContact}`} className="hover:text-blue-300 transition-colors flex items-center gap-1.5">
-                <Mail className="w-4 h-4" /> {t('footer.email')}
-              </a>
-            )}
+
+          {/* Copyright — bottom, left-aligned */}
+          <div className="mt-8 pt-4 text-start" style={{ borderTop: '1px solid rgba(255,255,255,0.12)' }}>
+            <p className="text-[11px] text-white/50">
+              &copy; {new Date().getFullYear()} {catalogName}. {t('footer.rights')}.
+            </p>
           </div>
         </div>
       </footer>
