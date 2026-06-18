@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
-import { supabase, STORAGE_BUCKET } from '@/lib/supabase';
+import { getSupabase, STORAGE_BUCKET } from '@/lib/supabase';
 
 /**
  * SQL script to run in Supabase Dashboard → SQL Editor
@@ -72,9 +72,19 @@ export async function GET() {
     }, { status: 503 });
   }
 
+  // Get lazy-initialized client
+  const sb = getSupabase();
+  if (!sb) {
+    return NextResponse.json({
+      status: 'error',
+      message: 'Supabase client not available. Check environment variables.',
+      diagnostics,
+    }, { status: 503 });
+  }
+
   // 2. Check if bucket exists (using anon key — works if bucket is public or if RLS allows)
   try {
-    const { data: buckets, error: listError } = await supabase.storage.listBuckets();
+    const { data: buckets, error: listError } = await sb.storage.listBuckets();
 
     if (listError) {
       diagnostics.bucketCheck = `❌ Error listing buckets: ${listError.message}`;
@@ -103,7 +113,7 @@ export async function GET() {
     const testPath = `branding/_diagnostic_test_${Date.now()}.txt`;
     const testBuffer = Buffer.from('supabase-storage-diagnostic-test');
 
-    const { error: uploadError } = await supabase.storage
+    const { error: uploadError } = await sb.storage
       .from(STORAGE_BUCKET)
       .upload(testPath, testBuffer, {
         contentType: 'text/plain',
@@ -117,11 +127,11 @@ export async function GET() {
       diagnostics.uploadTest = '✅ Upload test succeeded';
 
       // Get public URL
-      const { data: urlData } = supabase.storage.from(STORAGE_BUCKET).getPublicUrl(testPath);
+      const { data: urlData } = sb.storage.from(STORAGE_BUCKET).getPublicUrl(testPath);
       diagnostics.testPublicUrl = urlData.publicUrl;
 
       // Clean up test file
-      const { error: removeError } = await supabase.storage.from(STORAGE_BUCKET).remove([testPath]);
+      const { error: removeError } = await sb.storage.from(STORAGE_BUCKET).remove([testPath]);
       diagnostics.cleanup = removeError ? `⚠️ Cleanup failed: ${removeError.message}` : '✅ Test file cleaned up';
     }
 
@@ -129,7 +139,7 @@ export async function GET() {
     diagnostics.exception = `❌ Unexpected error: ${err instanceof Error ? err.message : String(err)}`;
   }
 
-  const allOk = typeof diagnostics.uploadTest === 'string' && diagnostics.uploadTest.startsWith('✅');
+  const allOk = typeof diagnostics.uploadTest === 'string' && (diagnostics.uploadTest as string).startsWith('✅');
 
   const response: Record<string, unknown> = {
     status: allOk ? 'ok' : 'error',
@@ -247,13 +257,7 @@ export async function POST(request: NextRequest) {
   }
 
   // Step 2: Create RLS policies via direct API call
-  // We need to run SQL to create policies. Since we have the service_role key,
-  // we can use the Supabase Management API or direct SQL.
-  // The most reliable way is to use the PostgreSQL connection via the Supabase API.
   try {
-    // Try creating policies using the admin client's storage API
-    // Unfortunately, the JS client doesn't support creating policies directly.
-    // We need to run SQL. Let's try using the REST API with the service_role key.
     const sqlResponse = await fetch(`${supabaseUrl}/rest/v1/rpc/exec_sql`, {
       method: 'POST',
       headers: {
@@ -267,8 +271,6 @@ export async function POST(request: NextRequest) {
     if (sqlResponse.ok) {
       results.policies = '✅ RLS policies created via RPC';
     } else {
-      // RPC method not available, try alternative approach
-      // Policies might already exist or need to be created manually
       results.policies = '⚠️ Could not auto-create RLS policies via API. You need to run the SQL script manually in Supabase Dashboard → SQL Editor.';
       results.setupSQL = SETUP_SQL;
     }
@@ -279,36 +281,41 @@ export async function POST(request: NextRequest) {
 
   // Step 3: Test upload with anon key (to verify RLS policies are working)
   try {
-    const testPath = `branding/_setup_test_${Date.now()}.txt`;
-    const testBuffer = Buffer.from('supabase-storage-setup-test');
-
-    const { error: uploadError } = await supabase.storage
-      .from(STORAGE_BUCKET)
-      .upload(testPath, testBuffer, {
-        contentType: 'text/plain',
-        upsert: true,
-      });
-
-    if (uploadError) {
-      results.uploadTest = `❌ Upload test failed: ${uploadError.message}`;
-      results.uploadHint = 'RLS policies are not yet configured. Run the SQL script in Supabase Dashboard → SQL Editor to complete setup.';
-      results.setupSQL = SETUP_SQL;
+    const sb = getSupabase();
+    if (!sb) {
+      results.uploadTest = '❌ Supabase client not available for upload test';
     } else {
-      results.uploadTest = '✅ Upload test succeeded with anon key — RLS policies are working!';
+      const testPath = `branding/_setup_test_${Date.now()}.txt`;
+      const testBuffer = Buffer.from('supabase-storage-setup-test');
 
-      // Get public URL
-      const { data: urlData } = supabase.storage.from(STORAGE_BUCKET).getPublicUrl(testPath);
-      results.testPublicUrl = urlData.publicUrl;
+      const { error: uploadError } = await sb.storage
+        .from(STORAGE_BUCKET)
+        .upload(testPath, testBuffer, {
+          contentType: 'text/plain',
+          upsert: true,
+        });
 
-      // Clean up
-      await supabase.storage.from(STORAGE_BUCKET).remove([testPath]);
-      results.cleanup = '✅ Test file cleaned up';
+      if (uploadError) {
+        results.uploadTest = `❌ Upload test failed: ${uploadError.message}`;
+        results.uploadHint = 'RLS policies are not yet configured. Run the SQL script in Supabase Dashboard → SQL Editor to complete setup.';
+        results.setupSQL = SETUP_SQL;
+      } else {
+        results.uploadTest = '✅ Upload test succeeded with anon key — RLS policies are working!';
+
+        // Get public URL
+        const { data: urlData } = sb.storage.from(STORAGE_BUCKET).getPublicUrl(testPath);
+        results.testPublicUrl = urlData.publicUrl;
+
+        // Clean up
+        await sb.storage.from(STORAGE_BUCKET).remove([testPath]);
+        results.cleanup = '✅ Test file cleaned up';
+      }
     }
   } catch (err) {
     results.uploadTestError = `❌ Upload test error: ${err instanceof Error ? err.message : String(err)}`;
   }
 
-  const allOk = typeof results.uploadTest === 'string' && results.uploadTest.startsWith('✅');
+  const allOk = typeof results.uploadTest === 'string' && (results.uploadTest as string).startsWith('✅');
 
   return NextResponse.json({
     status: allOk ? 'ok' : 'partial',
