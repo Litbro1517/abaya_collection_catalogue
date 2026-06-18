@@ -9,12 +9,10 @@ import { normalizeColorName, generateColorSlug, parseColorList } from '@/lib/col
  * color name, resolves it against the ColorMap, and writes the canonical comma-separated
  * names into the target COLOR column of the current table.
  *
- * This is MORE INTELLIGENT than stock-import because it:
- *   - Parses multi-value fields (comma, semicolon, multi-space separated)
- *   - Normalizes color names (Title Case, accent-aware)
- *   - Resolves against ColorMap via slug-based lookup
- *   - Fail-fasts if ANY color name is unrecognized (422)
- *   - Only writes when ALL colors are known
+ * Modes:
+ *   force=false (default): Fail-fast if ANY color is unrecognized → 422
+ *   force=true:            Import anyway — unknown colors are written as plain text
+ *                          alongside recognized ones. Returns 200 with unknownCount.
  *
  * Body:
  *   sourceTableId           — ID of the data source to read from (can be same table)
@@ -22,11 +20,15 @@ import { normalizeColorName, generateColorSlug, parseColorList } from '@/lib/col
  *   colorColumnSlug         — Column slug in source table containing raw color text
  *   targetColorColumnSlug   — Column slug in CURRENT table to write to (default: __colors__)
  *   matchTargetSlug         — Column slug in current table to match on (default: __n_ordre__)
+ *   force                   — If true, import even with unrecognized colors (default: false)
  *
- * Returns on success:
- *   { updated: number } — count of rows whose target column was updated
+ * Returns on success (all known):
+ *   { updated: number }
  *
- * Returns on unknown colors (422):
+ * Returns on success (force mode, some unknown):
+ *   { updated: number, unknownCount: number, unknown: string[] }
+ *
+ * Returns on unknown colors (non-force, 422):
  *   { error: "Couleurs non reconnues", unknown: string[], count: number }
  */
 export async function POST(
@@ -42,6 +44,7 @@ export async function POST(
       colorColumnSlug,
       targetColorColumnSlug = '__colors__',
       matchTargetSlug = '__n_ordre__',
+      force = false,
     } = body;
 
     if (!sourceTableId || !colorColumnSlug) {
@@ -52,7 +55,6 @@ export async function POST(
     }
 
     // ━━━ Step 1: Load ColorMap ━━━
-    // Fetch ALL entries (no filters) — we need every slug for resolution
     const colorMapEntries = await db.colorMap.findMany();
     const resolutionMap = new Map<string, { name: string; hex: string }>();
     for (const entry of colorMapEntries) {
@@ -66,10 +68,10 @@ export async function POST(
       select: { id: true, data: true },
     });
 
-    // Track unknown color names across all rows (for fail-fast)
+    // Track unknown color names across all rows
     const unknownNames = new Set<string>();
-    // Store per-row results: only committed to DB if no unknowns
-    const rowResults: Array<{ rowId: string; data: Record<string, unknown>; canonicalNames: string }> = [];
+    // Store per-row results: recognized + unrecognized names (for force mode)
+    const rowResults: Array<{ rowId: string; data: Record<string, unknown>; resolvedNames: string[]; unresolvedNames: string[] }> = [];
 
     if (sourceTableId === id) {
       // ━━━ SAME TABLE: read color column from same rows ━━━
@@ -84,8 +86,8 @@ export async function POST(
         const { canonicalNames, unknowns } = resolveColors(String(rawValue), resolutionMap);
         for (const u of unknowns) unknownNames.add(u);
 
-        if (canonicalNames.length > 0) {
-          rowResults.push({ rowId: row.id, data, canonicalNames: canonicalNames.join(', ') });
+        if (canonicalNames.length > 0 || unknowns.length > 0) {
+          rowResults.push({ rowId: row.id, data, resolvedNames: canonicalNames, unresolvedNames: unknowns });
         }
       }
     } else {
@@ -127,14 +129,15 @@ export async function POST(
         const { canonicalNames, unknowns } = resolveColors(rawColorText, resolutionMap);
         for (const u of unknowns) unknownNames.add(u);
 
-        if (canonicalNames.length > 0) {
-          rowResults.push({ rowId: row.id, data, canonicalNames: canonicalNames.join(', ') });
+        if (canonicalNames.length > 0 || unknowns.length > 0) {
+          rowResults.push({ rowId: row.id, data, resolvedNames: canonicalNames, unresolvedNames: unknowns });
         }
       }
     }
 
-    // ━━━ Step 5: Fail-fast on unknown colors ━━━
-    if (unknownNames.size > 0) {
+    // ━━━ Step 5: Handle unknown colors ━━━
+    if (unknownNames.size > 0 && !force) {
+      // Non-force mode: fail-fast — return unknowns so frontend can prompt
       return NextResponse.json(
         {
           error: 'Couleurs non reconnues',
@@ -145,12 +148,14 @@ export async function POST(
       );
     }
 
-    // ━━━ All colors recognized — write to DB ━━━
+    // ━━━ Write to DB (force mode or all-known) ━━━
+    // In force mode: unresolved names are written as plain text alongside canonical names
     let updated = 0;
     for (const result of rowResults) {
+      const allNames = [...result.resolvedNames, ...result.unresolvedNames];
       const updatedData: Record<string, unknown> = {
         ...result.data,
-        [targetColorColumnSlug]: result.canonicalNames,
+        [targetColorColumnSlug]: allNames.join(', '),
       };
       await db.row.update({
         where: { id: result.rowId },
@@ -159,7 +164,14 @@ export async function POST(
       updated++;
     }
 
-    return NextResponse.json({ updated });
+    // Return success with optional unknown info
+    const response: Record<string, unknown> = { updated };
+    if (unknownNames.size > 0) {
+      response.unknownCount = unknownNames.size;
+      response.unknown = [...unknownNames];
+    }
+
+    return NextResponse.json(response);
   } catch (error) {
     console.error('Color import error:', error);
     return NextResponse.json(
@@ -183,24 +195,24 @@ function resolveColors(
   const canonicalNames: string[] = [];
   const unknowns: string[] = [];
 
-  // Step 4a: Parse into individual color names
+  // Parse into individual color names
   const parsedNames = parseColorList(rawValue);
 
   for (const rawName of parsedNames) {
-    // Step 4b: Normalize (Title Case, trim, etc.)
+    // Normalize (Title Case, trim, etc.)
     const normalizedName = normalizeColorName(rawName);
 
-    // Step 4c: Generate slug for lookup
+    // Generate slug for lookup
     const slug = generateColorSlug(normalizedName);
 
-    // Step 4d: Look up slug in ColorMap resolution map
+    // Look up slug in ColorMap resolution map
     const colorEntry = resolutionMap.get(slug);
 
     if (colorEntry) {
-      // Step 4e: Found — use the ColorMap's canonical name
+      // Found — use the ColorMap's canonical name
       canonicalNames.push(colorEntry.name);
     } else {
-      // Step 4f: Not found — add to unknowns
+      // Not found — add to unknowns
       unknowns.push(normalizedName);
     }
   }

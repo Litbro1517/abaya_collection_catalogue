@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useAppStore } from '@/lib/store';
 import type { GoogleSheetInfo } from '@/types';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
@@ -98,10 +98,19 @@ export function GoogleSheetsBrowser({ open, onOpenChange, onImported }: Props) {
     }
   };
 
+  // ━━━ Sync status timeout ref — prevents race conditions ━━━
+  const syncTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const scheduleSyncIdle = (delay: number) => {
+    if (syncTimeoutRef.current) clearTimeout(syncTimeoutRef.current);
+    syncTimeoutRef.current = setTimeout(() => setSyncStatus('idle'), delay);
+  };
+
   // Import the selected sheet
   const handleImport = async () => {
     if (!selectedSheet) return;
     setImporting(true);
+    if (syncTimeoutRef.current) clearTimeout(syncTimeoutRef.current);
     setSyncStatus('syncing');
     setSyncMessage('Importation en cours...');
     try {
@@ -120,19 +129,19 @@ export function GoogleSheetsBrowser({ open, onOpenChange, onImported }: Props) {
         toast.success(`Import réussi : ${json.data?.rowsCreated || 0} lignes, ${json.data?.columnsCreated || 0} colonnes`);
         setShowGoogleSheetsBrowser(false);
         onImported?.();
-        setTimeout(() => setSyncStatus('idle'), 3000);
+        scheduleSyncIdle(3000);
       } else {
         const json = await res.json();
         setSyncStatus('error');
         setSyncMessage(json.error || 'Erreur d\'importation');
         setError(json.error || 'Erreur d\'importation');
-        setTimeout(() => setSyncStatus('idle'), 5000);
+        scheduleSyncIdle(5000);
       }
     } catch {
       setSyncStatus('error');
       setSyncMessage('Erreur de connexion');
       setError('Erreur de connexion');
-      setTimeout(() => setSyncStatus('idle'), 5000);
+      scheduleSyncIdle(5000);
     } finally {
       setImporting(false);
     }
@@ -148,6 +157,7 @@ export function GoogleSheetsBrowser({ open, onOpenChange, onImported }: Props) {
     }
     const sheetId = match[1];
     setImporting(true);
+    if (syncTimeoutRef.current) clearTimeout(syncTimeoutRef.current);
     setSyncStatus('syncing');
     setSyncMessage('Importation en cours...');
     try {
@@ -163,19 +173,19 @@ export function GoogleSheetsBrowser({ open, onOpenChange, onImported }: Props) {
         toast.success(`Import réussi : ${json.data?.rowsCreated || 0} lignes`);
         setShowGoogleSheetsBrowser(false);
         onImported?.();
-        setTimeout(() => setSyncStatus('idle'), 3000);
+        scheduleSyncIdle(3000);
       } else {
         const json = await res.json();
         setSyncStatus('error');
         setSyncMessage(json.error || 'Erreur d\'importation');
         setError(json.error || 'Erreur d\'importation');
-        setTimeout(() => setSyncStatus('idle'), 5000);
+        scheduleSyncIdle(5000);
       }
     } catch {
       setSyncStatus('error');
       setSyncMessage('Erreur de connexion');
       setError('Erreur de connexion');
-      setTimeout(() => setSyncStatus('idle'), 5000);
+      scheduleSyncIdle(5000);
     } finally {
       setImporting(false);
     }

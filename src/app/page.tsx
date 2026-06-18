@@ -141,6 +141,7 @@ function HomeContent() {
     setCatalog,
     setSettings,
     setLoading,
+    googleSession,
     setGoogleSession,
     setView,
     setPillar,
@@ -226,6 +227,42 @@ function HomeContent() {
       }
     };
     verifySession();
+  }, []);
+
+  // ━━━ Re-validate Google session on mount (if restored from localStorage) ━━━
+  // Prevents "ghost connected" state where the DB session was deleted
+  // (by another admin, token revocation, etc.) but localStorage still has it.
+  useEffect(() => {
+    if (!googleSession) return;
+    const verifyGoogleSession = async () => {
+      try {
+        const res = await fetch('/api/google/session');
+        if (res.ok) {
+          const json = await res.json();
+          if (json.data?.connected) {
+            // Session still valid — update with fresh data
+            setGoogleSession({
+              id: json.data.id,
+              email: json.data.email,
+              name: json.data.name,
+              picture: json.data.picture,
+              scope: json.data.scope || '',
+              createdAt: json.data.createdAt,
+              updatedAt: json.data.updatedAt,
+            });
+          } else {
+            // Session no longer valid in DB — clear ghost state
+            setGoogleSession(null);
+          }
+        } else {
+          // API error — session likely gone
+          setGoogleSession(null);
+        }
+      } catch {
+        // Network error — keep current state (offline-first)
+      }
+    };
+    verifyGoogleSession();
   }, []);
 
   // ━━━ Persist admin state to localStorage on change ━━━

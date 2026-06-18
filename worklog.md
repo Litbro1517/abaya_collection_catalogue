@@ -96,3 +96,53 @@ Stage Summary:
 - GitHub: pushed to https://github.com/Litbro1517/abaya_collection_catalogue (main branch)
 - Vercel: both project deployments succeeded after Supabase lazy init fix
 - Key fix: lazy Supabase client initialization prevents build crash when env vars are absent
+
+---
+Task ID: P4
+Agent: Main Agent
+Task: Protocol 4 — Fix color import blocking + datasource sync latency
+
+Work Log:
+Patch A (Color Import Debloquage):
+- A1: Modified `src/app/api/datasources/[id]/color-import/route.ts` — added `force` parameter (boolean, default false)
+  - When force=false + unknown colors: 422 as before (backward compatible)
+  - When force=true + unknown colors: import proceeds, unknown names written as plain text alongside canonical names
+  - Response includes `unknownCount` and `unknown` array when force mode used
+- A2: Modified `src/components/data/ColorSourceModal.tsx` — added AlertDialog confirmation
+  - When 422 returned from API, instead of throwing error, shows AlertDialog with unknown color names
+  - Each unknown color shown with pixelisé circle preview (matching CSS `color-dot-missing`)
+  - "Oui, importer quand même" triggers re-import with force=true
+  - "Non, annuler" cancels the import gracefully
+  - Works for both initial save and force re-import paths
+- A3: Verified existing fallback — `color-dot-missing` and `color-circle-missing` CSS classes already display pixelisé/transparent background for unresolved colors
+  - CatalogPreview.tsx line 1517: `!hex && 'color-dot-missing'` (card view)
+  - ProductPage.tsx line 811: `!hex && 'color-circle-missing'` (product page circles)
+  - ProductPage.tsx line 1059: `!hex && 'color-circle-missing'` (drawer view)
+  - globals.css lines 2046-2066: pixelated checkered background patterns
+
+Patch B (Sync Latency & Cache Fixes):
+- B1: Added Google session re-validation on page load in `src/app/page.tsx`
+  - New useEffect at line 234: if googleSession exists from localStorage hydration, verify via `/api/google/session`
+  - If session gone in DB: clear ghost state (setGoogleSession(null))
+  - Prevents "ghost connected" state where UI shows Google avatar but session is dead
+  - Fixed missing `googleSession` in useAppStore destructuring
+- B2: Modified `src/components/data/GoogleConnectPanel.tsx` — disconnect now invalidates cache + reloads datasources
+  - After DELETE + setGoogleSession(null): clearCache(CACHE_KEYS.datasources) + fetch fresh datasources
+  - Added `clearCache(key)` utility function to `src/lib/cache.ts` (per-key invalidation, not just clearAllCache)
+  - Prevents stale Google badges on tables after disconnect
+- B3: Fixed race condition in `src/components/data/DataPillar.tsx` and `src/components/data/GoogleSheetsBrowser.tsx`
+  - Replaced bare `setTimeout(() => setSyncStatus('idle'), N)` with `useRef`-based `scheduleSyncIdle()`
+  - Each new sync clears the previous timeout before setting a new one
+  - Prevents premature syncStatus='idle' when multiple syncs overlap
+
+Build verification:
+- `bun run build`: ✅ success (no Supabase crash, all routes compiled)
+- Dev server: ✅ runs without errors
+- No new lint errors introduced
+
+Stage Summary:
+- Color import now permissive with confirmation dialog instead of hard block
+- Unknown colors display with pixelisé fallback circle in preview
+- Google disconnect now properly invalidates cache and reloads datasources
+- Google session ghost state eliminated via re-validation on mount
+- Sync status race condition fixed with useRef-based timeout management

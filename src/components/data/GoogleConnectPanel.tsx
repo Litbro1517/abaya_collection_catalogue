@@ -1,6 +1,7 @@
 'use client';
 
 import { useAppStore } from '@/lib/store';
+import { clearCache, CACHE_KEYS } from '@/lib/cache';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -13,7 +14,7 @@ import { toast } from 'sonner';
  * ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
  * This panel is for initial Google account connection/disconnection.
  * The Link2 icon opens the GoogleSheetsBrowser to import/connect a new source.
- * 
+ *
  * ⚠️ SYNC is now per-table — see DataPillar.tsx for the RefreshCw button
  *    next to each imported table.
  * ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -22,6 +23,7 @@ export function GoogleConnectPanel() {
   const {
     googleSession,
     setGoogleSession,
+    setDataSources,
     setShowGoogleSheetsBrowser,
   } = useAppStore();
 
@@ -53,7 +55,23 @@ export function GoogleConnectPanel() {
     try {
       const res = await fetch('/api/google/session', { method: 'DELETE' });
       if (res.ok) {
+        // 1. Clear Google session from Zustand (immediate UI update)
         setGoogleSession(null);
+
+        // 2. Invalidate datasources cache so stale Google-linked badges are cleared
+        clearCache(CACHE_KEYS.datasources);
+
+        // 3. Reload datasources from server (will no longer show Google badges)
+        try {
+          const dsRes = await fetch('/api/datasources');
+          if (dsRes.ok) {
+            const dsJson = await dsRes.json();
+            setDataSources(dsJson.data || []);
+          }
+        } catch {
+          // Network error — datasources list will refresh on next page load
+        }
+
         toast.success('Google déconnecté');
       }
     } catch {

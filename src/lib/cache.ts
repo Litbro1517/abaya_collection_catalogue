@@ -145,6 +145,16 @@ export function writeCache<T = unknown>(
 /**
  * Clear ALL abaya_cache_* keys AND their per-key timestamps from localStorage.
  */
+export function clearCache(key: CacheKey): void {
+  if (typeof window === 'undefined') return;
+  try {
+    localStorage.removeItem(key);
+    localStorage.removeItem(`${key}_ts`);
+  } catch {
+    // Silently fail — localStorage might be unavailable
+  }
+}
+
 export function clearAllCache(): void {
   if (typeof window === 'undefined') return;
   try {

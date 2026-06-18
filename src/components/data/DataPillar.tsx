@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { useAppStore } from '@/lib/store';
 import type { DataSource, Column, Row } from '@/types';
 import { readCache, writeCache, CACHE_KEYS } from '@/lib/cache';
@@ -726,7 +726,20 @@ export function DataPillar() {
    * NEVER overwrites existing data
    * STRICT ISOLATION: only syncs the specific table, never touches others
    */
+  // ━━━ Sync status timeout ref — prevents race conditions ━━━
+  // When multiple syncs run, the first setTimeout must not prematurely
+  // set 'idle' while a later sync is still running.
+  const syncTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const scheduleSyncIdle = (delay: number) => {
+    if (syncTimeoutRef.current) clearTimeout(syncTimeoutRef.current);
+    syncTimeoutRef.current = setTimeout(() => setSyncStatus('idle'), delay);
+  };
+
   const handleSyncTable = async (dsId: string, sheetId: string, dsName: string) => {
+    // Clear any pending idle timeout from a previous sync
+    if (syncTimeoutRef.current) clearTimeout(syncTimeoutRef.current);
+
     setSyncStatus('syncing');
     setSyncMessage(`Sync Delta "${dsName}" en cours...`);
     try {
@@ -757,19 +770,19 @@ export function DataPillar() {
           loadDataSourceData();
         }
         loadDataSources();
-        setTimeout(() => setSyncStatus('idle'), 3000);
+        scheduleSyncIdle(3000);
       } else {
         const json = await res.json();
         setSyncStatus('error');
         setSyncMessage(json.error || 'Erreur de synchronisation');
         toast.error(`Erreur sync "${dsName}": ${json.error || 'Erreur'}`);
-        setTimeout(() => setSyncStatus('idle'), 5000);
+        scheduleSyncIdle(5000);
       }
     } catch {
       setSyncStatus('error');
       setSyncMessage('Erreur de connexion');
       toast.error('Erreur de connexion');
-      setTimeout(() => setSyncStatus('idle'), 5000);
+      scheduleSyncIdle(5000);
     }
   };
 
@@ -790,6 +803,9 @@ export function DataPillar() {
       return;
     }
     const sheetId = match[1];
+    // Clear any pending idle timeout from a previous sync
+    if (syncTimeoutRef.current) clearTimeout(syncTimeoutRef.current);
+
     setSyncStatus('syncing');
     setSyncMessage('Importation en cours...');
     try {
@@ -808,18 +824,18 @@ export function DataPillar() {
         setShowUrlDialog(false);
         setManualUrl('');
         loadDataSources();
-        setTimeout(() => setSyncStatus('idle'), 3000);
+        scheduleSyncIdle(3000);
       } else {
         const json = await res.json();
         setSyncStatus('error');
         setSyncMessage(json.error || 'Erreur d\'importation');
         toast.error(json.error || 'Erreur d\'importation');
-        setTimeout(() => setSyncStatus('idle'), 5000);
+        scheduleSyncIdle(5000);
       }
     } catch {
       setSyncStatus('error');
       setSyncMessage('Erreur de connexion');
-      setTimeout(() => setSyncStatus('idle'), 5000);
+      scheduleSyncIdle(5000);
     }
   };
 
