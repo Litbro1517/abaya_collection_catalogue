@@ -115,10 +115,11 @@ export async function PATCH(req: NextRequest) {
     }
 
     // Build update data — slug is NEVER changed
-    const updateData: { label?: string; visible?: boolean; ordre?: number } = {};
+    const updateData: { label?: string; visible?: boolean; ordre?: number; translations?: unknown } = {};
     if (body.label !== undefined) updateData.label = body.label;
     if (body.visible !== undefined) updateData.visible = body.visible;
     if (body.ordre !== undefined) updateData.ordre = body.ordre;
+    if (body.translations !== undefined) (updateData as any).translations = body.translations;
 
     const subCategory = await db.subCategory.update({
       where: { id },
