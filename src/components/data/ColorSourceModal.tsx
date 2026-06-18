@@ -553,36 +553,10 @@ export function ColorSourceModal({
           <AlertDialogHeader>
             <AlertDialogTitle className="flex items-center gap-2">
               <AlertCircle className="w-5 h-5 text-amber-500" />
-              Couleurs non reconnues
+              Certaines couleurs ne sont pas configurées.
             </AlertDialogTitle>
-            <AlertDialogDescription asChild>
-              <div className="space-y-2">
-                <p>
-                  Certaines couleurs ne sont pas reconnues dans la ColorMap.
-                  Voulez-vous quand même importer les données ?
-                </p>
-                <div className="flex flex-wrap gap-1.5 mt-2">
-                  {unknownColorsAlert.unknown.map(name => (
-                    <span
-                      key={name}
-                      className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs bg-amber-100 text-amber-800 border border-amber-200"
-                    >
-                      <span
-                        className="w-2.5 h-2.5 rounded-full shrink-0"
-                        style={{
-                          backgroundImage: 'linear-gradient(45deg, #ccc 25%, transparent 25%), linear-gradient(-45deg, #ccc 25%, transparent 25%), linear-gradient(45deg, transparent 75%, #ccc 75%), linear-gradient(-45deg, transparent 75%, #ccc 75%)',
-                          backgroundSize: '6px 6px',
-                          backgroundPosition: '0 0, 0 3px, 3px -3px, -3px 0px',
-                        }}
-                      />
-                      {name}
-                    </span>
-                  ))}
-                </div>
-                <p className="text-[11px] text-muted-foreground mt-1">
-                  Les couleurs inconnues seront importées en texte brut et signalées visuellement. Vous pourrez les configurer ultérieurement dans la ColorMap.
-                </p>
-              </div>
+            <AlertDialogDescription>
+              Voulez-vous quand même importer les données ?
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -593,7 +567,7 @@ export function ColorSourceModal({
               onClick={handleForceImportConfirm}
               className="bg-amber-600 hover:bg-amber-700 text-white"
             >
-              Oui, importer quand même
+              Oui, importer
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

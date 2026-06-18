@@ -61,18 +61,19 @@ export function GoogleConnectPanel() {
         // 2. Invalidate datasources cache so stale Google-linked badges are cleared
         clearCache(CACHE_KEYS.datasources);
 
-        // 3. Reload datasources from server (will no longer show Google badges)
-        try {
-          const dsRes = await fetch('/api/datasources');
-          if (dsRes.ok) {
-            const dsJson = await dsRes.json();
-            setDataSources(dsJson.data || []);
-          }
-        } catch {
-          // Network error — datasources list will refresh on next page load
-        }
-
+        // 3. Show success immediately — user sees instant feedback
         toast.success('Google déconnecté');
+
+        // 4. Reload datasources in background (non-blocking, no await)
+        // The table list will update silently when the fetch completes
+        fetch('/api/datasources')
+          .then(r => r.ok ? r.json() : null)
+          .then(json => {
+            if (json?.data) setDataSources(json.data);
+          })
+          .catch(() => {
+            // Network error — datasources list will refresh on next page load
+          });
       }
     } catch {
       toast.error('Erreur de déconnexion');

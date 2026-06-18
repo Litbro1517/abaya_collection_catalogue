@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useCallback, useState, ComponentType } from 'react';
+import { useEffect, useCallback, useState, useRef, ComponentType } from 'react';
 import dynamic from 'next/dynamic';
 import { useAppStore } from '@/lib/store';
 import { CatalogPreview } from '@/components/preview/CatalogPreview';
@@ -232,8 +232,13 @@ function HomeContent() {
   // ━━━ Re-validate Google session on mount (if restored from localStorage) ━━━
   // Prevents "ghost connected" state where the DB session was deleted
   // (by another admin, token revocation, etc.) but localStorage still has it.
+  // Uses a ref to read the initial value — runs ONCE on mount only.
+  const googleSessionRef = useRef(googleSession);
+  googleSessionRef.current = googleSession;
+
   useEffect(() => {
-    if (!googleSession) return;
+    // Read from ref to avoid dependency on googleSession (prevents re-trigger loops)
+    if (!googleSessionRef.current) return;
     const verifyGoogleSession = async () => {
       try {
         const res = await fetch('/api/google/session');
