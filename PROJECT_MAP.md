@@ -144,6 +144,7 @@ src/
 | VG6 | RTL Arabe — Track carrousel | translateX inversé en RTL ; images défilent de droite à gauche | ✅ Code vérifié (rtl ? '' : '-' prefix) |
 | VG7 | RTL Arabe — Pas de régression LTR | Retour en FR/EN → comportement carrousel inchangé | ✅ Vérifié (browser: dir="ltr" after FR switch) |
 | VG8 | Upload logo/favicon fonctionnel | POST /api/upload → 200 + `{ data: { url, filename } }` ; validation MIME + taille ≤ 2MB ; fallback local si Supabase absent | ✅ Vérifié (curl: SVG upload → 200, no-file → 400, 3MB → 400, text/plain → 400) |
+| VG9 | Catégories traduites dans le footer | Footer Col 3 utilise `resolveT(cat.translations, cat.label)` ; bascule FR↔EN↔AR vérifiée | ✅ Vérifié (prod: EN footer → Set/Dress/Accessories au lieu de Ensemble/Robe/Accessoires) |
 
 ## [ORPHANS_AND_PENDING]
 
@@ -177,3 +178,4 @@ src/
 - ✅ P1–P4 : Réparation RTL carrousel (Point A + B)
 - ✅ P5 : Vérification VG1–VG7
 - ✅ P6 : Restauration upload (route `/api/upload` hybride Supabase + fallback local)
+- ✅ P7 : Traduction catégories footer (`cat.label` → `resolveT(cat.translations, cat.label)`)
