@@ -163,11 +163,13 @@ function Pagination({
   totalPages,
   onPageChange,
   primaryColor,
+  rtl,
 }: {
   currentPage: number;
   totalPages: number;
   onPageChange: (page: number) => void;
   primaryColor: string;
+  rtl: boolean;
 }) {
   if (totalPages <= 1) return null;
 
@@ -195,7 +197,7 @@ function Pagination({
         onClick={() => onPageChange(currentPage - 1)}
         disabled={currentPage === 1}
       >
-        <ChevronLeft className="w-5 h-5" />
+        <ChevronLeft className={cn('w-5 h-5', rtl && 'rotate-180')} />
       </button>
       {getPages().map((p, i) =>
         p === '...' ? (
@@ -220,7 +222,7 @@ function Pagination({
         onClick={() => onPageChange(currentPage + 1)}
         disabled={currentPage === totalPages}
       >
-        <ChevronRight className="w-5 h-5" />
+        <ChevronRight className={cn('w-5 h-5', rtl && 'rotate-180')} />
       </button>
     </div>
   );
@@ -1576,6 +1578,7 @@ export function CatalogPreview({ onAdminLogin }: CatalogPreviewProps) {
           totalPages={totalPages}
           onPageChange={setCurrentPage}
           primaryColor={primaryColor}
+          rtl={rtl}
         />
       </main>
 
