@@ -383,6 +383,7 @@ export function CatalogPreview({ onAdminLogin }: CatalogPreviewProps) {
   const [sections, setSections] = useState<{ section: Section; columns: Column[]; rows: Row[] }[]>([]);
   const [sectionsLoaded, setSectionsLoaded] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
+  const [isRefreshing, setIsRefreshing] = useState(false);
   // Track whether network sync has been triggered (ref, not state — no re-render)
   const networkSyncDone = useRef(false);
 
@@ -915,6 +916,8 @@ export function CatalogPreview({ onAdminLogin }: CatalogPreviewProps) {
             {/* Hard-refresh button — clears localStorage cache and forces full network reload */}
             <button
               onClick={() => {
+                if (isRefreshing) return;
+                setIsRefreshing(true);
                 clearAllCache();
                 setSectionsLoaded(false);
                 setDynamicCategories([]);
@@ -922,12 +925,24 @@ export function CatalogPreview({ onAdminLogin }: CatalogPreviewProps) {
                 setSections([]);
                 setLoadError(null);
                 networkSyncDone.current = false;
+                // Release lock once sections have reloaded
+                const check = setInterval(() => {
+                  if (useAppStore.getState().catalog?.sections?.length) {
+                    setIsRefreshing(false);
+                    clearInterval(check);
+                  }
+                }, 300);
+                // Safety: auto-release after 10s
+                setTimeout(() => { setIsRefreshing(false); clearInterval(check); }, 10000);
               }}
-              className="flex items-center justify-center w-8 h-8 rounded-lg hover:bg-gray-100 transition-colors"
+              className={cn(
+                'flex items-center justify-center w-8 h-8 rounded-lg transition-colors',
+                isRefreshing ? 'bg-gray-100 pointer-events-none' : 'hover:bg-gray-100'
+              )}
               title={t('admin.clearCache')}
               aria-label={t('admin.clearCache')}
             >
-              <RefreshCw className="w-3.5 h-3.5" style={{ color: 'var(--muted-foreground)' }} />
+              <RefreshCw className={cn('w-3.5 h-3.5', isRefreshing && 'animate-spin')} style={{ color: 'var(--muted-foreground)' }} />
             </button>
             <button
               onClick={() => setView('dashboard')}
@@ -1585,7 +1600,7 @@ export function CatalogPreview({ onAdminLogin }: CatalogPreviewProps) {
                 }}
               >
                 {s?.logo ? (
-                  <img src={s.logo} alt={catalogName} className="w-auto object-contain" style={{ height: `${Math.round((s.logoHeight || 40) * 0.6)}px`, maxHeight: `${Math.round((s.logoHeight || 40) * 0.6)}px` }} />
+                  <img src={s.logo} alt={catalogName} className="w-auto object-contain" style={{ height: `${Math.round((s.logoHeight || 40) * 0.6)}px`, maxHeight: `${Math.round((s.logoHeight || 40) * 0.6)}px`, filter: 'brightness(0) invert(1)' }} />
                 ) : (
                   <>
                     <div className="w-6 h-6 rounded-md flex items-center justify-center" style={{ background: 'linear-gradient(135deg, #C9A84C, #E8D48B)' }}>
