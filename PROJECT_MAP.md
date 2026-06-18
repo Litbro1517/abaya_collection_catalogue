@@ -14,6 +14,7 @@
 | Auth | Custom cookie (admin_token) | AdminUser + AdminSession |
 | Animation | Framer Motion 12 | Transitions produit |
 | Images | Sharp + Google Drive proxy | ImageProxy via API |
+| Upload | POST /api/upload (hybride) | Supabase Storage → fallback local `public/uploads/` |
 | Déploiement | Vercel (auto depuis GitHub) | Projet : abaya-collection-catalogue-9dum |
 | ⚠️ next-intl | ^4.3.4 installé mais **INUTILISÉ** | Aucune config, aucun middleware — ne pas supprimer (hors scope) |
 
@@ -43,6 +44,13 @@
 1. CTA "Commander" → `CheckoutPage` (formulaire nom/tél/ville/adresse)
 2. `POST /api/orders` → création Order en base
 3. Redirect `/merci?order_id={id}` → recap + bouton "Retour au catalogue" (`href="/"`)
+
+### Flux 5 : Upload logo/favicon (admin)
+1. Admin clique bouton upload dans SettingsPillar → `ImageUpload` / `ImageUploader` composant
+2. `POST /api/upload` (FormData avec fichier image)
+3. **Branche A** (SUPABASE_URL + SUPABASE_ANON_KEY présentes) → upload vers bucket `assets/branding/` → URL publique Supabase
+4. **Branche B** (clés absentes ou upload Supabase échoué) → fallback local `public/uploads/` → URL relative `/uploads/{filename}`
+5. Réponse format strict : `{ data: { url, filename } }` → composant UI met à jour le champ settings
 
 ## [ARCHITECTURE]
 
@@ -84,6 +92,7 @@ src/
   │       ├─ orders/                  # Commandes COD
   │       ├─ auth/                    # Login/register/admins
   │       ├─ google/                  # OAuth + Sheets + image-proxy
+  │       ├─ upload/                   # POST upload hybride (Supabase + fallback local)
   │       └─ translate/               # Traduction LLM via z-ai-web-dev-sdk
   ├─ components/
   │   ├─ preview/
@@ -110,6 +119,7 @@ src/
       ├─ color-utils.ts               # resolveColorHex, normalizeCouleurKey
       ├─ cache.ts                     # FROZEN_MODE localStorage
       ├─ store.ts                     # Zustand store
+      ├─ supabase.ts                  # Supabase clients (publique + admin) + STORAGE_BUCKET
       └─ db.ts                        # PrismaClient singleton
 ```
 
@@ -133,6 +143,7 @@ src/
 | VG5 | RTL Arabe — Clavier inversé | ArrowLeft → next ; ArrowRight → prev | ✅ Code vérifié (if (rtl) goNext() else goPrev()) |
 | VG6 | RTL Arabe — Track carrousel | translateX inversé en RTL ; images défilent de droite à gauche | ✅ Code vérifié (rtl ? '' : '-' prefix) |
 | VG7 | RTL Arabe — Pas de régression LTR | Retour en FR/EN → comportement carrousel inchangé | ✅ Vérifié (browser: dir="ltr" after FR switch) |
+| VG8 | Upload logo/favicon fonctionnel | POST /api/upload → 200 + `{ data: { url, filename } }` ; validation MIME + taille ≤ 2MB ; fallback local si Supabase absent | ✅ Vérifié (curl: SVG upload → 200, no-file → 400, 3MB → 400, text/plain → 400) |
 
 ## [ORPHANS_AND_PENDING]
 
@@ -149,6 +160,7 @@ src/
 - [ ] **next-intl mort** — Installé (^4.3.4), zéro utilisation. Ne pas supprimer (risque de casser le lockfile), mais ne pas ajouter de config
 - [ ] **ThemeInjector vs SSR** — `<html lang>` corrigé côté client uniquement ; les crawlers voient toujours FR
 - [ ] **Stabilité dev server** — Le serveur crash intermittemment lors de connexions browser simultanées (CatalogPreview.tsx = 1704 lignes)
+- [ ] **Variables Supabase manquantes en local** — `.env` ne contient que `DATABASE_URL` ; SUPABASE_URL, SUPABASE_ANON_KEY, SUPABASE_SERVICE_ROLE_KEY absentes → upload utilise le fallback local `public/uploads/`
 
 ### 🟢 Complété — Ne pas régresser
 - [x] ColorMap seedée (7 couleurs)
@@ -157,9 +169,11 @@ src/
 - [x] Données couleur migrées (couleur_rel_good → __colors__)
 - [x] READ couleurs vérifié (color dots avec hex corrects)
 - [x] Merci page redirect vers / (catalogue public)
+- [x] Route `/api/upload` créée — logique hybride Supabase + fallback local (P1 upload restauré)
 
 ## [MILESTONES]
 - ✅ S1–S5 : Réconciliation couleurs (READ + WRITE)
 - ✅ P0 : PROJECT_MAP.md initialisé
 - ✅ P1–P4 : Réparation RTL carrousel (Point A + B)
 - ✅ P5 : Vérification VG1–VG7
+- ✅ P6 : Restauration upload (route `/api/upload` hybride Supabase + fallback local)
