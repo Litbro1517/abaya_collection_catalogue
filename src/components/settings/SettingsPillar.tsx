@@ -502,7 +502,9 @@ export function SettingsPillar() {
   });
 
   const copyShareLink = () => {
-    navigator.clipboard.writeText(window.location.origin);
+    const mode = local?.conversionChannel || 'whatsapp';
+    const url = `${window.location.origin}?mode=${mode}`;
+    navigator.clipboard.writeText(url);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
     toast.success(t('admin.linkCopied'));
@@ -903,7 +905,7 @@ export function SettingsPillar() {
                 <div>
                   <Label className="text-xs">{t('settings.shareLink')}</Label>
                   <div className="flex items-center gap-2">
-                    <Input value={typeof window !== 'undefined' ? window.location.origin : ''} readOnly className="h-9 text-xs" />
+                    <Input value={typeof window !== 'undefined' ? `${window.location.origin}?mode=${local?.conversionChannel || 'whatsapp'}` : ''} readOnly className="h-9 text-xs" />
                     <Button size="sm" variant="outline" onClick={copyShareLink} className="gap-1.5">
                       {copied ? <Check className="w-3 h-3" /> : <Copy className="w-3 h-3" />}
                       {copied ? t('settings.copied') : t('settings.copy')}

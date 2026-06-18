@@ -913,19 +913,37 @@ export function ProductPage({
               </p>
             )}
 
-            {/* Main CTA — tunnels to the dedicated checkout page */}
-            <button
-              className={cn('product-page-cta', isEpuise && 'cta-disabled')}
-              disabled={isEpuise}
-              onClick={isEpuise ? undefined : handleCtaClick}
-              style={{
-                backgroundColor: isEpuise ? BRAND.grisClair : 'rgb(0 0 0 / 89%)',
-                color: isEpuise ? BRAND.grisMoyen : 'rgb(255, 255, 255)',
-              }}
-            >
-              <ShoppingBag className="w-5 h-5 shrink-0" />
-              {isEpuise ? t('product.soldOut') : isSurCommande ? t('product.onOrder') : t('product.quickBuy')}
-            </button>
+            {/* Main CTA — dynamic based on conversion mode */}
+            {isLandingMode ? (
+              <button
+                className={cn('product-page-cta', isEpuise && 'cta-disabled')}
+                disabled={isEpuise}
+                onClick={isEpuise ? undefined : handleCtaClick}
+                style={{
+                  backgroundColor: isEpuise ? BRAND.grisClair : 'rgb(0 0 0 / 89%)',
+                  color: isEpuise ? BRAND.grisMoyen : 'rgb(255, 255, 255)',
+                }}
+              >
+                <ShoppingBag className="w-5 h-5 shrink-0" />
+                {isEpuise ? t('product.soldOut') : isSurCommande ? t('product.onOrder') : t('product.quickBuy')}
+              </button>
+            ) : (
+              <a
+                className={cn('product-page-cta', isEpuise && 'cta-disabled')}
+                href={isEpuise ? '#' : whatsappLink}
+                target={isEpuise ? undefined : '_blank'}
+                rel={isEpuise ? undefined : 'noopener noreferrer'}
+                onClick={isEpuise ? (e) => e.preventDefault() : undefined}
+                style={{
+                  backgroundColor: isEpuise ? BRAND.grisClair : 'rgb(0 0 0 / 89%)',
+                  color: isEpuise ? BRAND.grisMoyen : 'rgb(255, 255, 255)',
+                  textDecoration: 'none',
+                }}
+              >
+                <MessageCircle className="w-5 h-5 shrink-0" />
+                {isEpuise ? t('product.soldOut') : t('product.commander')}
+              </a>
+            )}
 
             {/* ── Favoris / Partage moved to floating overlay on the carousel (top-right) ── */}
           </div>
@@ -948,18 +966,36 @@ export function ProductPage({
           {isEpuise && <span className="product-page-status status-epuise">{t('product.soldOut')}</span>}
           {isSurCommande && <span className="product-page-status status-sur-commande">{t('product.onOrder')}</span>}
         </div>
-        <button
-          className={cn('mobile-cta-button', isEpuise && 'cta-disabled')}
-          disabled={isEpuise}
-          onClick={isEpuise ? undefined : handleCtaClick}
-          style={{
-            backgroundColor: isEpuise ? BRAND.grisClair : 'rgb(0 0 0 / 89%)',
-            color: isEpuise ? BRAND.grisMoyen : 'rgb(255, 255, 255)',
-          }}
-        >
-          <ShoppingBag className="w-4 h-4" />
-          {isEpuise ? t('product.soldOut') : t('product.commander')}
-        </button>
+        {isLandingMode ? (
+          <button
+            className={cn('mobile-cta-button', isEpuise && 'cta-disabled')}
+            disabled={isEpuise}
+            onClick={isEpuise ? undefined : handleCtaClick}
+            style={{
+              backgroundColor: isEpuise ? BRAND.grisClair : 'rgb(0 0 0 / 89%)',
+              color: isEpuise ? BRAND.grisMoyen : 'rgb(255, 255, 255)',
+            }}
+          >
+            <ShoppingBag className="w-4 h-4" />
+            {isEpuise ? t('product.soldOut') : t('product.commander')}
+          </button>
+        ) : (
+          <a
+            className={cn('mobile-cta-button', isEpuise && 'cta-disabled')}
+            href={isEpuise ? '#' : whatsappLink}
+            target={isEpuise ? undefined : '_blank'}
+            rel={isEpuise ? undefined : 'noopener noreferrer'}
+            onClick={isEpuise ? (e) => e.preventDefault() : undefined}
+            style={{
+              backgroundColor: isEpuise ? BRAND.grisClair : 'rgb(0 0 0 / 89%)',
+              color: isEpuise ? BRAND.grisMoyen : 'rgb(255, 255, 255)',
+              textDecoration: 'none',
+            }}
+          >
+            <MessageCircle className="w-4 h-4" />
+            {isEpuise ? t('product.soldOut') : t('product.commander')}
+          </a>
+        )}
       </div>
 
       {/* ═══════ Side Drawer: Full product description ═══════ */}
