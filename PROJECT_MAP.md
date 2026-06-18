@@ -147,6 +147,8 @@ src/
 | VG9 | Catégories traduites dans le footer | Footer Col 3 utilise `resolveT(cat.translations, cat.label)` ; bascule FR↔EN↔AR vérifiée | ✅ Vérifié (prod: EN footer → Set/Dress/Accessories au lieu de Ensemble/Robe/Accessoires) |
 | VG10 | Bouton refresh admin verrouillé pendant sync | `isRefreshing` state → bg-gray-100 fixe + pointer-events-none + spinner ; souris quitte = pas de saut visuel | ✅ Code vérifié (className conditionnel + animate-spin) |
 | VG11 | Logo footer visible sur fond sombre | `filter: brightness(0) invert(1)` sur img logo → inversion couleurs pour visibilité | ✅ Vérifié (prod: filter appliqué, logo 100×30px visible) |
+| VG12 | Double parcours WhatsApp + Landing | CTA desktop+mobile : `isLandingMode ? <button COD> : <a whatsappLink>` | ✅ Vérifié (prod: WhatsApp=`<a href="wa.me/...">`, Landing=`<button>`) |
+| VG13 | Lien de partage dynamique | Input + copyShareLink incluent `?mode={conversionChannel}` | ✅ Vérifié (code: `${origin}?mode=${channel}`) |
 
 ## [ORPHANS_AND_PENDING]
 
@@ -182,3 +184,4 @@ src/
 - ✅ P6 : Restauration upload (route `/api/upload` hybride Supabase + fallback local)
 - ✅ P7 : Traduction catégories footer (`cat.label` → `resolveT(cat.translations, cat.label)`)
 - ✅ P8 : Bouton refresh admin verrouillé pendant sync + logo footer inversé sur fond sombre
+- ✅ P9 : Double parcours WhatsApp/Landing restauré + lien de partage dynamique ?mode=
