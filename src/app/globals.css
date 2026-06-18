@@ -544,6 +544,8 @@ html.rtl .mobile-cta-button svg {
   max-width: 100%;          /* Mobile-first seal: never exceeds viewport */
   overflow-x: hidden;       /* Clip any stray horizontal bleed from pill row */
   background-color: #FAF8F5;
+  padding-top: 16px;
+  padding-bottom: 16px;
   /* No border, no backdrop-filter — clean flat look */
 }
 
@@ -564,7 +566,7 @@ html.rtl .mobile-cta-button svg {
 .catalog-filter-bar {
   max-width: 1270px;
   margin: 0 auto;
-  padding: 8px 32px;
+  padding: 12px 32px;
   display: flex;
   gap: 10px;
   align-items: center;
@@ -579,7 +581,7 @@ html.rtl .mobile-cta-button svg {
 
 @media (max-width: 640px) {
   .catalog-filter-bar {
-    padding: 6px 16px;
+    padding: 10px 16px;
   }
 }
 
