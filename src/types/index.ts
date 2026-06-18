@@ -187,6 +187,8 @@ export interface CatalogSettings {
   messengerLink: string;
   emailContact: string;
   instagramHandle: string;
+  facebookPage: string;
+  tiktokHandle: string;
   primaryColor: string;
   secondaryColor: string;
   accentColor: string;

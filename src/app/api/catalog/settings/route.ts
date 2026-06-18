@@ -29,6 +29,8 @@ export async function PUT(req: NextRequest) {
           messengerLink: body.messengerLink || '',
           emailContact: body.emailContact || '',
           instagramHandle: body.instagramHandle || '',
+          facebookPage: body.facebookPage || '',
+          tiktokHandle: body.tiktokHandle || '',
           primaryColor: body.primaryColor || '#C9A84C',
           secondaryColor: body.secondaryColor || '#1A1A1A',
           accentColor: body.accentColor || '#F5F0E8',
@@ -53,7 +55,7 @@ export async function PUT(req: NextRequest) {
     const updateData: Record<string, unknown> = {};
     const allowedFields = [
       'language', 'currency', 'whatsappNumber', 'messengerLink', 'emailContact',
-      'instagramHandle', 'primaryColor', 'secondaryColor', 'accentColor', 'backgroundColor',
+      'instagramHandle', 'facebookPage', 'tiktokHandle', 'primaryColor', 'secondaryColor', 'accentColor', 'backgroundColor',
       'fontFamily', 'enableZoom', 'enableSearch', 'enableSharing', 'conversionChannel',
       'conversionMessage', 'brandGreenColor', 'destructiveColor', 'borderColor',
       'customCSS', 'clientOverrides', 'favicon', 'logo', 'logoHeight',

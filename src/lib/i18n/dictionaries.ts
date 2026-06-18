@@ -178,6 +178,8 @@ export const dictionaries: Record<Locale, TranslationDict> = {
     'settings.messengerLink': 'Lien Messenger',
     'settings.contactEmail': 'Email de contact',
     'settings.instagram': 'Instagram',
+    'settings.facebook': 'Facebook',
+    'settings.tiktok': 'TikTok',
     'settings.conversionMessage': 'Message de conversion',
     'settings.conversionMessagePlaceholder': 'Bonjour, je souhaite commander : {product}',
     'settings.shareLink': 'Lien de partage',
@@ -228,6 +230,8 @@ export const dictionaries: Record<Locale, TranslationDict> = {
     'settings.reference': 'Référence',
     'settings.restore': 'Restaurer',
     'settings.instagramPlaceholder': '@votre_compte',
+    'settings.facebookPlaceholder': 'nom de la page ou URL',
+    'settings.tiktokPlaceholder': '@votre_compte',
 
     // ── Admin Extended ──
     'admin.confirmDelete': 'Êtes-vous sûr de vouloir supprimer ?',
@@ -415,6 +419,8 @@ export const dictionaries: Record<Locale, TranslationDict> = {
     'footer.whatsapp': 'WhatsApp',
     'footer.messenger': 'Messenger',
     'footer.instagram': 'Instagram',
+    'footer.facebook': 'Facebook',
+    'footer.tiktok': 'TikTok',
 
     // ── Builder Shell ──
     'builder.disconnected': 'Déconnecté',
@@ -668,6 +674,8 @@ export const dictionaries: Record<Locale, TranslationDict> = {
     'settings.messengerLink': 'Messenger link',
     'settings.contactEmail': 'Contact email',
     'settings.instagram': 'Instagram',
+    'settings.facebook': 'Facebook',
+    'settings.tiktok': 'TikTok',
     'settings.conversionMessage': 'Conversion message',
     'settings.conversionMessagePlaceholder': 'Hello, I would like to order: {product}',
     'settings.shareLink': 'Share link',
@@ -718,6 +726,8 @@ export const dictionaries: Record<Locale, TranslationDict> = {
     'settings.reference': 'Reference',
     'settings.restore': 'Restore',
     'settings.instagramPlaceholder': '@your_account',
+    'settings.facebookPlaceholder': 'page name or URL',
+    'settings.tiktokPlaceholder': '@your_account',
 
     // ── Admin Extended ──
     'admin.confirmDelete': 'Are you sure you want to delete?',
@@ -905,6 +915,8 @@ export const dictionaries: Record<Locale, TranslationDict> = {
     'footer.whatsapp': 'WhatsApp',
     'footer.messenger': 'Messenger',
     'footer.instagram': 'Instagram',
+    'footer.facebook': 'Facebook',
+    'footer.tiktok': 'TikTok',
 
     // ── Builder Shell ──
     'builder.disconnected': 'Disconnected',
@@ -1158,6 +1170,8 @@ export const dictionaries: Record<Locale, TranslationDict> = {
     'settings.messengerLink': 'رابط ماسنجر',
     'settings.contactEmail': 'البريد الإلكتروني للتواصل',
     'settings.instagram': 'إنستغرام',
+    'settings.facebook': 'فيسبوك',
+    'settings.tiktok': 'تيك توك',
     'settings.conversionMessage': 'رسالة التحويل',
     'settings.conversionMessagePlaceholder': 'مرحبًا، أرغب في الطلب: {product}',
     'settings.shareLink': 'رابط المشاركة',
@@ -1208,6 +1222,8 @@ export const dictionaries: Record<Locale, TranslationDict> = {
     'settings.reference': 'مرجع',
     'settings.restore': 'استعادة',
     'settings.instagramPlaceholder': '@حسابك',
+    'settings.facebookPlaceholder': 'اسم الصفحة أو الرابط',
+    'settings.tiktokPlaceholder': '@حسابك',
 
     // ── Admin Extended ──
     'admin.confirmDelete': 'هل أنت متأكد أنك تريد الحذف؟',
@@ -1395,6 +1411,8 @@ export const dictionaries: Record<Locale, TranslationDict> = {
     'footer.whatsapp': 'واتساب',
     'footer.messenger': 'ماسنجر',
     'footer.instagram': 'إنستغرام',
+    'footer.facebook': 'فيسبوك',
+    'footer.tiktok': 'تيك توك',
 
     // ── Builder Shell ──
     'builder.disconnected': 'تم تسجيل الخروج',

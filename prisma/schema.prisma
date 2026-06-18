@@ -142,6 +142,8 @@ model CatalogSettings {
   messengerLink     String   @default("") @map("messenger_link")
   emailContact      String   @default("") @map("email_contact")
   instagramHandle   String   @default("") @map("instagram_handle")
+  facebookPage      String   @default("") @map("facebook_page")
+  tiktokHandle      String   @default("") @map("tiktok_handle")
   primaryColor      String   @default("#C9A84C") @map("primary_color")
   secondaryColor    String   @default("#1A1A1A") @map("secondary_color")
   accentColor       String   @default("#F5F0E8") @map("accent_color")

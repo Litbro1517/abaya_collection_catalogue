@@ -49,3 +49,27 @@ Stage Summary:
 - 2 code files modified: CatalogPreview.tsx (1 line) + subcategories/route.ts (2 lines)
 - Production DB seeded with translations for 6 categories + 18 subcategories
 - All 3 locales (FR/EN/AR) verified working on production
+
+---
+Task ID: P5
+Agent: Main
+Task: Replace footer "SUIVEZ-NOUS" text links with premium horizontal social icon row + add Facebook/TikTok fields
+
+Work Log:
+- Located SUIVEZ-NOUS section at line 1619 in CatalogPreview.tsx
+- Added `facebookPage` and `tiktokHandle` fields to Prisma schema (CatalogSettings model)
+- Updated TypeScript CatalogSettings interface with new fields
+- Updated settings API route (/api/catalog/settings) to handle new fields in both create and update flows
+- Added i18n keys for Facebook/TikTok in all 3 locales (FR/EN/AR) — both footer and settings labels/placeholders
+- Added Facebook and TikTok input fields in SettingsPillar.tsx admin panel
+- Replaced vertical text-based social links (WhatsApp, Messenger, Instagram, Email) with premium horizontal circular icon buttons
+- Each icon has: rounded-full bg-white/10 base, brand-specific hover color/gradient, scale-110 + shadow on hover, aria-label for accessibility
+- Order: Instagram → Facebook → TikTok → WhatsApp → Email (conditionally rendered)
+- Pushed DB schema with `bun run db:push` — successful
+- Verified runtime with Agent Browser: 3 icons visible (Instagram, WhatsApp, Email), footer intact, logo intact
+
+Stage Summary:
+- Footer now shows premium horizontal icon row instead of vertical text links
+- Facebook/TikTok fields added to DB, types, API, admin settings, i18n — ready for admin input
+- Icons will appear conditionally when the corresponding settings field is filled
+- All existing footer columns preserved (logo+social, regulatory pages, navigation)

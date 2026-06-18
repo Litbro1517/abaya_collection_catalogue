@@ -186,3 +186,4 @@ src/
 - ✅ P7 : Traduction catégories footer (`cat.label` → `resolveT(cat.translations, cat.label)`)
 - ✅ P8 : Bouton refresh admin verrouillé pendant sync + logo footer inversé sur fond sombre
 - ✅ P9 : Double parcours WhatsApp/Landing restauré + lien de partage dynamique ?mode=
+- ✅ P10 : Footer SUIVEZ-NOUS → icônes sociales premium horizontales (Instagram, Facebook, TikTok, WhatsApp, Email) + champs facebookPage/tiktokHandle ajoutés (DB, types, API, admin, i18n)

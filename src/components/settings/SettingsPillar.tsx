@@ -894,6 +894,14 @@ export function SettingsPillar() {
                   <Input value={local.instagramHandle} onChange={e => updateField('instagramHandle', e.target.value)} placeholder={t('settings.instagramPlaceholder')} />
                 </div>
                 <div>
+                  <Label className="text-xs">{t('settings.facebook')}</Label>
+                  <Input value={local.facebookPage || ''} onChange={e => updateField('facebookPage', e.target.value)} placeholder={t('settings.facebookPlaceholder')} />
+                </div>
+                <div>
+                  <Label className="text-xs">{t('settings.tiktok')}</Label>
+                  <Input value={local.tiktokHandle || ''} onChange={e => updateField('tiktokHandle', e.target.value)} placeholder={t('settings.tiktokPlaceholder')} />
+                </div>
+                <div>
                   <Label className="text-xs">{t('settings.conversionMessage')}</Label>
                   <Textarea
                     value={local.conversionMessage}
