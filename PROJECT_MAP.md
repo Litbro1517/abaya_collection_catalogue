@@ -145,6 +145,8 @@ src/
 | VG7 | RTL Arabe — Pas de régression LTR | Retour en FR/EN → comportement carrousel inchangé | ✅ Vérifié (browser: dir="ltr" after FR switch) |
 | VG8 | Upload logo/favicon fonctionnel | POST /api/upload → 200 + `{ data: { url, filename } }` ; validation MIME + taille ≤ 2MB ; fallback local si Supabase absent | ✅ Vérifié (curl: SVG upload → 200, no-file → 400, 3MB → 400, text/plain → 400) |
 | VG9 | Catégories traduites dans le footer | Footer Col 3 utilise `resolveT(cat.translations, cat.label)` ; bascule FR↔EN↔AR vérifiée | ✅ Vérifié (prod: EN footer → Set/Dress/Accessories au lieu de Ensemble/Robe/Accessoires) |
+| VG10 | Bouton refresh admin verrouillé pendant sync | `isRefreshing` state → bg-gray-100 fixe + pointer-events-none + spinner ; souris quitte = pas de saut visuel | ✅ Code vérifié (className conditionnel + animate-spin) |
+| VG11 | Logo footer visible sur fond sombre | `filter: brightness(0) invert(1)` sur img logo → inversion couleurs pour visibilité | ✅ Vérifié (prod: filter appliqué, logo 100×30px visible) |
 
 ## [ORPHANS_AND_PENDING]
 
@@ -179,3 +181,4 @@ src/
 - ✅ P5 : Vérification VG1–VG7
 - ✅ P6 : Restauration upload (route `/api/upload` hybride Supabase + fallback local)
 - ✅ P7 : Traduction catégories footer (`cat.label` → `resolveT(cat.translations, cat.label)`)
+- ✅ P8 : Bouton refresh admin verrouillé pendant sync + logo footer inversé sur fond sombre
