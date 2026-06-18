@@ -1659,7 +1659,7 @@ export function CatalogPreview({ onAdminLogin }: CatalogPreviewProps) {
                     onClick={() => { setActiveMacroFilter(cat.slug); setActiveMicroFilter('all'); setCurrentPage(1); setSelectedProduct(null); if (typeof window !== 'undefined') window.scrollTo({ top: 0, behavior: 'smooth' }); }}
                     className="text-xs text-white/70 hover:text-white transition-colors text-start"
                   >
-                    {cat.label}
+                    {resolveT(cat.translations, cat.label)}
                   </button>
                 ))}
             </div>
