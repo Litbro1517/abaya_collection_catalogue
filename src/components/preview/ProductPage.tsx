@@ -935,7 +935,7 @@ export function ProductPage({
                 rel={isEpuise ? undefined : 'noopener noreferrer'}
                 onClick={isEpuise ? (e) => e.preventDefault() : undefined}
                 style={{
-                  backgroundColor: isEpuise ? BRAND.grisClair : 'rgb(0 0 0 / 89%)',
+                  backgroundColor: isEpuise ? BRAND.grisClair : '#25D366',
                   color: isEpuise ? BRAND.grisMoyen : 'rgb(255, 255, 255)',
                   textDecoration: 'none',
                 }}
@@ -987,7 +987,7 @@ export function ProductPage({
             rel={isEpuise ? undefined : 'noopener noreferrer'}
             onClick={isEpuise ? (e) => e.preventDefault() : undefined}
             style={{
-              backgroundColor: isEpuise ? BRAND.grisClair : 'rgb(0 0 0 / 89%)',
+              backgroundColor: isEpuise ? BRAND.grisClair : '#25D366',
               color: isEpuise ? BRAND.grisMoyen : 'rgb(255, 255, 255)',
               textDecoration: 'none',
             }}
