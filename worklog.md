@@ -29,3 +29,23 @@ Stage Summary:
 - Key design decision: lazy Supabase client initialization to prevent crash when env vars are absent
 - All 4 runtime tests pass (valid upload, no file, oversized, invalid MIME)
 - PROJECT_MAP.md synchronized with new route documentation
+
+---
+Task ID: P2
+Agent: Main Agent (Staff Software Engineer)
+Task: Fix category translation — labels not switching when user changes language
+
+Work Log:
+- Diagnosed the issue: footer Col 3 "Catalog Navigation" used `{cat.label}` instead of `{resolveT(cat.translations, cat.label)}`
+- CatalogPreview.tsx line 1662: single-line fix applied
+- Discovered secondary issue: production DB (PostgreSQL) had no translations in Category/SubCategory records
+- Updated all 6 categories via PATCH /api/categories with fr/en/ar translations
+- Discovered PATCH /api/subcategories didn't support `translations` field — added support
+- Updated all 18 subcategories via PATCH /api/subcategories with fr/en/ar translations
+- Verified on production: EN shows Set/Dress/Accessories, AR shows طقم/فستان/إكسسوارات
+- Both filter bar AND footer now translate correctly
+
+Stage Summary:
+- 2 code files modified: CatalogPreview.tsx (1 line) + subcategories/route.ts (2 lines)
+- Production DB seeded with translations for 6 categories + 18 subcategories
+- All 3 locales (FR/EN/AR) verified working on production
