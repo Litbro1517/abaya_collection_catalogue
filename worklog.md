@@ -73,3 +73,26 @@ Stage Summary:
 - Facebook/TikTok fields added to DB, types, API, admin settings, i18n — ready for admin input
 - Icons will appear conditionally when the corresponding settings field is filled
 - All existing footer columns preserved (logo+social, regulatory pages, navigation)
+
+---
+Task ID: deploy-1
+Agent: Main Agent
+Task: Deploy all changes to GitHub and Vercel
+
+Work Log:
+- Verified git status: working tree clean, all prior changes already committed
+- Pushed to GitHub origin/main (SHA 233c323 → 035b699)
+- Discovered Vercel deployment was failing: `supabaseUrl is required` crash during build
+- Root cause: `src/lib/supabase.ts` created Supabase client at module level with empty strings when env vars missing
+- Fixed `src/lib/supabase.ts`: converted to lazy `getSupabase()` / `getSupabaseAdmin()` pattern
+- Fixed `src/app/api/setup/storage/route.ts`: replaced `import { supabase }` with `getSupabase()` lazy getter
+- Local build test passed: `bun run build` succeeds with no Supabase env vars
+- Pushed fix to GitHub (commit 035b699)
+- Vercel auto-deploy triggered for both projects:
+  - `Production – abaya-collection-catalogue-9dum` → ✅ success
+  - `Production – my-project` → ✅ success
+
+Stage Summary:
+- GitHub: pushed to https://github.com/Litbro1517/abaya_collection_catalogue (main branch)
+- Vercel: both project deployments succeeded after Supabase lazy init fix
+- Key fix: lazy Supabase client initialization prevents build crash when env vars are absent
