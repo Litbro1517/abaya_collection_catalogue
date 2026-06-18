@@ -1175,6 +1175,24 @@ html.rtl .mobile-cta-button svg {
   }
 }
 
+/* ── RTL Carousel: swap arrow positions ── */
+html.rtl .carousel-arrow.left {
+  left: auto;
+  right: 12px;
+}
+html.rtl .carousel-arrow.right {
+  right: auto;
+  left: 12px;
+}
+@media (max-width: 640px) {
+  html.rtl .carousel-arrow.left {
+    right: 8px;
+  }
+  html.rtl .carousel-arrow.right {
+    left: 8px;
+  }
+}
+
 .carousel-dots {
   position: absolute;
   bottom: 14px;

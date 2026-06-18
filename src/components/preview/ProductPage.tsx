@@ -505,7 +505,8 @@ export function ProductPage({
   const onTouchEnd = () => {
     const diff = touchStartX.current - touchEndX.current;
     if (Math.abs(diff) > 50) {
-      if (diff > 0) goNext(); else goPrev();
+      // RTL: swipe direction is reversed (left → prev, right → next)
+      if (rtl ? diff < 0 : diff > 0) goNext(); else goPrev();
     }
   };
 
@@ -534,13 +535,14 @@ export function ProductPage({
   // ── Keyboard navigation for carousel ──
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'ArrowLeft') goPrev();
-      if (e.key === 'ArrowRight') goNext();
+      // RTL: arrow keys are reversed (ArrowLeft → next, ArrowRight → prev)
+      if (e.key === 'ArrowLeft') { if (rtl) goNext(); else goPrev(); }
+      if (e.key === 'ArrowRight') { if (rtl) goPrev(); else goNext(); }
       if (e.key === 'Escape') onBack();
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [onBack, carouselImages.length]);
+  }, [onBack, carouselImages.length, rtl]);
 
   const isEpuise = stockState === 'epuise';
   const isSurCommande = stockState === 'sur_commande';
@@ -581,7 +583,7 @@ export function ProductPage({
             >
               <div
                 className="product-page-carousel-track"
-                style={{ transform: `translateX(-${carouselIdx * 100}%)` }}
+                style={{ transform: `translateX(${rtl ? '' : '-'}${carouselIdx * 100}%)` }}
               >
                 {carouselImages.map((rawUrl, i) => {
                   const isVisible = Math.abs(i - carouselIdx) <= 2;
