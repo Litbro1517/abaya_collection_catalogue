@@ -149,6 +149,7 @@ src/
 | VG11 | Logo footer visible sur fond sombre | `filter: brightness(0) invert(1)` sur img logo → inversion couleurs pour visibilité | ✅ Vérifié (prod: filter appliqué, logo 100×30px visible) |
 | VG12 | Double parcours WhatsApp + Landing | CTA desktop+mobile : `isLandingMode ? <button COD> : <a whatsappLink>` | ✅ Vérifié (prod: WhatsApp=`<a href="wa.me/...">`, Landing=`<button>`) |
 | VG13 | Lien de partage dynamique | Input + copyShareLink incluent `?mode={conversionChannel}` | ✅ Vérifié (code: `${origin}?mode=${channel}`) |
+| VG14 | CTA WhatsApp vert (#25D366) | `<a>` WhatsApp : backgroundColor #25D366 ; `<button>` Landing : noir inchangé | ✅ Vérifié (prod: rgb(37,211,102) vs rgba(0,0,0,0.89)) |
 
 ## [ORPHANS_AND_PENDING]
 
