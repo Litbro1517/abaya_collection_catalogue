@@ -45,6 +45,8 @@ export async function PUT(req: NextRequest) {
           destructiveColor: body.destructiveColor || '#800020',
           borderColor: body.borderColor || '#E8E2D9',
           customCSS: body.customCSS || '',
+          logo: body.logo || null,
+          favicon: body.favicon || null,
           logoHeight: body.logoHeight !== undefined ? Number(body.logoHeight) : null,
         },
       });
