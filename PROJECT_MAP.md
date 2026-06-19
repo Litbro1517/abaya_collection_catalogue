@@ -245,3 +245,34 @@ src/
 | 3 | `DataTable.tsx` | Import `RefreshCw` depuis lucide-react |
 | 4 | `DataTable.tsx` | Types `onRefresh` → accepte `{ forceNetwork?: boolean }` |
 | 5 | `ColorCell.tsx` | Type `onRefresh` → accepte `{ forceNetwork?: boolean }` |
+
+## [FIX UPLOAD PIPELINE & SETTINGS INITIALIZATION]
+
+### Contexte
+La route `/api/upload` avait été supprimée dans le commit 27e5611 (UI cleanup), rendant l'upload logo/favicon inopérant (404 systématique). De plus, le bloc de création `db.catalogSettings.create()` dans la route settings ne protégeait pas contre un `catalogId` vide — risquant un enregistrement orphelin en base vierge.
+
+### Résolution 1 — Route Upload restaurée (`src/app/api/upload/route.ts`)
+Nouvelle route POST avec **double circuit** :
+- **Circuit A (Supabase Cloud)** : Si `SUPABASE_URL` + `SUPABASE_ANON_KEY` présentes → `getSupabaseAdmin()` → upload dans bucket `assets/branding/{filename}` avec `upsert: true` → URL publique Supabase retournée
+- **Circuit B (Fallback local)** : Si Supabase indisponible ou échoué → écriture dans `public/uploads/{filename}` → URL relative `/uploads/{filename}` retournée
+- **Validations** : MIME (7 types : jpeg, png, gif, svg, webp, ico, x-icon) + taille ≤ 2 MB + champ fichier requis
+- **Réponse** : Format strict `{ data: { url, filename } }` — identique au contrat UI existant
+
+### Résolution 2 — Garde catalogId (`src/app/api/catalog/settings/route.ts`)
+- Avant : `catalogId: body.catalogId || (await db.catalog.findFirst())?.id || ''` → chaîne vide acceptée
+- Après : Résolution via `resolvedCatalogId`, vérification null **avant** l'appel Prisma
+- Si aucun catalogue trouvé → retour HTTP 400 avec message explicite : *"Impossible de créer les paramètres : aucun catalogue trouvé. Veuillez d'abord créer un catalogue."*
+- Champs `logo` et `favicon` ajoutés au bloc `create()` pour persistance initiale
+
+### Résolution 3 — Champs logo/favicon dans le create block
+- `logo: body.logo || null` et `favicon: body.favicon || null` ajoutés dans `db.catalogSettings.create()`
+- Les champs étaient déjà dans `allowedFields` (update) mais manquaient dans le create — corrigé
+
+### Fichiers modifiés
+| # | Fichier | Modification |
+|---|---------|------------|
+| 1 | `src/app/api/upload/route.ts` | **NOUVEAU** — Route POST upload hybride (Supabase + fallback local, 152 lignes) |
+| 2 | `src/app/api/catalog/settings/route.ts` | Garde `resolvedCatalogId` null-safe + champs `logo`/`favicon` dans create |
+
+### Branche fusionnée
+`feat/upload-route-v2` (commit f7e8910) → merge fast-forward dans `main`

@@ -19,10 +19,17 @@ export async function PUT(req: NextRequest) {
     const current = await db.catalogSettings.findFirst();
 
     if (!current) {
-      // Create default settings
+      // Create default settings — guard: catalogId must resolve to a non-empty value
+      const resolvedCatalogId = body.catalogId || (await db.catalog.findFirst())?.id || null;
+      if (!resolvedCatalogId) {
+        return NextResponse.json(
+          { data: null, error: 'Impossible de créer les paramètres : aucun catalogue trouvé. Veuillez d\'abord créer un catalogue.' },
+          { status: 400 },
+        );
+      }
       const settings = await db.catalogSettings.create({
         data: {
-          catalogId: body.catalogId || (await db.catalog.findFirst())?.id || '',
+          catalogId: resolvedCatalogId,
           language: body.language || 'fr',
           currency: body.currency || 'MAD',
           whatsappNumber: body.whatsappNumber || '',
