@@ -242,6 +242,7 @@ export function ColorSourceModal({
       }
 
       toast.success(`Source de couleurs connectée — ${result.updated} produit(s) mis à jour`);
+      onConfigSaved(currentConfig); // trigger onRefresh with forceNetwork
       onOpenChange(false);
     } catch (err) {
       toast.error('Erreur de ré-importation', {
@@ -268,9 +269,7 @@ export function ColorSourceModal({
           : undefined,
       });
 
-      if (mode === 'save') {
-        onConfigSaved(config);
-      }
+      onConfigSaved(config); // always trigger onRefresh (save or reimport)
       onOpenChange(false);
     } catch (err) {
       toast.error('Erreur d\'importation', {

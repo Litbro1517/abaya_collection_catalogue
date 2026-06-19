@@ -187,3 +187,29 @@ src/
 - ✅ P8 : Bouton refresh admin verrouillé pendant sync + logo footer inversé sur fond sombre
 - ✅ P9 : Double parcours WhatsApp/Landing restauré + lien de partage dynamique ?mode=
 - ✅ P10 : Footer SUIVEZ-NOUS → icônes sociales premium horizontales (Instagram, Facebook, TikTok, WhatsApp, Email) + champs facebookPage/tiktokHandle ajoutés (DB, types, API, admin, i18n)
+
+## [BUGFIX MAPPING NATIVE COLOR]
+
+### Diagnostic du Bug
+**Symptôme** : Après import de couleurs via ColorSourceModal (colonne texte → `__colors__`), le backend retourne un toast de succès ("121 couleur(s) non configurée(s) importée(s) en texte brut") mais la DataTable affiche des tirets — dans la colonne Couleur.
+
+**Root Cause 1** : `onRefresh()` était appelé **sans** `forceNetwork: true` après l'import. Le cache admin (TTL 2 min) retournait les anciennes données sans les valeurs `__colors__` fraîchement écrites en BDD par l'API color-import.
+
+**Root Cause 2** : Le chemin "Forcer la ré-importation" (`handleForceReimport`) ne déclenchait jamais `onConfigSaved()` → aucun `onRefresh()` du tout, quelle que soit l'issue (succès ou force-import).
+
+**Root Cause 3** : `handleForceImportConfirm` ne déclenchait `onConfigSaved()` que si `mode === 'save'`, pas en mode `'reimport'`.
+
+### Corrections appliquées (commit TBD)
+
+| # | Fichier | Correction |
+|---|---------|------------|
+| 1 | `DataTable.tsx` | `onConfigSaved` callback : `onRefresh()` → `onRefresh({ forceNetwork: true })` pour forcer le rechargement réseau après import couleur |
+| 2 | `ColorSourceModal.tsx` | `handleForceReimport` : ajout `onConfigSaved(currentConfig)` après succès (avant `onOpenChange(false)`) |
+| 3 | `ColorSourceModal.tsx` | `handleForceImportConfirm` : `onConfigSaved(config)` toujours appelé (suppression de la condition `mode === 'save'`) |
+| 4 | `DataTable.tsx` | `NATIVE_ORDER` : ajout `__colors__: 2` pour le tri correct de la colonne Couleur entre Sous-catégorie et Disponibilité |
+
+### Flux corrigé (après fix)
+1. User clique "Connecter" ou "Forcer la ré-importation" → `performImport()` → API écrit dans `row.data.__colors__`
+2. `onConfigSaved(config)` est TOUJOURS appelé (save, reimport, force-import)
+3. `onConfigSaved` → `onRefresh({ forceNetwork: true })` → `loadDataSourceData({ forceNetwork: true })`
+4. Le cache est ignoré, les rows sont re-fetchés depuis l'API → `__colors__` est lisible → ColorCell affiche les dots

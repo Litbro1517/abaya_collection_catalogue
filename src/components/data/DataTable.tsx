@@ -650,7 +650,7 @@ export function DataTable({ columns, rows, dataSourceId, loading, onRefresh, onU
   // Filter out __is_visible__ (handled by Eye icon in # column)
   const visibleColumns = columns.filter(c => c.visible && c.slug !== '__is_visible__');
   // Sort visible columns: native columns first in specified order, then regular columns
-  const NATIVE_ORDER: Record<string, number> = { '__category__': 0, '__sub_category__': 1, '__disponibilite__': 2, '__stock__': 3, '__statut__': 4 };
+  const NATIVE_ORDER: Record<string, number> = { '__category__': 0, '__sub_category__': 1, '__colors__': 2, '__disponibilite__': 3, '__stock__': 4, '__statut__': 5 };
   const sortedVisibleColumns = [...visibleColumns].sort((a, b) => {
     const aNative = NATIVE_ORDER[a.slug] ?? 999;
     const bNative = NATIVE_ORDER[b.slug] ?? 999;
@@ -2273,7 +2273,7 @@ export function DataTable({ columns, rows, dataSourceId, loading, onRefresh, onU
           colorColumnSlug={colorSourceColumnSlug}
           onConfigSaved={(config) => {
             setColorSourceConfig(config);
-            onRefresh(); // reload rows to reflect imported colors
+            onRefresh({ forceNetwork: true }); // force network reload to get imported colors
           }}
         />
       </div>
