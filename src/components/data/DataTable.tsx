@@ -43,7 +43,7 @@ import {
   Type, Hash, Banknote, Images,
   ListChecks, Layers, ToggleRight, ExternalLink, Link2, SquareStack,
   MoveRight, Activity, Lock, Unlock, ArrowUpDown, Zap,
-  ChevronUp, Minus, ChevronLeft, Database, Palette,
+  ChevronUp, Minus, ChevronLeft, Database, Palette, RefreshCw,
 } from 'lucide-react';
 import { Switch } from '@/components/ui/switch';
 import { toast } from 'sonner';
@@ -91,7 +91,7 @@ interface Props {
   rows: Row[];
   dataSourceId: string;
   loading: boolean;
-  onRefresh: () => void;
+  onRefresh: (options?: { forceNetwork?: boolean }) => void;
   onUpdateRow: (rowId: string, newData: Record<string, unknown>) => void;
   sortConfig?: SortConfig | null;
   onSortChange?: (col: Column) => void;
@@ -126,8 +126,8 @@ function CategoryCell({
   rowId: string;
   dataSourceId: string;
   onUpdateRow: (rowId: string, newData: Record<string, unknown>) => void;
-  onRefresh: () => void;
-  catOptions: Array<{ id: string; slug: string; label: string; subCategories: { slug: string; label: string }[] }>;
+  onRefresh: (options?: { forceNetwork?: boolean }) => void;
+  catOptions: { id: string; slug: string; label: string; subCategories: { slug: string; label: string }[] }[];
 }) {
   const isCategory = colSlug === '__category__';
   const currentVal = String(rowData[colSlug] || '').trim();
@@ -619,7 +619,7 @@ export function DataTable({ columns, rows, dataSourceId, loading, onRefresh, onU
   }, [rows, dataSourceId, onRefresh]);
 
   // Native system column slugs — non-deletable, ordered first
-  const NATIVE_COLUMN_SLUGS = ['__category__', '__sub_category__', '__disponibilite__', '__stock__', '__statut__'];
+  const NATIVE_COLUMN_SLUGS = ['__category__', '__sub_category__', '__colors__', '__disponibilite__', '__stock__', '__statut__'];
   const isNativeColumn = (slug: string) => NATIVE_COLUMN_SLUGS.includes(slug);
 
   // ── Load stock source config from the __stock__ column ──
@@ -1865,6 +1865,24 @@ export function DataTable({ columns, rows, dataSourceId, loading, onRefresh, onU
                                     {col.visible ? <><EyeOff className="w-3 h-3" /> Masquer</> : <><Eye className="w-3 h-3" /> Afficher</>}
                                   </button>
                                 </div>
+                              )}
+
+                              {/* ━━━ Refresh column data — targeted cache invalidation ━━━ */}
+                              {/* Shown only for Stock and Color columns — forces a network re-fetch
+                                  without clearing auth cookies. Generic mechanism: any column with
+                                  a source config (stockSource / colorSource) gets this option. */}
+                              {(col.slug === '__stock__' || col.type === 'COLOR') && (
+                                <button
+                                  className="w-full flex items-center gap-2 px-3 py-1.5 text-left text-xs hover:bg-secondary/60 transition-colors"
+                                  onClick={() => {
+                                    onRefresh({ forceNetwork: true });
+                                    setColOptionsOpen(null);
+                                    toast.info(`Rafraîchissement de « ${col.name} »…`);
+                                  }}
+                                >
+                                  <RefreshCw className="w-3.5 h-3.5 text-muted-foreground" />
+                                  <span className="flex-1">Rafraîchir la colonne</span>
+                                </button>
                               )}
 
                               <div className="my-1 h-px bg-border/40" />

@@ -213,3 +213,35 @@ src/
 2. `onConfigSaved(config)` est TOUJOURS appelé (save, reimport, force-import)
 3. `onConfigSaved` → `onRefresh({ forceNetwork: true })` → `loadDataSourceData({ forceNetwork: true })`
 4. Le cache est ignoré, les rows sont re-fetchés depuis l'API → `__colors__` est lisible → ColorCell affiche les dots
+
+## [FEATURE NATIVE COLOR & REFRESH BUTTONS]
+
+### Objectif A — Colonne Couleur Native (badge + protection)
+**Problème** : `__colors__` manquait de `NATIVE_COLUMN_SLUGS` — la colonne Couleur affichait "Supprimer" au lieu du badge Native et de l'avertissement système.
+
+**Correction** : Ajout `__colors__` à `NATIVE_COLUMN_SLUGS` dans `DataTable.tsx`.
+- ✅ Badge jaune "Native" affiché dans l'en-tête de la colonne Couleur (identique à Stock)
+- ✅ "Supprimer" remplacé par "Colonne système — suppression désactivée"
+- ✅ Édition de type colonne désactivée (comme les autres colonnes natives)
+- ✅ Tri correct via `NATIVE_ORDER`: Catégorie(0) → Sous-catégorie(1) → **Couleur(2)** → Disponibilité(3) → Stock(4) → Statut(5)
+
+### Objectif B — Bouton "🔄 Rafraîchir la colonne"
+**Ajout** dans le menu dropdown des en-têtes de colonnes :
+- Visible uniquement pour `__stock__` et `col.type === 'COLOR'`
+- Déclenche `onRefresh({ forceNetwork: true })` → bypass du cache admin → re-fetch réseau
+- Toast info : `Rafraîchissement de « {col.name} »…`
+- Icône : `RefreshCw` (ajouté aux imports lucide-react)
+
+### Changements de types
+- `DataTableProps.onRefresh` : `() => void` → `(options?: { forceNetwork?: boolean }) => void`
+- `NativeCellProps.onRefresh` : même évolution
+- `ColorCellProps.onRefresh` : même évolution
+
+### Fichiers modifiés
+| # | Fichier | Modification |
+|---|---------|------------|
+| 1 | `DataTable.tsx` | `NATIVE_COLUMN_SLUGS` : ajout `__colors__` |
+| 2 | `DataTable.tsx` | Ajout bouton "🔄 Rafraîchir la colonne" pour Stock + Couleur |
+| 3 | `DataTable.tsx` | Import `RefreshCw` depuis lucide-react |
+| 4 | `DataTable.tsx` | Types `onRefresh` → accepte `{ forceNetwork?: boolean }` |
+| 5 | `ColorCell.tsx` | Type `onRefresh` → accepte `{ forceNetwork?: boolean }` |

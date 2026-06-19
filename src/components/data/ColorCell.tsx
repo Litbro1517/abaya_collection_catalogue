@@ -30,7 +30,7 @@ interface ColorCellProps {
   dataSourceId: string;
   rowData: Record<string, unknown>;
   onUpdateRow: (rowId: string, newData: Record<string, unknown>) => void;
-  onRefresh: () => void;
+  onRefresh: (options?: { forceNetwork?: boolean }) => void;
   colormapItems?: Array<{
     id: string; name: string; slug: string; hex: string; ordre: number; visible: boolean; isActive: boolean;
   }>;
