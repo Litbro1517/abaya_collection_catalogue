@@ -150,6 +150,7 @@ src/
 | VG12 | Double parcours WhatsApp + Landing | CTA desktop+mobile : `isLandingMode ? <button COD> : <a whatsappLink>` | ✅ Vérifié (prod: WhatsApp=`<a href="wa.me/...">`, Landing=`<button>`) |
 | VG13 | Lien de partage dynamique | Input + copyShareLink incluent `?mode={conversionChannel}` | ✅ Vérifié (code: `${origin}?mode=${channel}`) |
 | VG14 | CTA WhatsApp vert (#25D366) | `<a>` WhatsApp : backgroundColor #25D366 ; `<button>` Landing : noir inchangé | ✅ Vérifié (prod: rgb(37,211,102) vs rgba(0,0,0,0.89)) |
+| VG15 | Colonne Couleur native garantie backend | Après suppression catalogue + ré-import CSV/Google : colonne Couleur présente ; 6 colonnes natives garanties ; CSV "Couleur"/"Color" mappé vers `__colors__` | ✅ Vérifié (lint 0 erreur, merge 43f9ab3) |
 
 ## [ORPHANS_AND_PENDING]
 
@@ -176,6 +177,9 @@ src/
 - [x] READ couleurs vérifié (color dots avec hex corrects)
 - [x] Merci page redirect vers / (catalogue public)
 - [x] Route `/api/upload` créée — logique hybride Supabase + fallback local (P1 upload restauré)
+- [x] Colonne `__colors__` garantie côté backend (6 colonnes natives dans import + sync routes)
+- [x] CSV "Couleur"/"Color" mappé vers `__colors__` via NATIVE_SLUG_MAP
+- [x] Préservation couleurs admin lors des ré-imports Google Sync (preservedStockValues.colors)
 
 ## [MILESTONES]
 - ✅ S1–S5 : Réconciliation couleurs (READ + WRITE)
@@ -187,6 +191,8 @@ src/
 - ✅ P8 : Bouton refresh admin verrouillé pendant sync + logo footer inversé sur fond sombre
 - ✅ P9 : Double parcours WhatsApp/Landing restauré + lien de partage dynamique ?mode=
 - ✅ P10 : Footer SUIVEZ-NOUS → icônes sociales premium horizontales (Instagram, Facebook, TikTok, WhatsApp, Email) + champs facebookPage/tiktokHandle ajoutés (DB, types, API, admin, i18n)
+- ✅ P11 : Upload pipeline restauré + garde catalogId null-safe + logo/favicon dans create block (branche feat/upload-route-v2)
+- ✅ P12 : Colonne Couleur native garantie backend — patch chirurgical 7 points (branche feat/native-colors-fix, merge 43f9ab3)
 
 ## [BUGFIX MAPPING NATIVE COLOR]
 
@@ -276,3 +282,49 @@ Nouvelle route POST avec **double circuit** :
 
 ### Branche fusionnée
 `feat/upload-route-v2` (commit f7e8910) → merge fast-forward dans `main`
+
+## [NATIVE COLORS BACKEND GUARANTEE]
+
+### Contexte
+La colonne `__colors__` était déclarée native côté frontend (`NATIVE_COLUMN_SLUGS` dans `DataTable.tsx`) mais n'était **jamais garantie** côté backend. Les routes d'importation CSV et Google Sync ne créaient que 5 colonnes natives, omettant systématiquement `__colors__`. Résultat : après suppression d'un catalogue et ré-importation, la colonne Couleur disparaissait complètement de l'interface.
+
+### Diagnostic
+**Bug** : `__colors__` était un "fantôme natif" — déclarée native en UI mais jamais créée par les routes backend. Sa survie dépendait uniquement du mécanisme conditionnel de préservation lors des ré-imports Google Sync (si elle existait déjà), mais sur un DataSource vierge elle n'était jamais créée.
+
+**Fichiers responsables** :
+- `import/route.ts` : `NATIVE_SLUG_MAP` sans `couleur`/`color`, `nativeColumns` à 5 entrées, `rowData` sans `__colors__`
+- `sync/route.ts` : 5 upserts explicites (full import + delta sync), skip-list sans `__colors__`, `preservedStockValues` sans `colors`, log "5 native columns"
+
+### Résolution — Patch chirurgical 7 points (commit 05ba779, merge 43f9ab3)
+
+| # | Fichier | Point | Correction |
+|---|---------|-------|------------|
+| 1 | `import/route.ts` | P1 — Mapping | Ajout `'couleur': '__colors__'` + `'color': '__colors__'` dans `NATIVE_SLUG_MAP` |
+| 2 | `import/route.ts` | P2 — Structure | Ajout `{ slug: '__colors__', name: 'Couleur', type: 'COLOR', order: -6, config: {} }` en tête de `nativeColumns` |
+| 3 | `import/route.ts` | P3 — Données | Ajout `if (rowData.__colors__ === undefined) rowData.__colors__ = '';` |
+| 4 | `sync/route.ts` | P4 — Full Import | Ajout 6ème upsert `__colors__` (COLOR, order: -6) avant `__statut__` |
+| 5 | `sync/route.ts` | P5 — Delta Sync | `hasColorsColumn` + 6ème upsert + `__colors__` dans `deltaNativeNamePatterns` |
+| 6 | `sync/route.ts` | P6 — Préservation | `nc.slug === '__colors__'` dans skip-list + commentaire 5→6 |
+| 7 | `sync/route.ts` | P7 — Documentation | Commentaires/logs 5→6 + `nativeNamePatterns` + `sheetColorsValue` + `rowData.__colors__` + `preservedStockValues.colors` + restauration `updatedData.__colors__` + filtre exclusion `c.slug !== '__colors__'` |
+
+### Colonnes natives garanties (6)
+| Slug | Name | Type | Order |
+|---|---|---|---|
+| `__colors__` | Couleur | COLOR | -6 |
+| `__category__` | Catégorie | SELECT | -5 |
+| `__sub_category__` | Sous-catégorie | SELECT | -4 |
+| `__disponibilite__` | Disponibilité | BOOLEAN | -3 |
+| `__stock__` | Stock | NUMBER | -2 |
+| `__statut__` | Statut | STATUS | -1 |
+
+### Cycle de vie ColorMap (référence complète)
+```
+ColorMap (authoritative palette)         Row.data.__colors__ (comma-separated names)
+  ├─ /api/colormap (CRUD)                 ├─ WRITE: ColorCell toggle → PUT rows
+  ├─ /api/colormap/lookup (batch resolve)  ├─ WRITE: ColorSourceModal → POST color-import
+  ├─ /api/colormap/seed (14 couleurs)      ├─ READ: CatalogPreview → resolveColorHex() → dots
+  └─ /api/colormap/import (bulk create)    └─ READ: ColorMapManager → usage counter
+```
+
+### Branche fusionnée
+`feat/native-colors-fix` (commit 05ba779) → merge `--no-ff` dans `main` (commit 43f9ab3)
