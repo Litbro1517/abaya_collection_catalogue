@@ -281,7 +281,7 @@ export async function POST(req: NextRequest) {
       // ━━━ PRESERVE __stock__ VALUES before deletion (scoped outside if block) ━━━
       // Stock values are managed locally in the app and must NEVER be overwritten
       // by a Google Sheet sync. Save them keyed by N ordre for restoration after re-import.
-      const preservedStockValues = new Map<string, { stock: number; disponibilite: string; statut: string; statutLocked: boolean; isVisible: boolean; category: string; subCategory: string }>();
+      const preservedStockValues = new Map<string, { stock: number; disponibilite: string; statut: string; statutLocked: boolean; isVisible: boolean; category: string; subCategory: string; colors: string }>();
 
       if (!isNewDataSource) {
         // 1. Save native/special columns that are NOT from the Google Sheet
@@ -335,6 +335,7 @@ export async function POST(req: NextRequest) {
               isVisible: data.__is_visible__ !== false,
               category: String(data.__category__ ?? ''),
               subCategory: String(data.__sub_category__ ?? ''),
+              colors: String(data.__colors__ ?? ''),
             });
           }
         }
@@ -355,10 +356,11 @@ export async function POST(req: NextRequest) {
       }
 
       // ━━━ Identify sheet columns that overlap with NATIVE columns ━━━
-      // The 3 native columns (__statut__, __disponibilite__, __stock__) are ALWAYS
+      // The 6 native columns (__colors__, __statut__, __disponibilite__, __stock__, __category__, __sub_category__) are ALWAYS
       // created by the app. If the Google Sheet has similarly-named columns,
       // we SKIP them from import and map their data to the native slugs instead.
       const nativeNamePatterns: { slug: string; names: string[] }[] = [
+        { slug: '__colors__', names: ['couleur', 'color'] },
         { slug: '__disponibilite__', names: ['disponibilité', 'disponibilite', 'disponible'] },
         { slug: '__stock__', names: ['stock', 'quantité', 'quantite'] },
         { slug: '__category__', names: ['catégorie', 'categorie', 'category'] },
@@ -439,8 +441,24 @@ export async function POST(req: NextRequest) {
       await db.column.createMany({ data: columnsToCreate });
 
       // ━━━ RESTORE native columns after sheet column creation ━━━
-      // These 5 columns are ALWAYS guaranteed to exist — they are native to the app
+      // These 6 columns are ALWAYS guaranteed to exist — they are native to the app
       // and NOT present in Google Sheets. They must survive every import/sync.
+
+      // 0. __colors__ — COLOR column (native color picker)
+      await db.column.upsert({
+        where: { dataSourceId_slug: { dataSourceId: dsId, slug: '__colors__' } },
+        update: {},
+        create: {
+          name: 'Couleur',
+          slug: '__colors__',
+          type: 'COLOR',
+          dataSourceId: dsId,
+          visible: true,
+          required: false,
+          config: {},
+          order: -6,
+        },
+      });
 
       // 1. __statut__ — STATUS column (badge + lock)
       await db.column.upsert({
@@ -529,8 +547,8 @@ export async function POST(req: NextRequest) {
 
       // Restore other preserved native columns from before the deletion
       for (const nc of nativeColumnsToPreserve) {
-        // Skip the 5 native columns we already upserted above
-        if (nc.slug === '__statut__' || nc.slug === '__disponibilite__' || nc.slug === '__stock__' || nc.slug === '__category__' || nc.slug === '__sub_category__') continue;
+        // Skip the 6 native columns we already upserted above
+        if (nc.slug === '__colors__' || nc.slug === '__statut__' || nc.slug === '__disponibilite__' || nc.slug === '__stock__' || nc.slug === '__category__' || nc.slug === '__sub_category__') continue;
 
         await db.column.upsert({
           where: { dataSourceId_slug: { dataSourceId: dsId, slug: nc.slug } },
@@ -548,7 +566,7 @@ export async function POST(req: NextRequest) {
         });
       }
 
-      console.log(`✅ Native columns ALWAYS guaranteed: __statut__(STATUS), __disponibilite__(BOOLEAN/Switch), __stock__(NUMBER/Counter), __category__(TEXT), __sub_category__(TEXT)${sheetColToNativeSlug.size > 0 ? ` — ${sheetColToNativeSlug.size} sheet column(s) mapped to native slugs` : ''}${nativeColumnsToPreserve.filter(c => c.slug !== '__statut__' && c.slug !== '__disponibilite__' && c.slug !== '__stock__' && c.slug !== '__category__' && c.slug !== '__sub_category__').map(c => `, ${c.name} (${c.type})`).join('')}`);
+      console.log(`✅ Native columns ALWAYS guaranteed: __colors__(COLOR), __statut__(STATUS), __disponibilite__(BOOLEAN/Switch), __stock__(NUMBER/Counter), __category__(TEXT), __sub_category__(TEXT)${sheetColToNativeSlug.size > 0 ? ` — ${sheetColToNativeSlug.size} sheet column(s) mapped to native slugs` : ''}${nativeColumnsToPreserve.filter(c => c.slug !== '__colors__' && c.slug !== '__statut__' && c.slug !== '__disponibilite__' && c.slug !== '__stock__' && c.slug !== '__category__' && c.slug !== '__sub_category__').map(c => `, ${c.name} (${c.type})`).join('')}`);
 
       // Build row data with auto-initialization for first import
       const rowsToCreate: { dataSourceId: string; data: Record<string, unknown>; order: number }[] = [];
@@ -582,6 +600,7 @@ export async function POST(req: NextRequest) {
         // ━━━ Map sheet columns to native slugs ━━━
         // If the sheet had "Disponibilité"/"Stock"/"Catégorie"/"Sous-catégorie" columns,
         // their data goes to the native slugs respectively (not duplicate columns)
+        let sheetColorsValue: string | null = null;
         let sheetDisponibiliteValue: string | null = null;
         let sheetStockValue: string | null = null;
         let sheetCategoryValue: string | null = null;
@@ -589,7 +608,9 @@ export async function POST(req: NextRequest) {
 
         for (const [sheetIdx, nativeSlug] of sheetColToNativeSlug) {
           const rawVal = sheetIdx < row.length ? (row[sheetIdx] || '').trim() : '';
-          if (nativeSlug === '__disponibilite__') {
+          if (nativeSlug === '__colors__') {
+            sheetColorsValue = rawVal;
+          } else if (nativeSlug === '__disponibilite__') {
             // Parse: "true"/"1"/"oui"/"disponible" → true, anything else → false
             const isAvailable = ['true', '1', 'oui', 'disponible', 'en stock', 'yes'].includes(rawVal.toLowerCase());
             sheetDisponibiliteValue = String(isAvailable);
@@ -604,6 +625,9 @@ export async function POST(req: NextRequest) {
         }
 
         // ━━━ Auto-initialization defaults for first import ━━━
+        // Couleur = empty by default
+        // If sheet has Couleur data, use it; otherwise default to ''
+        rowData.__colors__ = sheetColorsValue ?? '';
         // Statut = Courant (blue badge)
         rowData.__statut__ = 'Courant';
         rowData.__statut_locked__ = false;
@@ -698,6 +722,8 @@ export async function POST(req: NextRequest) {
             // Preserve category/sub-category values from admin edits
             updatedData.__category__ = preserved.category;
             updatedData.__sub_category__ = preserved.subCategory;
+            // Preserve color values from admin edits
+            updatedData.__colors__ = preserved.colors;
             await db.row.update({
               where: { id: newRow.id },
               data: { data: updatedData },
@@ -705,7 +731,7 @@ export async function POST(req: NextRequest) {
             restoredCount++;
           }
         }
-        console.log(`🔒 Restored ${restoredCount} preserved stock/disponibilité/statut/category values after re-import`);
+        console.log(`🔒 Restored ${restoredCount} preserved stock/disponibilité/statut/category/colors values after re-import`);
       }
 
       await db.dataSource.update({
@@ -758,10 +784,11 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // ━━━ ENSURE ALL 5 NATIVE COLUMNS EXIST ━━━━━━━━━━━━━━━━━━━━━━━━━
-    // Native columns (__statut__, __disponibilite__, __stock__, __category__,
+    // ━━━ ENSURE ALL 6 NATIVE COLUMNS EXIST ━━━━━━━━━━━━━━━━━━━━━━━━━
+    // Native columns (__colors__, __statut__, __disponibilite__, __stock__, __category__,
     // __sub_category__) may have been lost during a previous full import.
     // Always restore them before delta sync.
+    const hasColorsColumn = existingDs.columns.some(c => c.slug === '__colors__');
     const hasStatutColumn = existingDs.columns.some(c => c.slug === '__statut__' || c.type === 'STATUS');
     const hasDisponibiliteColumn = existingDs.columns.some(c => c.slug === '__disponibilite__');
     const hasStockColumn = existingDs.columns.some(c => c.slug === '__stock__');
@@ -781,6 +808,7 @@ export async function POST(req: NextRequest) {
 
     // ━━━ Map sheet columns to native slugs (same logic as Full Import) ━━━
     const deltaNativeNamePatterns: { slug: string; names: string[] }[] = [
+      { slug: '__colors__', names: ['couleur', 'color'] },
       { slug: '__disponibilite__', names: ['disponibilité', 'disponibilite', 'disponible'] },
       { slug: '__stock__', names: ['stock', 'quantité', 'quantite'] },
       { slug: '__category__', names: ['catégorie', 'categorie', 'category'] },
@@ -796,6 +824,23 @@ export async function POST(req: NextRequest) {
         }
       }
     }
+
+    // 0. __colors__ (COLOR) — ALWAYS ensure it exists
+    await db.column.upsert({
+      where: { dataSourceId_slug: { dataSourceId: dsId, slug: '__colors__' } },
+      update: {},
+      create: {
+        name: 'Couleur',
+        slug: '__colors__',
+        type: 'COLOR',
+        dataSourceId: dsId,
+        visible: true,
+        required: false,
+        config: {},
+        order: -6,
+      },
+    });
+    if (!hasColorsColumn) console.log('🔧 Restored missing __colors__ COLOR column during delta sync');
 
     // 1. __statut__ (STATUS) — ALWAYS ensure it exists
     await db.column.upsert({

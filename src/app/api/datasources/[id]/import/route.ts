@@ -117,6 +117,8 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
       'disponibilite': '__disponibilite__',
       'disponibilité': '__disponibilite__',
       'stock': '__stock__',
+      'couleur': '__colors__',
+      'color': '__colors__',
       'statut': '__statut__',
     };
     const sheetColToNativeSlug = new Map<number, string>(); // col index → native slug
@@ -226,9 +228,10 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     }
 
     // ━━━ Guarantee native system columns ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-    // Always ensure the 5 native columns exist (same as Google Sync does)
+    // Always ensure the 6 native columns exist (same as Google Sync does)
     // These are required for the DataTable's special cell rendering
     const nativeColumns = [
+      { slug: '__colors__', name: 'Couleur', type: 'COLOR', order: -6, config: {} },
       { slug: '__category__', name: 'Catégorie', type: 'SELECT', order: -5, config: {} },
       { slug: '__sub_category__', name: 'Sous-catégorie', type: 'SELECT', order: -4, config: {} },
       { slug: '__disponibilite__', name: 'Disponibilité', type: 'BOOLEAN', order: -3, config: { labels: { true: 'Disponible', false: 'Épuisé' } } },
@@ -276,6 +279,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
 
       // ━━━ Native row data defaults ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
       // Ensure every row has the native system fields initialized
+      if (rowData.__colors__ === undefined) rowData.__colors__ = '';
       if (rowData.__category__ === undefined) rowData.__category__ = '';
       if (rowData.__sub_category__ === undefined) rowData.__sub_category__ = '';
       if (rowData.__stock__ === undefined) rowData.__stock__ = '0';
