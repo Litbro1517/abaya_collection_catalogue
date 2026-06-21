@@ -19,3 +19,31 @@ Stage Summary:
 - VG17 (SEO Server): ✅ Verified (og:title, og:image, twitter:card, canonical, robots meta all present)
 - VG18 (Legal Pages): ⏳ Structure verified — content awaiting documents-legaux-abaya-v2.html
 - PROJECT_MAP.md updated with full documentation
+
+---
+Task ID: 1
+Agent: Main Agent
+Task: Create branch feat/legal-content-v5, audit PROJECT_MAP.md, inject V5 legal texts, update docs, push to GitHub
+
+Work Log:
+- Created branch feat/legal-content-v5 from main@549d729
+- Audited PROJECT_MAP.md: found 3 discrepancies (SSR guard typo `===` → `!==`, v2→v5 file reference, VG18 status)
+- Fixed SSR guard reference in GTM section: `typeof window === 'undefined'` → `!== 'undefined'`
+- Updated VG18 status from "⏳ Structure vérifiée — contenu définitif en attente" to "✅ COMPLÉTÉ & VALIDÉ V5"
+- Updated P15 milestone: removed "contenu en attente documents-legaux-abaya-v2.html"
+- Replaced "⚠️ EN ATTENTE" section with "✅ CONTENU V5 INTÉGRÉ" in PAGES RÉGLEMENTAIRES section
+- Extracted all legal content from documents-legaux-abaya-v5.html (814 lines)
+- Rewrote src/app/mentions-legales/page.tsx with V5 content (5 sections: Éditeur, Hébergement, Propriété Intellectuelle, Traceurs, Liens Hypertextes)
+- Rewrote src/app/politique-de-confidentialite/page.tsx with V5 content (8 articles: Responsable, Données, Finalités, Conservation, Cookies, Droits, Sécurité, Évolution)
+- Rewrote src/app/conditions-generales/page.tsx with V5 content (6 articles: Processus, Prix, Livraison, Retours, Responsabilité, Juridiction)
+- Sanctuarized: metadata exports, back arrow Link, CSS pivot variables, footer structure — all preserved
+- Lint: 0 errors
+- Build: successful (43 static pages generated, all 3 legal pages as ○ static)
+- Fixed GitHub remote URL typo: Litbro1y17 → Litbro1517
+- Pushed feat/legal-content-v5 to GitHub successfully
+
+Stage Summary:
+- Branch: feat/legal-content-v5 pushed to https://github.com/Litbro1517/abaya_collection_catalogue
+- PR creation URL: https://github.com/Litbro1517/abaya_collection_catalogue/pull/new/feat/legal-content-v5
+- VG18 status: ✅ COMPLÉTÉ & VALIDÉ V5
+- Build: clean (0 errors, 0 warnings on legal pages)
