@@ -160,7 +160,7 @@ src/
 | VG16 | GTM supprimé → Cloudflare Zaraz | `import Script` orphelin supprimé ; `GTM_ID` const supprimée ; blocs `<Script>` et `<noscript>` supprimés ; `NEXT_PUBLIC_GTM_ID` retiré de deploy-v2.sh ; dataLayer.push() conservés avec garde SSR `typeof window !== 'undefined'` | ✅ Vérifié (lint 0 erreur, E2E browser) |
 | VG17 | SEO dynamique serveur | page.tsx = Server Component ; `generateMetadata()` lit `__seo_metadata__` depuis Settings DB avec fallback statique ; metadataBase résolu dynamiquement ; OG + Twitter Cards + Canonical générés ; sitemap.ts + robots.ts natifs | ✅ Vérifié (E2E: og:title, og:image, twitter:card, canonical, robots meta tous présents) |
 | VG18 | Pages réglementaires accessibles | /mentions-legales, /politique-de-confidentialite, /conditions-generales rendent en SSR avec metadata ; footer catalogue lien vers ces routes (plus de `href="#"`) ; charte Or/Vert respectée (CSS pivots uniquement) ; textes officiels V5 intégrés | ✅ COMPLÉTÉ & VALIDÉ V5 |
-| VG19 | i18n pages réglementaires | Dictionnaire de traduction (`legal-translation-dictionary.json`) : 118 clés × 3 locales (FR + EN + AR complets, 0 TRANSLATE_PENDING) ; sources officielles V5 EN/AR intégrées ; préfixes `mentions.`, `privacy.`, `cgv.`, `legal.` ; prêt pour intégration dans `dictionaries.ts` | ✅ TRADUCTIONS OFFICIELLES V5 COMPLÈTES |
+| VG19 | i18n pages réglementaires | Dictionnaire de traduction (`legal-translation-dictionary.json`) : 118 clés × 3 locales (FR + EN + AR complets, 0 TRANSLATE_PENDING) ; sources officielles V5 EN/AR intégrées ; préfixes `mentions.`, `privacy.`, `cgv.`, `legal.` ; fusionné PR #4, déployé sur main | ✅ DÉPLOYÉ — PR #4 MERGED |
 
 ## [ORPHANS_AND_PENDING]
 
