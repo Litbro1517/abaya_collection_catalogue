@@ -4,7 +4,7 @@
 | Composant | Version | Notes |
 |---|---|---|
 | Runtime | Bun latest | Gestionnaire de paquets + runtime |
-| Framework | Next.js 16.1.3 (App Router, Turbopack) | Route unique : / |
+| Framework | Next.js 16.2.9 (App Router, Turbopack) | Routes : /, /mentions-legales, /politique-de-confidentialite, /conditions-generales |
 | Langage | TypeScript 5 | Strict mode désactivé |
 | Base de données | SQLite (local) / PostgreSQL (Vercel) | Switch automatique via scripts/switch-provider.js |
 | ORM | Prisma 6.11+ | Schema : DataSource/Column/Row dynamique |
@@ -81,9 +81,15 @@ prisma/schema.prisma
 
 src/
   ├─ app/
-  │   ├─ page.tsx                    # Route UNIQUE (/) — CatalogPreview
+  │   ├─ page.tsx                    # Route / — Server Component (SEO) → renders HomeClient
+  │   ├─ layout.tsx                  # Root layout — metadataBase + favicon + GTM removed (Zaraz)
+  │   ├─ sitemap.ts                  # Dynamic sitemap.xml via Prisma
+  │   ├─ robots.ts                   # Dynamic robots.txt via Prisma
+  │   ├─ mentions-legales/page.tsx   # Mentions légales (SSR, charte Or/Vert)
+  │   ├─ politique-de-confidentialite/page.tsx  # Politique confidentialité (SSR)
+  │   ├─ conditions-generales/page.tsx          # Conditions générales (SSR)
   │   ├─ admin/page.tsx              # BuilderShell (admin)
-  │   ├─ merci/page.tsx              # Post-commande → redirect /
+  │   ├─ merci/page.tsx              # Post-commande → redirect / (dataLayer.push with SSR guard)
   │   ├─ product-meta/[slug]/        # SSR meta pour crawlers sociaux
   │   └─ api/                        # REST API complète
   │       ├─ datasources/[id]/        # CRUD + rows + columns + color-import
@@ -151,6 +157,9 @@ src/
 | VG13 | Lien de partage dynamique | Input + copyShareLink incluent `?mode={conversionChannel}` | ✅ Vérifié (code: `${origin}?mode=${channel}`) |
 | VG14 | CTA WhatsApp vert (#25D366) | `<a>` WhatsApp : backgroundColor #25D366 ; `<button>` Landing : noir inchangé | ✅ Vérifié (prod: rgb(37,211,102) vs rgba(0,0,0,0.89)) |
 | VG15 | Colonne Couleur native garantie backend | Après suppression catalogue + ré-import CSV/Google : colonne Couleur présente ; 6 colonnes natives garanties ; CSV "Couleur"/"Color" mappé vers `__colors__` | ✅ Vérifié (lint 0 erreur, merge 43f9ab3) |
+| VG16 | GTM supprimé → Cloudflare Zaraz | `import Script` orphelin supprimé ; `GTM_ID` const supprimée ; blocs `<Script>` et `<noscript>` supprimés ; `NEXT_PUBLIC_GTM_ID` retiré de deploy-v2.sh ; dataLayer.push() conservés avec garde SSR `typeof window !== 'undefined'` | ✅ Vérifié (lint 0 erreur, E2E browser) |
+| VG17 | SEO dynamique serveur | page.tsx = Server Component ; `generateMetadata()` lit `__seo_metadata__` depuis Settings DB avec fallback statique ; metadataBase résolu dynamiquement ; OG + Twitter Cards + Canonical générés ; sitemap.ts + robots.ts natifs | ✅ Vérifié (E2E: og:title, og:image, twitter:card, canonical, robots meta tous présents) |
+| VG18 | Pages réglementaires accessibles | /mentions-legales, /politique-de-confidentialite, /conditions-generales rendent en SSR avec metadata ; footer catalogue lien vers ces routes (plus de `href="#"`) ; charte Or/Vert respectée (CSS pivots uniquement) | ⏳ Structure vérifiée — contenu définitif en attente (documents-legaux-abaya-v2.html) |
 
 ## [ORPHANS_AND_PENDING]
 
@@ -159,7 +168,7 @@ src/
 - [ ] **Synchronisation colonnes Relation V2** — Relation actuelle fonctionne en lecture seule ; l'écriture croisée est gelée
 - [ ] **Compression des médias** — Sharp installé mais aucun pipeline de compression configuré
 - [ ] **Migration vers next-intl** — Package installé mais inutilisé ; le système custom fonctionne ; migration = réécriture complète
-- [ ] **SSR i18n correct** — layout.tsx hard-code lang="fr" ; ThemeInjector override côté client ; correction SSR nécessite un refactor du layout
+- [ ] **SSR i18n correct** — layout.tsx hard-code lang="fr" ; ThemeInjector override côté client ; correction SSR nécessite un refactor du layout — ⚠️ PARTIEL: page.tsx est maintenant Server Component avec metadata SSR, mais `<html lang>` reste "fr" hardcodé
 - [ ] **Statut automation** — Nouveau → Courant automatique non implémenté
 - [ ] **Tri avancé (presets)** — Pas de presets de tri dans le catalogue
 
@@ -193,6 +202,9 @@ src/
 - ✅ P10 : Footer SUIVEZ-NOUS → icônes sociales premium horizontales (Instagram, Facebook, TikTok, WhatsApp, Email) + champs facebookPage/tiktokHandle ajoutés (DB, types, API, admin, i18n)
 - ✅ P11 : Upload pipeline restauré + garde catalogId null-safe + logo/favicon dans create block (branche feat/upload-route-v2)
 - ✅ P12 : Colonne Couleur native garantie backend — patch chirurgical 7 points (branche feat/native-colors-fix, merge 43f9ab3)
+- ✅ P13 : GTM nettoyé + Zaraz migration + dataLayer guards SSR (branche feat/seo-zaraz-legal)
+- ✅ P14 : SEO serveur — page.tsx Server Component + generateMetadata dynamique + sitemap.ts + robots.ts + metadataBase (branche feat/seo-zaraz-legal)
+- ✅ P15 : Pages réglementaires squelettes + footer liens câblés (branche feat/seo-zaraz-legal) — contenu en attente documents-legaux-abaya-v2.html
 
 ## [BUGFIX MAPPING NATIVE COLOR]
 
@@ -328,3 +340,72 @@ ColorMap (authoritative palette)         Row.data.__colors__ (comma-separated na
 
 ### Branche fusionnée
 `feat/native-colors-fix` (commit 05ba779) → merge `--no-ff` dans `main` (commit 43f9ab3)
+
+## [GTM CLEANUP & CLOUDFLARE ZARAZ MIGRATION]
+
+### Contexte
+Le site utilisait Google Tag Manager (GTM) via `next/script` avec la variable d'environnement `NEXT_PUBLIC_GTM_ID`. La migration vers Cloudflare Zaraz rend ce script inutile et l'import orphelin bloquait le build.
+
+### Modifications appliquées
+
+| # | Fichier | Point | Modification |
+|---|---------|-------|-------------|
+| 1 | `src/app/layout.tsx` | a — Import | Suppression `import Script from 'next/script'` (import orphelin) |
+| 2 | `src/app/layout.tsx` | b — Const | Suppression `const GTM_ID = process.env.NEXT_PUBLIC_GTM_ID || ''` |
+| 3 | `src/app/layout.tsx` | c — Script bloc | Suppression bloc `{GTM_ID && (<Script id="gtm-head">...)}` (L.67-79) |
+| 4 | `src/app/layout.tsx` | d — Noscript bloc | Suppression bloc `{GTM_ID && (<noscript><iframe...>)}` (L.81-90) |
+| 5 | `deploy-v2.sh` | L.23, L.66 | Suppression mentions `NEXT_PUBLIC_GTM_ID` — remplacé par note Zaraz |
+| 6 | `src/app/merci/page.tsx` | L.41-51 | Conservation dataLayer.push + ajout garde `typeof window === 'undefined'` |
+| 7 | `src/components/preview/SocialStickyTickets.tsx` | L.46-50 | Conservation dataLayer.push + ajout garde `typeof window !== 'undefined'` |
+
+### dataLayer.push() conservés (Zaraz-compatible)
+Les appels `window.dataLayer.push()` sont conservés car Cloudflare Zaraz les intercepte côté client. La garde SSR empêche toute exécution côté serveur.
+
+## [SEO SERVER RENDERING]
+
+### Contexte
+La racine `/` était un composant client (`'use client'`), ce qui empêchait Google Bot d'indexer les métadonnées dynamiques. Le layout hard-codait `metadataBase` non résolu.
+
+### Modifications appliquées
+
+| # | Fichier | Modification |
+|---|---------|-------------|
+| 1 | `src/app/page.tsx` | **Réécriture** — Server Component qui importe `HomeClient` et exporte `generateMetadata()` |
+| 2 | `src/components/HomeClient.tsx` | **NOUVEAU** — Logique client extraite de l'ancien page.tsx |
+| 3 | `src/app/layout.tsx` | Ajout `metadataBase` résolu dynamiquement depuis `Settings.__seo_metadata__` |
+| 4 | `src/app/sitemap.ts` | **NOUVEAU** — Sitemap dynamique via Prisma (4 routes statiques) |
+| 5 | `src/app/robots.ts` | **NOUVEAU** — Robots.txt dynamique (allow /, disallow /admin et /api/) |
+
+### Schéma SEO dynamique
+- **Source** : Table `Settings` avec clé `__seo_metadata__`
+- **Format valeur** : JSON `{ title, description, ogImage, canonicalUrl }`
+- **Fallback** : Si la clé n'existe pas en DB ou JSON invalide → métadonnées statiques par défaut
+- **metadataBase** : Résolu depuis `canonicalUrl` dans `__seo_metadata__` ou fallback `https://abaya-collection-catalogue-9dum.vercel.app`
+- **Métadonnées générées** : og:title, og:description, og:image, og:url, og:site_name, og:locale, twitter:card, twitter:title, twitter:description, twitter:image, canonical, robots
+
+## [PAGES RÉGLEMENTAIRES]
+
+### Contexte
+Le footer contenait des liens `href="#"` vers des pages réglementaires inexistantes. Les 3 routes statiques sont créées avec contenu placeholder en attente du fichier `documents-legaux-abaya-v2.html`.
+
+### Routes créées
+
+| Route | Fichier | Metadata |
+|---|---------|----------|
+| `/mentions-legales` | `src/app/mentions-legales/page.tsx` | title + description SSR |
+| `/politique-de-confidentialite` | `src/app/politique-de-confidentialite/page.tsx` | title + description SSR |
+| `/conditions-generales` | `src/app/conditions-generales/page.tsx` | title + description SSR |
+
+### Charte graphique respectée
+- Couleurs via CSS pivots : `var(--pivot-brand)`, `var(--pivot-gold)`, `var(--pivot-surface)`, `var(--pivot-text)`
+- Aucune valeur hex brute (`#C9A84C` → `var(--pivot-gold)`)
+- Typographie : `'Playfair Display', serif` pour les titres
+
+### Footer mis à jour
+- `CatalogPreview.tsx` : `<a href="#">` → `<a href="/mentions-legales">`, `<a href="/politique-de-confidentialite">`, `<a href="/conditions-generales">`
+
+### ⚠️ EN ATTENTE
+Le contenu définitif des 3 pages sera inséré mot à mot depuis le fichier `documents-legaux-abaya-v2.html` (Éditeur : Abaya Collection, E-mail : abayacollect@gmail.com) fourni au message suivant.
+
+### Branche
+`feat/seo-zaraz-legal` (créée depuis main@88872d9)

@@ -20,8 +20,8 @@
 # REQUIRED VERCEL ENVIRONMENT VARIABLES:
 #   - DATABASE_URL: PostgreSQL connection string (Supabase)
 #   - DIRECT_URL: Direct PostgreSQL connection string (Supabase)
-#   - NEXT_PUBLIC_GTM_ID: Google Tag Manager container ID (optional)
 #   - NEXT_PUBLIC_BASE_URL: https://abaya-collection-catalogue-9dum.vercel.app (optional)
+#   NOTE: NEXT_PUBLIC_GTM_ID removed — migrated to Cloudflare Zaraz
 #
 # ═══════════════════════════════════════════════════════════════
 
@@ -63,4 +63,4 @@ echo ""
 echo "⚠️  IMPORTANT: Make sure these environment variables are set in Vercel:"
 echo "   - DATABASE_URL (PostgreSQL/Supabase connection string)"
 echo "   - DIRECT_URL (Supabase direct connection string)"
-echo "   - NEXT_PUBLIC_GTM_ID (GTM container ID, optional)"
+echo "   NOTE: GTM migrated to Cloudflare Zaraz (no NEXT_PUBLIC_GTM_ID needed)"

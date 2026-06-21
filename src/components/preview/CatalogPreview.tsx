@@ -1694,15 +1694,14 @@ export function CatalogPreview({ onAdminLogin }: CatalogPreviewProps) {
               )}
             </div>
 
-            {/* ── Col 2: Pages Réglementaires (structure for future links) ── */}
+            {/* ── Col 2: Pages Réglementaires ── */}
             <div className="flex flex-col items-start text-start gap-2">
               <h3 className="text-[10px] font-semibold uppercase tracking-wider text-white/50 mb-1" style={{ fontFamily: "'Playfair Display', serif" }}>
                 {t('footer.regulatoryPages')}
               </h3>
-              {/* Placeholder links — wire to real routes when pages are created */}
-              <a href="#" className="text-xs text-white/70 hover:text-white transition-colors">{t('footer.cgv')}</a>
-              <a href="#" className="text-xs text-white/70 hover:text-white transition-colors">{t('footer.legalNotice')}</a>
-              <a href="#" className="text-xs text-white/70 hover:text-white transition-colors">{t('footer.privacyPolicy')}</a>
+              <a href="/conditions-generales" className="text-xs text-white/70 hover:text-white transition-colors">{t('footer.cgv')}</a>
+              <a href="/mentions-legales" className="text-xs text-white/70 hover:text-white transition-colors">{t('footer.legalNotice')}</a>
+              <a href="/politique-de-confidentialite" className="text-xs text-white/70 hover:text-white transition-colors">{t('footer.privacyPolicy')}</a>
             </div>
 
             {/* ── Col 3: Catalog Navigation (quick access to categories) ── */}

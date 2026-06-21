@@ -37,8 +37,9 @@ function MerciContent() {
   // the same ColorMap (single source of truth) via /api/colormap/lookup.
   const [colorHex, setColorHex] = useState<string | null>(null);
 
-  // Push conversion tracking event once on mount
+  // Push conversion tracking event once on mount (Zaraz-compatible dataLayer.push)
   useEffect(() => {
+    if (typeof window === 'undefined') return;
     if (tracked.current) return;
     tracked.current = true;
     const dl = (window as unknown as Record<string, unknown[]>).dataLayer;

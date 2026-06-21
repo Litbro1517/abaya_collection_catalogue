@@ -43,10 +43,12 @@ export function SocialStickyTickets({ whatsappNumber, conversionChannel }: Socia
       setTimeout(() => setExpanded(false), 3000);
       return;
     }
-    // Push dataLayer event
-    const dl = (window as unknown as Record<string, unknown[]>).dataLayer;
-    if (dl) {
-      dl.push({ event: 'social_contact', social_channel: 'whatsapp' });
+    // Push dataLayer event (Zaraz-compatible — SSR guard)
+    if (typeof window !== 'undefined') {
+      const dl = (window as unknown as Record<string, unknown[]>).dataLayer;
+      if (dl) {
+        dl.push({ event: 'social_contact', social_channel: 'whatsapp' });
+      }
     }
     window.open(href, '_blank', 'noopener noreferrer');
   };
