@@ -159,7 +159,7 @@ src/
 | VG15 | Colonne Couleur native garantie backend | Après suppression catalogue + ré-import CSV/Google : colonne Couleur présente ; 6 colonnes natives garanties ; CSV "Couleur"/"Color" mappé vers `__colors__` | ✅ Vérifié (lint 0 erreur, merge 43f9ab3) |
 | VG16 | GTM supprimé → Cloudflare Zaraz | `import Script` orphelin supprimé ; `GTM_ID` const supprimée ; blocs `<Script>` et `<noscript>` supprimés ; `NEXT_PUBLIC_GTM_ID` retiré de deploy-v2.sh ; dataLayer.push() conservés avec garde SSR `typeof window !== 'undefined'` | ✅ Vérifié (lint 0 erreur, E2E browser) |
 | VG17 | SEO dynamique serveur | page.tsx = Server Component ; `generateMetadata()` lit `__seo_metadata__` depuis Settings DB avec fallback statique ; metadataBase résolu dynamiquement ; OG + Twitter Cards + Canonical générés ; sitemap.ts + robots.ts natifs | ✅ Vérifié (E2E: og:title, og:image, twitter:card, canonical, robots meta tous présents) |
-| VG18 | Pages réglementaires accessibles | /mentions-legales, /politique-de-confidentialite, /conditions-generales rendent en SSR avec metadata ; footer catalogue lien vers ces routes (plus de `href="#"`) ; charte Or/Vert respectée (CSS pivots uniquement) | ⏳ Structure vérifiée — contenu définitif en attente (documents-legaux-abaya-v2.html) |
+| VG18 | Pages réglementaires accessibles | /mentions-legales, /politique-de-confidentialite, /conditions-generales rendent en SSR avec metadata ; footer catalogue lien vers ces routes (plus de `href="#"`) ; charte Or/Vert respectée (CSS pivots uniquement) ; textes officiels V5 intégrés | ✅ COMPLÉTÉ & VALIDÉ V5 |
 
 ## [ORPHANS_AND_PENDING]
 
@@ -204,7 +204,7 @@ src/
 - ✅ P12 : Colonne Couleur native garantie backend — patch chirurgical 7 points (branche feat/native-colors-fix, merge 43f9ab3)
 - ✅ P13 : GTM nettoyé + Zaraz migration + dataLayer guards SSR (branche feat/seo-zaraz-legal)
 - ✅ P14 : SEO serveur — page.tsx Server Component + generateMetadata dynamique + sitemap.ts + robots.ts + metadataBase (branche feat/seo-zaraz-legal)
-- ✅ P15 : Pages réglementaires squelettes + footer liens câblés (branche feat/seo-zaraz-legal) — contenu en attente documents-legaux-abaya-v2.html
+- ✅ P15 : Pages réglementaires squelettes + footer liens câblés (branche feat/seo-zaraz-legal)
 
 ## [BUGFIX MAPPING NATIVE COLOR]
 
@@ -355,7 +355,7 @@ Le site utilisait Google Tag Manager (GTM) via `next/script` avec la variable d'
 | 3 | `src/app/layout.tsx` | c — Script bloc | Suppression bloc `{GTM_ID && (<Script id="gtm-head">...)}` (L.67-79) |
 | 4 | `src/app/layout.tsx` | d — Noscript bloc | Suppression bloc `{GTM_ID && (<noscript><iframe...>)}` (L.81-90) |
 | 5 | `deploy-v2.sh` | L.23, L.66 | Suppression mentions `NEXT_PUBLIC_GTM_ID` — remplacé par note Zaraz |
-| 6 | `src/app/merci/page.tsx` | L.41-51 | Conservation dataLayer.push + ajout garde `typeof window === 'undefined'` |
+| 6 | `src/app/merci/page.tsx` | L.41-51 | Conservation dataLayer.push + ajout garde `typeof window !== 'undefined'` |
 | 7 | `src/components/preview/SocialStickyTickets.tsx` | L.46-50 | Conservation dataLayer.push + ajout garde `typeof window !== 'undefined'` |
 
 ### dataLayer.push() conservés (Zaraz-compatible)
@@ -404,8 +404,8 @@ Le footer contenait des liens `href="#"` vers des pages réglementaires inexista
 ### Footer mis à jour
 - `CatalogPreview.tsx` : `<a href="#">` → `<a href="/mentions-legales">`, `<a href="/politique-de-confidentialite">`, `<a href="/conditions-generales">`
 
-### ⚠️ EN ATTENTE
-Le contenu définitif des 3 pages sera inséré mot à mot depuis le fichier `documents-legaux-abaya-v2.html` (Éditeur : Abaya Collection, E-mail : abayacollect@gmail.com) fourni au message suivant.
+### ✅ CONTENU V5 INTÉGRÉ
+Les textes définitifs des 3 pages ont été injectés depuis le fichier `documents-legaux-abaya-v5.html` (Éditeur : Abaya Collection, E-mail : abayacollect@gmail.com). Branche : `feat/legal-content-v5`.
 
 ### Branche
 `feat/seo-zaraz-legal` (créée depuis main@88872d9)
