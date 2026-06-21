@@ -160,6 +160,7 @@ src/
 | VG16 | GTM supprimé → Cloudflare Zaraz | `import Script` orphelin supprimé ; `GTM_ID` const supprimée ; blocs `<Script>` et `<noscript>` supprimés ; `NEXT_PUBLIC_GTM_ID` retiré de deploy-v2.sh ; dataLayer.push() conservés avec garde SSR `typeof window !== 'undefined'` | ✅ Vérifié (lint 0 erreur, E2E browser) |
 | VG17 | SEO dynamique serveur | page.tsx = Server Component ; `generateMetadata()` lit `__seo_metadata__` depuis Settings DB avec fallback statique ; metadataBase résolu dynamiquement ; OG + Twitter Cards + Canonical générés ; sitemap.ts + robots.ts natifs | ✅ Vérifié (E2E: og:title, og:image, twitter:card, canonical, robots meta tous présents) |
 | VG18 | Pages réglementaires accessibles | /mentions-legales, /politique-de-confidentialite, /conditions-generales rendent en SSR avec metadata ; footer catalogue lien vers ces routes (plus de `href="#"`) ; charte Or/Vert respectée (CSS pivots uniquement) ; textes officiels V5 intégrés | ✅ COMPLÉTÉ & VALIDÉ V5 |
+| VG19 | i18n pages réglementaires | Dictionnaire de traduction isolé (`legal-translation-dictionary.json`) : 118 clés × 3 locales (FR complet, EN 61 pending, AR 61 pending) ; préfixes `mentions.`, `privacy.`, `cgv.`, `legal.` ; en attente d'audit avant intégration dans `dictionaries.ts` | ⏳ EN ATTENTE D'AUDIT (Dictionnaire configuré) |
 
 ## [ORPHANS_AND_PENDING]
 
@@ -205,6 +206,7 @@ src/
 - ✅ P13 : GTM nettoyé + Zaraz migration + dataLayer guards SSR (branche feat/seo-zaraz-legal)
 - ✅ P14 : SEO serveur — page.tsx Server Component + generateMetadata dynamique + sitemap.ts + robots.ts + metadataBase (branche feat/seo-zaraz-legal)
 - ✅ P15 : Pages réglementaires squelettes + footer liens câblés (branche feat/seo-zaraz-legal)
+- ⏳ P16 : Dictionnaire i18n pages réglementaires isolé — 118 clés FR, EN/AR en attente de traduction (branche feat/legal-translation-config)
 
 ## [BUGFIX MAPPING NATIVE COLOR]
 
