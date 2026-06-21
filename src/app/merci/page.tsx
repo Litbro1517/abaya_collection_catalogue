@@ -39,15 +39,16 @@ function MerciContent() {
 
   // Push conversion tracking event once on mount (Zaraz-compatible dataLayer.push)
   useEffect(() => {
-    if (typeof window === 'undefined') return;
-    if (tracked.current) return;
-    tracked.current = true;
-    const dl = (window as unknown as Record<string, unknown[]>).dataLayer;
-    if (dl) {
-      dl.push({
-        event: 'purchase',
-        order_id: orderId || 'unknown',
-      });
+    if (typeof window !== 'undefined') {
+      if (tracked.current) return;
+      tracked.current = true;
+      const dl = (window as unknown as Record<string, unknown[]>).dataLayer;
+      if (dl) {
+        dl.push({
+          event: 'purchase',
+          order_id: orderId || 'unknown',
+        });
+      }
     }
   }, [orderId]);
 
