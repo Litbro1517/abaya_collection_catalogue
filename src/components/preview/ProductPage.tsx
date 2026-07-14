@@ -366,10 +366,6 @@ export function ProductPage({
   // Landing mode: COD form + sticky WhatsApp badge (e-commerce)
   const isLandingMode = conversionChannel === 'landing';
 
-  // ── WhatsApp direct link (used in WhatsApp mode) ──
-  // ⚠️ DEPRECATED: cette version statique ne réagit pas aux sélections utilisateur.
-  // Remplacée plus bas par `whatsappLink` dynamique (useMemo) qui inclut color/size/quantity/image.
-
   // ── State ──
   const [carouselIdx, setCarouselIdx] = useState(0);
   const [selectedSize, setSelectedSize] = useState<string | null>(null);
