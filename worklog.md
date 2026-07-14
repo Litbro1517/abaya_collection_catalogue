@@ -47,3 +47,23 @@ Stage Summary:
 - PR creation URL: https://github.com/Litbro1517/abaya_collection_catalogue/pull/new/feat/legal-content-v5
 - VG18 status: ✅ COMPLÉTÉ & VALIDÉ V5
 - Build: clean (0 errors, 0 warnings on legal pages)
+
+---
+Task ID: P18-closure
+Agent: Main Agent
+Task: Maintenance finale tunnel WhatsApp — suppression code mort, documentation, clôture
+
+Work Log:
+- Supprimé la fonction morte `buildDefaultMessage()` dans `src/lib/whatsapp.ts` (remplacée par `buildStructuredBody()` + logique 3-cas dans la PR #7)
+- Supprimé le commentaire DEPRECATED (3 lignes) dans `src/components/preview/ProductPage.tsx` lignes 369-371
+- Mis à jour PROJECT_MAP.md : VG21 → "✅ DÉPLOYÉ — PR #6+7 MERGED" avec mention "logique 3-cas" et "vérifié E2E en production"
+- Mis à jour milestone P18 : ajout mention "PR #6+#7 merged, déployé, vérifié E2E"
+- Lint : 0 erreur
+- Build : 43 pages statiques, 0 erreur
+
+Stage Summary:
+- Code mort éliminé : `buildDefaultMessage()` supprimée (-42 lignes)
+- Commentaire DEPRECATED supprimé (-3 lignes)
+- PROJECT_MAP.md aligné avec l'état réel (PR #6 + #7 fusionnées)
+- Vérification E2E de production confirmée : message WhatsApp inclut bien Couleur/Taille/Quantité/Image
+- Ticket VG21 / P18 clôturé définitivement

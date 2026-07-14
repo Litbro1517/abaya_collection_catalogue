@@ -42,49 +42,6 @@ export interface BuildWhatsappLinkOptions {
 }
 
 /**
- * Default message template — composed of greeting + product info.
- * Lines are filtered (empty optional lines are dropped) so the message
- * stays compact when color/size aren't selected.
- */
-function buildDefaultMessage(opts: BuildWhatsappLinkOptions): string {
-  const qty = opts.quantity && opts.quantity > 0 ? opts.quantity : 1;
-  const lines: string[] = [];
-
-  // 1. Greeting
-  lines.push(opts.labels.greeting);
-
-  // 2. Product title (bold in WhatsApp)
-  lines.push(`*${opts.title}*`);
-
-  // 3. Unit price
-  if (opts.price) {
-    lines.push(`${opts.labels.priceLabel} : ${opts.price}`);
-  }
-
-  // 4. Selected color (only if a color is selected)
-  if (opts.color) {
-    lines.push(`${opts.labels.colorLabel} : ${opts.color}`);
-  }
-
-  // 5. Selected size (only if a size is selected)
-  if (opts.size) {
-    lines.push(`${opts.labels.sizeLabel} : ${opts.size}`);
-  }
-
-  // 6. Quantity (only shown when > 1, to keep messages concise for single-unit orders)
-  if (qty > 1) {
-    lines.push(`${opts.labels.quantityLabel} : ${qty}`);
-  }
-
-  // 7. Product image direct URL (public, so WhatsApp can generate a link preview)
-  if (opts.imageUrl) {
-    lines.push(opts.imageUrl);
-  }
-
-  return lines.join('\n');
-}
-
-/**
  * Replace placeholders in an admin-customized message template.
  * Supports: {product}, {color}, {size}, {quantity}, {price}, {image}.
  * Missing values become empty strings (the line is preserved as-is).
