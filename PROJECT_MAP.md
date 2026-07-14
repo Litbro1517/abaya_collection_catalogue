@@ -162,6 +162,7 @@ src/
 | VG18 | Pages réglementaires accessibles | /mentions-legales, /politique-de-confidentialite, /conditions-generales rendent en SSR avec metadata ; footer catalogue lien vers ces routes (plus de `href="#"`) ; charte Or/Vert respectée (CSS pivots uniquement) ; textes officiels V5 intégrés | ✅ COMPLÉTÉ & VALIDÉ V5 |
 | VG19 | i18n pages réglementaires | Dictionnaire de traduction (`legal-translation-dictionary.json`) : 118 clés × 3 locales (FR + EN + AR complets, 0 TRANSLATE_PENDING) ; sources officielles V5 EN/AR intégrées ; préfixes `mentions.`, `privacy.`, `cgv.`, `legal.` ; fusionné PR #4, déployé sur main | ✅ DÉPLOYÉ — PR #4 MERGED |
 | VG20 | Intégration i18n pages légales | 118 clés injectées dans `dictionaries.ts` ; 3 pages converties en composants client dynamiques via `useClientTranslation` ; `LegalPageLayout` gère RTL (`dir`) + footer i18n ; `\n` rendus en `<br/>` ; metadata SSR préservée ; PR #5 fusionnée | ✅ DÉPLOYÉ — PR #5 MERGED |
+| VG21 | Tunnel WhatsApp dynamique | `buildWhatsappLink()` partagé (`src/lib/whatsapp.ts`) ; `whatsappLink` converti en `useMemo` dépendant de `[selectedColor, selectedSize, quantity, title, price, imageUrl]` ; message pré-rempli inclut `{product}`, `{color}`, `{size}`, `{quantity}`, `{price}`, `{image}` ; image produit (URL directe Google Drive `resolveDirectImageUrl(800)`) injectée pour aperçu WhatsApp ; `CatalogPreview.buildConversionLink()` refactorisé pour utiliser le shared util ; tunnel COD (`CheckoutPage.onCheckout`) inchangé ; 3 clés i18n singulières ajoutées (`product.color`, `product.size` FR/EN/AR) | ⏳ EN ATTENTE D'AUDIT — Branche `feature/whatsapp-tunnel-dynamic` |
 
 ## [ORPHANS_AND_PENDING]
 
@@ -209,6 +210,7 @@ src/
 - ✅ P15 : Pages réglementaires squelettes + footer liens câblés (branche feat/seo-zaraz-legal)
 - ✅ P16 : Dictionnaire i18n pages réglementaires — 118 clés × 3 locales (FR/EN/AR complets) — traductions officielles V5 intégrées (branche feature/translations-v5)
 - ✅ P17 : Intégration i18n pages légales — clés injectées dans dictionaries.ts + 3 pages dynamiques via useClientTranslation + RTL + \n→<br/> — PR #5 merged, déployé (branche feature/i18n-legal-integration)
+- ⏳ P18 : Tunnel WhatsApp dynamique — buildWhatsappLink() shared util + useMemo sur selectedColor/selectedSize/quantity + image produit injectée — en attente d'audit (branche feature/whatsapp-tunnel-dynamic)
 
 ## [BUGFIX MAPPING NATIVE COLOR]
 

@@ -19,6 +19,7 @@ import { ProductPage } from './ProductPage';
 import { SocialStickyTickets } from './SocialStickyTickets';
 import { CheckoutPage, type CheckoutPayload } from './CheckoutPage';
 import { useClientTranslation } from '@/lib/i18n';
+import { buildWhatsappLink } from '@/lib/whatsapp';
 
 // ── Brand Constants removed — all values migrated to CSS pivot variables & global classes ──
 
@@ -590,8 +591,25 @@ export function CatalogPreview({ onAdminLogin }: CatalogPreviewProps) {
 
     // Use resolvedConversionChannel (URL param ?mode= overrides admin setting)
     if (resolvedConversionChannel === 'whatsapp' && phone) {
-      const msg = s?.conversionMessage || `${t('whatsapp.message')}\n*${title}*\n${t('product.price')} : ${price}`;
-      return `https://wa.me/${phone}?text=${encodeURIComponent(msg.replace('{product}', title))}`;
+      // Catalog card level: no variant selection yet (color/size/quantity).
+      // The full dynamic link (with variants) is built in ProductPage.tsx when
+      // the user opens the product detail. Here we just pre-fill title + price + image.
+      const cardImages = getCarouselImages(row, config, columns);
+      const imageUrl = cardImages[0] ? resolveDirectImageUrl(cardImages[0], 800) : '';
+      return buildWhatsappLink({
+        phone,
+        title,
+        price,
+        imageUrl,
+        customMessage: s?.conversionMessage || undefined,
+        labels: {
+          greeting: t('whatsapp.message'),
+          priceLabel: t('product.price'),
+          colorLabel: t('product.color'),
+          sizeLabel: t('product.size'),
+          quantityLabel: t('product.quantity'),
+        },
+      });
     }
     // Landing mode: no direct external link — the CTA triggers the COD form
     if (resolvedConversionChannel === 'landing') {
