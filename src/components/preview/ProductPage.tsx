@@ -1,9 +1,10 @@
 'use client';
 
-import { useState, useRef, useCallback, useEffect } from 'react';
+import { useState, useRef, useCallback, useEffect, useMemo } from 'react';
 import type { Section, SectionConfig, Column, ColumnConfig, Row } from '@/types';
 import { resolveColorHex, buildColorLookupMap, normalizeCouleurKey } from '@/lib/color-utils';
 import { readCache, writeCache, CACHE_KEYS } from '@/lib/cache';
+import { buildWhatsappLink } from '@/lib/whatsapp';
 import {
   ArrowLeft,
   MessageCircle,
@@ -366,13 +367,8 @@ export function ProductPage({
   const isLandingMode = conversionChannel === 'landing';
 
   // ── WhatsApp direct link (used in WhatsApp mode) ──
-  const whatsappLink = (() => {
-    if (whatsappNumber) {
-      const msg = conversionMessage || `${t('whatsapp.message')}\n*${title}*\n${t('product.price')} : ${price}`;
-      return `https://wa.me/${whatsappNumber}?text=${encodeURIComponent(msg.replace('{product}', title))}`;
-    }
-    return '#';
-  })();
+  // ⚠️ DEPRECATED: cette version statique ne réagit pas aux sélections utilisateur.
+  // Remplacée plus bas par `whatsappLink` dynamique (useMemo) qui inclut color/size/quantity/image.
 
   // ── State ──
   const [carouselIdx, setCarouselIdx] = useState(0);
@@ -407,6 +403,36 @@ export function ProductPage({
   const colorMissing = colorData.length > 0 && !selectedColor;
   const sizeMissing = sizes.length > 0 && !selectedSize;
   const hasMissingVariant = colorMissing || sizeMissing;
+
+  // ── WhatsApp dynamic link ──
+  // Construit dynamiquement à chaque changement de sélection (color/size/quantity).
+  // Inclut l'image produit (URL directe Google Drive) pour que WhatsApp puisse
+  // générer un aperçu de lien côté récepteur.
+  // Placeholders supportés via `conversionMessage` admin : {product} {color} {size} {quantity} {price} {image}
+  const productImageDirectUrl = useMemo(
+    () => resolveDirectImageUrl(carouselImages[0] || '', 800),
+    [carouselImages],
+  );
+  const whatsappLink = useMemo(
+    () => buildWhatsappLink({
+      phone: whatsappNumber,
+      title,
+      price,
+      color: selectedColor,
+      size: selectedSize,
+      quantity,
+      imageUrl: productImageDirectUrl,
+      customMessage: conversionMessage || undefined,
+      labels: {
+        greeting: t('whatsapp.message'),
+        priceLabel: t('product.price'),
+        colorLabel: t('product.color'),
+        sizeLabel: t('product.size'),
+        quantityLabel: t('product.quantity'),
+      },
+    }),
+    [whatsappNumber, title, price, selectedColor, selectedSize, quantity, productImageDirectUrl, conversionMessage, t],
+  );
 
   // ── Detect if the description overflows its 3-line clamp (re-measure on resize) ──
   // Measurement is deferred via rAF so setState never fires synchronously in the
