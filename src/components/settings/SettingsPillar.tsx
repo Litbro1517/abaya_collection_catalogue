@@ -13,11 +13,13 @@ import { Switch } from '@/components/ui/switch';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Badge } from '@/components/ui/badge';
 import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
 import { AdminUserManager } from '@/components/settings/AdminUserManager';
 import { ColorMapManager } from '@/components/settings/ColorMapManager';
 import { ClientStylePanel } from '@/components/settings/ClientStylePanel';
+import { cn } from '@/lib/utils';
 import {
   Globe, Palette, Share2, Monitor, Shield, Save, Loader2,
   MessageCircle, ExternalLink, Mail, Instagram, Copy, Check, Key,
@@ -74,6 +76,8 @@ export function SettingsPillar() {
   const [googleClientSecret, setGoogleClientSecret] = useState('');
   const [googleCredsLoaded, setGoogleCredsLoaded] = useState(false);
   const [googleCredsSaving, setGoogleCredsSaving] = useState(false);
+  // Active language tab for the multilingual conversion message editor
+  const [messageLang, setMessageLang] = useState<'fr' | 'en' | 'ar'>('fr');
 
   // Password change state
   const [currentPassword, setCurrentPassword] = useState('');
@@ -600,6 +604,29 @@ export function SettingsPillar() {
                     </SelectContent>
                   </Select>
                 </div>
+                {/* ── Default Catalog Language (visitor initial language) ── */}
+                <div>
+                  <Label className="text-xs">{t('settings.defaultCatalogLanguage')}</Label>
+                  <p className="text-[11px] text-muted-foreground mb-1.5 leading-relaxed">{t('settings.defaultCatalogLanguageHint')}</p>
+                  <RadioGroup
+                    value={local.defaultCatalogLanguage || 'fr'}
+                    onValueChange={v => updateField('defaultCatalogLanguage', v)}
+                    className="flex gap-4"
+                  >
+                    <div className="flex items-center gap-2">
+                      <RadioGroupItem value="fr" id="dcl-fr" />
+                      <Label htmlFor="dcl-fr" className="text-xs cursor-pointer">{t('settings.french')}</Label>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <RadioGroupItem value="en" id="dcl-en" />
+                      <Label htmlFor="dcl-en" className="text-xs cursor-pointer">{t('settings.english')}</Label>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <RadioGroupItem value="ar" id="dcl-ar" />
+                      <Label htmlFor="dcl-ar" className="text-xs cursor-pointer">{t('settings.arabic')}</Label>
+                    </div>
+                  </RadioGroup>
+                </div>
               </CardContent>
             </Card>
           </TabsContent>
@@ -903,11 +930,36 @@ export function SettingsPillar() {
                 </div>
                 <div>
                   <Label className="text-xs">{t('settings.conversionMessage')}</Label>
+                  <p className="text-[11px] text-muted-foreground mb-1.5 leading-relaxed">{t('settings.conversionMessageHint')}</p>
+                  {/* Language selector for the multilingual message editor */}
+                  <div className="flex gap-1 mb-2 border-b">
+                    {(['fr', 'en', 'ar'] as const).map(lang => (
+                      <button
+                        key={lang}
+                        type="button"
+                        onClick={() => setMessageLang(lang)}
+                        className={cn(
+                          'px-3 py-1 text-xs uppercase tracking-wide transition-colors',
+                          messageLang === lang
+                            ? 'border-b-2 border-primary text-primary font-medium'
+                            : 'text-muted-foreground hover:text-foreground'
+                        )}
+                      >
+                        {lang}
+                        {local?.conversionMessages?.[lang]?.trim() ? '' : ' ·'}
+                      </button>
+                    ))}
+                  </div>
                   <Textarea
-                    value={local.conversionMessage}
-                    onChange={e => updateField('conversionMessage', e.target.value)}
+                    value={local?.conversionMessages?.[messageLang] || ''}
+                    onChange={e => {
+                      const current = local?.conversionMessages || {};
+                      const updated = { ...current, [messageLang]: e.target.value };
+                      updateField('conversionMessages', updated);
+                    }}
                     className="h-20 text-xs"
                     placeholder={t('settings.conversionMessagePlaceholder')}
+                    dir={messageLang === 'ar' ? 'rtl' : 'ltr'}
                   />
                 </div>
                 <div>

@@ -199,6 +199,8 @@ export interface CatalogSettings {
   enableSharing: boolean;
   conversionChannel: string;
   conversionMessage: string;
+  conversionMessages: Record<string, string> | null;  // { fr, en, ar } — multilingual admin messages
+  defaultCatalogLanguage: string;  // 'fr' | 'en' | 'ar' — initial language for new visitors
   brandGreenColor: string;
   destructiveColor: string;
   borderColor: string;

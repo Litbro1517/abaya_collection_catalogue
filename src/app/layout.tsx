@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Playfair_Display, Inter } from "next/font/google";
+import { cookies } from "next/headers";
 import "./globals.css";
 import { Toaster } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -62,13 +63,33 @@ export async function generateMetadata(): Promise<Metadata> {
   };
 }
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  // ── SSR: resolve visitor locale from cookie, fallback to DB default, then 'fr' ──
+  let ssrLocale = 'fr';
+  try {
+    const cookieStore = await cookies();
+    const cookieLocale = cookieStore.get('abaya_locale')?.value;
+    if (cookieLocale && ['fr', 'en', 'ar'].includes(cookieLocale)) {
+      ssrLocale = cookieLocale;
+    } else {
+      // No cookie yet (first visit) — check DB default
+      const settings = await db.catalogSettings.findFirst();
+      const dbDefault = settings?.defaultCatalogLanguage;
+      if (dbDefault && ['fr', 'en', 'ar'].includes(dbDefault)) {
+        ssrLocale = dbDefault;
+      }
+    }
+  } catch {
+    // DB or cookies unavailable — use 'fr'
+  }
+  const ssrDir = ssrLocale === 'ar' ? 'rtl' : 'ltr';
+
   return (
-    <html lang="fr" suppressHydrationWarning>
+    <html lang={ssrLocale} dir={ssrDir} suppressHydrationWarning>
       <body
         className={`${playfair.variable} ${inter.variable} antialiased bg-background text-foreground`}
       >

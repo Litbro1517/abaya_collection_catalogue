@@ -28,12 +28,19 @@ export interface BuildWhatsappLinkOptions {
   quantity?: number;
   /** Direct (public) product image URL — used by WhatsApp link preview. */
   imageUrl?: string;
-  /** Optional admin-customized message template. Placeholders supported:
-   *  {product}, {color}, {size}, {quantity}, {price}, {image} */
+  /** Legacy single-locale admin message (string). Kept for backward compatibility. */
   customMessage?: string;
+  /** Multilingual admin messages keyed by locale: { fr: "...", en: "...", ar: "..." }. */
+  conversionMessages?: Record<string, string> | null;
+  /** Visitor's active locale ('fr' | 'en' | 'ar'). Used for Smart Logic resolution. */
+  locale?: string;
+  /** Flux type: 'A' = product validated (purchase), 'B' = general (clarification). Determines fallback greeting. */
+  flux?: 'A' | 'B';
   /** i18n strings injected by the caller (so this file stays framework-agnostic). */
   labels: {
-    greeting: string;       // e.g. "Bonjour, je souhaite commander :"
+    greeting: string;       // e.g. "Bonjour, je souhaite commander :" (legacy default)
+    greetingA: string;      // Flux A hardcoded greeting (purchase)
+    greetingB: string;      // Flux B hardcoded greeting (clarification)
     priceLabel: string;     // e.g. "Prix"
     colorLabel: string;     // e.g. "Couleur"
     sizeLabel: string;      // e.g. "Taille"
@@ -107,31 +114,59 @@ function buildStructuredBody(opts: BuildWhatsappLinkOptions): string {
 }
 
 /**
+ * Smart Logic — resolve the greeting for the current visitor.
+ *
+ * Resolution order (STRICT — no French fallback for AR/EN visitors):
+ *  1. Admin multilingual message for the visitor's locale (if filled)
+ *  2. Hardcoded "passe-partout" in the visitor's locale (Flux A or B)
+ *
+ * If the admin filled a message for the visitor's locale AND it contains placeholders,
+ * placeholders are replaced. Otherwise the message is used as-is (plain greeting).
+ *
+ * Note: `opts.customMessage` (legacy single-locale) is only used if the visitor's
+ * locale is 'fr' AND no `conversionMessages.fr` exists — backward compatibility.
+ */
+function resolveGreeting(opts: BuildWhatsappLinkOptions): { text: string; hasPlaceholders: boolean } {
+  const locale = opts.locale || 'fr';
+  const flux = opts.flux || 'A';
+
+  // 1. Admin multilingual message for this locale
+  const adminMsg = opts.conversionMessages?.[locale];
+  if (adminMsg && adminMsg.trim()) {
+    return { text: adminMsg, hasPlaceholders: hasPlaceholders(adminMsg) };
+  }
+
+  // 2. Legacy customMessage — only for FR visitors (backward compat)
+  if (locale === 'fr' && opts.customMessage && opts.customMessage.trim()) {
+    return { text: opts.customMessage, hasPlaceholders: hasPlaceholders(opts.customMessage) };
+  }
+
+  // 3. Hardcoded "passe-partout" in the visitor's locale (NO FR fallback)
+  const hardcoded = flux === 'A' ? opts.labels.greetingA : opts.labels.greetingB;
+  return { text: hardcoded, hasPlaceholders: false };
+}
+
+/**
  * Build the final wa.me URL with the pre-filled, URL-encoded message.
  * Returns '#' if the phone number is missing or empty.
  *
- * Message composition logic:
- *  1. If customMessage contains placeholders ({product}, {color}, …):
- *     → applyPlaceholders replaces them; the template is used AS-IS.
- *  2. If customMessage is plain text (no placeholders):
- *     → it's used as a greeting, and the structured variant info
- *       (title, price, color, size, quantity, image) is APPENDED.
- *  3. If no customMessage:
- *     → the default greeting (opts.labels.greeting) is used, followed
- *       by the structured variant info.
+ * Smart Logic composition:
+ *  1. Resolve greeting via resolveGreeting() — admin multilingual or hardcoded.
+ *  2. If the greeting contains placeholders → apply them (template used AS-IS).
+ *  3. Otherwise → greeting + structured body (title, price, color, size, qty, image).
  */
 export function buildWhatsappLink(opts: BuildWhatsappLinkOptions): string {
   const phone = (opts.phone || '').trim();
   if (!phone) return '#';
 
-  let message: string;
+  const { text: greeting, hasPlaceholders: greetingHasPlaceholders } = resolveGreeting(opts);
 
-  if (opts.customMessage && hasPlaceholders(opts.customMessage)) {
-    // Case 1: admin template with placeholders — honour it fully
-    message = applyPlaceholders(opts.customMessage, opts);
+  let message: string;
+  if (greetingHasPlaceholders) {
+    // Admin template with placeholders — honour it fully
+    message = applyPlaceholders(greeting, opts);
   } else {
-    // Case 2 & 3: plain greeting (custom or default) + structured body
-    const greeting = opts.customMessage || opts.labels.greeting;
+    // Plain greeting + structured body
     message = `${greeting}\n${buildStructuredBody(opts)}`;
   }
 

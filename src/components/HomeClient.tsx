@@ -147,6 +147,27 @@ function HomeContent() {
     setPillar,
     setSettingsTab,
   } = useAppStore();
+  const settings = useAppStore(s => s.settings);
+  const clientLocale = useAppStore(s => s.clientLocale);
+  const setClientLocale = useAppStore(s => s.setClientLocale);
+
+  // ── Seed visitor locale from DB default (first visit only) ──
+  // If the visitor has no localStorage AND no cookie (truly first visit),
+  // and the admin configured a non-FR default, seed clientLocale from it.
+  // This runs ONCE per session, after settings are hydrated.
+  const seededRef = useRef(false);
+  useEffect(() => {
+    if (seededRef.current) return;
+    if (!settings?.defaultCatalogLanguage) return;
+    seededRef.current = true;
+    const hasPreference = typeof window !== 'undefined'
+      && (localStorage.getItem('abaya_clientLocale') || document.cookie.match(/abaya_locale=/));
+    if (hasPreference) return;
+    const dbDefault = settings.defaultCatalogLanguage;
+    if (['fr', 'en', 'ar'].includes(dbDefault) && dbDefault !== clientLocale) {
+      setClientLocale(dbDefault);
+    }
+  }, [settings?.defaultCatalogLanguage, clientLocale, setClientLocale]);
 
   const { t } = useClientTranslation();
 

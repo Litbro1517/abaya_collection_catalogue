@@ -5,6 +5,42 @@ import type { DataSource, Column, Row, Catalog, Section, CatalogSettings, Pillar
 const LS_SIDEBAR_COLLAPSED = 'abaya_sidebarCollapsed';
 const LS_DATA_PANEL_COLLAPSED = 'abaya_dataPanelCollapsed';
 const LS_CLIENT_LOCALE = 'abaya_clientLocale';
+const COOKIE_LOCALE = 'abaya_locale';
+
+/** Write the locale cookie (1 year, SameSite=Lax) so SSR/layout can read it. */
+function writeLocaleCookie(locale: string): void {
+  if (typeof document === 'undefined') return;
+  try {
+    document.cookie = `${COOKIE_LOCALE}=${locale}; max-age=31536000; path=/; SameSite=Lax`;
+  } catch { /* ignore */ }
+}
+
+/** Read the locale cookie (client-side). Used as a fallback if localStorage is empty. */
+function readLocaleCookie(): string | null {
+  if (typeof document === 'undefined') return null;
+  try {
+    const match = document.cookie.match(new RegExp(`(?:^|; )${COOKIE_LOCALE}=([^;]*)`));
+    return match ? decodeURIComponent(match[1]) : null;
+  } catch {
+    return null;
+  }
+}
+
+/** Resolve initial visitor locale: localStorage → cookie → 'fr' (DB default is applied later via seed effect). */
+function resolveInitialClientLocale(): string {
+  if (typeof window === 'undefined') return 'fr';
+  try {
+    const ls = localStorage.getItem(LS_CLIENT_LOCALE);
+    if (ls && ['fr', 'en', 'ar'].includes(ls)) return ls;
+    const cookie = readLocaleCookie();
+    if (cookie && ['fr', 'en', 'ar'].includes(cookie)) {
+      // Re-seed localStorage from cookie
+      localStorage.setItem(LS_CLIENT_LOCALE, cookie);
+      return cookie;
+    }
+  } catch { /* ignore */ }
+  return 'fr';
+}
 
 function readBoolLS(key: string, fallback: boolean): boolean {
   if (typeof window === 'undefined') return fallback;
@@ -165,10 +201,11 @@ export const useAppStore = create<AppState>((set, get) => ({
   setSettings: (settings) => set({ settings }),
 
   // ── Client Locale ──
-  clientLocale: typeof window !== 'undefined' ? (localStorage.getItem(LS_CLIENT_LOCALE) || 'fr') : 'fr',
+  clientLocale: resolveInitialClientLocale(),
   setClientLocale: (clientLocale) => {
     if (typeof window !== 'undefined') {
-      localStorage.setItem(LS_CLIENT_LOCALE, clientLocale);
+      try { localStorage.setItem(LS_CLIENT_LOCALE, clientLocale); } catch { /* ignore */ }
+      writeLocaleCookie(clientLocale);
     }
     set({ clientLocale });
   },

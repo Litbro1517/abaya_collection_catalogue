@@ -48,6 +48,8 @@ export async function PUT(req: NextRequest) {
           enableSharing: body.enableSharing !== undefined ? body.enableSharing : true,
           conversionChannel: body.conversionChannel || 'whatsapp',
           conversionMessage: body.conversionMessage || '',
+          conversionMessages: body.conversionMessages || null,
+          defaultCatalogLanguage: body.defaultCatalogLanguage || 'fr',
           brandGreenColor: body.brandGreenColor || '#1A3C34',
           destructiveColor: body.destructiveColor || '#800020',
           borderColor: body.borderColor || '#E8E2D9',
@@ -66,7 +68,8 @@ export async function PUT(req: NextRequest) {
       'language', 'currency', 'whatsappNumber', 'messengerLink', 'emailContact',
       'instagramHandle', 'facebookPage', 'tiktokHandle', 'primaryColor', 'secondaryColor', 'accentColor', 'backgroundColor',
       'fontFamily', 'enableZoom', 'enableSearch', 'enableSharing', 'conversionChannel',
-      'conversionMessage', 'brandGreenColor', 'destructiveColor', 'borderColor',
+      'conversionMessage', 'conversionMessages', 'defaultCatalogLanguage',
+      'brandGreenColor', 'destructiveColor', 'borderColor',
       'customCSS', 'clientOverrides', 'favicon', 'logo', 'logoHeight',
     ];
 

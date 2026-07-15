@@ -53,6 +53,10 @@ export const dictionaries: Record<Locale, TranslationDict> = {
 
     // ── WhatsApp Message ──
     'whatsapp.message': 'Bonjour, je souhaite commander :',
+    // ── WhatsApp Smart Logic greetings (Flux A = achat, Flux B = clarification) ──
+    // Used when the admin has not filled a custom message for the visitor's locale.
+    'whatsapp.greetingA': 'Bonjour, j\'ai sélectionné ce produit et je souhaite finaliser ma commande.',
+    'whatsapp.greetingB': 'Bonjour, j\'aimerais obtenir des informations ou des clarifications sur vos produits.',
 
     // ── Filters ──
     'filter.all': 'Tous',
@@ -184,6 +188,10 @@ export const dictionaries: Record<Locale, TranslationDict> = {
     'settings.tiktok': 'TikTok',
     'settings.conversionMessage': 'Message de conversion',
     'settings.conversionMessagePlaceholder': 'Bonjour, je souhaite commander : {product}',
+    'settings.conversionMessageLang': 'Langue du message',
+    'settings.conversionMessageHint': 'Laissez vide pour utiliser le message automatique traduit dans la langue du visiteur. Placeholders : {product} {color} {size} {quantity} {price} {image}',
+    'settings.defaultCatalogLanguage': 'Langue par défaut du catalogue',
+    'settings.defaultCatalogLanguageHint': 'Langue initiale affichée aux nouveaux visiteurs (avant tout choix manuel). L\'utilisateur peut changer à tout moment via le sélecteur du catalogue.',
     'settings.shareLink': 'Lien de partage',
     'settings.copied': 'Copié',
     'settings.copy': 'Copier',
@@ -670,6 +678,9 @@ export const dictionaries: Record<Locale, TranslationDict> = {
 
     // ── WhatsApp Message ──
     'whatsapp.message': 'Hello, I would like to order:',
+    // ── WhatsApp Smart Logic greetings (Flux A = purchase, Flux B = clarification) ──
+    'whatsapp.greetingA': 'Hello, I have selected this product and I would like to complete my purchase.',
+    'whatsapp.greetingB': 'Hello, I would like to get some information or clarifications about your products.',
 
     // ── Filters ──
     'filter.all': 'All',
@@ -801,6 +812,10 @@ export const dictionaries: Record<Locale, TranslationDict> = {
     'settings.tiktok': 'TikTok',
     'settings.conversionMessage': 'Conversion message',
     'settings.conversionMessagePlaceholder': 'Hello, I would like to order: {product}',
+    'settings.conversionMessageLang': 'Message language',
+    'settings.conversionMessageHint': 'Leave empty to use the automatic message translated into the visitor\'s language. Placeholders: {product} {color} {size} {quantity} {price} {image}',
+    'settings.defaultCatalogLanguage': 'Default catalog language',
+    'settings.defaultCatalogLanguageHint': 'Initial language shown to new visitors (before any manual choice). The user can switch at any time via the catalog selector.',
     'settings.shareLink': 'Share link',
     'settings.copied': 'Copied',
     'settings.copy': 'Copy',
@@ -1287,6 +1302,9 @@ export const dictionaries: Record<Locale, TranslationDict> = {
 
     // ── WhatsApp Message ──
     'whatsapp.message': 'مرحبًا، أرغب في الطلب:',
+    // ── WhatsApp Smart Logic greetings (Flux A = شراء, Flux B = استفسار) ──
+    'whatsapp.greetingA': 'مرحباً، لقد اخترت هذا المنتج وأرغب في إتمام عملية الشراء.',
+    'whatsapp.greetingB': 'مرحباً، أود الحصول على معلومات أو استفسارات حول منتجاتكم.',
 
     // ── Filters ──
     'filter.all': 'الكل',
@@ -1418,6 +1436,10 @@ export const dictionaries: Record<Locale, TranslationDict> = {
     'settings.tiktok': 'تيك توك',
     'settings.conversionMessage': 'رسالة التحويل',
     'settings.conversionMessagePlaceholder': 'مرحبًا، أرغب في الطلب: {product}',
+    'settings.conversionMessageLang': 'لغة الرسالة',
+    'settings.conversionMessageHint': 'اتركه فارغًا لاستخدام الرسالة التلقائية المترجمة إلى لغة الزائر. العناصر النائبة: {product} {color} {size} {quantity} {price} {image}',
+    'settings.defaultCatalogLanguage': 'اللغة الافتراضية للكتالوج',
+    'settings.defaultCatalogLanguageHint': 'اللغة الأولى التي تظهر للزوار الجدد (قبل أي اختيار يدوي). يمكن للمستخدم التبديل في أي وقت عبر محدد الكتالوج.',
     'settings.shareLink': 'رابط المشاركة',
     'settings.copied': 'تم النسخ',
     'settings.copy': 'نسخ',

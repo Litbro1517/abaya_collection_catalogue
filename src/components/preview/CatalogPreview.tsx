@@ -1060,6 +1060,7 @@ export function CatalogPreview({ onAdminLogin }: CatalogPreviewProps) {
         conversionChannel={resolvedConversionChannel}
         whatsappNumber={s?.whatsappNumber || ''}
         conversionMessage={s?.conversionMessage || ''}
+        conversionMessages={s?.conversionMessages || null}
         primaryColor={primaryColor}
         secondaryColor={secondaryColor}
         onBack={() => setSelectedProduct(null)}

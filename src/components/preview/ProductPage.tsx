@@ -139,6 +139,7 @@ interface ProductPageProps {
   conversionChannel: string;
   whatsappNumber: string;
   conversionMessage: string;
+  conversionMessages?: Record<string, string> | null;  // { fr, en, ar } multilingual admin messages
   primaryColor: string;
   secondaryColor: string;
   onBack: () => void;
@@ -222,6 +223,7 @@ export function ProductPage({
   conversionChannel,
   whatsappNumber,
   conversionMessage,
+  conversionMessages,
   primaryColor,
   secondaryColor,
   onBack,
@@ -419,15 +421,20 @@ export function ProductPage({
       quantity,
       imageUrl: productImageDirectUrl,
       customMessage: conversionMessage || undefined,
+      conversionMessages,
+      locale,
+      flux: 'A',  // Flux A: product validated (purchase)
       labels: {
         greeting: t('whatsapp.message'),
+        greetingA: t('whatsapp.greetingA'),
+        greetingB: t('whatsapp.greetingB'),
         priceLabel: t('product.price'),
         colorLabel: t('product.color'),
         sizeLabel: t('product.size'),
         quantityLabel: t('product.quantity'),
       },
     }),
-    [whatsappNumber, title, price, selectedColor, selectedSize, quantity, productImageDirectUrl, conversionMessage, t],
+    [whatsappNumber, title, price, selectedColor, selectedSize, quantity, productImageDirectUrl, conversionMessage, conversionMessages, locale, t],
   );
 
   // ── Detect if the description overflows its 3-line clamp (re-measure on resize) ──
@@ -446,6 +453,22 @@ export function ProductPage({
       window.removeEventListener('resize', onResize);
     };
   }, [description]);
+
+  // ── WhatsApp CTA click guard ──
+  // Reuses the Landing Page validation logic: blocks wa.me opening if variants are missing.
+  // Same pattern as handleCtaClick but for the <a> WhatsApp element.
+  const handleWhatsappCtaClick = (e: React.MouseEvent<HTMLAnchorElement>) => {
+    if (isEpuise) {
+      e.preventDefault();
+      return;
+    }
+    if (hasMissingVariant) {
+      e.preventDefault();              // ← hard stop: don't follow wa.me href
+      setShowVariantError(true);       // ← show red alert (same as Landing mode)
+      return;
+    }
+    // Variants OK — let the browser follow the href normally
+  };
 
   // CTA click handler — tunnels to the dedicated checkout page in ALL modes.
   // BLOCKING: if a required variant (color/size) is missing, stop immediately
@@ -955,7 +978,7 @@ export function ProductPage({
                 href={isEpuise ? '#' : whatsappLink}
                 target={isEpuise ? undefined : '_blank'}
                 rel={isEpuise ? undefined : 'noopener noreferrer'}
-                onClick={isEpuise ? (e) => e.preventDefault() : undefined}
+                onClick={isEpuise ? (e) => e.preventDefault() : handleWhatsappCtaClick}
                 style={{
                   backgroundColor: isEpuise ? BRAND.grisClair : '#25D366',
                   color: isEpuise ? BRAND.grisMoyen : 'rgb(255, 255, 255)',
@@ -1007,7 +1030,7 @@ export function ProductPage({
             href={isEpuise ? '#' : whatsappLink}
             target={isEpuise ? undefined : '_blank'}
             rel={isEpuise ? undefined : 'noopener noreferrer'}
-            onClick={isEpuise ? (e) => e.preventDefault() : undefined}
+            onClick={isEpuise ? (e) => e.preventDefault() : handleWhatsappCtaClick}
             style={{
               backgroundColor: isEpuise ? BRAND.grisClair : '#25D366',
               color: isEpuise ? BRAND.grisMoyen : 'rgb(255, 255, 255)',
