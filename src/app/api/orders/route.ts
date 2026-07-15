@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
+import { getCurrentAdmin } from '@/lib/auth';
 
 // ── POST /api/orders — Create a new COD order ──
 export async function POST(req: NextRequest) {
@@ -72,9 +73,20 @@ export async function POST(req: NextRequest) {
   }
 }
 
-// ── GET /api/orders — List orders (admin) ──
+// ── GET /api/orders — List orders (admin only) ──
+// Defense in depth: middleware Guard #4 blocks unauthenticated requests,
+// but we also verify admin auth at the handler level to protect PII.
 export async function GET(req: NextRequest) {
   try {
+    // Auth check — only owner/admin/super_admin can list orders
+    const admin = await getCurrentAdmin();
+    if (!admin || (admin.role !== 'owner' && admin.role !== 'admin' && admin.role !== 'super_admin')) {
+      return NextResponse.json(
+        { data: null, error: 'Non authentifié' },
+        { status: 401 }
+      );
+    }
+
     const { searchParams } = new URL(req.url);
     const status = searchParams.get('status');
     const limit = Math.min(parseInt(searchParams.get('limit') || '50'), 100);

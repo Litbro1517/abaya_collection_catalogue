@@ -40,6 +40,7 @@ const ADMIN_WRITE_ROUTES = [
   '/api/sections',
   '/api/settings',
   '/api/google/sync',
+  '/api/orders',          // Admin orders management (GET list + PATCH status)
 ];
 
 // Session cookie name
@@ -119,7 +120,12 @@ export async function middleware(req: NextRequest) {
   const isAdminRoute = ADMIN_WRITE_ROUTES.some(r => pathname.startsWith(r));
   const isWriteMethod = ['POST', 'PUT', 'PATCH', 'DELETE'].includes(req.method);
 
-  if (isAdminRoute && isWriteMethod && !token) {
+  // Exception: POST /api/orders is public (client COD checkout tunnel).
+  // Only PATCH/PUT/DELETE on /api/orders/* require admin auth.
+  // The GET /api/orders (list) is protected at the handler level via getCurrentAdmin().
+  const isPublicOrderCreation = pathname === '/api/orders' && req.method === 'POST';
+
+  if (isAdminRoute && isWriteMethod && !token && !isPublicOrderCreation) {
     return NextResponse.json(
       { error: 'Non authentifié' },
       { status: 401 }

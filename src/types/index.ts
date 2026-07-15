@@ -251,7 +251,7 @@ export type SyncStatus = 'idle' | 'syncing' | 'success' | 'error';
 // ─── App State ────────────────────────────────────────────────────────────
 
 export type AppView = 'preview' | 'builder' | 'dashboard';
-export type Pillar = 'data' | 'layout' | 'settings';
+export type Pillar = 'data' | 'layout' | 'settings' | 'orders';
 export type SettingsTab = 'general' | 'appearance' | 'conversion' | 'display' | 'admin' | 'catalogue' | 'couleurs';
 
 export interface ImportResult {
@@ -274,4 +274,28 @@ export interface PaginatedResponse<T> {
   total: number;
   page: number;
   totalPages: number;
+}
+
+// ─── Orders ───────────────────────────────────────────────────────────────
+
+export type OrderStatus = 'pending' | 'confirmed' | 'shipped' | 'delivered' | 'cancelled';
+
+export const ORDER_STATUSES: OrderStatus[] = ['pending', 'confirmed', 'shipped', 'delivered', 'cancelled'];
+
+export interface Order {
+  id: string;
+  productId: string;
+  customerName: string;
+  customerPhone: string;
+  customerCity: string;
+  customerAddress: string;
+  status: string;
+  productName: string | null;
+  productPrice: string | null;
+  productColor: string | null;
+  productSize: string | null;
+  productQuantity: number;
+  productImage: string | null;
+  createdAt: string;
+  updatedAt: string;
 }
