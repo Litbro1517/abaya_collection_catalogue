@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
+import { getCurrentAdmin } from '@/lib/auth';
 
 // ── GET /api/orders/[id] — Fetch a single order by ID ──
 // Used by the Merci (thank-you) page to display the real order recap.
@@ -52,6 +53,15 @@ export async function PATCH(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    // Auth check — only owner/admin/super_admin can update order status
+    const admin = await getCurrentAdmin();
+    if (!admin || (admin.role !== 'owner' && admin.role !== 'admin' && admin.role !== 'super_admin')) {
+      return NextResponse.json(
+        { data: null, error: 'Non authentifié' },
+        { status: 401 }
+      );
+    }
+
     const { id } = await params;
 
     if (!id) {
