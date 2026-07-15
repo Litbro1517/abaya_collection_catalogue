@@ -6,6 +6,7 @@ import { cn } from '@/lib/utils';
 import { DataPillar } from '@/components/data/DataPillar';
 import { LayoutPillar } from '@/components/layout/LayoutPillar';
 import { SettingsPillar } from '@/components/settings/SettingsPillar';
+import { OrdersPillar } from '@/components/orders/OrdersPillar';
 import {
   Database,
   Layout,
@@ -23,6 +24,7 @@ import {
   Loader2,
   ChevronsLeft,
   ChevronsRight,
+  ShoppingBag,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
@@ -130,6 +132,7 @@ export function BuilderShell() {
     { id: 'data' as const, icon: Database, label: t('builder.data') },
     { id: 'layout' as const, icon: Layout, label: t('builder.layout') },
     { id: 'settings' as const, icon: Settings, label: t('builder.settings') },
+    { id: 'orders' as const, icon: ShoppingBag, label: t('builder.orders') },
   ];
 
   // Get display name and picture for user menu (prefer adminUser, fallback to googleSession)
@@ -469,6 +472,7 @@ export function BuilderShell() {
           {pillar === 'data' && <DataPillar />}
           {pillar === 'layout' && <LayoutPillar />}
           {pillar === 'settings' && <SettingsPillar />}
+          {pillar === 'orders' && <OrdersPillar />}
         </main>
       </div>
 
