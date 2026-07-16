@@ -39,21 +39,27 @@ export async function GET(
   }
 }
 
-// ── PATCH /api/orders/[id] — Update order status (admin) ──
-// Updates the status of an existing order. Only `status` is mutable via this
-// endpoint to keep the surface area minimal and prevent accidental field
-// overwrites.
+// ── PATCH /api/orders/[id] — Update order fields (admin, cell-level) ──
+// Updates one or more fields on an order. Each modified field is snapshot
+// into OrderHistory before the update, enabling diff display + restore.
 //
-// Allowed statuses: 'pending' | 'confirmed' | 'shipped' | 'delivered' | 'cancelled'
+// Allowed fields: status, customerName, customerPhone, customerCity,
+// customerAddress, productName, productPrice, productColor, productSize, productQuantity
 const ALLOWED_STATUSES = ['pending', 'confirmed', 'shipped', 'delivered', 'cancelled'] as const;
 type AllowedStatus = typeof ALLOWED_STATUSES[number];
+
+const EDITABLE_FIELDS = [
+  'status', 'customerName', 'customerPhone', 'customerCity', 'customerAddress',
+  'productName', 'productPrice', 'productColor', 'productSize', 'productQuantity',
+] as const;
+type EditableField = typeof EDITABLE_FIELDS[number];
 
 export async function PATCH(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    // Auth check — only owner/admin/super_admin can update order status
+    // Auth check — only owner/admin/super_admin can update orders
     const admin = await getCurrentAdmin();
     if (!admin || (admin.role !== 'owner' && admin.role !== 'admin' && admin.role !== 'super_admin')) {
       return NextResponse.json(
@@ -72,18 +78,6 @@ export async function PATCH(
     }
 
     const body = await req.json();
-    const { status } = body;
-
-    // Validate status value (whitelist)
-    if (!status || !ALLOWED_STATUSES.includes(status as AllowedStatus)) {
-      return NextResponse.json(
-        {
-          data: null,
-          error: `Statut invalide. Valeurs autorisées : ${ALLOWED_STATUSES.join(', ')}.`,
-        },
-        { status: 400 }
-      );
-    }
 
     // Check order exists
     const existing = await db.order.findUnique({ where: { id } });
@@ -94,9 +88,58 @@ export async function PATCH(
       );
     }
 
+    // Build update data + history entries only for fields that actually changed
+    const updateData: Record<string, unknown> = {};
+    const historyEntries: Array<{ field: string; oldValue: string | null; newValue: string | null }> = [];
+
+    for (const field of EDITABLE_FIELDS) {
+      if (body[field] === undefined) continue;
+
+      let newValue = body[field];
+      // Coerce productQuantity to number
+      if (field === 'productQuantity') {
+        newValue = Math.max(1, parseInt(String(newValue)) || 1);
+      }
+      // Validate status whitelist
+      if (field === 'status' && !ALLOWED_STATUSES.includes(newValue as AllowedStatus)) {
+        return NextResponse.json(
+          { data: null, error: `Statut invalide. Valeurs autorisées : ${ALLOWED_STATUSES.join(', ')}.` },
+          { status: 400 }
+        );
+      }
+
+      const oldValue = existing[field as keyof typeof existing];
+      const oldStr = oldValue === null ? null : String(oldValue);
+      const newStr = newValue === null ? null : String(newValue);
+
+      // Only record if actually changed
+      if (oldStr !== newStr) {
+        updateData[field] = newValue;
+        historyEntries.push({ field, oldValue: oldStr, newValue: newStr });
+      }
+    }
+
+    if (Object.keys(updateData).length === 0) {
+      // Nothing to update — return existing
+      return NextResponse.json({ data: existing, error: null });
+    }
+
+    // Snapshot changes into OrderHistory (shadow table)
+    if (historyEntries.length > 0) {
+      await db.orderHistory.createMany({
+        data: historyEntries.map(e => ({
+          orderId: id,
+          field: e.field,
+          oldValue: e.oldValue,
+          newValue: e.newValue,
+          changedBy: admin.id,
+        })),
+      });
+    }
+
     const updated = await db.order.update({
       where: { id },
-      data: { status: status as AllowedStatus },
+      data: updateData,
     });
 
     return NextResponse.json({ data: updated, error: null });
