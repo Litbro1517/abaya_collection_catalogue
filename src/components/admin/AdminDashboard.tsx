@@ -25,6 +25,7 @@ import {
   Settings2,
   Mail,
   Key,
+  ShoppingBag,
 } from 'lucide-react';
 
 import type { AppView, Pillar, SettingsTab } from '@/types';
@@ -342,6 +343,14 @@ export function AdminDashboard({ admin }: AdminDashboardProps) {
       icon: Settings,
       action: () => navigateTo('builder', { pillar: 'settings', settingsTab: 'general' }),
       color: '#8B4513',
+    },
+    {
+      id: 'orders',
+      title: t('adminOrder.title'),
+      description: t('adminOrder.subtitle'),
+      icon: ShoppingBag,
+      action: () => navigateTo('builder', { pillar: 'orders' }),
+      color: BRAND.vertFonce,
     },
     {
       id: 'googleConnect',

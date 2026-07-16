@@ -89,10 +89,23 @@ export async function GET(req: NextRequest) {
 
     const { searchParams } = new URL(req.url);
     const status = searchParams.get('status');
+    const search = searchParams.get('search');
+    const archived = searchParams.get('archived') === 'true';
     const limit = Math.min(parseInt(searchParams.get('limit') || '50'), 100);
     const offset = parseInt(searchParams.get('offset') || '0');
 
-    const where = status ? { status } : {};
+    // Build where clause: archived filter + status filter + search ILIKE
+    const where: Record<string, unknown> = { isDeleted: archived };
+    if (status) where.status = status;
+    if (search?.trim()) {
+      const q = search.trim();
+      where.OR = [
+        { customerName: { contains: q } },
+        { customerPhone: { contains: q } },
+        { customerCity: { contains: q } },
+        { productName: { contains: q } },
+      ];
+    }
 
     const [orders, total] = await Promise.all([
       db.order.findMany({

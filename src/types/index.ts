@@ -296,6 +296,18 @@ export interface Order {
   productSize: string | null;
   productQuantity: number;
   productImage: string | null;
+  isDeleted: boolean;
+  deletedAt: string | null;
   createdAt: string;
   updatedAt: string;
+}
+
+export interface OrderHistoryEntry {
+  id: string;
+  orderId: string;
+  field: string;
+  oldValue: string | null;
+  newValue: string | null;
+  changedBy: string;
+  changedAt: string;
 }
