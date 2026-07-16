@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
+import { Prisma } from '@prisma/client';
 import { getCurrentAdmin } from '@/lib/auth';
 
 // ── POST /api/orders — Create a new COD order ──
@@ -94,28 +95,81 @@ export async function GET(req: NextRequest) {
     const limit = Math.min(parseInt(searchParams.get('limit') || '50'), 100);
     const offset = parseInt(searchParams.get('offset') || '0');
 
-    // Build where clause: archived filter + status filter + search ILIKE
+    // Build where clause: archived filter + status filter + case-insensitive search
     const where: Record<string, unknown> = { isDeleted: archived };
     if (status) where.status = status;
-    if (search?.trim()) {
-      const q = search.trim();
-      where.OR = [
-        { customerName: { contains: q } },
-        { customerPhone: { contains: q } },
-        { customerCity: { contains: q } },
-        { productName: { contains: q } },
-      ];
-    }
 
-    const [orders, total] = await Promise.all([
-      db.order.findMany({
-        where,
-        orderBy: { createdAt: 'desc' },
-        take: limit,
-        skip: offset,
-      }),
-      db.order.count({ where }),
-    ]);
+    let orders: Awaited<ReturnType<typeof db.order.findMany>>;
+    let total: number;
+
+    if (search?.trim()) {
+      // ━━ SQLite-compatible case-insensitive search ━━
+      // Uses LOWER() via $queryRaw because Prisma's mode: 'insensitive'
+      // is PostgreSQL-only and would cause a build failure on SQLite.
+      // NOTE: SQLite LOWER() does NOT handle Unicode/diacritics (é→e, à→a).
+      // This is a known SQLite limitation — acceptable for Latin-script names.
+      const q = search.trim().toLowerCase();
+      const searchPattern = `%${q}%`;
+
+      // Build dynamic WHERE conditions (parameterized via Prisma.sql)
+      const conditions: Prisma.Sql[] = [Prisma.sql`is_deleted = ${archived ? 1 : 0}`];
+      if (status) {
+        conditions.push(Prisma.sql`status = ${status}`);
+      }
+      // Search across 6 text fields (previously only 4)
+      const searchFields = [
+        'customer_name', 'customer_phone', 'customer_city',
+        'customer_address', 'product_name', 'product_price',
+      ];
+      const searchClauses = searchFields.map(
+        (field) => Prisma.sql`LOWER(CAST(${field} AS TEXT)) LIKE ${searchPattern}`
+      );
+      conditions.push(Prisma.join(searchClauses, Prisma.sql` OR `));
+
+      const whereClause = Prisma.join(conditions, Prisma.sql` AND `);
+
+      const rawOrders = await db.$queryRaw<Record<string, unknown>[]>`
+        SELECT * FROM orders WHERE ${whereClause} ORDER BY created_at DESC LIMIT ${limit} OFFSET ${offset}
+      `;
+      // Map snake_case DB columns → camelCase to match Prisma's findMany output
+      orders = rawOrders.map((row) => ({
+        id: row.id,
+        productId: row.product_id,
+        customerName: row.customer_name,
+        customerPhone: row.customer_phone,
+        customerCity: row.customer_city,
+        customerAddress: row.customer_address,
+        status: row.status,
+        productName: row.product_name,
+        productPrice: row.product_price,
+        productColor: row.product_color,
+        productSize: row.product_size,
+        productQuantity: row.product_quantity,
+        productImage: row.product_image,
+        isDeleted: Boolean(row.is_deleted),
+        deletedAt: row.deleted_at ? new Date(String(row.deleted_at)) : null,
+        createdAt: new Date(String(row.created_at)),
+        updatedAt: new Date(String(row.updated_at)),
+      }));
+
+      const countResult = await db.$queryRaw<[{ cnt: bigint }]>`
+        SELECT COUNT(*) as cnt FROM orders WHERE ${whereClause}
+      `;
+      total = Number(countResult[0].cnt);
+    } else {
+      // No search — use standard Prisma query (faster, type-safe)
+      const [resultOrders, resultTotal] = await Promise.all([
+        db.order.findMany({
+          where,
+          orderBy: { createdAt: 'desc' },
+          take: limit,
+          skip: offset,
+        }),
+        db.order.count({ where }),
+      ]);
+      orders = resultOrders;
+      total = resultTotal;
+    }
 
     return NextResponse.json({ data: orders, total, error: null });
   } catch (error) {

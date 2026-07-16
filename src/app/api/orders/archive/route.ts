@@ -4,7 +4,7 @@ import { getCurrentAdmin } from '@/lib/auth';
 
 // ── POST /api/orders/archive — Soft-delete (archive) multiple orders ──
 // Body: { ids: string[] }
-// Only orders with status 'delivered' or 'confirmed' are eligible.
+// Orders with status 'delivered', 'confirmed', or 'cancelled' are eligible.
 // Sets isDeleted=true and deletedAt=now().
 export async function POST(req: NextRequest) {
   try {
@@ -26,12 +26,12 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Check eligibility: only delivered or confirmed orders can be archived
+    // Check eligibility: delivered, confirmed, or cancelled orders can be archived
     const eligible = await db.order.findMany({
       where: {
         id: { in: ids },
         isDeleted: false,
-        status: { in: ['delivered', 'confirmed'] },
+        status: { in: ['delivered', 'confirmed', 'cancelled'] },
       },
       select: { id: true },
     });
@@ -41,7 +41,7 @@ export async function POST(req: NextRequest) {
 
     if (eligibleIds.length === 0) {
       return NextResponse.json(
-        { data: null, error: 'Aucune commande éligible à l\'archivage (Livrées ou Confirmées uniquement).' },
+        { data: null, error: 'Aucune commande éligible à l\'archivage (Livrées, Confirmées ou Annulées uniquement).' },
         { status: 400 }
       );
     }

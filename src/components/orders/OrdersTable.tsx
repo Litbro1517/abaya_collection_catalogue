@@ -241,12 +241,13 @@ export function OrdersTable({
                 return (
                   <TableRow
                     key={order.id}
-                    className="hover:bg-muted/30 transition-colors"
+                    className="hover:bg-muted/30 transition-colors cursor-pointer"
+                    onClick={() => onRowClick(order)}
                   >
                     <TableCell className="py-2.5">
                       <Checkbox
                         checked={selectedIds.has(order.id)}
-                        onCheckedChange={() => toggleSelect(order.id)}
+                        onCheckedChange={(e) => { e?.stopPropagation(); toggleSelect(order.id); }}
                         aria-label={`Select ${order.id}`}
                       />
                     </TableCell>
@@ -255,6 +256,7 @@ export function OrdersTable({
                       {isEditing('customerName') ? (
                         <Input
                           value={editValue}
+                          onClick={e => e.stopPropagation()}
                           onChange={e => setEditValue(e.target.value)}
                           onBlur={() => saveCell(order.id, 'customerName')}
                           onKeyDown={e => {
@@ -279,6 +281,7 @@ export function OrdersTable({
                       {isEditing('productName') ? (
                         <Input
                           value={editValue}
+                          onClick={e => e.stopPropagation()}
                           onChange={e => setEditValue(e.target.value)}
                           onBlur={() => saveCell(order.id, 'productName')}
                           onKeyDown={e => {
@@ -308,6 +311,7 @@ export function OrdersTable({
                       {isEditing('customerCity') ? (
                         <Input
                           value={editValue}
+                          onClick={e => e.stopPropagation()}
                           onChange={e => setEditValue(e.target.value)}
                           onBlur={() => saveCell(order.id, 'customerCity')}
                           onKeyDown={e => {
@@ -333,7 +337,7 @@ export function OrdersTable({
                     </TableCell>
                     {/* Status */}
                     <TableCell className="py-2.5">
-                      <OrderStatusBadge status={order.status} />
+                      <OrderStatusBadge status={order.status} label={t(`adminOrder.status_${order.status}` as never)} />
                     </TableCell>
                     {/* Date */}
                     <TableCell className="text-xs py-2.5 text-muted-foreground whitespace-nowrap">

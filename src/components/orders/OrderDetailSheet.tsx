@@ -121,7 +121,7 @@ export function OrderDetailSheet({ order, open, onOpenChange, onStatusUpdated }:
             <SheetTitle className="text-lg">
               {t('adminOrder.orderNumber')}
             </SheetTitle>
-            <OrderStatusBadge status={order.status} />
+            <OrderStatusBadge status={order.status} label={t(`adminOrder.status_${order.status}` as never)} />
           </div>
           <SheetDescription className="font-mono text-xs">
             {order.id}
