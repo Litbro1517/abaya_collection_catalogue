@@ -375,8 +375,8 @@ export function OrdersPillar() {
             selectedIds={selectedIds}
             onPageChange={setPage}
             onSearchChange={(s) => { setPage(0); setSearch(s); }}
-            onStatusFilterChange={(s) => { setPage(0); setStatusFilter(s); }}
-            onViewChange={(v) => { setPage(0); setView(v); }}
+            onStatusFilterChange={(s) => { setPage(0); setStatusFilter(s); setSearch(''); }}
+            onViewChange={(v) => { setPage(0); setView(v); setSearch(''); }}
             onRowClick={handleRowClick}
             onSelectionChange={setSelectedIds}
             onCellUpdated={handleCellUpdated}
