@@ -103,16 +103,18 @@ export async function GET(req: NextRequest) {
     let total: number;
 
     if (search?.trim()) {
-      // ━━ SQLite-compatible case-insensitive search ━━
+      // ━━ Cross-DB case-insensitive search (SQLite + PostgreSQL) ━━
       // Uses LOWER() via $queryRaw because Prisma's mode: 'insensitive'
       // is PostgreSQL-only and would cause a build failure on SQLite.
-      // NOTE: SQLite LOWER() does NOT handle Unicode/diacritics (é→e, à→a).
-      // This is a known SQLite limitation — acceptable for Latin-script names.
+      // NOTE: LOWER() does NOT handle Unicode/diacritics (é→e, à→a).
+      // Boolean is passed via parameterized binding (not raw 0/1) to be
+      // compatible with both SQLite (driver converts bool→0/1) and
+      // PostgreSQL (native boolean type).
       const q = search.trim().toLowerCase();
       const searchPattern = `%${q}%`;
 
       // Build dynamic WHERE conditions (parameterized via Prisma.sql)
-      const conditions: Prisma.Sql[] = [Prisma.sql`is_deleted = ${archived ? 1 : 0}`];
+      const conditions: Prisma.Sql[] = [Prisma.sql`is_deleted = ${archived}`];
       if (status) {
         conditions.push(Prisma.sql`status = ${status}`);
       }

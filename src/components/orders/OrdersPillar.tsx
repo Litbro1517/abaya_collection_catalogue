@@ -84,7 +84,7 @@ export function OrdersPillar() {
           .reduce((sum, o) => {
             const m = (o.productPrice || '').match(/[\d.,]+/);
             const num = m ? parseFloat(m[0].replace(/\s/g, '').replace(',', '.')) : 0;
-            return sum + (isNaN(num) ? 0 : num * (o.productQuantity || 1));
+            return sum + (isNaN(num) ? 0 : num);
           }, 0);
         setKpi({ total: json.total || all.length, pending, delivered, revenue });
       }

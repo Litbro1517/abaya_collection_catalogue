@@ -83,6 +83,22 @@ function DataQualityIcon({ value, field }: { value: unknown; field: string }) {
   return null;
 }
 
+// Sliding window pagination — generates (number | '...')[]
+// Always shows first/last page, with a delta-sized window around current.
+function generatePageButtons(currentPage: number, totalPages: number, delta = 2): (number | '...')[] {
+  if (totalPages <= 7) {
+    return Array.from({ length: totalPages }, (_, i) => i);
+  }
+  const range: (number | '...')[] = [0];
+  const left = Math.max(1, currentPage - delta);
+  const right = Math.min(totalPages - 2, currentPage + delta);
+  if (left > 1) range.push('...');
+  for (let i = left; i <= right; i++) range.push(i);
+  if (right < totalPages - 2) range.push('...');
+  range.push(totalPages - 1);
+  return range;
+}
+
 export function OrdersTable({
   orders, total, loading, page, pageSize, search, statusFilter, view,
   selectedIds, onPageChange, onSearchChange, onStatusFilterChange, onViewChange,
@@ -199,7 +215,7 @@ export function OrdersTable({
         <Table>
           <TableHeader>
             <TableRow className="bg-muted/40">
-              <TableHead className="w-10">
+              <TableHead className="w-10" onClick={e => e.stopPropagation()}>
                 <Checkbox
                   checked={orders.length > 0 && selectedIds.size === orders.length}
                   onCheckedChange={toggleSelectAll}
@@ -244,10 +260,10 @@ export function OrdersTable({
                     className="hover:bg-muted/30 transition-colors cursor-pointer"
                     onClick={() => onRowClick(order)}
                   >
-                    <TableCell className="py-2.5">
+                    <TableCell className="py-2.5" onClick={e => e.stopPropagation()}>
                       <Checkbox
                         checked={selectedIds.has(order.id)}
-                        onCheckedChange={(e) => { e?.stopPropagation(); toggleSelect(order.id); }}
+                        onCheckedChange={() => toggleSelect(order.id)}
                         aria-label={`Select ${order.id}`}
                       />
                     </TableCell>
@@ -268,6 +284,7 @@ export function OrdersTable({
                         />
                       ) : (
                         <div
+                          onClick={e => e.stopPropagation()}
                           onDoubleClick={() => view === 'active' && startEditing(order.id, 'customerName', order.customerName)}
                           className="cursor-text"
                         >
@@ -293,6 +310,7 @@ export function OrdersTable({
                         />
                       ) : (
                         <div
+                          onClick={e => e.stopPropagation()}
                           onDoubleClick={() => view === 'active' && startEditing(order.id, 'productName', order.productName)}
                           className="cursor-text truncate"
                         >
@@ -323,6 +341,7 @@ export function OrdersTable({
                         />
                       ) : (
                         <div
+                          onClick={e => e.stopPropagation()}
                           onDoubleClick={() => view === 'active' && startEditing(order.id, 'customerCity', order.customerCity)}
                           className="cursor-text"
                         >
@@ -336,7 +355,7 @@ export function OrdersTable({
                       {order.productPrice && <DataQualityIcon value={order.productPrice} field="productPrice" />}
                     </TableCell>
                     {/* Status */}
-                    <TableCell className="py-2.5">
+                    <TableCell className="py-2.5" onClick={e => e.stopPropagation()}>
                       <OrderStatusBadge status={order.status} label={t(`adminOrder.status_${order.status}` as never)} />
                     </TableCell>
                     {/* Date */}
@@ -351,7 +370,7 @@ export function OrdersTable({
         </Table>
       </div>
 
-      {/* Pagination */}
+      {/* Pagination — Sliding window */}
       {!loading && total > 0 && (
         <div className="flex items-center justify-between text-xs text-muted-foreground">
           <span>
@@ -360,25 +379,42 @@ export function OrdersTable({
               .replace('{to}', String(Math.min((page + 1) * pageSize, total)))
               .replace('{total}', String(total))}
           </span>
-          <div className="flex gap-1 items-center">
+          <div className="flex gap-0.5 items-center">
             <Button
               variant="outline"
               size="sm"
               onClick={() => onPageChange(Math.max(0, page - 1))}
               disabled={page === 0 || loading}
-              className="h-8"
+              className="h-8 w-8 p-0"
+              aria-label={t('adminOrder.prevPage') || 'Précédent'}
             >
               <ChevronLeft className="w-3.5 h-3.5" />
             </Button>
-            <span className="px-2 py-1 text-xs">
-              {page + 1} / {totalPages}
-            </span>
+            {generatePageButtons(page, totalPages).map((item, idx) =>
+              item === '...' ? (
+                <span key={`ellipsis-${idx}`} className="px-1 text-muted-foreground select-none">
+                  …
+                </span>
+              ) : (
+                <Button
+                  key={item}
+                  variant={item === page ? 'default' : 'outline'}
+                  size="sm"
+                  onClick={() => onPageChange(item)}
+                  disabled={loading}
+                  className={`h-8 w-8 p-0 text-xs ${item === page ? 'pointer-events-none' : ''}`}
+                >
+                  {item + 1}
+                </Button>
+              ),
+            )}
             <Button
               variant="outline"
               size="sm"
               onClick={() => onPageChange(Math.min(totalPages - 1, page + 1))}
               disabled={page >= totalPages - 1 || loading}
-              className="h-8"
+              className="h-8 w-8 p-0"
+              aria-label={t('adminOrder.nextPage') || 'Suivant'}
             >
               <ChevronRight className="w-3.5 h-3.5" />
             </Button>
