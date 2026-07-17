@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useState, useRef, useCallback } from 'react';
+import { useMemo, useState, useRef, useCallback, useEffect } from 'react';
 import {
   Table,
   TableBody,
@@ -107,6 +107,11 @@ export function OrdersTable({
   const { t, locale } = useTranslation();
   const [searchInput, setSearchInput] = useState(search);
   const searchTimer = useRef<ReturnType<typeof setTimeout>>();
+
+  // Sync local searchInput when parent resets search (tab/filter change)
+  useEffect(() => {
+    setSearchInput(search);
+  }, [search]);
   const dateLocale = locale === 'ar' ? ar : locale === 'en' ? enUS : fr;
   const totalPages = Math.max(1, Math.ceil(total / pageSize));
 
@@ -318,7 +323,15 @@ export function OrdersTable({
                           {order.productName && <DataQualityIcon value={order.productName} field="productName" />}
                           {(order.productColor || order.productSize) && (
                             <div className="text-[11px] text-muted-foreground">
-                              {order.productColor || ''}{order.productColor && order.productSize ? ' · ' : ''}{order.productSize || ''}
+                              <span>
+                                {order.productColor || ''}
+                                {!order.productColor && <DataQualityIcon value={order.productColor} field="productColor" />}
+                              </span>
+                              {order.productColor && order.productSize ? ' · ' : ''}
+                              <span>
+                                {order.productSize || ''}
+                                {!order.productSize && <DataQualityIcon value={order.productSize} field="productSize" />}
+                              </span>
                             </div>
                           )}
                         </div>

@@ -26,12 +26,12 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Check eligibility: delivered, confirmed, or cancelled orders can be archived
+    // Check eligibility: delivered or cancelled orders can be archived (V4.1.3: confirmed removed)
     const eligible = await db.order.findMany({
       where: {
         id: { in: ids },
         isDeleted: false,
-        status: { in: ['delivered', 'confirmed', 'cancelled'] },
+        status: { in: ['delivered', 'cancelled'] },
       },
       select: { id: true },
     });
@@ -41,7 +41,7 @@ export async function POST(req: NextRequest) {
 
     if (eligibleIds.length === 0) {
       return NextResponse.json(
-        { data: null, error: 'Aucune commande éligible à l\'archivage (Livrées, Confirmées ou Annulées uniquement).' },
+        { data: null, error: 'Aucune commande éligible à l\'archivage (Livrées ou Annulées uniquement).' },
         { status: 400 }
       );
     }
