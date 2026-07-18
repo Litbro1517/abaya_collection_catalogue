@@ -90,12 +90,18 @@ export async function GET(req: NextRequest) {
 
     const { searchParams } = new URL(req.url);
     const status = searchParams.get('status');
+    // TODO(DEBT-3): add a 200-char length cap on `search` to prevent oversized
+    // LIKE patterns (DoS mitigation). Currently unbounded — a very long string
+    // would still be escaped and injected into 11 LIKE clauses.
     const search = searchParams.get('search');
     const archived = searchParams.get('archived') === 'true';
+    // TODO(DEBT-2): reinforce pagination guard — parseInt returns NaN on invalid
+    // input (e.g. ?limit=abc), which currently propagates as NaN into take/skip.
+    // Add Number.isFinite() checks and explicit fallback to defaults.
     const limit = Math.min(parseInt(searchParams.get('limit') || '50'), 100);
     const offset = parseInt(searchParams.get('offset') || '0');
 
-    // Build where clause: archived filter + status filter + case-insensitive search
+    // Build where clause for the no-search path (standard Prisma query)
     const where: Record<string, unknown> = { isDeleted: archived };
     if (status) where.status = status;
 
@@ -103,32 +109,44 @@ export async function GET(req: NextRequest) {
     let total: number;
 
     if (search?.trim()) {
-      // ━━ Cross-DB case-insensitive search (SQLite + PostgreSQL) ━━
-      // Uses LOWER() via $queryRaw because Prisma's mode: 'insensitive'
-      // is PostgreSQL-only and would cause a build failure on SQLite.
-      // NOTE: LOWER() does NOT handle Unicode/diacritics (é→e, à→a).
-      // Boolean is passed via parameterized binding (not raw 0/1) to be
-      // compatible with both SQLite (driver converts bool→0/1) and
-      // PostgreSQL (native boolean type).
-      const q = search.trim().toLowerCase();
-      const searchPattern = `%${q}%`;
+      // ━━ V4.1.5 — Robust cross-DB search (unified from abaya-collection-admin) ━━
+      // Previous V4.1.3 implementation was BROKEN: it used
+      // `LOWER(CAST(${field} AS TEXT))` where `field` was a JS string, which
+      // Prisma.sql treats as a bound parameter (not SQL literal) → SQL syntax
+      // error "near [object Object]" → search returned nothing in production.
+      //
+      // FIX: column names are now written as SQL literals directly in the
+      // tagged template (no interpolation). LIKE wildcards (%, _) are escaped.
+      // Search extended from 6 to 11 fields (added productColor, productSize,
+      // productQuantity, status, createdAt).
+      const escaped = search.trim().replace(/[%_\\]/g, '\\$&');
+      const q = `%${escaped}%`;
 
-      // Build dynamic WHERE conditions (parameterized via Prisma.sql)
+      // Build parameterized WHERE conditions (SQL-injection safe)
       const conditions: Prisma.Sql[] = [Prisma.sql`is_deleted = ${archived}`];
       if (status) {
         conditions.push(Prisma.sql`status = ${status}`);
       }
-      // Search across 6 text fields (previously only 4)
-      const searchFields = [
-        'customer_name', 'customer_phone', 'customer_city',
-        'customer_address', 'product_name', 'product_price',
-      ];
-      const searchClauses = searchFields.map(
-        (field) => Prisma.sql`LOWER(CAST(${field} AS TEXT)) LIKE ${searchPattern}`
-      );
-      conditions.push(Prisma.join(searchClauses, Prisma.sql` OR `));
+      // TODO(DEBT-1): datetime(created_at/1000, 'unixepoch') is SQLite-specific.
+      // Prisma stores DateTime as epoch-ms integer in SQLite, so CAST AS TEXT
+      // yields "1784318910427" (not a date). On PostgreSQL, replace with
+      // CAST(created_at AS TEXT) which yields ISO 8601 directly.
+      // See PROJECT_MAP.md → Dette Technique à traiter.
+      conditions.push(Prisma.sql`(
+        LOWER(CAST(customer_name AS TEXT)) LIKE LOWER(${q}) ESCAPE '\\'
+        OR LOWER(CAST(customer_phone AS TEXT)) LIKE LOWER(${q}) ESCAPE '\\'
+        OR LOWER(CAST(customer_city AS TEXT)) LIKE LOWER(${q}) ESCAPE '\\'
+        OR LOWER(CAST(customer_address AS TEXT)) LIKE LOWER(${q}) ESCAPE '\\'
+        OR LOWER(CAST(product_name AS TEXT)) LIKE LOWER(${q}) ESCAPE '\\'
+        OR LOWER(CAST(product_price AS TEXT)) LIKE LOWER(${q}) ESCAPE '\\'
+        OR LOWER(CAST(product_color AS TEXT)) LIKE LOWER(${q}) ESCAPE '\\'
+        OR LOWER(CAST(product_size AS TEXT)) LIKE LOWER(${q}) ESCAPE '\\'
+        OR CAST(product_quantity AS TEXT) LIKE ${q} ESCAPE '\\'
+        OR LOWER(status) LIKE LOWER(${q}) ESCAPE '\\'
+        OR LOWER(datetime(created_at/1000, 'unixepoch')) LIKE LOWER(${q}) ESCAPE '\\'
+      )`);
 
-      const whereClause = Prisma.join(conditions, Prisma.sql` AND `);
+      const whereClause = Prisma.join(conditions, ' AND ');
 
       const rawOrders = await db.$queryRaw<Record<string, unknown>[]>`
         SELECT * FROM orders WHERE ${whereClause} ORDER BY created_at DESC LIMIT ${limit} OFFSET ${offset}
