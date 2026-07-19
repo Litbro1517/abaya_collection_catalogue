@@ -27,15 +27,26 @@ export interface ResolvedProduct {
   updatedAt: Date;     // for sitemap lastModified
 }
 
-// ── Slugify: same logic as the client-side version in CatalogPreview ──
+// ── Slugify: generates URL-safe slugs preserving ALL scripts (Latin, Arabic, etc.) ──
+// Uses Unicode property escapes (\p{L} for letters, \p{N} for numbers) to
+// preserve Arabic characters instead of stripping them. Spaces and
+// punctuation become hyphens. Accents are stripped for Latin scripts only
+// (NFD normalization + combining marks removal — no effect on Arabic).
+//
+// Examples:
+//   "Abaya Chic Noir" → "abaya-chic-noir"        (FR — unchanged)
+//   "عباية راقية"     → "عباية-راقية"             (AR — preserved)
+//   "Ensemble 3 pièces" → "ensemble-3-pièces"     (FR — note: "è" stays
+//     because NFD strips the combining accent but "e" remains, so "è" → "e")
+//   "خمار 3 قطع"      → "خمار-3-قطع"              (AR + digits — preserved)
 export function slugify(text: string): string {
   return text
     .toLowerCase()
     .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '') // strip accents
-    .replace(/[^a-z0-9]+/g, '-')     // non-alphanumeric → hyphen
-    .replace(/^-+|-+$/g, '')         // trim leading/trailing hyphens
-    .slice(0, 80);                   // reasonable max length
+    .replace(/[\u0300-\u036f]/g, '')  // strip Latin combining accents (no effect on Arabic)
+    .replace(/[^\p{L}\p{N}]+/gu, '-') // non-letter/non-number → hyphen (Unicode-aware)
+    .replace(/^-+|-+$/g, '')          // trim leading/trailing hyphens
+    .slice(0, 80);                    // reasonable max length
 }
 
 // ── Extract first image URL from a raw cell value ──

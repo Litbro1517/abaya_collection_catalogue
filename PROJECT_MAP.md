@@ -181,6 +181,7 @@ src/
 > **Note technique (VG25) — Édition inline :** Le pattern d'édition inline est basé sur `DataTable.tsx` (double-clic → `<Input>` autoFocus → Enter/blur save). Les fonctions d'animation (shake) et de verrouillage (lock) spécifiques à `DataTable.tsx` n'ont pas été implémentées ici, le contexte métier ne nécessitant pas de verrouillage de cellule.
 
 | VG26 | Sitemap dynamique — Extraction produit | Module partagé `src/lib/products.ts` (resolveProduct + resolveAllProducts + slugify + image URL resolvers) extrait de `product-meta/[slug]/page.tsx` ; `product-meta/[slug]/page.tsx` refactorisé pour importer `resolveProduct` du module partagé (suppression de ~170 lignes dupliquées) ; `sitemap.ts` mis à jour : boucle sur `resolveAllProducts()` génère une URL `/?product=<slug>` par produit visible + `revalidate = 3600` (régénération horaire) ; Aucun composant client modifié ; Périmètre limité à `lib/` + `app/sitemap.ts` + `app/product-meta/[slug]/page.tsx` ; branche `feat/seo-sitemap-dynamic` merged puis supprimée | ✅ TERMINÉ |
+| VG27 | Support alphabet arabe dans les slugs | `slugify()` modifiée dans `src/lib/products.ts` (server) ET `src/components/preview/CatalogPreview.tsx` (client) — regex `[^\p{L}\p{N}]+/gu` (Unicode property escapes) préserve tous les scripts (Latin, Arabe, etc.) au lieu de `[^a-z0-9]+` qui strippait l'arabe ; Compatibilité descendante totale (slugs FR existants inchangés : "abaya-chic-noir" reste "abaya-chic-noir") ; Slugs AR désormais préservés ("عباية راقية" → "عباية-راقية") ; Les 2 copies (server + client) synchronisées pour éviter les slugs divergents | ⏳ EN ATTENTE D'AUDIT — Branche `feat/arabic-slug-support` |
 
 ## [ORPHANS_AND_PENDING]
 
@@ -234,6 +235,7 @@ src/
 - ✅ P21 : Sécurisation API Orders (Plan V2) — middleware ADMIN_WRITE_ROUTES + exemption POST + getCurrentAdmin() GET liste + getCurrentAdmin() PATCH + tests curl validés — déployé (branche evolue-admin-orders merged)
 - ✅ P22 : Orders V4.1 Refonte — i18n adminOrder.* + OrderHistory + search ILIKE + inline edit + archive/purge + DataQualityIcon — déployé (branche feature/orders-refactor merged)
 - ✅ P23 : Sitemap dynamique — module products.ts partagé (resolveProduct + resolveAllProducts) + sitemap.ts boucle produits + revalidate=3600 — déployé (branche feat/seo-sitemap-dynamic merged)
+- ⏳ P24 : Support alphabet arabe dans les slugs — regex Unicode \p{L}\p{N} + sync server/client — en attente d'audit (branche feat/arabic-slug-support)
 
 ## [BUGFIX MAPPING NATIVE COLOR]
 
