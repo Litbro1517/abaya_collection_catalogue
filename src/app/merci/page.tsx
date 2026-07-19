@@ -8,6 +8,7 @@ import { useClientTranslation } from '@/lib/i18n';
 // ── Order type (matches the Prisma Order model) ──
 interface OrderData {
   id: string;
+  productId: string;
   productName: string | null;
   productPrice: string | null;
   productColor: string | null;
@@ -37,20 +38,49 @@ function MerciContent() {
   // the same ColorMap (single source of truth) via /api/colormap/lookup.
   const [colorHex, setColorHex] = useState<string | null>(null);
 
-  // Push conversion tracking event once on mount (Zaraz-compatible dataLayer.push)
+  // Push conversion tracking event once the order data is loaded.
+  // Enriched dataLayer for Meta/Google conversion tracking (Zaraz-compatible).
+  // Includes: value, currency, transaction_id, and items array (GA4/Meta Pixel standard).
   useEffect(() => {
-    if (typeof window !== 'undefined') {
-      if (tracked.current) return;
-      tracked.current = true;
-      const dl = (window as unknown as Record<string, unknown[]>).dataLayer;
-      if (dl) {
-        dl.push({
-          event: 'purchase',
-          order_id: orderId || 'unknown',
-        });
-      }
+    if (typeof window === 'undefined') return;
+    if (tracked.current) return;
+    if (!order) return; // Wait for order data to be fetched
+
+    tracked.current = true;
+
+    // Parse numeric value from productPrice (e.g. "290.00 DH" → 290.00)
+    const priceStr = order.productPrice || '';
+    const priceMatch = priceStr.match(/[\d.,]+/);
+    const numericValue = priceMatch ? parseFloat(priceMatch[0].replace(/\s/g, '').replace(',', '.')) : 0;
+
+    const dl = (window as unknown as Record<string, unknown[]>).dataLayer;
+    if (dl) {
+      dl.push({
+        event: 'purchase',
+        ecommerce: {
+          transaction_id: order.id,
+          value: numericValue,
+          currency: 'MAD',
+          items: [
+            {
+              item_id: order.id,
+              sku: order.productId || 'N/A',
+              item_name: order.productName || 'Unknown',
+              price: numericValue,
+              quantity: order.productQuantity || 1,
+              item_variant: order.productColor || undefined,
+              item_size: order.productSize || undefined,
+            },
+          ],
+        },
+        // Flat fields for Meta Pixel compatibility
+        value: numericValue,
+        currency: 'MAD',
+        transaction_id: order.id,
+        order_id: order.id,
+      });
     }
-  }, [orderId]);
+  }, [order]);
 
   // Fetch the real order data for the recap
   useEffect(() => {
