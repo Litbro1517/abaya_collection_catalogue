@@ -83,7 +83,7 @@ src/
   ├─ app/
   │   ├─ page.tsx                    # Route / — Server Component (SEO) → renders HomeClient
   │   ├─ layout.tsx                  # Root layout — metadataBase + favicon + GTM removed (Zaraz)
-  │   ├─ sitemap.ts                  # Dynamic sitemap.xml via Prisma
+  │   ├─ sitemap.ts                  # Dynamic sitemap.xml via Prisma + resolveAllProducts() + revalidate=3600
   │   ├─ robots.ts                   # Dynamic robots.txt via Prisma
   │   ├─ mentions-legales/page.tsx   # Mentions légales (SSR, charte Or/Vert)
   │   ├─ politique-de-confidentialite/page.tsx  # Politique confidentialité (SSR)
@@ -180,6 +180,8 @@ src/
 
 > **Note technique (VG25) — Édition inline :** Le pattern d'édition inline est basé sur `DataTable.tsx` (double-clic → `<Input>` autoFocus → Enter/blur save). Les fonctions d'animation (shake) et de verrouillage (lock) spécifiques à `DataTable.tsx` n'ont pas été implémentées ici, le contexte métier ne nécessitant pas de verrouillage de cellule.
 
+| VG26 | Sitemap dynamique — Extraction produit | Module partagé `src/lib/products.ts` (resolveProduct + resolveAllProducts + slugify + image URL resolvers) extrait de `product-meta/[slug]/page.tsx` ; `product-meta/[slug]/page.tsx` refactorisé pour importer `resolveProduct` du module partagé (suppression de ~170 lignes dupliquées) ; `sitemap.ts` mis à jour : boucle sur `resolveAllProducts()` génère une URL `/?product=<slug>` par produit visible + `revalidate = 3600` (régénération horaire) ; Aucun composant client modifié ; Périmètre limité à `lib/` + `app/sitemap.ts` + `app/product-meta/[slug]/page.tsx` | ⏳ EN ATTENTE D'AUDIT — Branche `feat/seo-sitemap-dynamic` |
+
 ## [ORPHANS_AND_PENDING]
 
 ### 🔴 Gelé — Hors scope V1, ne pas implémenter
@@ -231,6 +233,7 @@ src/
 - ✅ P20 : Admin Orders 4ème Pilier — OrdersPillar + OrdersTable + OrderDetailSheet + PATCH endpoint + /admin/orders route + 34 clés i18n adminOrder.* — déployé (branche evolue-admin-orders merged)
 - ✅ P21 : Sécurisation API Orders (Plan V2) — middleware ADMIN_WRITE_ROUTES + exemption POST + getCurrentAdmin() GET liste + getCurrentAdmin() PATCH + tests curl validés — déployé (branche evolue-admin-orders merged)
 - ✅ P22 : Orders V4.1 Refonte — i18n adminOrder.* + OrderHistory + search ILIKE + inline edit + archive/purge + DataQualityIcon — déployé (branche feature/orders-refactor merged)
+- ⏳ P23 : Sitemap dynamique — module products.ts partagé (resolveProduct + resolveAllProducts) + sitemap.ts boucle produits + revalidate=3600 — en attente d'audit (branche feat/seo-sitemap-dynamic)
 
 ## [BUGFIX MAPPING NATIVE COLOR]
 
