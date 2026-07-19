@@ -5,6 +5,7 @@ import "./globals.css";
 import { Toaster } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { ThemeInjector } from "@/components/ThemeInjector";
+import { CookieConsentBanner } from "@/components/CookieConsentBanner";
 import { db } from '@/lib/db';
 
 const playfair = Playfair_Display({
@@ -98,6 +99,7 @@ export default async function RootLayout({
         <TooltipProvider>
           {children}
         </TooltipProvider>
+        <CookieConsentBanner />
         <Toaster position="bottom-right" richColors />
       </body>
     </html>

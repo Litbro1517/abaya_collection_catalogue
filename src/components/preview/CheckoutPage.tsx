@@ -12,9 +12,12 @@ import {
   Home,
   Truck,
   ShieldCheck,
+  MessageCircle,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useClientTranslation } from '@/lib/i18n';
+import { useAppStore } from '@/lib/store';
+import { buildWhatsappLink } from '@/lib/whatsapp';
 
 // ── Brand Constants (matching ProductPage / CodForm) ──
 const BRAND = {
@@ -65,6 +68,8 @@ function parsePriceNumber(raw: string): number {
 
 export function CheckoutPage({ product, onBack }: CheckoutPageProps) {
   const { t, rtl, formatPrice } = useClientTranslation();
+  const settings = useAppStore(s => s.settings);
+  const whatsappNumber = settings?.whatsappNumber || '';
   const [form, setForm] = useState<FormState>({
     customerName: '',
     customerPhone: '',
@@ -74,6 +79,7 @@ export function CheckoutPage({ product, onBack }: CheckoutPageProps) {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
+  const [apiFailed, setApiFailed] = useState(false);
 
   const unitPriceNum = parsePriceNumber(product.productPrice);
   const totalNum = unitPriceNum * product.quantity;
@@ -133,6 +139,8 @@ export function CheckoutPage({ product, onBack }: CheckoutPageProps) {
       const data = await res.json();
 
       if (!res.ok || data.error) {
+        // API error (500, 400, etc.) — activate WhatsApp fallback
+        setApiFailed(true);
         setError(data.error || t('order.errorGeneric'));
         return;
       }
@@ -144,11 +152,38 @@ export function CheckoutPage({ product, onBack }: CheckoutPageProps) {
         window.location.href = `/merci${orderId ? `?order_id=${orderId}` : ''}`;
       }, 800);
     } catch {
+      // Network error — activate WhatsApp fallback
+      setApiFailed(true);
       setError(t('order.errorNetwork'));
     } finally {
       setIsSubmitting(false);
     }
   };
+
+  // ── WhatsApp fallback link (when API fails) ──
+  const whatsappFallbackLink = whatsappNumber
+    ? buildWhatsappLink({
+        phone: whatsappNumber,
+        title: product.productTitle,
+        price: totalFormatted,
+        color: product.selectedColor,
+        size: product.selectedSize,
+        quantity: product.quantity,
+        customMessage: settings?.conversionMessage || undefined,
+        conversionMessages: settings?.conversionMessages || null,
+        locale: useAppStore.getState().clientLocale,
+        flux: 'A',
+        labels: {
+          greeting: t('whatsapp.message'),
+          greetingA: t('whatsapp.greetingA'),
+          greetingB: t('whatsapp.greetingB'),
+          priceLabel: t('product.price'),
+          colorLabel: t('product.color'),
+          sizeLabel: t('product.size'),
+          quantityLabel: t('product.quantity'),
+        },
+      })
+    : '#';
 
   if (success) {
     return (
@@ -363,6 +398,42 @@ export function CheckoutPage({ product, onBack }: CheckoutPageProps) {
             {error && (
               <div className="cod-form-error" role="alert">
                 {error}
+              </div>
+            )}
+
+            {/* WhatsApp fallback — shown only when API submission fails */}
+            {apiFailed && whatsappNumber && (
+              <div className="cod-form-fallback" style={{
+                background: '#f0fdf4',
+                border: '1px solid #86efac',
+                borderRadius: '8px',
+                padding: '12px 16px',
+                marginTop: '12px',
+              }}>
+                <p style={{ fontSize: '13px', color: '#166534', marginBottom: '8px', fontWeight: 500 }}>
+                  Le système de commande en ligne est temporairement indisponible.
+                  Vous pouvez finaliser votre commande via WhatsApp :
+                </p>
+                <a
+                  href={whatsappFallbackLink}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '8px',
+                    backgroundColor: '#25D366',
+                    color: '#fff',
+                    padding: '8px 16px',
+                    borderRadius: '6px',
+                    fontSize: '13px',
+                    fontWeight: 600,
+                    textDecoration: 'none',
+                  }}
+                >
+                  <MessageCircle className="w-4 h-4" />
+                  Commander via WhatsApp
+                </a>
               </div>
             )}
 
