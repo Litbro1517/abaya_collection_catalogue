@@ -8,6 +8,7 @@ import { useClientTranslation } from '@/lib/i18n';
 // ── Order type (matches the Prisma Order model) ──
 interface OrderData {
   id: string;
+  productId: string;
   productName: string | null;
   productPrice: string | null;
   productColor: string | null;
@@ -63,6 +64,7 @@ function MerciContent() {
           items: [
             {
               item_id: order.id,
+              sku: order.productId || 'N/A',
               item_name: order.productName || 'Unknown',
               price: numericValue,
               quantity: order.productQuantity || 1,
