@@ -25,17 +25,17 @@ import { buildWhatsappLink } from '@/lib/whatsapp';
 
 const ITEMS_PER_PAGE = 16;
 
-// ── Slugify: product title → URL-safe slug ──
-// Used for SEO-friendly URLs: /?product=abaya-chic-noir
-// MUST match the server-side slugify() in product-meta/[slug]/page.tsx
+// ── Slugify: URL-safe slugs preserving ALL scripts (Latin, Arabic, etc.) ──
+// Uses Unicode property escapes (\p{L} for letters, \p{N} for numbers).
+// Must stay in sync with src/lib/products.ts slugify (server-side).
 function slugify(text: string): string {
   return text
     .toLowerCase()
     .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '') // strip accents
-    .replace(/[^a-z0-9]+/g, '-')     // non-alphanumeric → hyphen
-    .replace(/^-+|-+$/g, '')         // trim leading/trailing hyphens
-    .slice(0, 80);                   // reasonable max length
+    .replace(/[\u0300-\u036f]/g, '')  // strip Latin combining accents (no effect on Arabic)
+    .replace(/[^\p{L}\p{N}]+/gu, '-') // non-letter/non-number → hyphen (Unicode-aware)
+    .replace(/^-+|-+$/g, '')          // trim leading/trailing hyphens
+    .slice(0, 80);                    // reasonable max length
 }
 
 // ── Image URL Resolution ──
