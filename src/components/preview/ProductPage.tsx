@@ -19,6 +19,7 @@ import {
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useClientTranslation } from '@/lib/i18n';
+import { toast } from 'sonner';
 import {
   Sheet,
   SheetContent,
@@ -555,26 +556,45 @@ export function ProductPage({
     }
   };
 
-  // ── Share handler ──
+  // ── Share handler — Méthode Hybride robuste (DEBT-5) ──
+  // Cascade 3 étapes avec guards de présence + gestion erreurs + feedback sonner :
+  // 1. navigator.share (Web Share API native — préférée sur mobile, ouvre la feuille de partage OS)
+  // 2. navigator.clipboard avec guard (évite TypeError sur anciens nav / HTTP / Safari privé)
+  //    + await explicite (évite race condition iOS/Safari) + toast.success sonner
+  // 3. Fallback ultime : setShowShareToast (state local) si aucune API moderne disponible
   const handleShare = async () => {
     const shareData = {
       title: title || t('product.product'),
       text: `${title}${price ? ` — ${price}` : ''}`,
       url: window.location.href,
     };
-    try {
-      if (navigator.share) {
+
+    // Étape 1 : Web Share API native (mobile/desktop moderne)
+    if (typeof navigator !== 'undefined' && typeof navigator.share === 'function') {
+      try {
         await navigator.share(shareData);
-      } else {
-        await navigator.clipboard.writeText(window.location.href);
-        setShowShareToast(true);
-        setTimeout(() => setShowShareToast(false), 2000);
+        return;
+      } catch {
+        // Utilisateur a annulé OU erreur share → on continue vers clipboard fallback
       }
-    } catch {
-      await navigator.clipboard.writeText(window.location.href);
-      setShowShareToast(true);
-      setTimeout(() => setShowShareToast(false), 2000);
     }
+
+    // Étape 2 : Fallback Clipboard API avec guard de présence
+    if (typeof navigator !== 'undefined' &&
+        navigator.clipboard &&
+        typeof navigator.clipboard.writeText === 'function') {
+      try {
+        await navigator.clipboard.writeText(window.location.href);
+        toast.success(t('product.linkCopied'));
+        return;
+      } catch {
+        // Échec clipboard (permission refusée, contexte non sécurisé) → fallback ultime
+      }
+    }
+
+    // Étape 3 : Fallback ultime — toast visuel local (aucune API moderne disponible)
+    setShowShareToast(true);
+    setTimeout(() => setShowShareToast(false), 2000);
   };
 
   // ── Keyboard navigation for carousel ──

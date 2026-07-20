@@ -124,6 +124,7 @@ export const dictionaries: Record<Locale, TranslationDict> = {
 
     // ── Footer Extended ──
     'footer.email': 'E-mail',
+    'footer.emailCopied': 'Adresse e-mail copiée !',
 
     // ── Settings Tabs ──
     'settings.general': 'Général',
@@ -820,6 +821,7 @@ export const dictionaries: Record<Locale, TranslationDict> = {
 
     // ── Footer Extended ──
     'footer.email': 'Email',
+    'footer.emailCopied': 'Email address copied!',
 
     // ── Settings Tabs ──
     'settings.general': 'General',
@@ -1516,6 +1518,7 @@ export const dictionaries: Record<Locale, TranslationDict> = {
 
     // ── Footer Extended ──
     'footer.email': 'البريد الإلكتروني',
+    'footer.emailCopied': 'تم نسخ عنوان البريد الإلكتروني!',
 
     // ── Settings Tabs ──
     'settings.general': 'عام',
