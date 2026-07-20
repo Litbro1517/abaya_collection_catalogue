@@ -365,6 +365,16 @@ export async function POST(req: NextRequest) {
         { slug: '__stock__', names: ['stock', 'quantité', 'quantite'] },
         { slug: '__category__', names: ['catégorie', 'categorie', 'category'] },
         { slug: '__sub_category__', names: ['sous-catégorie', 'sous-categorie', 'subcategory'] },
+        // ━━ DEBT-9 production repair : 18 variantes pour __compare_at_price__ ━━
+        { slug: '__compare_at_price__', names: [
+          'ancien_prix', 'ancien prix', 'ancienprix',
+          'prix_ancien', 'prix ancien',
+          'prix_barre', 'prix_barré', 'prixbarré',
+          'prix original', 'prix_original', 'originalprice', 'original price',
+          'compare_at_price', 'compareatprice', 'compare at price',
+          'old price', 'oldprice',
+          'prix de référence', 'prix_reference',
+        ] },
       ];
 
       // Map: sheet column index → native slug (for data mapping)
@@ -545,10 +555,28 @@ export async function POST(req: NextRequest) {
         },
       });
 
+      // 6. __compare_at_price__ — CURRENCY column for discount (prix barré)
+      // DEBT-9 production repair : 7ème colonne native garantie côté sync Google
+      await db.column.upsert({
+        where: { dataSourceId_slug: { dataSourceId: dsId, slug: '__compare_at_price__' } },
+        update: {},
+        create: {
+          name: 'Prix barré',
+          slug: '__compare_at_price__',
+          type: 'CURRENCY',
+          dataSourceId: dsId,
+          visible: true,
+          required: false,
+          config: {},
+          order: 7,
+        },
+      });
+
       // Restore other preserved native columns from before the deletion
       for (const nc of nativeColumnsToPreserve) {
-        // Skip the 6 native columns we already upserted above
-        if (nc.slug === '__colors__' || nc.slug === '__statut__' || nc.slug === '__disponibilite__' || nc.slug === '__stock__' || nc.slug === '__category__' || nc.slug === '__sub_category__') continue;
+        // Skip the 7 native columns we already upserted above
+        // DEBT-9 production repair : __compare_at_price__ ajouté à la skip-list
+        if (nc.slug === '__colors__' || nc.slug === '__statut__' || nc.slug === '__disponibilite__' || nc.slug === '__stock__' || nc.slug === '__category__' || nc.slug === '__sub_category__' || nc.slug === '__compare_at_price__') continue;
 
         await db.column.upsert({
           where: { dataSourceId_slug: { dataSourceId: dsId, slug: nc.slug } },
@@ -813,6 +841,16 @@ export async function POST(req: NextRequest) {
       { slug: '__stock__', names: ['stock', 'quantité', 'quantite'] },
       { slug: '__category__', names: ['catégorie', 'categorie', 'category'] },
       { slug: '__sub_category__', names: ['sous-catégorie', 'sous-categorie', 'subcategory'] },
+      // ━━ DEBT-9 production repair : 18 variantes pour __compare_at_price__ (delta sync) ━━
+      { slug: '__compare_at_price__', names: [
+        'ancien_prix', 'ancien prix', 'ancienprix',
+        'prix_ancien', 'prix ancien',
+        'prix_barre', 'prix_barré', 'prixbarré',
+        'prix original', 'prix_original', 'originalprice', 'original price',
+        'compare_at_price', 'compareatprice', 'compare at price',
+        'old price', 'oldprice',
+        'prix de référence', 'prix_reference',
+      ] },
     ];
     const deltaSheetColToNativeSlug = new Map<number, string>();
     for (let c = 0; c < headers.length; c++) {

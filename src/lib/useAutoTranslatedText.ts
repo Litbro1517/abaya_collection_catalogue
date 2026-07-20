@@ -26,7 +26,8 @@
 import { useEffect, useRef, useState } from 'react';
 
 // ── Cache localStorage (30 jours) ──
-const CACHE_KEY_PREFIX = 'abaya_translation_';
+// DEBT-10 production repair : bump prefix _v2_ pour invalider les anciens caches corrompus
+const CACHE_KEY_PREFIX = 'abaya_translation_v2_';
 const CACHE_TTL_MS = 30 * 24 * 60 * 60 * 1000; // 30 jours
 
 interface CacheEntry {
@@ -66,6 +67,14 @@ const memoryCache = new Map<string, string>();
 // ── File d'attente pour éviter les doublons de requêtes ──
 const pendingRequests = new Map<string, Promise<string>>();
 
+// ━━ DEBT-10 production repair : détection automatique de la langue source ━━
+export function detectSourceLangCode(text: string): 'ar' | 'fr' {
+  if (!text) return 'fr';
+  const arabicChars = (text.match(/[\u0600-\u06FF]/g) || []).length;
+  const latinChars = (text.match(/[a-zA-Z]/g) || []).length;
+  return arabicChars > latinChars * 0.5 ? 'ar' : 'fr';
+}
+
 async function fetchTranslation(
   text: string,
   targetLang: string,
@@ -96,6 +105,7 @@ async function fetchTranslation(
         body: JSON.stringify({
           text,
           targetLangs: [targetLang],
+          sourceLang: detectSourceLangCode(text),
         }),
       });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
@@ -137,32 +147,15 @@ export function useAutoTranslatedText(
   const lastLangRef = useRef<string>('');
 
   // ━━ DEBT-10 repair : détection automatique de la langue source ━━
-  // Au lieu de court-circuiter aveuglément quand targetLang === 'fr',
-  // on détecte la langue réelle du texte source via les plages Unicode :
-  // - Si le texte contient majoritairement des caractères arabes (U+0600-U+06FF)
-  //   et que la cible est 'fr' ou 'en' → traduction nécessaire
-  // - Si le texte est déjà dans la même écriture que la cible → court-circuit
-  //   (optimisation légitime : pas besoin de traduire du français vers du français)
-  function detectTextLanguage(text: string): 'ar' | 'latin' {
-    if (!text) return 'latin';
-    const arabicChars = (text.match(/[\u0600-\u06FF]/g) || []).length;
-    const latinChars = (text.match(/[a-zA-Z]/g) || []).length;
-    // Si au moins 30% de caractères arabes → considéré comme arabe
-    return arabicChars > latinChars * 0.5 ? 'ar' : 'latin';
-  }
-
   function needsTranslation(text: string, targetLang: string): boolean {
     if (!text || !text.trim()) return false;
-    const sourceLang = detectTextLanguage(text);
-    // Si source arabe et cible 'fr' ou 'en' → traduction nécessaire
+    const sourceLang = detectSourceLangCode(text);
     if (sourceLang === 'ar' && (targetLang === 'fr' || targetLang === 'en')) {
       return true;
     }
-    // Si source latin et cible 'ar' → traduction nécessaire
-    if (sourceLang === 'latin' && targetLang === 'ar') {
+    if (sourceLang === 'fr' && targetLang === 'ar') {
       return true;
     }
-    // Sinon (source et cible dans la même écriture) → pas de traduction
     return false;
   }
 

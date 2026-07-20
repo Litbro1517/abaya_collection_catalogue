@@ -4,6 +4,14 @@ import ZAI from 'z-ai-web-dev-sdk';
 // Simple in-memory cache to avoid re-translating the same text
 const translationCache = new Map<string, Record<string, string>>();
 
+// ━━ DEBT-10 production repair : détection automatique de la langue source ━━
+function detectSourceLang(text: string): string {
+  if (!text || typeof text !== 'string') return 'fr';
+  const arabicChars = (text.match(/[\u0600-\u06FF]/g) || []).length;
+  const latinChars = (text.match(/[a-zA-Z]/g) || []).length;
+  return arabicChars > latinChars * 0.5 ? 'ar' : 'fr';
+}
+
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
@@ -17,8 +25,10 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Text is required' }, { status: 400 });
     }
 
-    // Default: translate from French to Arabic and English
-    const source = sourceLang || 'fr';
+    // DEBT-10 production repair : détection automatique si sourceLang absent
+    const source = (sourceLang && ['fr', 'en', 'ar'].includes(sourceLang))
+      ? sourceLang
+      : detectSourceLang(text);
     const targets = targetLangs || ['ar', 'en'];
 
     // Check cache
@@ -74,8 +84,10 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    // Ensure source language is included
-    translations[source] = text.trim();
+    // DEBT-10 production repair : conditionnel au lieu d'écrasement systématique
+    if (!translations[source]) {
+      translations[source] = text.trim();
+    }
 
     // Cache the result
     translationCache.set(cacheKey, translations);
