@@ -497,7 +497,7 @@ Section ouverte le 18/07/2026 après implémentation de V4.1.5 (FX-SearchUnified
 
 ### Native Discount Column — Mission ABAYA-NATIVE-DISCOUNT-COLUMN
 
-**Statut : ⏳ EN ATTENTE D'AUDIT — Branche `fix/native-discount-column-and-badge`**
+**Statut : ✅ DÉPLOYÉE EN PRODUCTION**
 
 4 modifications structurelles pour faire de `__compare_at_price__` une vraie colonne native (7ème) :
 
@@ -505,6 +505,10 @@ Section ouverte le 18/07/2026 après implémentation de V4.1.5 (FX-SearchUnified
 2. **columns/route.ts** : Fallback API — `NATIVE_COLUMNS_FALLBACK` (7 colonnes), GET upsert + inject si manquante.
 3. **scripts/backfill-compare-at-price.ts** : Script migration — parcourt DataSources, crée colonne si absente.
 4. **discount-utils.ts** : `Math.round()` déjà utilisé (L.135) — pourcentage entier, aucun changement.
+
+**Audit (commit `ee7dc8c`)** : 4 points de contrôle validés (positionnement DataTable, fallback GET avec clé unique `dataSourceId_slug` confirmée en base, script de migration idempotent, documentation fidèle) ; non-régression confirmée sur le noyau critique ; `eslint` 0 erreur/warning ; `tsc` 0 nouvelle erreur. Verdict 🟢 GO — mergé dans `main`.
+
+**Décision sur le script de migration `backfill-compare-at-price.ts` : NON EXÉCUTÉ, fallback API retenu.** Justification : le mécanisme de fallback dans `columns/route.ts` (point 2 ci-dessus) est auto-suffisant et déjà vérifié sûr — chaque `DataSource` ancien reçoit automatiquement sa colonne `__compare_at_price__` dès son prochain appel `GET /columns`, sans action manuelle requise, avec upsert idempotent (`update: {}` en no-op si déjà présente). Le script de backfill devient donc redondant pour la correction fonctionnelle ; il n'apporte qu'un gain marginal (éviter l'écriture différée au premier accès). À l'inverse, l'exécuter à l'aveugle contre la base de production sans accès de vérification directe à cette base représente un risque disproportionné par rapport au bénéfice. Le script reste disponible dans le dépôt pour exécution manuelle ultérieure si un besoin de backfill immédiat (avant tout accès admin) se présentait.
 
 ---
 
