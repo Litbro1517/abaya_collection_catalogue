@@ -18,6 +18,7 @@ import type { CachedSectionData } from '@/lib/cache';
 import { ProductPage } from './ProductPage';
 import { SocialStickyTickets } from './SocialStickyTickets';
 import { CheckoutPage, type CheckoutPayload } from './CheckoutPage';
+import { ContactModal } from './ContactModal';
 import { useClientTranslation } from '@/lib/i18n';
 import { buildWhatsappLink } from '@/lib/whatsapp';
 import { toast } from 'sonner';
@@ -285,6 +286,7 @@ export function CatalogPreview({ onAdminLogin }: CatalogPreviewProps) {
   const searchInputRef = useRef<HTMLInputElement | null>(null);  // autofocus on expand
   // ━━ Checkout tunnel: when set, the dedicated CheckoutPage replaces the product detail ━━
   const [checkoutData, setCheckoutData] = useState<CheckoutPayload | null>(null);
+  const [contactModalOpen, setContactModalOpen] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
   const [likedProducts, setLikedProducts] = useState<Set<string>>(new Set);
   const [activeFilter, setActiveFilter] = useState<string>('all');
@@ -619,26 +621,12 @@ export function CatalogPreview({ onAdminLogin }: CatalogPreviewProps) {
     return '#';
   };
 
-  // ── Email click handler — Méthode Hybride (DEBT-5) ──
-  // Approche robuste : copie en presse-papier + ouverture client mail garantie.
-  // 1. Guard d'existence de l'API clipboard (évite TypeError sur anciens nav / HTTP)
-  // 2. await explicite sur la Promise (évite race condition iOS/Safari)
-  // 3. toast.success sonner si copie réussit (feedback visuel)
-  // 4. finally { window.location.href = mailto: } — fallback INCONDITIONNEL
-  const handleEmailClick = async (email: string) => {
-    if (!email) return;
-    const mailtoUrl = `mailto:${email}`;
-
-    try {
-      if (navigator.clipboard && typeof navigator.clipboard.writeText === 'function') {
-        await navigator.clipboard.writeText(email);
-        toast.success(t('footer.emailCopied'));
-      }
-    } catch {
-      // Échec copie (permission refusée, contexte non sécurisé) → on continue vers mailto
-    } finally {
-      window.location.href = mailtoUrl;
-    }
+  // ── Email click handler — Opens the integrated ContactModal ──
+  // Replaces the old DEBT-5 clipboard + mailto fallback with a proper
+  // in-app contact form. The user types their email + message and submits
+  // without leaving the page.
+  const handleEmailClick = () => {
+    setContactModalOpen(true);
   };
 
   // Legacy filter options (fallback when no dynamic categories loaded)
@@ -1721,11 +1709,11 @@ export function CatalogPreview({ onAdminLogin }: CatalogPreviewProps) {
                         </svg>
                       </a>
                     )}
-                    {/* Email — Méthode Hybride (DEBT-5) : bouton avec handler clipboard + mailto fallback inconditionnel */}
+                    {/* Email — Integrated ContactModal (replaces DEBT-5 clipboard+mailto) */}
                     {s?.emailContact && (
                       <button
                         type="button"
-                        onClick={() => handleEmailClick(s.emailContact!)}
+                        onClick={() => handleEmailClick()}
                         aria-label={t('footer.email')}
                         className="group flex items-center justify-center w-9 h-9 rounded-full bg-white/10 hover:bg-white/25 transition-all duration-300 hover:scale-110 cursor-pointer"
                       >
@@ -1807,6 +1795,13 @@ export function CatalogPreview({ onAdminLogin }: CatalogPreviewProps) {
           conversionChannel={resolvedConversionChannel}
         />
       )}
+
+      {/* Integrated Contact Modal — triggered by email button in footer */}
+      <ContactModal
+        open={contactModalOpen}
+        onOpenChange={setContactModalOpen}
+        recipientEmail={s?.emailContact || ''}
+      />
     </div>
   );
 }

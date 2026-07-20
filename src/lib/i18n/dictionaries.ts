@@ -126,6 +126,19 @@ export const dictionaries: Record<Locale, TranslationDict> = {
     'footer.email': 'E-mail',
     'footer.emailCopied': 'Adresse e-mail copiée !',
 
+    // ── Contact Modal ──
+    'contact.title': 'Nous contacter',
+    'contact.subtitle': 'Envoyez-nous votre message directement depuis le catalogue.',
+    'contact.yourEmail': 'Votre adresse e-mail',
+    'contact.yourMessage': 'Votre message',
+    'contact.messagePlaceholder': 'Bonjour, je souhaite avoir des informations sur...',
+    'contact.send': 'Envoyer le message',
+    'contact.sending': 'Envoi en cours...',
+    'contact.success': 'Message envoyé avec succès ! Nous vous répondrons bientôt.',
+    'contact.errorEmail': 'Veuillez saisir une adresse e-mail valide.',
+    'contact.errorMessage': 'Le message doit contenir au moins 5 caractères.',
+    'contact.errorSend': 'Erreur lors de l\'envoi du message. Veuillez réessayer.',
+
     // ── Settings Tabs ──
     'settings.general': 'Général',
     'settings.appearance': 'Style',
@@ -823,6 +836,19 @@ export const dictionaries: Record<Locale, TranslationDict> = {
     'footer.email': 'Email',
     'footer.emailCopied': 'Email address copied!',
 
+    // ── Contact Modal ──
+    'contact.title': 'Contact us',
+    'contact.subtitle': 'Send us your message directly from the catalog.',
+    'contact.yourEmail': 'Your email address',
+    'contact.yourMessage': 'Your message',
+    'contact.messagePlaceholder': 'Hello, I would like information about...',
+    'contact.send': 'Send message',
+    'contact.sending': 'Sending...',
+    'contact.success': 'Message sent successfully! We will get back to you soon.',
+    'contact.errorEmail': 'Please enter a valid email address.',
+    'contact.errorMessage': 'The message must contain at least 5 characters.',
+    'contact.errorSend': 'Error sending message. Please try again.',
+
     // ── Settings Tabs ──
     'settings.general': 'General',
     'settings.appearance': 'Style',
@@ -1519,6 +1545,19 @@ export const dictionaries: Record<Locale, TranslationDict> = {
     // ── Footer Extended ──
     'footer.email': 'البريد الإلكتروني',
     'footer.emailCopied': 'تم نسخ عنوان البريد الإلكتروني!',
+
+    // ── Contact Modal ──
+    'contact.title': 'اتصل بنا',
+    'contact.subtitle': 'أرسل لنا رسالتك مباشرة من الكتالوج.',
+    'contact.yourEmail': 'عنوان بريدك الإلكتروني',
+    'contact.yourMessage': 'رسالتك',
+    'contact.messagePlaceholder': 'مرحبًا، أود الحصول على معلومات حول...',
+    'contact.send': 'إرسال الرسالة',
+    'contact.sending': 'جاري الإرسال...',
+    'contact.success': 'تم إرسال الرسالة بنجاح! سنعود إليك قريبًا.',
+    'contact.errorEmail': 'يرجى إدخال عنوان بريد إلكتروني صالح.',
+    'contact.errorMessage': 'يجب أن تحتوي الرسالة على 5 أحرف على الأقل.',
+    'contact.errorSend': 'خطأ في إرسال الرسالة. يرجى المحاولة مرة أخرى.',
 
     // ── Settings Tabs ──
     'settings.general': 'عام',
