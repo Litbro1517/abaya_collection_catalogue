@@ -20,6 +20,8 @@ import {
 import { cn } from '@/lib/utils';
 import { useClientTranslation } from '@/lib/i18n';
 import { toast } from 'sonner';
+import { computeDiscount, getCompareAtPrice } from '@/lib/discount-utils';
+import { useAutoTranslatedText } from '@/lib/useAutoTranslatedText';
 import {
   Sheet,
   SheetContent,
@@ -253,6 +255,20 @@ export function ProductPage({
   const description = config.descriptionColumn ? getCellValue(config.descriptionColumn) : '';
   const variants = config.variantColumn ? getCellValue(config.variantColumn) : '';
   const statut = (rawData.__statut__ as string) || 'Courant';
+
+  // ━━ DEBT-10 : Traduction automatique à la volée (mono-champ BDD) ━━
+  // Si la locale visiteur diffère de la langue source, traduire titre + description
+  // via /api/translate (z-ai-web-dev-sdk) avec cache localStorage (30 jours)
+  const translatedTitle = useAutoTranslatedText(title, locale);
+  const translatedDescription = useAutoTranslatedText(description, locale);
+
+  // ━━ DEBT-9 : Colonne native discount (prix barré) ━━
+  // Lecture du slug natif __compare_at_price__ dans Row.data
+  const compareAtPriceRaw = getCompareAtPrice(rawData as Record<string, unknown> | null);
+  const discount = useMemo(
+    () => computeDiscount(price, compareAtPriceRaw),
+    [price, compareAtPriceRaw],
+  );
 
   // ── ColorMap state ──
   // NOTE: useState lazy initializer can't read localStorage during SSR (window undefined),
@@ -811,12 +827,44 @@ export function ProductPage({
           {/* ── Statut badge moved to floating overlay on the carousel (top-left) ── */}
 
           {/* ── Title ── */}
-          <h1 className="product-page-title">{title}</h1>
+          <h1 className="product-page-title">{translatedTitle}</h1>
 
-          {/* ── Price ── */}
+          {/* ── Price (avec DEBT-9 : prix barré + badge discount si compareAtPrice) ── */}
           {price && (
-            <div className="product-page-price-row">
+            <div className="product-page-price-row" style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
               <span className="product-page-price">{formatPrice(price)}</span>
+              {/* DEBT-9 : prix barré + badge discount */}
+              {discount.hasDiscount && (
+                <>
+                  <span
+                    className="product-page-price-original"
+                    style={{
+                      textDecoration: 'line-through',
+                      color: 'var(--muted-foreground, #888)',
+                      fontSize: '0.9em',
+                      opacity: 0.7,
+                    }}
+                    aria-label={t('product.originalPrice')}
+                  >
+                    {formatPrice(discount.compareAtPrice!)}
+                  </span>
+                  <span
+                    className="product-page-discount-badge"
+                    style={{
+                      backgroundColor: 'var(--pivot-danger, #800020)',
+                      color: '#fff',
+                      fontSize: '0.75em',
+                      fontWeight: 700,
+                      padding: '3px 8px',
+                      borderRadius: '5px',
+                      letterSpacing: '0.02em',
+                    }}
+                    aria-label={t('product.discount')}
+                  >
+                    -{discount.percentage}%
+                  </span>
+                </>
+              )}
               {isEpuise && <span className="product-page-status status-epuise">{t('product.soldOut')}</span>}
               {isSurCommande && <span className="product-page-status status-sur-commande">{t('product.onOrder')}</span>}
             </div>
@@ -829,7 +877,7 @@ export function ProductPage({
               {/* Fluid layout: line-clamp-3 clamps long descriptions. A "Lire la suite"
                   micro-button appears only when the text overflows 3 lines, opening a
                   side drawer (Sheet) with the full description for comfortable reading. */}
-              <p ref={descriptionRef} className="product-page-description line-clamp-3">{description}</p>
+              <p ref={descriptionRef} className="product-page-description line-clamp-3">{translatedDescription}</p>
               {descOverflow && (
                 <button
                   type="button"
@@ -1026,8 +1074,27 @@ export function ProductPage({
 
       {/* ── Mobile sticky CTA ── */}
       <div className="product-page-mobile-cta">
-        <div className="mobile-cta-price-row">
-          {price && <span className="mobile-cta-price">{formatPrice(price)}</span>}
+        <div className="mobile-cta-price-row" style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
+          {price && (
+            <>
+              <span className="mobile-cta-price">{formatPrice(price)}</span>
+              {/* DEBT-9 : badge discount compact pour mobile */}
+              {discount.hasDiscount && (
+                <span
+                  style={{
+                    backgroundColor: 'var(--pivot-danger, #800020)',
+                    color: '#fff',
+                    fontSize: '0.65em',
+                    fontWeight: 700,
+                    padding: '2px 5px',
+                    borderRadius: '3px',
+                  }}
+                >
+                  -{discount.percentage}%
+                </span>
+              )}
+            </>
+          )}
           {isEpuise && <span className="product-page-status status-epuise">{t('product.soldOut')}</span>}
           {isSurCommande && <span className="product-page-status status-sur-commande">{t('product.onOrder')}</span>}
         </div>
@@ -1084,7 +1151,7 @@ export function ProductPage({
             dir={rtl ? 'rtl' : 'ltr'}
             className="text-sm leading-7 text-foreground/90 whitespace-pre-line"
           >
-            {description}
+            {translatedDescription}
           </div>
         </SheetContent>
       </Sheet>

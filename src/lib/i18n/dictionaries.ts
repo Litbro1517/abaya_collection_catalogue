@@ -125,19 +125,11 @@ export const dictionaries: Record<Locale, TranslationDict> = {
     // ── Footer Extended ──
     'footer.email': 'E-mail',
     'footer.emailCopied': 'Adresse e-mail copiée !',
+    'footer.contactEmail': 'Contact e-mail',
+    'product.discount': 'Réduction',
+    'product.originalPrice': 'Prix original',
 
-    // ── Contact Modal ──
-    'contact.title': 'Nous contacter',
-    'contact.subtitle': 'Envoyez-nous votre message directement depuis le catalogue.',
-    'contact.yourEmail': 'Votre adresse e-mail',
-    'contact.yourMessage': 'Votre message',
-    'contact.messagePlaceholder': 'Bonjour, je souhaite avoir des informations sur...',
-    'contact.send': 'Envoyer le message',
-    'contact.sending': 'Envoi en cours...',
-    'contact.success': 'Message envoyé avec succès ! Nous vous répondrons bientôt.',
-    'contact.errorEmail': 'Veuillez saisir une adresse e-mail valide.',
-    'contact.errorMessage': 'Le message doit contenir au moins 5 caractères.',
-    'contact.errorSend': 'Erreur lors de l\'envoi du message. Veuillez réessayer.',
+    // ── Contact Modal (DEBT-6 retiré — clés supprimées) ──
 
     // ── Settings Tabs ──
     'settings.general': 'Général',
@@ -835,19 +827,11 @@ export const dictionaries: Record<Locale, TranslationDict> = {
     // ── Footer Extended ──
     'footer.email': 'Email',
     'footer.emailCopied': 'Email address copied!',
+    'footer.contactEmail': 'Email contact',
+    'product.discount': 'Discount',
+    'product.originalPrice': 'Original price',
 
-    // ── Contact Modal ──
-    'contact.title': 'Contact us',
-    'contact.subtitle': 'Send us your message directly from the catalog.',
-    'contact.yourEmail': 'Your email address',
-    'contact.yourMessage': 'Your message',
-    'contact.messagePlaceholder': 'Hello, I would like information about...',
-    'contact.send': 'Send message',
-    'contact.sending': 'Sending...',
-    'contact.success': 'Message sent successfully! We will get back to you soon.',
-    'contact.errorEmail': 'Please enter a valid email address.',
-    'contact.errorMessage': 'The message must contain at least 5 characters.',
-    'contact.errorSend': 'Error sending message. Please try again.',
+    // ── Contact Modal (DEBT-6 retiré — clés supprimées) ──
 
     // ── Settings Tabs ──
     'settings.general': 'General',
@@ -1545,19 +1529,11 @@ export const dictionaries: Record<Locale, TranslationDict> = {
     // ── Footer Extended ──
     'footer.email': 'البريد الإلكتروني',
     'footer.emailCopied': 'تم نسخ عنوان البريد الإلكتروني!',
+    'footer.contactEmail': 'بريد الاتصال',
+    'product.discount': 'تخفيض',
+    'product.originalPrice': 'السعر الأصلي',
 
-    // ── Contact Modal ──
-    'contact.title': 'اتصل بنا',
-    'contact.subtitle': 'أرسل لنا رسالتك مباشرة من الكتالوج.',
-    'contact.yourEmail': 'عنوان بريدك الإلكتروني',
-    'contact.yourMessage': 'رسالتك',
-    'contact.messagePlaceholder': 'مرحبًا، أود الحصول على معلومات حول...',
-    'contact.send': 'إرسال الرسالة',
-    'contact.sending': 'جاري الإرسال...',
-    'contact.success': 'تم إرسال الرسالة بنجاح! سنعود إليك قريبًا.',
-    'contact.errorEmail': 'يرجى إدخال عنوان بريد إلكتروني صالح.',
-    'contact.errorMessage': 'يجب أن تحتوي الرسالة على 5 أحرف على الأقل.',
-    'contact.errorSend': 'خطأ في إرسال الرسالة. يرجى المحاولة مرة أخرى.',
+    // ── Contact Modal (DEBT-6 retiré — clés supprimées) ──
 
     // ── Settings Tabs ──
     'settings.general': 'عام',
@@ -2207,13 +2183,29 @@ export const CURRENCY_CONFIG: Record<string, CurrencyConfig> = {
   AED: { symbol: 'د.إ', position: 'after', decimalDigits: 2, separator: '.' },
 };
 
+// ━━ DEBT-8 : Séparation étanche UI vs Système ━━━━━━━━━━━━━━━━━━━━━━━━
+// Couche UI (visiteur catalogue) : MAD → "Dhs" (proximité locale marocaine)
+// Couche Système (admin/SEO/analytics) : MAD reste "MAD" (ISO 4217 standard)
+//
+// Le code BDD reste "MAD" (CatalogSettings.currency) — seule l'affichage
+// visiteur change. L'admin, les métadonnées SEO (Schema.org priceCurrency),
+// et le dataLayer analytics (GA4/Meta Pixel) continuent d'utiliser "MAD".
+const UI_CURRENCY_SYMBOL_OVERRIDE: Record<string, string> = {
+  MAD: 'Dhs',  // Affichage catalogue visiteur (toutes locales FR/EN/AR)
+  // Les autres devises gardent leur symbole par défaut (€, $, د.ج, etc.)
+};
+
 /**
  * Format a price with the given currency code.
  * Uses the CURRENCY_CONFIG for symbol position and decimal digits.
+ *
+ * @param displayMode - 'system' (default) garde le symbole ISO (MAD pour analytics/SEO/admin)
+ *                      'ui' applique l'override visiteur (MAD → Dhs)
  */
 export function formatPriceWithCurrency(
   price: number | string,
   currencyCode: string = 'MAD',
+  displayMode: 'system' | 'ui' = 'system',
 ): string {
   const num = typeof price === 'string' ? parseFloat(price) : price;
   if (isNaN(num)) return String(price);
@@ -2221,8 +2213,13 @@ export function formatPriceWithCurrency(
   const config = CURRENCY_CONFIG[currencyCode] || CURRENCY_CONFIG.MAD;
   const formatted = num.toFixed(config.decimalDigits);
 
+  // Pour l'affichage UI visiteur, substituer le symbole système (MAD) par le symbole UI (Dhs)
+  const symbol = displayMode === 'ui'
+    ? (UI_CURRENCY_SYMBOL_OVERRIDE[currencyCode] || config.symbol)
+    : config.symbol;
+
   if (config.position === 'before') {
-    return `${config.symbol}${formatted}`;
+    return `${symbol}${formatted}`;
   }
-  return `${formatted} ${config.symbol}`;
+  return `${formatted} ${symbol}`;
 }

@@ -344,17 +344,3 @@ model OrderHistory {
   @@index([orderId, changedAt])
   @@map("order_history")
 }
-
-// ━━ ContactMessage — Messages from the integrated contact modal ━━
-// Visitors can send a message (email + text) directly from the catalog
-// without leaving the page. Stored in DB for admin review.
-model ContactMessage {
-  id        String   @id @default(cuid())
-  fromEmail String   @map("from_email")   // sender's email (for reply)
-  message   String                           // message body
-  toEmail   String   @map("to_email")     // recipient (admin's email)
-  isRead    Boolean  @default(false) @map("is_read")
-  createdAt DateTime @default(now()) @map("created_at")
-
-  @@map("contact_messages")
-}

@@ -120,6 +120,18 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
       'couleur': '__colors__',
       'color': '__colors__',
       'statut': '__statut__',
+      // ━━ DEBT-9 : Colonne native discount (prix barré) ━━
+      // Mapping multilingue : "prix_barre", "ancien_prix", "compare_at_price", "compareAtPrice"
+      'prix_barre': '__compare_at_price__',
+      'prix_barré': '__compare_at_price__',
+      'ancien_prix': '__compare_at_price__',
+      'ancien prix': '__compare_at_price__',
+      'prix original': '__compare_at_price__',
+      'prix_original': '__compare_at_price__',
+      'compare_at_price': '__compare_at_price__',
+      'compareatprice': '__compare_at_price__',
+      'compare at price': '__compare_at_price__',
+      'old price': '__compare_at_price__',
     };
     const sheetColToNativeSlug = new Map<number, string>(); // col index → native slug
 

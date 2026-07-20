@@ -24,8 +24,10 @@ export function useClientTranslation() {
 
   const rtl = isRTL(locale);
 
+  // DEBT-8 : formatPrice visiteur utilise displayMode 'ui' → MAD affiché comme "Dhs"
+  // (le code BDD reste "MAD" pour SEO/analytics ; seul l'affichage visiteur change)
   const formatPrice = useMemo(() => {
-    return (price: number | string): string => formatPriceWithCurrency(price, currency);
+    return (price: number | string): string => formatPriceWithCurrency(price, currency, 'ui');
   }, [currency]);
 
   return {

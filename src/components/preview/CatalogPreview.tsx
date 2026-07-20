@@ -18,10 +18,11 @@ import type { CachedSectionData } from '@/lib/cache';
 import { ProductPage } from './ProductPage';
 import { SocialStickyTickets } from './SocialStickyTickets';
 import { CheckoutPage, type CheckoutPayload } from './CheckoutPage';
-import { ContactModal } from './ContactModal';
 import { useClientTranslation } from '@/lib/i18n';
 import { buildWhatsappLink } from '@/lib/whatsapp';
 import { toast } from 'sonner';
+import { computeDiscount, getCompareAtPrice } from '@/lib/discount-utils';
+// DEBT-6 revert: ContactModal retiré — retour à la Méthode Hybride mailto: + clipboard (DEBT-5)
 
 // ── Brand Constants removed — all values migrated to CSS pivot variables & global classes ──
 
@@ -286,7 +287,6 @@ export function CatalogPreview({ onAdminLogin }: CatalogPreviewProps) {
   const searchInputRef = useRef<HTMLInputElement | null>(null);  // autofocus on expand
   // ━━ Checkout tunnel: when set, the dedicated CheckoutPage replaces the product detail ━━
   const [checkoutData, setCheckoutData] = useState<CheckoutPayload | null>(null);
-  const [contactModalOpen, setContactModalOpen] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
   const [likedProducts, setLikedProducts] = useState<Set<string>>(new Set);
   const [activeFilter, setActiveFilter] = useState<string>('all');
@@ -621,12 +621,25 @@ export function CatalogPreview({ onAdminLogin }: CatalogPreviewProps) {
     return '#';
   };
 
-  // ── Email click handler — Opens the integrated ContactModal ──
-  // Replaces the old DEBT-5 clipboard + mailto fallback with a proper
-  // in-app contact form. The user types their email + message and submits
-  // without leaving the page.
-  const handleEmailClick = () => {
-    setContactModalOpen(true);
+  // ── Email click handler — Méthode Hybride (DEBT-5 restauré) ──
+  // 1. Tente la copie dans le presse-papier SI l'API est disponible
+  // 2. Affiche un toast de confirmation sonner si la copie réussit
+  // 3. Déclenche le mailto: dans un bloc finally (inconditionnel)
+  //    → garantit l'ouverture du client mail même si clipboard échoue
+  const handleEmailClick = async (email: string) => {
+    if (!email) return;
+    const mailtoUrl = `mailto:${email}`;
+
+    try {
+      if (navigator.clipboard && typeof navigator.clipboard.writeText === 'function') {
+        await navigator.clipboard.writeText(email);
+        toast.success(t('footer.emailCopied'));
+      }
+    } catch {
+      // Échec copie → on continue vers mailto
+    } finally {
+      window.location.href = mailtoUrl;
+    }
   };
 
   // Legacy filter options (fallback when no dynamic categories loaded)
@@ -1559,25 +1572,64 @@ export function CatalogPreview({ onAdminLogin }: CatalogPreviewProps) {
                 })()}
 
                 {/* Price line with inline status — minimalist, high-end */}
-                {((price && config.showPrice !== false) || isEpuise || isSurCommande) && (
-                  <div className="product-card-price-row">
-                    {price && config.showPrice !== false && (
-                      <span className="product-card-price">{formatPrice(price)}</span>
-                    )}
-                    {/* Scenario B: Épuisé — soft rose, no background */}
-                    {isEpuise && (
-                      <span className="product-card-status product-card-status--epuise">
-                        {t('product.soldOut')}
-                      </span>
-                    )}
-                    {/* Scenario C: Sur commande — amber/gold, no background */}
-                    {isSurCommande && (
-                      <span className="product-card-status product-card-status--sur-commande">
-                        {t('product.onOrder')}
-                      </span>
-                    )}
-                  </div>
-                )}
+                {(() => {
+                  const compareAtPrice = getCompareAtPrice(row.data as Record<string, unknown> | null);
+                  const discount = computeDiscount(price, compareAtPrice);
+                  return (
+                    <div className="product-card-price-row">
+                      {price && config.showPrice !== false && (
+                        <>
+                          <span className="product-card-price">{formatPrice(price)}</span>
+                          {/* DEBT-9 : prix barré + badge discount si compareAtPrice > price */}
+                          {discount.hasDiscount && (
+                            <>
+                              <span
+                                className="product-card-price-original"
+                                style={{
+                                  textDecoration: 'line-through',
+                                  color: 'var(--muted-foreground, #888)',
+                                  fontSize: '0.85em',
+                                  opacity: 0.7,
+                                }}
+                                aria-label={t('product.originalPrice')}
+                              >
+                                {formatPrice(discount.compareAtPrice!)}
+                              </span>
+                              <span
+                                className="product-card-discount-badge"
+                                style={{
+                                  backgroundColor: 'var(--pivot-danger, #800020)',
+                                  color: '#fff',
+                                  fontSize: '0.7em',
+                                  fontWeight: 700,
+                                  padding: '2px 6px',
+                                  borderRadius: '4px',
+                                  marginLeft: rtl ? '0' : '4px',
+                                  marginRight: rtl ? '4px' : '0',
+                                }}
+                                aria-label={t('product.discount')}
+                              >
+                                -{discount.percentage}%
+                              </span>
+                            </>
+                          )}
+                        </>
+                      )}
+                      {/* Scenario B: Épuisé — soft rose, no background */}
+                      {isEpuise && (
+                        <span className="product-card-status product-card-status--epuise">
+                          {t('product.soldOut')}
+                        </span>
+                      )}
+                      {/* Scenario C: Sur commande — amber/gold, no background */}
+                      {isSurCommande && (
+                        <span className="product-card-status product-card-status--sur-commande">
+                          {t('product.onOrder')}
+                        </span>
+                      )}
+                    </div>
+                  );
+                })()}
 
                 {/* No CTA below card — micro-CTA is on the image */}
               </article>
@@ -1646,8 +1698,8 @@ export function CatalogPreview({ onAdminLogin }: CatalogPreviewProps) {
                 )}
               </Link>
 
-              {/* Social block — Premium horizontal icon row */}
-              {(s?.whatsappNumber || s?.messengerLink || s?.instagramHandle || s?.facebookPage || s?.tiktokHandle || s?.emailContact) && (
+              {/* Social block — Premium horizontal icon row (réseaux sociaux uniquement — email dissocié) */}
+              {(s?.whatsappNumber || s?.messengerLink || s?.instagramHandle || s?.facebookPage || s?.tiktokHandle) && (
                 <div className="flex flex-col items-start text-start gap-3">
                   <span className="text-[10px] font-semibold uppercase tracking-wider text-white/50">{t('footer.followUs')}</span>
                   <div className="flex items-center gap-2.5">
@@ -1709,18 +1761,27 @@ export function CatalogPreview({ onAdminLogin }: CatalogPreviewProps) {
                         </svg>
                       </a>
                     )}
-                    {/* Email — Integrated ContactModal (replaces DEBT-5 clipboard+mailto) */}
-                    {s?.emailContact && (
-                      <button
-                        type="button"
-                        onClick={() => handleEmailClick()}
-                        aria-label={t('footer.email')}
-                        className="group flex items-center justify-center w-9 h-9 rounded-full bg-white/10 hover:bg-white/25 transition-all duration-300 hover:scale-110 cursor-pointer"
-                      >
-                        <Mail className="w-4 h-4 text-white/80 group-hover:text-white transition-colors" />
-                      </button>
-                    )}
                   </div>
+                </div>
+              )}
+
+              {/* ── Bloc Contact Email dissocié (DEBT-7) ── */}
+              {/* L'email n'est plus mêlé aux réseaux sociaux : bloc dédié avec icône enveloppe + adresse visible */}
+              {s?.emailContact && (
+                <div className="flex flex-col items-start text-start gap-2 mt-1">
+                  <span className="text-[10px] font-semibold uppercase tracking-wider text-white/50">{t('footer.contactEmail')}</span>
+                  <button
+                    type="button"
+                    onClick={() => handleEmailClick(s.emailContact!)}
+                    aria-label={t('footer.email')}
+                    title={s.emailContact}
+                    className="group flex items-center gap-2 text-xs text-white/70 hover:text-white transition-colors"
+                  >
+                    <span className="flex items-center justify-center w-7 h-7 rounded-md bg-[#C9A84C]/15 hover:bg-[#C9A84C]/30 transition-colors">
+                      <Mail className="w-3.5 h-3.5 text-[#C9A84C] group-hover:text-white transition-colors" />
+                    </span>
+                    <span className="truncate max-w-[180px]" dir="ltr">{s.emailContact}</span>
+                  </button>
                 </div>
               )}
             </div>
@@ -1796,12 +1857,7 @@ export function CatalogPreview({ onAdminLogin }: CatalogPreviewProps) {
         />
       )}
 
-      {/* Integrated Contact Modal — triggered by email button in footer */}
-      <ContactModal
-        open={contactModalOpen}
-        onOpenChange={setContactModalOpen}
-        recipientEmail={s?.emailContact || ''}
-      />
+      {/* Footer — voir rendu dédié plus haut */}
     </div>
   );
 }
