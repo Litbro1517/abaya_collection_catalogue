@@ -22,6 +22,7 @@ import { useClientTranslation } from '@/lib/i18n';
 import { toast } from 'sonner';
 import { computeDiscount, getCompareAtPrice } from '@/lib/discount-utils';
 import { useAutoTranslatedText } from '@/lib/useAutoTranslatedText';
+import { PriceText } from '@/components/PriceText';
 import {
   Sheet,
   SheetContent,
@@ -832,21 +833,22 @@ export function ProductPage({
           {/* ── Price (avec DEBT-9 : prix barré + badge discount si compareAtPrice) ── */}
           {price && (
             <div className="product-page-price-row" style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
-              <span className="product-page-price">{formatPrice(price)}</span>
+              <span className="product-page-price">
+                <PriceText>{formatPrice(price)}</PriceText>
+              </span>
               {/* DEBT-9 : prix barré + badge discount */}
               {discount.hasDiscount && (
                 <>
                   <span
                     className="product-page-price-original"
                     style={{
-                      textDecoration: 'line-through',
                       color: 'var(--muted-foreground, #888)',
                       fontSize: '0.9em',
                       opacity: 0.7,
                     }}
                     aria-label={t('product.originalPrice')}
                   >
-                    {formatPrice(discount.compareAtPrice!)}
+                    <PriceText strikethrough>{formatPrice(discount.compareAtPrice!)}</PriceText>
                   </span>
                   <span
                     className="product-page-discount-badge"
@@ -1077,7 +1079,9 @@ export function ProductPage({
         <div className="mobile-cta-price-row" style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
           {price && (
             <>
-              <span className="mobile-cta-price">{formatPrice(price)}</span>
+              <span className="mobile-cta-price">
+                <PriceText>{formatPrice(price)}</PriceText>
+              </span>
               {/* DEBT-9 : badge discount compact pour mobile */}
               {discount.hasDiscount && (
                 <span

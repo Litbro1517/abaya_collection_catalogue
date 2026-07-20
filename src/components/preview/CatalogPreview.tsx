@@ -22,6 +22,8 @@ import { useClientTranslation } from '@/lib/i18n';
 import { buildWhatsappLink } from '@/lib/whatsapp';
 import { toast } from 'sonner';
 import { computeDiscount, getCompareAtPrice } from '@/lib/discount-utils';
+import { PriceText } from '@/components/PriceText';
+import { useAutoTranslatedText } from '@/lib/useAutoTranslatedText';
 // DEBT-6 revert: ContactModal retiré — retour à la Méthode Hybride mailto: + clipboard (DEBT-5)
 
 // ── Brand Constants removed — all values migrated to CSS pivot variables & global classes ──
@@ -269,6 +271,15 @@ type DynamicCategory = {
 
 interface CatalogPreviewProps {
   onAdminLogin?: () => void;
+}
+
+// ━━ DEBT-10 repair : sous-composant pour traduction auto du titre carte produit ━━
+// Les hooks React ne peuvent pas être appelés dans une boucle .map(),
+// on extrait donc l'élément titre dans un composant dédié qui appelle
+// useAutoTranslatedText légitimement (une fois par instance de carte).
+function ProductCardTitle({ title, locale }: { title: string; locale: string }) {
+  const translatedTitle = useAutoTranslatedText(title, locale);
+  return <span className="product-card-title">{translatedTitle}</span>;
 }
 
 export function CatalogPreview({ onAdminLogin }: CatalogPreviewProps) {
@@ -1531,9 +1542,9 @@ export function CatalogPreview({ onAdminLogin }: CatalogPreviewProps) {
                   </button>
                 </div>
 
-                {/* Text */}
+                {/* Text — DEBT-10 repair : traduction auto via ProductCardTitle */}
                 {config.showTitle !== false && title && (
-                  <strong className="product-card-title">{title}</strong>
+                  <ProductCardTitle title={title} locale={locale} />
                 )}
 
                 {/* Color dots — NATIVE color column only (single source of truth).
@@ -1579,21 +1590,22 @@ export function CatalogPreview({ onAdminLogin }: CatalogPreviewProps) {
                     <div className="product-card-price-row">
                       {price && config.showPrice !== false && (
                         <>
-                          <span className="product-card-price">{formatPrice(price)}</span>
+                          <span className="product-card-price">
+                            <PriceText>{formatPrice(price)}</PriceText>
+                          </span>
                           {/* DEBT-9 : prix barré + badge discount si compareAtPrice > price */}
                           {discount.hasDiscount && (
                             <>
                               <span
                                 className="product-card-price-original"
                                 style={{
-                                  textDecoration: 'line-through',
                                   color: 'var(--muted-foreground, #888)',
                                   fontSize: '0.85em',
                                   opacity: 0.7,
                                 }}
                                 aria-label={t('product.originalPrice')}
                               >
-                                {formatPrice(discount.compareAtPrice!)}
+                                <PriceText strikethrough>{formatPrice(discount.compareAtPrice!)}</PriceText>
                               </span>
                               <span
                                 className="product-card-discount-badge"

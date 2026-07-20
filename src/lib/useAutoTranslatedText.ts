@@ -136,6 +136,36 @@ export function useAutoTranslatedText(
   const lastTextRef = useRef<string>('');
   const lastLangRef = useRef<string>('');
 
+  // ━━ DEBT-10 repair : détection automatique de la langue source ━━
+  // Au lieu de court-circuiter aveuglément quand targetLang === 'fr',
+  // on détecte la langue réelle du texte source via les plages Unicode :
+  // - Si le texte contient majoritairement des caractères arabes (U+0600-U+06FF)
+  //   et que la cible est 'fr' ou 'en' → traduction nécessaire
+  // - Si le texte est déjà dans la même écriture que la cible → court-circuit
+  //   (optimisation légitime : pas besoin de traduire du français vers du français)
+  function detectTextLanguage(text: string): 'ar' | 'latin' {
+    if (!text) return 'latin';
+    const arabicChars = (text.match(/[\u0600-\u06FF]/g) || []).length;
+    const latinChars = (text.match(/[a-zA-Z]/g) || []).length;
+    // Si au moins 30% de caractères arabes → considéré comme arabe
+    return arabicChars > latinChars * 0.5 ? 'ar' : 'latin';
+  }
+
+  function needsTranslation(text: string, targetLang: string): boolean {
+    if (!text || !text.trim()) return false;
+    const sourceLang = detectTextLanguage(text);
+    // Si source arabe et cible 'fr' ou 'en' → traduction nécessaire
+    if (sourceLang === 'ar' && (targetLang === 'fr' || targetLang === 'en')) {
+      return true;
+    }
+    // Si source latin et cible 'ar' → traduction nécessaire
+    if (sourceLang === 'latin' && targetLang === 'ar') {
+      return true;
+    }
+    // Sinon (source et cible dans la même écriture) → pas de traduction
+    return false;
+  }
+
   useEffect(() => {
     // Pas de texte → rien à faire
     if (!text || !text.trim()) {
@@ -151,10 +181,9 @@ export function useAutoTranslatedText(
     lastTextRef.current = text;
     lastLangRef.current = targetLang;
 
-    // Détection : si la langue cible est 'fr', on suppose que le texte est
-    // potentiellement en français → retourner tel quel (optimisation)
-    // (les vendeurs rédigent majoritairement en français ou arabe)
-    if (targetLang === 'fr') {
+    // DEBT-10 repair : détection intelligente au lieu du court-circuit 'fr' aveugle
+    // Si le texte est déjà dans la même écriture que la langue cible, pas besoin de traduire
+    if (!needsTranslation(text, targetLang)) {
       setTranslated(text);
       return;
     }

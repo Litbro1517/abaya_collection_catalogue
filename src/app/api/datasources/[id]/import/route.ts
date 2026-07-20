@@ -121,17 +121,29 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
       'color': '__colors__',
       'statut': '__statut__',
       // ━━ DEBT-9 : Colonne native discount (prix barré) ━━
-      // Mapping multilingue : "prix_barre", "ancien_prix", "compare_at_price", "compareAtPrice"
-      'prix_barre': '__compare_at_price__',
-      'prix_barré': '__compare_at_price__',
+      // Mapping multilingue : "Ancien_prix", "ancien_prix", "prix_barre", "compare_at_price"
+      // La variante "Ancien_prix" (avec A majuscule, exactement comme saisie par l'admin)
+      // est gérée par le .toLowerCase() appliqué à l'en-tête — mais on l'ajoute
+      // explicitement ici pour robustesse et documentation.
       'ancien_prix': '__compare_at_price__',
       'ancien prix': '__compare_at_price__',
+      'ancienprix': '__compare_at_price__',
+      'prix_ancien': '__compare_at_price__',
+      'prix ancien': '__compare_at_price__',
+      'prix_barre': '__compare_at_price__',
+      'prix_barré': '__compare_at_price__',
+      'prixbarré': '__compare_at_price__',
       'prix original': '__compare_at_price__',
       'prix_original': '__compare_at_price__',
+      'originalprice': '__compare_at_price__',
+      'original price': '__compare_at_price__',
       'compare_at_price': '__compare_at_price__',
       'compareatprice': '__compare_at_price__',
       'compare at price': '__compare_at_price__',
       'old price': '__compare_at_price__',
+      'oldprice': '__compare_at_price__',
+      'prix de référence': '__compare_at_price__',
+      'prix_reference': '__compare_at_price__',
     };
     const sheetColToNativeSlug = new Map<number, string>(); // col index → native slug
 
