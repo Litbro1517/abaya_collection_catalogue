@@ -495,6 +495,17 @@ Section ouverte le 18/07/2026 après implémentation de V4.1.5 (FX-SearchUnified
 
 **Anomalie 3 — Traduction auto silencieuse (API bug)** : deux bugs composés dans `/api/translate` : (a) `sourceLang` defaultait à `'fr'` même pour texte arabe → prompt LLM absurde ("translate Arabic from French"). (b) Ligne 78 `translations[source] = text.trim()` **écrasait** la traduction française du LLM avec le texte arabe original. **Fix** : ajout de `detectSourceLang()` (Unicode ranges, même logique que le hook client) + conditionnel `if (!translations[source])` au lieu d'overwrite systématique. Aussi : `useAutoTranslatedText` envoie désormais `sourceLang` dans le body, et cache key prefix bumpé de `abaya_translation_` à `abaya_translation_v2_` pour invalider les entrées stale.
 
+### Native Discount Column — Mission ABAYA-NATIVE-DISCOUNT-COLUMN
+
+**Statut : ⏳ EN ATTENTE D'AUDIT — Branche `fix/native-discount-column-and-badge`**
+
+4 modifications structurelles pour faire de `__compare_at_price__` une vraie colonne native (7ème) :
+
+1. **DataTable.tsx** : `__compare_at_price__` ajouté à `NATIVE_COLUMN_SLUGS` (badge Native + non-supprimable) et `NATIVE_ORDER` position 3.
+2. **columns/route.ts** : Fallback API — `NATIVE_COLUMNS_FALLBACK` (7 colonnes), GET upsert + inject si manquante.
+3. **scripts/backfill-compare-at-price.ts** : Script migration — parcourt DataSources, crée colonne si absente.
+4. **discount-utils.ts** : `Math.round()` déjà utilisé (L.135) — pourcentage entier, aucun changement.
+
 ---
 
 ## Clôture Finalisation Lancement — 19/07/2026

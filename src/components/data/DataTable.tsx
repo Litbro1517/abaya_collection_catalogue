@@ -619,7 +619,8 @@ export function DataTable({ columns, rows, dataSourceId, loading, onRefresh, onU
   }, [rows, dataSourceId, onRefresh]);
 
   // Native system column slugs — non-deletable, ordered first
-  const NATIVE_COLUMN_SLUGS = ['__category__', '__sub_category__', '__colors__', '__disponibilite__', '__stock__', '__statut__'];
+  // __compare_at_price__ = 7th native column (prix barré / discount)
+  const NATIVE_COLUMN_SLUGS = ['__category__', '__sub_category__', '__colors__', '__compare_at_price__', '__disponibilite__', '__stock__', '__statut__'];
   const isNativeColumn = (slug: string) => NATIVE_COLUMN_SLUGS.includes(slug);
 
   // ── Load stock source config from the __stock__ column ──
@@ -650,7 +651,7 @@ export function DataTable({ columns, rows, dataSourceId, loading, onRefresh, onU
   // Filter out __is_visible__ (handled by Eye icon in # column)
   const visibleColumns = columns.filter(c => c.visible && c.slug !== '__is_visible__');
   // Sort visible columns: native columns first in specified order, then regular columns
-  const NATIVE_ORDER: Record<string, number> = { '__category__': 0, '__sub_category__': 1, '__colors__': 2, '__disponibilite__': 3, '__stock__': 4, '__statut__': 5 };
+  const NATIVE_ORDER: Record<string, number> = { '__category__': 0, '__sub_category__': 1, '__colors__': 2, '__compare_at_price__': 3, '__disponibilite__': 4, '__stock__': 5, '__statut__': 6 };
   const sortedVisibleColumns = [...visibleColumns].sort((a, b) => {
     const aNative = NATIVE_ORDER[a.slug] ?? 999;
     const bNative = NATIVE_ORDER[b.slug] ?? 999;
