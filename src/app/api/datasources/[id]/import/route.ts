@@ -252,8 +252,9 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     }
 
     // ━━━ Guarantee native system columns ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-    // Always ensure the 6 native columns exist (same as Google Sync does)
+    // Always ensure the 7 native columns exist (same as Google Sync does)
     // These are required for the DataTable's special cell rendering
+    // DEBT-9 production repair : __compare_at_price__ ajouté en 7ème position (type CURRENCY)
     const nativeColumns = [
       { slug: '__colors__', name: 'Couleur', type: 'COLOR', order: -6, config: {} },
       { slug: '__category__', name: 'Catégorie', type: 'SELECT', order: -5, config: {} },
@@ -261,6 +262,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
       { slug: '__disponibilite__', name: 'Disponibilité', type: 'BOOLEAN', order: -3, config: { labels: { true: 'Disponible', false: 'Épuisé' } } },
       { slug: '__stock__', name: 'Stock', type: 'NUMBER', order: -2, config: { isCounter: true, min: 0 } },
       { slug: '__statut__', name: 'Statut', type: 'STATUS', order: -1, config: { options: ['Nouveau', 'Courant'] } },
+      { slug: '__compare_at_price__', name: 'Prix barré', type: 'CURRENCY', order: 7, config: {} },
     ];
 
     for (const nc of nativeColumns) {

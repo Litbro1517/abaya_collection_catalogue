@@ -483,6 +483,18 @@ Section ouverte le 18/07/2026 après implémentation de V4.1.5 (FX-SearchUnified
 - **Lint** : 0 erreur. **Build** : Exit 0 (43+ pages).
 - **Note mineure non bloquante** : `useAutoTranslatedTexts` (variant batch, non utilisé dans le code) conserve le court-circuit `targetLang === 'fr'` — code mort, pas d'impact.
 
+### Production Repair — Mission ABAYA-REPAIR-PROD-2026-07 (DEBT-8/9/10 production fix)
+
+**Statut : ⏳ EN ATTENTE D'AUDIT — Branche `fix/debt8-9-10-production-repair`**
+
+3 causes racines identifiées et corrigées :
+
+**Anomalie 1 — `Ancien_prix` non mappé (Google Sync)** : la route `google/sync/route.ts` avait une liste `nativeNamePatterns` **séparée** de celle de `import/route.ts`, avec seulement 5 entrées — `__compare_at_price__` en était absent. Les données de production (sync Google Sheets) ne mappraient jamais `Ancien_prix` vers `__compare_at_price__`. **Fix** : ajout de `__compare_at_price__` (18 variantes) à `nativeNamePatterns` (full import L.362) ET `deltaNativeNamePatterns` (delta sync L.820). Aussi ajouté `__compare_at_price__` au `nativeColumns` upsert de `import/route.ts` (7ème colonne native, type CURRENCY).
+
+**Anomalie 2 — Discount invisible (conséquence de #1)** : `getCompareAtPrice(row.data)` lisait `row.data.__compare_at_price__` qui était `undefined` pour les données Google-synced → `computeDiscount` retournait `hasDiscount: false`. **Aucun code change nécessaire** dans `discount-utils.ts`, `CatalogPreview.tsx` ou `ProductPage.tsx` — le fix amont (Anomalie 1) résout automatiquement l'affichage.
+
+**Anomalie 3 — Traduction auto silencieuse (API bug)** : deux bugs composés dans `/api/translate` : (a) `sourceLang` defaultait à `'fr'` même pour texte arabe → prompt LLM absurde ("translate Arabic from French"). (b) Ligne 78 `translations[source] = text.trim()` **écrasait** la traduction française du LLM avec le texte arabe original. **Fix** : ajout de `detectSourceLang()` (Unicode ranges, même logique que le hook client) + conditionnel `if (!translations[source])` au lieu d'overwrite systématique. Aussi : `useAutoTranslatedText` envoie désormais `sourceLang` dans le body, et cache key prefix bumpé de `abaya_translation_` à `abaya_translation_v2_` pour invalider les entrées stale.
+
 ---
 
 ## Clôture Finalisation Lancement — 19/07/2026
