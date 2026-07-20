@@ -1,18 +1,56 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
+import { getCurrentAdmin } from '@/lib/auth';
 
 // ── POST /api/contact — Receive a contact message from the catalog modal ──
 // Public endpoint (no auth required — visitors are not authenticated).
 // Stores the message in the ContactMessage table for admin review.
 //
+// Anti-spam: rate limiting by IP — max 1 message per 60 seconds.
+// The last message timestamp from the same IP is checked in DB.
+//
 // Body: { fromEmail: string, message: string, toEmail: string }
-// Returns: 201 { data: { id } } on success, 400/500 on error.
+// Returns: 201 { data: { id } } on success, 400/429/500 on error.
 
 const MAX_MESSAGE_LENGTH = 2000;
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const RATE_LIMIT_MS = 60_000; // 60 seconds between messages from the same IP
+
+// ── In-memory rate limit store (per server instance) ──
+// Note: In serverless (Vercel), each instance has its own memory.
+// This is a basic first layer. For production-grade, use Upstash Redis.
+const rateLimitMap = new Map<string, number>();
+
+function getClientIp(req: NextRequest): string {
+  const forwarded = req.headers.get('x-forwarded-for');
+  if (forwarded) return forwarded.split(',')[0].trim();
+  const realIp = req.headers.get('x-real-ip');
+  if (realIp) return realIp.trim();
+  return 'unknown';
+}
 
 export async function POST(req: NextRequest) {
   try {
+    // ── Rate limiting (A6 fix) ──
+    const clientIp = getClientIp(req);
+    const now = Date.now();
+    const lastRequest = rateLimitMap.get(clientIp);
+    if (lastRequest && (now - lastRequest) < RATE_LIMIT_MS) {
+      const remaining = Math.ceil((RATE_LIMIT_MS - (now - lastRequest)) / 1000);
+      return NextResponse.json(
+        { data: null, error: `Trop de messages envoyés. Veuillez attendre ${remaining} secondes.` },
+        { status: 429 }
+      );
+    }
+    rateLimitMap.set(clientIp, now);
+
+    // Clean up old entries (prevent memory leak)
+    if (rateLimitMap.size > 1000) {
+      for (const [ip, ts] of rateLimitMap.entries()) {
+        if (now - ts > RATE_LIMIT_MS * 2) rateLimitMap.delete(ip);
+      }
+    }
+
     const body = await req.json();
     const { fromEmail, message, toEmail } = body;
 
@@ -76,8 +114,6 @@ export async function POST(req: NextRequest) {
 
 // ── GET /api/contact — List contact messages (admin only) ──
 // Protected by getCurrentAdmin() — defense in depth.
-import { getCurrentAdmin } from '@/lib/auth';
-
 export async function GET() {
   try {
     const admin = await getCurrentAdmin();

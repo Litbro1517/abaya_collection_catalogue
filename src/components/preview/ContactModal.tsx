@@ -16,6 +16,10 @@ import { Loader2, Send, Mail } from 'lucide-react';
 import { useClientTranslation } from '@/lib/i18n';
 import { toast } from 'sonner';
 
+// Robust email regex (same as server-side for consistency)
+const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const MAX_MESSAGE_LENGTH = 2000;
+
 interface ContactModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -41,12 +45,16 @@ export function ContactModal({ open, onOpenChange, recipientEmail }: ContactModa
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
 
-    // Basic validation
-    if (!email.trim() || !email.includes('@')) {
+    // Robust validation (A3 fix — regex instead of simple includes)
+    if (!email.trim() || !EMAIL_REGEX.test(email.trim())) {
       toast.error(t('contact.errorEmail'));
       return;
     }
     if (!message.trim() || message.trim().length < 5) {
+      toast.error(t('contact.errorMessage'));
+      return;
+    }
+    if (message.length > MAX_MESSAGE_LENGTH) {
       toast.error(t('contact.errorMessage'));
       return;
     }
@@ -129,6 +137,8 @@ export function ContactModal({ open, onOpenChange, recipientEmail }: ContactModa
               placeholder={t('contact.messagePlaceholder')}
               required
               disabled={sending}
+              maxLength={MAX_MESSAGE_LENGTH}
+              dir={rtl ? 'rtl' : 'ltr'}
               className="min-h-[120px] text-sm resize-none"
             />
           </div>
