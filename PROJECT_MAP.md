@@ -472,6 +472,17 @@ Section ouverte le 18/07/2026 après implémentation de V4.1.5 (FX-SearchUnified
 - `next build` bloqué uniquement par une limite réseau de l'environnement d'audit (Google Fonts inaccessible) — reproduit à l'identique sur `main` non modifié, donc non imputable au patch.
 - 2 points mineurs non bloquants relevés : (1) le point du mandat sur `Schema.org priceCurrency` est sans objet, aucune implémentation JSON-LD n'existant dans le projet ; (2) le lien email est passé de `<a href="mailto:">` à `<button>`, perdant le filet de sécurité "no-JS" — à surveiller si la robustesse hors-JS redevient une priorité.
 
+### Audit de réparation — Mission ABAYA-AUDIT-REPAIR-DEBTS-2026-07 (DEBT-8/9/10 repair)
+
+**Verdict : 🟢 GO MERGE** — le patch `fix-debt8-9-10-repair.patch` (commit `c59d73c`) a été appliqué sur branche d'audit isolée depuis `main@89e0a59`, audité point par point, et validé :
+
+- **DEBT-8-repair** (PriceText RTL) : ✅ Composant `PriceText.tsx` avec `dir="ltr"` + `unicodeBidi: 'isolate'`. Couverture complète : CatalogPreview (carte prix + prix barré) + ProductPage (desktop prix + prix barré + mobile sticky CTA) = 5 surfaces. Prix toujours "230 Dhs" (montant gauche, Dhs droite) en RTL.
+- **DEBT-9-repair** (Discount mapping + parsePriceValue) : ✅ `NATIVE_SLUG_MAP` étendu à 18 variantes explicites (`ancien_prix`, `Ancien_prix` via `.toLowerCase()`, `prix_barre`, `compare_at_price`, etc.). `parsePriceValue` refondu avec 16 tests empiriques validés (formats FR/US/mixtes, null/undefined/boolean/NaN/Infinity, single-digit, multi-groupes).
+- **DEBT-10-repair** (Traduction auto) : ✅ `detectTextLanguage` (Unicode U+0600-U+06FF vs a-zA-Z) remplace le court-circuit `targetLang === 'fr'` aveugle. `needsTranslation` déclenche la traduction seulement si écritures diffèrent. `ProductCardTitle` sous-composant respecte les règles hooks React (pas d'appel dans `.map()`).
+- **Conformité** : FR/EN/AR couverts (PriceText agit au niveau HTML, indépendant de la locale). Non-régression : CheckoutPage, middleware, orders, upload, merci — aucun fichier noyau critique touché par le patch.
+- **Lint** : 0 erreur. **Build** : Exit 0 (43+ pages).
+- **Note mineure non bloquante** : `useAutoTranslatedTexts` (variant batch, non utilisé dans le code) conserve le court-circuit `targetLang === 'fr'` — code mort, pas d'impact.
+
 ---
 
 ## Clôture Finalisation Lancement — 19/07/2026
