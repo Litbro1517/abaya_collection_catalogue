@@ -290,7 +290,7 @@ html.rtl {
 html.rtl .catalog-header-actions,
 html.rtl .product-page-actions,
 html.rtl .product-page-secondary-actions,
-html.rtl .product-card-micro-cta,
+html.rtl .product-card-hover-cta,
 html.rtl .mobile-cta-button,
 html.rtl .product-page-cta {
   direction: rtl;
@@ -736,22 +736,6 @@ html.rtl .mobile-cta-button svg {
   box-shadow: 0 1px 4px rgba(0,0,0,0.1);
 }
 
-.product-card-count {
-  position: absolute;
-  bottom: 8px;
-  left: 8px;
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  background-color: var(--client-badge-count-bg);
-  color: #fff;
-  font-size: 11px;
-  font-weight: 600;
-  padding: 3px 8px;
-  border-radius: 12px;
-  z-index: 2;
-}
-
 .product-card strong.product-card-title {
   display: block;
   margin-top: 10px;
@@ -798,63 +782,115 @@ html.rtl .mobile-cta-button svg {
   color: #D97706; /* amber-600 — warm gold */
 }
 
-/* ── Product Card: Micro-CTA on image (Amber/Gold capsule — cloned Masquer style) ── */
-.product-card-micro-cta {
+/* ── Product Card: Discount badge (Axe 1) — top-left, soft coral (#EF4444) ── */
+.product-card-discount-badge {
   position: absolute;
-  bottom: 10px;
+  top: 8px;
+  left: 8px;
+  z-index: 4;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 34px;
+  padding: 3px 7px;
+  border-radius: 8px;
+  background-color: #EF4444;
+  color: #FFFFFF;
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1;
+  letter-spacing: 0.01em;
+  box-shadow: 0 1px 4px rgba(239, 68, 68, 0.35);
+  pointer-events: none;
+}
+
+/* ── Product Card: Hover CTA (Axe 1) — black, centered, revealed on hover ── */
+.product-card-hover-cta {
+  position: absolute;
+  top: 50%;
   left: 50%;
-  transform: translateX(-50%);
-  width: 30%;
-  min-width: 100px;
-  max-width: 160px;
-  padding: 2.5px 0;
+  transform: translate(-50%, -50%);
+  width: 68%;
+  max-width: 180px;
+  padding: 9px 0;
   border: none;
   border-radius: 9999px;
-  font-size: 9px;
-  font-weight: 500;
-  letter-spacing: 0.1em;
+  background-color: #000000;
+  color: #FFFFFF;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
   text-transform: uppercase;
   text-align: center;
   cursor: pointer;
-  z-index: 3;
-  transition: opacity 0.2s, transform 0.15s, background-color 0.2s;
-  backdrop-filter: blur(6px);
-  -webkit-backdrop-filter: blur(6px);
+  z-index: 4;
+  opacity: 0;
+  transition: opacity 0.3s ease, transform 0.15s ease, background-color 0.2s ease;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 
-.product-card-micro-cta:hover {
-  opacity: 0.95;
-  transform: translateX(-50%) scale(1.03);
+.product-card.group:hover .product-card-hover-cta,
+.product-card.group:focus-within .product-card-hover-cta {
+  opacity: 1;
 }
 
-.product-card-micro-cta:active {
-  transform: translateX(-50%) scale(0.97);
+/* Touch devices (no hover) — keep CTA visible for usability */
+@media (hover: none) {
+  .product-card-hover-cta {
+    opacity: 1;
+  }
 }
 
-/* ── Active CTA: Amber/Gold — cloned from Masquer button ── */
-.product-card-micro-cta--active {
-  background-color: var(--client-btn-cta-bg);
-  color: #fff;
+.product-card-hover-cta:hover {
+  background-color: #1A1A1A;
+  transform: translate(-50%, -50%) scale(1.03);
 }
 
-.product-card-micro-cta--active:hover {
-  background-color: var(--client-btn-cta-hover-bg);
+.product-card-hover-cta:active {
+  transform: translate(-50%, -50%) scale(0.98);
 }
 
-/* ── Disabled CTA: Muted amber with pulsating radiation glow ── */
-.product-card-micro-cta--disabled {
+/* Disabled (épuisé): muted gray, pulsing — still revealed on hover */
+.product-card-hover-cta--disabled {
   cursor: not-allowed;
-  background-color: var(--client-btn-cta-disabled-bg);
-  color: var(--client-btn-cta-disabled-text);
+  background-color: #6B7280;
   animation: epuise-pulse 2.5s ease-in-out infinite;
 }
 
-.product-card-micro-cta--disabled:hover {
-  transform: translateX(-50%);
-  opacity: 0.8;
+.product-card-hover-cta--disabled:hover {
+  transform: translate(-50%, -50%);
+  background-color: #6B7280;
+}
+
+/* ── Product Card: Status band — Pied d'image (Axe 2) ── */
+/* Anchored at the bottom of the photo. Italic + Sentence case (NO uppercase).
+   Text fills nearly the full band height (1-2px breathing margin top/bottom). */
+.product-card-status-band {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 3;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 22px;
+  padding: 1px 8px;
+  overflow: hidden;
+}
+
+.product-card-status-band-text {
+  color: #FFFFFF;
+  font-size: 13px;
+  font-weight: 600;
+  font-style: italic;
+  text-transform: none;
+  letter-spacing: 0.01em;
+  line-height: 1;
+  white-space: nowrap;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.25);
 }
 
 @keyframes epuise-pulse {
@@ -876,13 +912,21 @@ html.rtl .mobile-cta-button svg {
   .product-card-status {
     font-size: 9px;
   }
-  .product-card-micro-cta {
-    width: 36%;
-    min-width: 80px;
-    max-width: 120px;
-    font-size: 7.5px;
-    padding: 2px 0;
-    bottom: 8px;
+  .product-card-hover-cta {
+    width: 78%;
+    font-size: 9.5px;
+    padding: 6px 0;
+  }
+  .product-card-discount-badge {
+    font-size: 9.5px;
+    min-width: 28px;
+    padding: 2px 6px;
+  }
+  .product-card-status-band {
+    height: 18px;
+  }
+  .product-card-status-band-text {
+    font-size: 11px;
   }
 }
 
@@ -1742,11 +1786,6 @@ img {
   letter-spacing: 0.15em;
   text-transform: uppercase;
   margin-bottom: 12px;
-}
-
-.badge-nouveau {
-  background-color: var(--client-badge-new-bg);
-  color: white;
 }
 
 .badge-dot {
