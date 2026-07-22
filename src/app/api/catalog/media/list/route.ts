@@ -4,23 +4,14 @@ import { detectImageSource, extractDriveFileId } from '@/lib/media-utils';
 
 /**
  * GET /api/catalog/media/list?dataSourceId=...&orphansOnly=true
- * Returns the media library: one entry per row × image URL.
+ * Returns the media library: one entry per row × image URL + orphan assets.
  *
- * Each entry: {
- *   order: number,           // Row.order (stable BDD index 1..N)
- *   rowId: string,
- *   productTitle: string,    // from titleColumn (best-effort: __title__ or first TEXT col)
- *   images: Array<{
- *     url: string,
- *     source: 'drive' | 'cdn' | 'unknown',
- *     fileId: string | null,
- *     assetStatus: string | null,  // MediaAsset.status ('cdn' | 'drive' | null)
- *   }>,
- *   hasMediaAsset: boolean,  // true if a MediaAsset record exists (CDN-migrated)
- * }
+ * VG33.2: Each image now includes:
+ * - mediaAssetId: string | null (for Unlink/Relink/Delete actions)
+ * - originalRowId: string | null (for Relink display)
+ * - isLinked: boolean (true = linked to a product, false = orphan)
  *
- * orphansOnly=true: returns only entries where the URL is CDN but no active
- *   Row references it (orphaned CDN files to clean up).
+ * orphansOnly=true: returns only MediaAssets with rowId=null (unlinked/orphan).
  */
 export async function GET(req: NextRequest) {
   try {
@@ -46,8 +37,55 @@ export async function GET(req: NextRequest) {
       (c) => c.type === 'IMAGE' || c.type === 'IMAGE_ARRAY',
     );
 
+    // Fetch all MediaAssets for this datasource
+    const assets = await db.mediaAsset.findMany({
+      where: { dataSourceId },
+      select: { id: true, fileId: true, rowId: true, originalRowId: true, columnSlug: true, status: true, cdnUrl: true, fileName: true },
+    });
+
+    // Determine title column (best-effort)
+    const titleCol = columns.find((c) => c.slug === '__title__' || c.type === 'TEXT');
+
+    if (orphansOnly) {
+      // Return only orphan assets (rowId=null)
+      const orphanAssets = assets.filter((a) => !a.rowId && a.cdnUrl);
+      const entries = orphanAssets.map((asset, idx) => ({
+        order: -(idx + 1),
+        rowId: 'orphan',
+        productTitle: '(orpheline)',
+        images: [{
+          url: asset.cdnUrl!,
+          source: 'cdn' as const,
+          fileId: asset.fileId,
+          assetStatus: asset.status,
+          mediaAssetId: asset.id,
+          originalRowId: asset.originalRowId,
+          isLinked: false,
+        }],
+        hasMediaAsset: true,
+      }));
+      return NextResponse.json({ data: entries, error: null });
+    }
+
     if (imageColumns.length === 0) {
-      return NextResponse.json({ data: [], error: null });
+      // Still return orphan assets even if no IMAGE columns
+      const orphanAssets = assets.filter((a) => !a.rowId && a.cdnUrl);
+      const entries = orphanAssets.map((asset, idx) => ({
+        order: -(idx + 1),
+        rowId: 'orphan',
+        productTitle: '(orpheline)',
+        images: [{
+          url: asset.cdnUrl!,
+          source: 'cdn' as const,
+          fileId: asset.fileId,
+          assetStatus: asset.status,
+          mediaAssetId: asset.id,
+          originalRowId: asset.originalRowId,
+          isLinked: false,
+        }],
+        hasMediaAsset: true,
+      }));
+      return NextResponse.json({ data: entries, error: null });
     }
 
     // Fetch rows
@@ -57,15 +95,7 @@ export async function GET(req: NextRequest) {
       select: { id: true, data: true, order: true },
     });
 
-    // Fetch all MediaAssets for this datasource
-    const assets = await db.mediaAsset.findMany({
-      where: { dataSourceId },
-      select: { fileId: true, rowId: true, columnSlug: true, status: true, cdnUrl: true },
-    });
     const assetMap = new Map(assets.map((a) => [`${a.fileId}:${a.columnSlug}`, a]));
-
-    // Determine title column (best-effort)
-    const titleCol = columns.find((c) => c.slug === '__title__' || c.type === 'TEXT');
 
     const entries = rows.map((row) => {
       const data = (row.data as Record<string, unknown>) || {};
@@ -76,6 +106,9 @@ export async function GET(req: NextRequest) {
         source: 'drive' | 'cdn' | 'unknown';
         fileId: string | null;
         assetStatus: string | null;
+        mediaAssetId: string | null;
+        originalRowId: string | null;
+        isLinked: boolean;
       }> = [];
 
       for (const col of imageColumns) {
@@ -94,6 +127,9 @@ export async function GET(req: NextRequest) {
             source,
             fileId,
             assetStatus: asset?.status ?? null,
+            mediaAssetId: asset?.id ?? null,
+            originalRowId: asset?.originalRowId ?? null,
+            isLinked: true,
           });
         }
       }
@@ -103,43 +139,33 @@ export async function GET(req: NextRequest) {
         rowId: row.id,
         productTitle,
         images,
-        hasMediaAsset: images.some((img) => img.assetStatus !== null),
+        hasMediaAsset: images.some((img) => img.mediaAssetId !== null),
       };
     });
 
-    // Filter: entries with at least one image
-    let filtered = entries.filter((e) => e.images.length > 0);
+    // Also include orphan assets (rowId=null) as separate entries
+    const orphanAssets = assets.filter((a) => !a.rowId && a.cdnUrl);
+    const orphanEntries = orphanAssets.map((asset, idx) => ({
+      order: -(idx + 1),
+      rowId: 'orphan',
+      productTitle: '(orpheline)',
+      images: [{
+        url: asset.cdnUrl!,
+        source: 'cdn' as const,
+        fileId: asset.fileId,
+        assetStatus: asset.status,
+        mediaAssetId: asset.id,
+        originalRowId: asset.originalRowId,
+        isLinked: false,
+      }],
+      hasMediaAsset: true,
+    }));
 
-    if (orphansOnly) {
-      // Orphans = CDN URLs with no active Row reference.
-      // In this context: MediaAsset with status='cdn' but the row no longer
-      // references the cdnUrl (cell was cleared or changed).
-      const cdnAssetUrls = new Set(
-        assets
-          .filter((a) => a.status === 'cdn' && a.cdnUrl)
-          .map((a) => a.cdnUrl!),
-      );
-      const activeCdnUrls = new Set(
-        entries.flatMap((e) => e.images.map((img) => img.url)),
-      );
-      const orphanUrls = [...cdnAssetUrls].filter((u) => !activeCdnUrls.has(u));
+    // Combine: linked entries with images + orphan entries
+    const filtered = entries.filter((e) => e.images.length > 0);
+    const combined = [...filtered, ...orphanEntries];
 
-      // Return orphan entries as synthetic rows
-      filtered = orphanUrls.map((url, idx) => ({
-        order: -(idx + 1), // negative to mark as orphan
-        rowId: 'orphan',
-        productTitle: '(orpheline)',
-        images: [{
-          url,
-          source: 'cdn' as const,
-          fileId: extractDriveFileId(url),
-          assetStatus: 'cdn',
-        }],
-        hasMediaAsset: true,
-      }));
-    }
-
-    return NextResponse.json({ data: filtered, error: null });
+    return NextResponse.json({ data: combined, error: null });
   } catch (error) {
     console.error('Media list error:', error);
     return NextResponse.json(

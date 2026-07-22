@@ -1903,12 +1903,19 @@ export function DataTable({ columns, rows, dataSourceId, loading, onRefresh, onU
                                 </button>
                               )}
 
-                              {/* ━━━ VG33: Drive Picker — for IMAGE / IMAGE_ARRAY columns ━━━ */}
-                              {(col.type === 'IMAGE' || col.type === 'IMAGE_ARRAY') && (
+                              {/* ━━━ VG33.2: Drive Picker — UNIVERSAL (any non-native column) ━━━ */}
+                              {/* Shown on any non-native column so the admin can inject Drive URLs
+                                  even if the column type is TEXT (detected as images by URL pattern). */}
+                              {!isNativeColumn(col.slug) && (
                                 <button
                                   className="w-full flex items-center gap-2 px-3 py-1.5 text-left text-xs hover:bg-blue-50 text-blue-600 transition-colors"
                                   onClick={() => {
-                                    setPickerCol({ slug: col.slug, type: col.type as 'IMAGE' | 'IMAGE_ARRAY' });
+                                    setPickerCol({
+                                      slug: col.slug,
+                                      type: (col.type === 'IMAGE' || col.type === 'IMAGE_ARRAY')
+                                        ? col.type as 'IMAGE' | 'IMAGE_ARRAY'
+                                        : 'IMAGE_ARRAY', // default: append URLs (universal)
+                                    });
                                     setColOptionsOpen(null);
                                   }}
                                 >

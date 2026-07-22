@@ -173,6 +173,7 @@ src/
 | VG31 | Status Ribbon AR Harmony — Harmonisation des étiquettes de statut | **A. Remplacement Livraison Gratuite → Trend** : statut `livraison_gratuite` renommé `trend` ; `bddValue: 'Livraison Gratuite'` → `'Trend'` ; `fr: 'Trend'`, `ar: 'ترند'`, `en: 'Trend'` ; aliases rétrocompatibles (`'livraison gratuite'`, `'توصيل مجاني'`, `'free shipping'`) conservés — les rows BDD existantes avec `'Livraison Gratuite'` résolvent automatiquement vers Trend. **B. Permutation des couleurs** : Nouveauté `#06B6D4` (cyan) → `#10B981` (vert émeraude) ; Trend `#10B981` (vert) → `#06B6D4` (cyan). Aucun nouveau code couleur créé — palette existante permutée. **C. Prix Choc AR** : `ar: 'تخفيض استثنائي'` → `ar: 'عرض خيالي'` (plus court, harmonieux) ; ancien label AR conservé comme alias. Autres statuts inchangés : Nouveauté (Nouveauté/جديد), Stock limité (كمية محدودة), Offre limitée (عرض محدود), Top Vente (الأكثر مبيعاً). **D. Harmonisation CSS** : `.product-card-status-band` `min-width: 88px` ajouté (rallonge les étiquettes à mot unique — Trend, ترند, Nouveauté, جديد — pour s'aligner sur le gabarit moyen des étiquettes à deux mots ~88-97px) ; `max-width: 60%` → `55%` (plus contenu, évite le débordement sur l'image). Vérifié E2E navigateur FR + AR : 7 rubans (6 statuts + 1 rétrocompatibilité Livraison Gratuite→Trend), couleurs exactes (Nouveauté=green, Trend=cyan), largeurs harmonisées (Trend 58px→88px, ترند 88px, جميع الـ AR labels ≤ 98px), `dir=rtl` + `lang=ar` confirmés en AR. | ⏳ EN ATTENTE D'AUDIT — branche `feature/status-ribbon-ar-harmony` |
 | VG32 | Trust Guarantees Section — Section Garanties de Confiance (Vitrine + Admin) | **Volet Vitrine** (`TrustGuaranteesSection.tsx`) : 4 cartes garanties (Livraison Gratuite, Paiement à la Livraison, Garantie Qualité, Échange Facile) injectées au-dessus du `<footer>` dans `CatalogPreview.tsx`. Arrière-plan transparent (s'intègre sur crème #FAF8F5, aucun conteneur noir). Ligne supérieure séparatrice centrée (~65% largeur, gold-tinted `rgba(201,168,76,0.35)`). Icônes lucide-react (Truck, Banknote, ShieldCheck, RefreshCw) au contour fin doré (`#C9A84C`, `strokeWidth:1.5`) dans cercle vitré glassmorphism (`rgba(255,255,255,0.45)` + `backdrop-filter:blur(6px)` + bordure or `rgba(201,168,76,0.55)`). Titres anthracite doux (`#3D3D3D`, pas de noir pur). Tooltip bulle fluide au-dessus au survol/clic/focus (glassmorphism `rgba(255,255,255,0.92)` + `blur(8px)`, transition 300ms, flèche pointant vers le bas). Grille responsive : 1 col mobile / 2 cols tablette (`sm:`) / 4 cols desktop (`lg:`). Fallback : champs admin vides → dictionnaire `trust.*`. `isVisible=false` → rendu `null` (aucun espace vide). **Volet Admin** (`TrustGuaranteesPillar.tsx`) : 8ème onglet « Confiance » (`value="trust"`) dans `SettingsPillar.tsx` (grid-cols-7→8, icône `ShieldCheck`). Interrupteur `Switch` `isVisible` (Afficher/Cacher). Sélecteur onglets FR/EN/AR (pattern WhatsApp). 4 garanties × 2 champs (Titre `Input` + Description `Textarea`), `dir="rtl"` sur champs AR. Placeholder = texte par défaut du dictionnaire. Bouton Enregistrer (PUT `/api/catalog/settings`). **BDD** : `trustGuarantees Json? @map("trust_guarantees")` sur `CatalogSettings` (Prisma + `db:push`). **API** : `trustGuarantees` ajouté à `allowedFields`. **Types** : `TrustGuaranteesConfig` + `GuaranteeKey` + `TrustGuaranteeItem` + `SettingsTab` étendu `'trust'`. **Dictionnaire** : 8 clés `trust.*` × 3 locales (24 clés) — textes officiels du mandat. Vérifié E2E vitrine (4 titres, 4 colonnes desktop, icônes or, cercles glassmorphism, séparateur gold, bg transparent, au-dessus du footer). `eslint` 0 erreur, `tsc` 0 erreur dans `src/`. | ⏳ EN ATTENTE D'AUDIT — branche `feature/trust-guarantees-section` |
 | VG33 | Hybrid Media Architecture — Drive + CDN, Picker, Smart Sync, Médiathèque | **Pillar 1 — Centralisation** (`src/lib/media-utils.ts`) : `DRIVE_FILE_ID_REGEX` universelle + `extractDriveFileId()` + `detectImageSource()` ('drive'|'cdn'|'unknown') + `resolveHybridImageUrl()` + `resolveProxyUrl()`. Déduplication : `CatalogPreview.tsx` + `ProductPage.tsx` refactorisés pour importer depuis `media-utils` (suppression ~120 lignes dupliquées). **Pillar 2 — Drive Picker** (`GoogleDrivePicker.tsx`) : modale officielle Google Drive API (GIS + Picker script tags dynamiques), multi-select Ctrl+Clic, filtre mime images uniquement. Injecté dans le menu 3-points de chaque colonne IMAGE/IMAGE_ARRAY de `DataTable.tsx`. Route `POST /api/catalog/media/picker-sync` : injecte les URLs Drive dans les cellules vides (IMAGE: 1 par cellule vide; IMAGE_ARRAY: append), upsert MediaAsset (status='drive'). Route `GET /api/google/picker-token` : token OAuth depuis session Google stockée. **Pillar 3 — Smart Sync CDN** (`POST /api/catalog/media/cdn-migrate`) : algorithme d'unicité (vérifie `MediaAsset` si file_id déjà attribué à un autre `rowId` → bloqué + alerte conflit), throttle 100ms entre requêtes Drive, conversion Sharp `.webp` (quality 82), upload Supabase Storage (fallback local `/public/uploads/media/`), update `Row.data` avec CDN URL + MediaAsset status='cdn'. Bouton colonne « ☁️ Exporter vers le CDN » + bouton bulk « ☁️ Exporter vers le CDN » dans la barre de sélection multiple. **Pillar 4 — MediaAsset model** : Prisma `MediaAsset` (fileId, rowId, dataSourceId, columnSlug, originalUrl, cdnUrl, status, fileName, mimeType, sizeBytes) + `@@unique([fileId, columnSlug])` (unicité par colonne) + 3 index. Relation `Row.mediaAssets[]`. `db:push` OK. **Pillar 5 — Médiathèque** (`MediaLibrary.tsx`) : grille stricte 3 colonnes (N° Ordre Système BDD | Nom Produit | Grille d'Images), badges source Drive/CDN, bouton suppression physique CDN (safety-check : bloque si URL encore référencée par un Row). Filtre « 🔍 Afficher les images orphelines » (CDN sans référence active). Routes `GET /api/catalog/media/list` (entries + orphansOnly) + `POST /api/catalog/media/delete` (409 si référencé). Bouton « Médiathèque » dans la barre d'outils DataPillar. **Dictionnaire** : 21 clés `media.*` × 3 locales (63 clés). Vérifié : `eslint` 0 erreur, `db:push` OK, media-utils unit test (6 URLs : Drive×3 formats → fileId+hybrid+proxy corrects, CDN×2 → passthrough, unknown → passthrough), E2E vitrine 12 cartes + trust section + footer (non-régression refactor). **Audit** (commit `17fe318`) : 4 axes validés (Picker restreint, grille 3 colonnes exacte, 4 routes fonctionnelles, non-régression fichiers vitaux/schema additif confirmée). Correction : `tsc` révèle en réalité 3 nouvelles erreurs (non 0 comme indiqué ci-dessus) — narrowing TS sur `window.google.picker` après `await` dans `GoogleDrivePicker.tsx` (code runtime correct, limite de TypeScript à travers une closure de Promise ; non-bloquant car `next.config.ts` a `ignoreBuildErrors: true`). 2 réserves supplémentaires identifiées : (1) `picker-sync` n'applique pas le même contrôle d'unicité cross-produit que `cdn-migrate` (upsert inconditionnel vs vérification+blocage) — à corriger en suivi ; (2) les 63 clés i18n `media.*` ajoutées ne sont utilisées nulle part (`MediaLibrary.tsx`/`GoogleDrivePicker.tsx` codent leurs libellés en dur en FR) — travail d'i18n préparé mais non branché. Aucune de ces réserves n'est bloquante pour la production. | ✅ DÉPLOYÉE EN PRODUCTION — branche `feature/hybrid-media-architecture` mergée puis supprimée |
+| VG33.2 | Media Actions — Unlink/Relink/Delete + Drive Picker Universel + Sélection Multiple | Résout 4 blocages identifiés par l'audit post-VG33 : (A) **Blocage 409 supprimé** : la route `DELETE` ne bloque plus si l'image est référencée — elle retire d'abord l'URL de `Row.data` (unlink automatique) PUIS supprime le fichier physique CDN + le record MediaAsset. (B) **3 actions distinctes** : `POST /api/catalog/media/unlink` (casse le lien, fichier CDN conservé, `rowId=null` + `originalRowId` préservé, `status='orphan'`) ; `POST /api/catalog/media/relink` (restaure le lien via `originalRowId`, réinjecte l'URL CDN dans `Row.data`, `rowId=originalRowId` + `status='cdn'`, safety-check unicité 409) ; `POST /api/catalog/media/delete` (unlink + delete physique + delete record). Les 3 routes supportent le mode bulk (`items[]`). (C) **Drive Picker universel** : le bouton « 📁 Importer via Drive Picker » est désormais visible sur TOUTES les colonnes non-natives (pas seulement IMAGE/IMAGE_ARRAY) — si la colonne est TEXT, le Picker utilise le mode IMAGE_ARRAY (append) par défaut. (D) **Sélection multiple Médiathèque** : `MediaLibrary.tsx` refondue avec checkbox par image + checkbox select-all (en-tête) + checkbox par ligne + barre d'outils bulk (Casser le lien / Restaurer le lien / Supprimer). Boutons d'action par image (hover) : Unlink (si lié), Relink (si orpheline), Delete (toujours). Badges « orpheline » sur les images déliées. **Prisma** : `MediaAsset.rowId` devient `String?` (optional) + `onDelete: SetNull` (au lieu de Cascade) + `originalRowId String?` ajouté (mémoire du produit d'origine pour Relink 100% exact) + `status` étendu `'orphan'`. `db:push` OK. **Route list** : inclut désormais `mediaAssetId`, `originalRowId`, `isLinked` par image + entries orphelines intégrées (rowId='orphan'). Vérifié : `eslint` 0 erreur, `db:push` OK, API routes 401 (auth), E2E vitrine non-régression (trust section + footer). | ⏳ EN ATTENTE D'AUDIT — branche `feature/vg332-media-actions` |
 | FX26 | Fix régressions V4.1.2 — Recherche cross-DB | `GET /api/orders` : correction du `$queryRaw` — `is_deleted = ${archived ? 1 : 0}` (integer SQLite) remplacé par `is_deleted = ${archived}` (booléen paramétré, compatible SQLite driver auto-conversion + PostgreSQL natif) ; commentaire mis à jour ; branche `feature/full-fix-v4.1.2` | ✅ CORRIGÉ — DÉPLOYÉ |
 | FX27 | Fix régressions V4.1.1 — Archivage cancelled | `POST /api/orders/archive` : ajout de `'cancelled'` dans le tableau `{ in: ['delivered', 'confirmed', 'cancelled'] }` ; message d'erreur utilisateur mis à jour pour refléter les 3 statuts éligibles ; branche `fix/orders-v4.1.1` | ✅ CORRIGÉ — DÉPLOYÉ |
 | FX28 | Fix régressions V4.1.1 — Badge i18n | `OrderStatusBadge.tsx` : suppression du champ `labelKey` obsolète (clés `order.status*` non existantes), ajout d'une prop `label?: string` (pattern controlled label) ; appelants mis à jour : `OrdersTable.tsx` L.340 et `OrderDetailSheet.tsx` L.124 passent `t(\`adminOrder.status_\${status}\`)` ; branche `fix/orders-v4.1.1` | ✅ CORRIGÉ — DÉPLOYÉ |
@@ -246,6 +247,7 @@ src/
 - ⏳ P28 (VG31) : Status Ribbon AR Harmony — Trend remplace Livraison Gratuite + permutation couleurs + عرض خيالي + harmonisation CSS — branche `feature/status-ribbon-ar-harmony` (EN ATTENTE D'AUDIT, non fusionnée)
 - ⏳ P29 (VG32) : Trust Guarantees Section — section garanties de confiance vitrine (4 cartes, tooltip, glassmorphism) + admin (8ème onglet, toggle isVisible, FR/EN/AR, fallback dictionnaire) — branche `feature/trust-guarantees-section` (EN ATTENTE D'AUDIT, non fusionnée)
 - ✅ P30 (VG33) : Hybrid Media Architecture — Drive+CDN hybride, Drive Picker, Smart Sync CDN (unicité+throttle+webp), MediaAsset model, Médiathèque — déployé (branche `feature/hybrid-media-architecture` mergée), 3 réserves mineures non-bloquantes documentées
+- ⏳ P30.2 (VG33.2) : Media Actions — Unlink/Relink/Delete + Drive Picker universel + sélection multiple Médiathèque — branche `feature/vg332-media-actions` (EN ATTENTE D'AUDIT, non fusionnée)
 - ✅ P23 : Sitemap dynamique — module products.ts partagé (resolveProduct + resolveAllProducts) + sitemap.ts boucle produits + revalidate=3600 — déployé (branche feat/seo-sitemap-dynamic merged)
 - ✅ P24 : Support alphabet arabe dans les slugs — regex Unicode \p{L}\p{N} + sync server/client — déployé (branche feat/arabic-slug-support merged)
 
@@ -902,6 +904,65 @@ Relation `Row.mediaAssets MediaAsset[]` ajoutée. `db:push` OK.
 
 ### Branche
 `feature/hybrid-media-architecture` (créée depuis `main@8acf9d4`) — **EN ATTENTE D'AUDIT** (aucune fusion sur main).
+
+---
+Date de mise à jour : 22/07/2026
+
+## [MEDIA ACTIONS — VG33.2 / P30.2]
+
+### Contexte
+L'audit post-VG33 a identifié 4 blocages : (A) suppression impossible (409 cercle vicieux) ; (B) Drive Picker invisible sur colonnes TEXT ; (C) impossible de « casser le lien » sans détruire l'image ; (D) pas de sélection multiple.
+
+### A. Blocage 409 supprimé — 3 actions distinctes
+| Action | Route | Comportement |
+|---|---|---|
+| **Unlink** (Casser le lien) | `POST /api/catalog/media/unlink` | Retire l'URL de `Row.data` (IMAGE: clear, IMAGE_ARRAY: filter). Fichier CDN conservé. `MediaAsset.rowId=null`, `originalRowId=previous rowId`, `status='orphan'`. Bulk via `items[]`. |
+| **Relink** (Restaurer le lien) | `POST /api/catalog/media/relink` | Lit `originalRowId`, réinjecte `cdnUrl` dans `Row.data[columnSlug]` (append si absent). Vérifie unicité (409 si cdnUrl déjà référencée par un autre row). `MediaAsset.rowId=originalRowId`, `status='cdn'`. Bulk via `items[]`. |
+| **Delete** (Suppression définitive) | `POST /api/catalog/media/delete` | 1. Unlink automatique (retire URL de Row.data). 2. Delete fichier physique CDN (Supabase/local). 3. Delete record MediaAsset. **Plus de 409** — l'action supprime tout. Bulk via `items[]`. |
+
+### B. Drive Picker universel (DataTable.tsx)
+- Le bouton « 📁 Importer via Drive Picker » est désormais visible sur **TOUTES les colonnes non-natives** (pas seulement IMAGE/IMAGE_ARRAY).
+- Si la colonne est TEXT/CURRENCY/etc, le Picker utilise le mode `IMAGE_ARRAY` (append) par défaut.
+- Condition : `!isNativeColumn(col.slug)` au lieu de `col.type === 'IMAGE' || col.type === 'IMAGE_ARRAY'`.
+
+### C. Prisma — MediaAsset rowId optionnel + originalRowId
+- `rowId` : `String` → `String?` (optional). `onDelete: Cascade` → `SetNull` (supprimer un Row orphanise les MediaAssets au lieu de les supprimer).
+- `originalRowId String?` : nouveau champ — mémoire du produit d'origine pour Relink 100% exact.
+- `status` : nouveau valeur `'orphan'` ajoutée.
+
+### D. Sélection multiple Médiathèque (MediaLibrary.tsx refondue)
+- Checkbox par image + checkbox select-all (en-tête) + checkbox par ligne.
+- Barre d'outils bulk : « Casser le lien » / « Restaurer le lien » / « Supprimer » + « Désélectionner ».
+- Boutons d'action par image (hover) : Unlink (ambre, si lié) / Relink (bleu, si orpheline + originalRowId) / Delete (rouge, toujours).
+- Badge « orpheline » sur les images déliées + opacité réduite.
+
+### E. Route list enrichie
+`GET /api/catalog/media/list` inclut désormais par image : `mediaAssetId`, `originalRowId`, `isLinked` + entries orphelines intégrées (rowId='orphan').
+
+### Fichiers créés
+| # | Fichier | Rôle |
+|---|---------|------|
+| 1 | `src/app/api/catalog/media/unlink/route.ts` | Action Unlink (casser le lien, bulk) |
+| 2 | `src/app/api/catalog/media/relink/route.ts` | Action Relink (restaurer le lien, bulk, safety-check) |
+
+### Fichiers modifiés
+| # | Fichier | Modification |
+|---|---------|-------------|
+| 1 | `prisma/schema.prisma` | `rowId String?` + `onDelete: SetNull` + `originalRowId String?` + status 'orphan' |
+| 2 | `src/app/api/catalog/media/delete/route.ts` | Réécrit : unlink auto + delete physique + delete record (no 409) + bulk |
+| 3 | `src/app/api/catalog/media/list/route.ts` | Enrichi : mediaAssetId, originalRowId, isLinked + orphans intégrés |
+| 4 | `src/components/admin/MediaLibrary.tsx` | Refondu : checkboxes + bulk toolbar + per-image Unlink/Relink/Delete + badge orpheline |
+| 5 | `src/components/data/DataTable.tsx` | Drive Picker universel (`!isNativeColumn` au lieu de IMAGE/IMAGE_ARRAY) |
+| 6 | `PROJECT_MAP.md` | VG33.2 + P30.2 + section documentation |
+
+### Vérifications
+- `bun run db:push` : schema sync OK (rowId optionnel, originalRowId ajouté) ✅
+- `bun run lint` : 0 erreur, 0 warning ✅
+- API routes 401 (auth-protected, route reachable) ✅
+- E2E vitrine : trust section + footer (non-régression) ✅
+
+### Branche
+`feature/vg332-media-actions` (créée depuis `main@b3d8f60`) — **EN ATTENTE D'AUDIT** (aucune fusion sur main).
 
 ---
 Date de mise à jour : 22/07/2026

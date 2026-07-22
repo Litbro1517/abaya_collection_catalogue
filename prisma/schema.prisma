@@ -354,8 +354,9 @@ model OrderHistory {
 model MediaAsset {
   id            String   @id @default(cuid())
   fileId        String   @map("file_id")    // Google Drive file_id (unique fingerprint)
-  rowId         String   @map("row_id")
-  row           Row      @relation(fields: [rowId], references: [id], onDelete: Cascade)
+  rowId         String?  @map("row_id")     // VG33.2: optional (null = orphan/unlinked)
+  row           Row?     @relation(fields: [rowId], references: [id], onDelete: SetNull)
+  originalRowId String?  @map("original_row_id") // VG33.2: memory of the original product for Relink
   dataSourceId  String   @map("data_source_id")
   columnSlug    String   @map("column_slug") // which IMAGE/IMAGE_ARRAY column
   originalUrl   String   @map("original_url") // original Drive URL
@@ -363,7 +364,7 @@ model MediaAsset {
   fileName      String?  @map("file_name")
   mimeType      String?  @map("mime_type")
   sizeBytes     Int?     @map("size_bytes")
-  status        String   @default("drive")    // 'drive' | 'migrating' | 'cdn' | 'failed'
+  status        String   @default("drive")    // 'drive' | 'migrating' | 'cdn' | 'orphan' | 'failed'
   createdAt     DateTime @default(now()) @map("created_at")
   updatedAt     DateTime @updatedAt @map("updated_at")
 
