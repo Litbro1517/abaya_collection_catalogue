@@ -55,13 +55,14 @@ model Column {
 }
 
 model Row {
-  id           String     @id @default(cuid())
-  dataSourceId String     @map("data_source_id")
-  dataSource   DataSource @relation(fields: [dataSourceId], references: [id], onDelete: Cascade)
+  id           String       @id @default(cuid())
+  dataSourceId String       @map("data_source_id")
+  dataSource   DataSource   @relation(fields: [dataSourceId], references: [id], onDelete: Cascade)
   data         Json?
-  order        Int        @default(0)
-  createdAt    DateTime   @default(now()) @map("created_at")
-  updatedAt    DateTime   @updatedAt @map("updated_at")
+  order        Int          @default(0)
+  createdAt    DateTime     @default(now()) @map("created_at")
+  updatedAt    DateTime     @updatedAt @map("updated_at")
+  mediaAssets  MediaAsset[]
 
   @@map("rows")
 }
@@ -344,4 +345,31 @@ model OrderHistory {
 
   @@index([orderId, changedAt])
   @@map("order_history")
+}
+
+// ═══════════════════════════════════════════════════════════════
+// MEDIA ASSETS — CDN-migrated images with uniqueness control (VG33)
+// ═══════════════════════════════════════════════════════════════
+
+model MediaAsset {
+  id            String   @id @default(cuid())
+  fileId        String   @map("file_id")    // Google Drive file_id (unique fingerprint)
+  rowId         String   @map("row_id")
+  row           Row      @relation(fields: [rowId], references: [id], onDelete: Cascade)
+  dataSourceId  String   @map("data_source_id")
+  columnSlug    String   @map("column_slug") // which IMAGE/IMAGE_ARRAY column
+  originalUrl   String   @map("original_url") // original Drive URL
+  cdnUrl        String?  @map("cdn_url")      // Supabase/local CDN URL after migration
+  fileName      String?  @map("file_name")
+  mimeType      String?  @map("mime_type")
+  sizeBytes     Int?     @map("size_bytes")
+  status        String   @default("drive")    // 'drive' | 'migrating' | 'cdn' | 'failed'
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @updatedAt @map("updated_at")
+
+  @@unique([fileId, columnSlug]) // uniqueness: one file_id per column (prevents cross-product duplicates)
+  @@index([rowId])
+  @@index([dataSourceId])
+  @@index([fileId])
+  @@map("media_assets")
 }

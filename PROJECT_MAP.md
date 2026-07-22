@@ -172,6 +172,7 @@ src/
 | VG30 | Catalog Hide CTA Mobile — Masquage responsive du bouton COMMANDER | Bouton « COMMANDER » (`.product-card-hover-cta`) masqué totalement sur petits écrans (`< 768px` / mobile + tablettes compactes) via `@media (max-width: 767px) { display: none }` dans `globals.css`. `display:none` retire le bouton de l'arbre de rendu (non-interactif, aucune place réservée) et l'emporte sur les règles `opacity` existantes (`@media (hover:none) { opacity:1 }` et `group-hover:opacity:100`) — le CTA est donc invisible sur mobile quel que soit le mode hover. Desktop (≥ 768px) conserve exactement le comportement VG28 : `opacity:0` au repos → `group-hover:opacity:100` au survol. **Aucun changement JSX/React** — masquage CSS-only (le composant reste dans le DOM, aucune régression du render). **Aucun impact sur les autres éléments** : ruban de statut (Nouveauté, etc.), badge de réduction (-X%), et prix restent visibles sur tous les écrans. Vérifié E2E navigateur à 4 largeurs : 375px (display:none ✅), 767px (display:none ✅), 768px (display:block ✅), 1280px (display:block ✅). **Audit** (commit `dc3ef03`) : 3 axes validés, cascade CSS vérifiée précisément (règle mobile déclarée après `hover:none`, gagne à spécificité égale par ordre de source), ruban statut et badge réduction confirmés non impactés, non-régression confirmée, `eslint` 0 erreur/warning, `tsc` inchangé (84 erreurs préexistantes, aucun fichier TS touché). | ✅ DÉPLOYÉE EN PRODUCTION — branche `feature/catalog-hide-cta-mobile` mergée puis supprimée |
 | VG31 | Status Ribbon AR Harmony — Harmonisation des étiquettes de statut | **A. Remplacement Livraison Gratuite → Trend** : statut `livraison_gratuite` renommé `trend` ; `bddValue: 'Livraison Gratuite'` → `'Trend'` ; `fr: 'Trend'`, `ar: 'ترند'`, `en: 'Trend'` ; aliases rétrocompatibles (`'livraison gratuite'`, `'توصيل مجاني'`, `'free shipping'`) conservés — les rows BDD existantes avec `'Livraison Gratuite'` résolvent automatiquement vers Trend. **B. Permutation des couleurs** : Nouveauté `#06B6D4` (cyan) → `#10B981` (vert émeraude) ; Trend `#10B981` (vert) → `#06B6D4` (cyan). Aucun nouveau code couleur créé — palette existante permutée. **C. Prix Choc AR** : `ar: 'تخفيض استثنائي'` → `ar: 'عرض خيالي'` (plus court, harmonieux) ; ancien label AR conservé comme alias. Autres statuts inchangés : Nouveauté (Nouveauté/جديد), Stock limité (كمية محدودة), Offre limitée (عرض محدود), Top Vente (الأكثر مبيعاً). **D. Harmonisation CSS** : `.product-card-status-band` `min-width: 88px` ajouté (rallonge les étiquettes à mot unique — Trend, ترند, Nouveauté, جديد — pour s'aligner sur le gabarit moyen des étiquettes à deux mots ~88-97px) ; `max-width: 60%` → `55%` (plus contenu, évite le débordement sur l'image). Vérifié E2E navigateur FR + AR : 7 rubans (6 statuts + 1 rétrocompatibilité Livraison Gratuite→Trend), couleurs exactes (Nouveauté=green, Trend=cyan), largeurs harmonisées (Trend 58px→88px, ترند 88px, جميع الـ AR labels ≤ 98px), `dir=rtl` + `lang=ar` confirmés en AR. | ⏳ EN ATTENTE D'AUDIT — branche `feature/status-ribbon-ar-harmony` |
 | VG32 | Trust Guarantees Section — Section Garanties de Confiance (Vitrine + Admin) | **Volet Vitrine** (`TrustGuaranteesSection.tsx`) : 4 cartes garanties (Livraison Gratuite, Paiement à la Livraison, Garantie Qualité, Échange Facile) injectées au-dessus du `<footer>` dans `CatalogPreview.tsx`. Arrière-plan transparent (s'intègre sur crème #FAF8F5, aucun conteneur noir). Ligne supérieure séparatrice centrée (~65% largeur, gold-tinted `rgba(201,168,76,0.35)`). Icônes lucide-react (Truck, Banknote, ShieldCheck, RefreshCw) au contour fin doré (`#C9A84C`, `strokeWidth:1.5`) dans cercle vitré glassmorphism (`rgba(255,255,255,0.45)` + `backdrop-filter:blur(6px)` + bordure or `rgba(201,168,76,0.55)`). Titres anthracite doux (`#3D3D3D`, pas de noir pur). Tooltip bulle fluide au-dessus au survol/clic/focus (glassmorphism `rgba(255,255,255,0.92)` + `blur(8px)`, transition 300ms, flèche pointant vers le bas). Grille responsive : 1 col mobile / 2 cols tablette (`sm:`) / 4 cols desktop (`lg:`). Fallback : champs admin vides → dictionnaire `trust.*`. `isVisible=false` → rendu `null` (aucun espace vide). **Volet Admin** (`TrustGuaranteesPillar.tsx`) : 8ème onglet « Confiance » (`value="trust"`) dans `SettingsPillar.tsx` (grid-cols-7→8, icône `ShieldCheck`). Interrupteur `Switch` `isVisible` (Afficher/Cacher). Sélecteur onglets FR/EN/AR (pattern WhatsApp). 4 garanties × 2 champs (Titre `Input` + Description `Textarea`), `dir="rtl"` sur champs AR. Placeholder = texte par défaut du dictionnaire. Bouton Enregistrer (PUT `/api/catalog/settings`). **BDD** : `trustGuarantees Json? @map("trust_guarantees")` sur `CatalogSettings` (Prisma + `db:push`). **API** : `trustGuarantees` ajouté à `allowedFields`. **Types** : `TrustGuaranteesConfig` + `GuaranteeKey` + `TrustGuaranteeItem` + `SettingsTab` étendu `'trust'`. **Dictionnaire** : 8 clés `trust.*` × 3 locales (24 clés) — textes officiels du mandat. Vérifié E2E vitrine (4 titres, 4 colonnes desktop, icônes or, cercles glassmorphism, séparateur gold, bg transparent, au-dessus du footer). `eslint` 0 erreur, `tsc` 0 erreur dans `src/`. | ⏳ EN ATTENTE D'AUDIT — branche `feature/trust-guarantees-section` |
+| VG33 | Hybrid Media Architecture — Drive + CDN, Picker, Smart Sync, Médiathèque | **Pillar 1 — Centralisation** (`src/lib/media-utils.ts`) : `DRIVE_FILE_ID_REGEX` universelle + `extractDriveFileId()` + `detectImageSource()` ('drive'|'cdn'|'unknown') + `resolveHybridImageUrl()` + `resolveProxyUrl()`. Déduplication : `CatalogPreview.tsx` + `ProductPage.tsx` refactorisés pour importer depuis `media-utils` (suppression ~120 lignes dupliquées). **Pillar 2 — Drive Picker** (`GoogleDrivePicker.tsx`) : modale officielle Google Drive API (GIS + Picker script tags dynamiques), multi-select Ctrl+Clic, filtre mime images uniquement. Injecté dans le menu 3-points de chaque colonne IMAGE/IMAGE_ARRAY de `DataTable.tsx`. Route `POST /api/catalog/media/picker-sync` : injecte les URLs Drive dans les cellules vides (IMAGE: 1 par cellule vide; IMAGE_ARRAY: append), upsert MediaAsset (status='drive'). Route `GET /api/google/picker-token` : token OAuth depuis session Google stockée. **Pillar 3 — Smart Sync CDN** (`POST /api/catalog/media/cdn-migrate`) : algorithme d'unicité (vérifie `MediaAsset` si file_id déjà attribué à un autre `rowId` → bloqué + alerte conflit), throttle 100ms entre requêtes Drive, conversion Sharp `.webp` (quality 82), upload Supabase Storage (fallback local `/public/uploads/media/`), update `Row.data` avec CDN URL + MediaAsset status='cdn'. Bouton colonne « ☁️ Exporter vers le CDN » + bouton bulk « ☁️ Exporter vers le CDN » dans la barre de sélection multiple. **Pillar 4 — MediaAsset model** : Prisma `MediaAsset` (fileId, rowId, dataSourceId, columnSlug, originalUrl, cdnUrl, status, fileName, mimeType, sizeBytes) + `@@unique([fileId, columnSlug])` (unicité par colonne) + 3 index. Relation `Row.mediaAssets[]`. `db:push` OK. **Pillar 5 — Médiathèque** (`MediaLibrary.tsx`) : grille stricte 3 colonnes (N° Ordre Système BDD | Nom Produit | Grille d'Images), badges source Drive/CDN, bouton suppression physique CDN (safety-check : bloque si URL encore référencée par un Row). Filtre « 🔍 Afficher les images orphelines » (CDN sans référence active). Routes `GET /api/catalog/media/list` (entries + orphansOnly) + `POST /api/catalog/media/delete` (409 si référencé). Bouton « Médiathèque » dans la barre d'outils DataPillar. **Dictionnaire** : 21 clés `media.*` × 3 locales (63 clés). Vérifié : `eslint` 0 erreur, `tsc` 0 erreur src/, `db:push` OK, media-utils unit test (6 URLs : Drive×3 formats → fileId+hybrid+proxy corrects, CDN×2 → passthrough, unknown → passthrough), E2E vitrine 12 cartes + trust section + footer (non-régression refactor). | ⏳ EN ATTENTE D'AUDIT — branche `feature/hybrid-media-architecture` |
 | FX26 | Fix régressions V4.1.2 — Recherche cross-DB | `GET /api/orders` : correction du `$queryRaw` — `is_deleted = ${archived ? 1 : 0}` (integer SQLite) remplacé par `is_deleted = ${archived}` (booléen paramétré, compatible SQLite driver auto-conversion + PostgreSQL natif) ; commentaire mis à jour ; branche `feature/full-fix-v4.1.2` | ✅ CORRIGÉ — DÉPLOYÉ |
 | FX27 | Fix régressions V4.1.1 — Archivage cancelled | `POST /api/orders/archive` : ajout de `'cancelled'` dans le tableau `{ in: ['delivered', 'confirmed', 'cancelled'] }` ; message d'erreur utilisateur mis à jour pour refléter les 3 statuts éligibles ; branche `fix/orders-v4.1.1` | ✅ CORRIGÉ — DÉPLOYÉ |
 | FX28 | Fix régressions V4.1.1 — Badge i18n | `OrderStatusBadge.tsx` : suppression du champ `labelKey` obsolète (clés `order.status*` non existantes), ajout d'une prop `label?: string` (pattern controlled label) ; appelants mis à jour : `OrdersTable.tsx` L.340 et `OrderDetailSheet.tsx` L.124 passent `t(\`adminOrder.status_\${status}\`)` ; branche `fix/orders-v4.1.1` | ✅ CORRIGÉ — DÉPLOYÉ |
@@ -244,6 +245,7 @@ src/
 - ✅ P27 (VG30) : Catalog Hide CTA Mobile — masquage responsive du bouton COMMANDER (< 768px) — déployé (branche `feature/catalog-hide-cta-mobile` mergée)
 - ⏳ P28 (VG31) : Status Ribbon AR Harmony — Trend remplace Livraison Gratuite + permutation couleurs + عرض خيالي + harmonisation CSS — branche `feature/status-ribbon-ar-harmony` (EN ATTENTE D'AUDIT, non fusionnée)
 - ⏳ P29 (VG32) : Trust Guarantees Section — section garanties de confiance vitrine (4 cartes, tooltip, glassmorphism) + admin (8ème onglet, toggle isVisible, FR/EN/AR, fallback dictionnaire) — branche `feature/trust-guarantees-section` (EN ATTENTE D'AUDIT, non fusionnée)
+- ⏳ P30 (VG33) : Hybrid Media Architecture — Drive+CDN hybride, Drive Picker, Smart Sync CDN (unicité+throttle+webp), MediaAsset model, Médiathèque — branche `feature/hybrid-media-architecture` (EN ATTENTE D'AUDIT, non fusionnée)
 - ✅ P23 : Sitemap dynamique — module products.ts partagé (resolveProduct + resolveAllProducts) + sitemap.ts boucle produits + revalidate=3600 — déployé (branche feat/seo-sitemap-dynamic merged)
 - ✅ P24 : Support alphabet arabe dans les slugs — regex Unicode \p{L}\p{N} + sync server/client — déployé (branche feat/arabic-slug-support merged)
 
@@ -800,6 +802,106 @@ Le mandat vise à renforcer la confiance des visiteurs en affichant 4 garanties 
 
 ### Branche
 `feature/trust-guarantees-section` (créée depuis `main@be3d655`) — **EN ATTENTE D'AUDIT** (aucune fusion sur main).
+
+---
+Date de mise à jour : 22/07/2026
+
+## [HYBRID MEDIA ARCHITECTURE — VG33 / P30]
+
+### Contexte
+Le mandat résout 4 problèmes : (A) dépendance Google Drive sujette aux erreurs 429 (pas un CDN) + risque SEO ; (B) ingestion lourde en 3 étapes pour de simples ajustements d'images ; (C) risque de doublons (aucun contrôle d'unicité des file_id Drive) ; (D) danger lors de la suppression (effacer une cellule peut rompre l'accès au fichier).
+
+### Pillar 1 — Centralisation & Rendus Hybrides (`src/lib/media-utils.ts`)
+- `DRIVE_FILE_ID_REGEX` universelle : `drive.google.com/file/d/`, `/open?id=`, `/uc?id=`, `lh3.googleusercontent.com/d/`, `/api/google/image-proxy?id=`.
+- `extractDriveFileId(url)` : string | null.
+- `detectImageSource(url)` : 'drive' | 'cdn' | 'unknown' (Supabase + /uploads/ = CDN).
+- `resolveHybridImageUrl(url, size)` : Drive → `lh3.googleusercontent.com/d/ID=w{size}` (ultra-rapide), CDN/unknown → passthrough.
+- `resolveProxyUrl(url, size)` : Drive → `/api/google/image-proxy?id=ID&sz={size}` (fallback), CDN/unknown → passthrough.
+- **Déduplication** : `CatalogPreview.tsx` + `ProductPage.tsx` refactorisés (suppression ~120 lignes dupliquées de `resolveDirectImageUrl`/`resolveProxyImageUrl`/`extractImageId`). Import depuis `media-utils` via alias (`resolveHybridImageUrl as resolveDirectImageUrl`).
+
+### Pillar 2 — Ingestion Directe Google Drive Picker
+- `GoogleDrivePicker.tsx` : modale officielle Google Drive API. Charge GIS + Picker scripts dynamiquement. Token OAuth depuis `GET /api/google/picker-token` (session Google stockée). Multi-select Ctrl+Clic, filtre mime images. On select → `POST /api/catalog/media/picker-sync`.
+- `POST /api/catalog/media/picker-sync` : injecte URLs Drive dans cellules. IMAGE : 1 URL par cellule vide (row order asc). IMAGE_ARRAY : append aux URLs existantes. Upsert MediaAsset (status='drive').
+- Intégré dans le menu 3-points (`colOptionsOpen`) de chaque colonne IMAGE/IMAGE_ARRAY dans `DataTable.tsx` : « 📁 Importer via Drive Picker ».
+
+### Pillar 3 — Migration Ciblée & Algorithme d'Unicité (Smart Sync)
+- `POST /api/catalog/media/cdn-migrate` : pour chaque row, extrait file_ids Drive.
+  1. **Uniqueness check** : `MediaAsset.findFirst({ fileId, columnSlug, rowId: { not: row.id } })` → si trouvé, BLOCK + report conflit.
+  2. **Throttle 100ms** entre requêtes Drive (respect quotas).
+  3. **Download** Drive → `lh3.googleusercontent.com/d/ID=w1200`.
+  4. **Sharp webp** : `sharp(buffer).webp({ quality: 82 }).toBuffer()`.
+  5. **Upload** Supabase Storage `assets/media/{fileId}.webp` (upsert) → `cdnUrl` = public URL. Fallback local `/public/uploads/media/`.
+  6. **Update** `Row.data` avec CDN URL + `MediaAsset` status='cdn'.
+- Bouton colonne « ☁️ Exporter vers le CDN » dans le menu 3-points (DataTable).
+- Bouton bulk « ☁️ Exporter vers le CDN » dans la barre de sélection multiple (DataTable) — itère sur toutes les colonnes IMAGE/IMAGE_ARRAY.
+
+### Pillar 4 — Modèle MediaAsset
+```prisma
+model MediaAsset {
+  id            String   @id @default(cuid())
+  fileId        String   @map("file_id")
+  rowId         String   @map("row_id")
+  row           Row      @relation(fields: [rowId], references: [id], onDelete: Cascade)
+  dataSourceId  String   @map("data_source_id")
+  columnSlug    String   @map("column_slug")
+  originalUrl   String   @map("original_url")
+  cdnUrl        String?  @map("cdn_url")
+  fileName      String?  @map("file_name")
+  mimeType      String?  @map("mime_type")
+  sizeBytes     Int?     @map("size_bytes")
+  status        String   @default("drive")  // 'drive' | 'migrating' | 'cdn' | 'failed'
+  @@unique([fileId, columnSlug])
+  @@index([rowId])
+  @@index([dataSourceId])
+  @@index([fileId])
+}
+```
+Relation `Row.mediaAssets MediaAsset[]` ajoutée. `db:push` OK.
+
+### Pillar 5 — Espace Média Épuré (Médiathèque)
+- `MediaLibrary.tsx` : grille stricte 3 colonnes :
+  1. **N° Ordre Système (BDD)** : `Row.order` (index fixe immuable 1..N).
+  2. **Nom du Produit** : titre exact (titleColumn best-effort).
+  3. **Grille d'Images** : miniatures visuelles + badge source (Drive bleu / CDN vert) + bouton suppression physique CDN (hover).
+- Filtre « 🔍 Afficher les images orphelines » : CDN URLs sans référence active dans un Row.
+- `GET /api/catalog/media/list?dataSourceId=...&orphansOnly=true` : entries + orphans.
+- `POST /api/catalog/media/delete` : safety-check (409 si cdnUrl encore référencée par un Row) → delete Supabase/local + delete MediaAsset.
+- Bouton « Médiathèque » (icône Images) dans la barre d'outils `DataPillar.tsx` → Dialog `MediaLibrary`.
+
+### Dictionnaire
+21 clés `media.*` × 3 locales (63 clés) : `media.pickerTitle`, `media.pickerBtn`, `media.exportCdnCol`, `media.exportCdnSel`, `media.migrating`, `media.migrateSuccess`, `media.migrateConflict`, `media.migrateError`, `media.libraryTitle`, `media.colOrder`, `media.colProduct`, `media.colImages`, `media.sourceDrive`, `media.sourceCdn`, `media.orphanFilter`, `media.deleteBtn`, `media.deleteConfirm`, `media.deleteSuccess`, `media.deleteBlocked`, `media.noMedia`, `media.injected`.
+
+### Fichiers créés
+| # | Fichier | Rôle |
+|---|---------|------|
+| 1 | `src/lib/media-utils.ts` | Centralisation : regex, detectImageSource, resolveHybridImageUrl, resolveProxyUrl |
+| 2 | `src/components/admin/GoogleDrivePicker.tsx` | Modale Drive Picker officielle (GIS + Picker API) |
+| 3 | `src/components/admin/MediaLibrary.tsx` | Médiathèque 3 colonnes + filtre orphelins + suppression CDN |
+| 4 | `src/app/api/catalog/media/picker-sync/route.ts` | Injection URLs Drive dans cellules + upsert MediaAsset |
+| 5 | `src/app/api/catalog/media/cdn-migrate/route.ts` | Smart Sync : unicité + throttle + webp + upload CDN |
+| 6 | `src/app/api/catalog/media/list/route.ts` | Liste médiathèque + filtre orphelins |
+| 7 | `src/app/api/catalog/media/delete/route.ts` | Suppression physique CDN (safety-check 409) |
+| 8 | `src/app/api/google/picker-token/route.ts` | Token OAuth pour Drive Picker client-side |
+
+### Fichiers modifiés
+| # | Fichier | Modification |
+|---|---------|-------------|
+| 1 | `prisma/schema.prisma` | Model `MediaAsset` + relation `Row.mediaAssets[]` |
+| 2 | `src/components/preview/CatalogPreview.tsx` | Import `media-utils` (suppression ~60 lignes dupliquées) |
+| 3 | `src/components/preview/ProductPage.tsx` | Import `media-utils` (suppression ~60 lignes dupliquées) |
+| 4 | `src/components/data/DataTable.tsx` | Drive Picker + CDN export dans menu 3-points + bulk CDN export |
+| 5 | `src/components/data/DataPillar.tsx` | Bouton « Médiathèque » + Dialog MediaLibrary |
+| 6 | `src/lib/i18n/dictionaries.ts` | 63 clés `media.*` (21 × 3 locales) |
+
+### Vérifications
+- `bun run db:push` : table `media_assets` créée ✅
+- `bun run lint` : 0 erreur, 0 warning ✅
+- `tsc --noEmit` : 0 erreur dans `src/` ✅
+- media-utils unit test (6 URLs) : Drive×3 formats → fileId+hybrid+proxy corrects, CDN×2 → passthrough, unknown → passthrough ✅
+- E2E vitrine : 12 cartes + trust section + footer (non-régression refactor) ✅
+
+### Branche
+`feature/hybrid-media-architecture` (créée depuis `main@8acf9d4`) — **EN ATTENTE D'AUDIT** (aucune fusion sur main).
 
 ---
 Date de mise à jour : 22/07/2026
