@@ -713,6 +713,14 @@ export const dictionaries: Record<Locale, TranslationDict> = {
     'legal.footerPrivacy': 'Politique de confidentialité',
     'legal.footerCgv': 'Conditions générales',
     'legal.footerCopyright': '© {year} Abaya Collection Chic',
+    'trust.livraison.title': 'Livraison Gratuite',
+    'trust.livraison.desc': 'Expédition rapide sous 24h à 48h vers toutes les villes du Maroc, avec suivi de commande et remise en main propre.',
+    'trust.paiement.title': 'Paiement à la Livraison',
+    'trust.paiement.desc': 'Paiement en espèces à la livraison uniquement après vérification de votre commande.',
+    'trust.qualite.title': 'Garantie Qualité',
+    'trust.qualite.desc': 'Produits 100% conformes aux photos présentées sur la boutique et les pages web, pour vous garantir une satisfaction totale.',
+    'trust.retour.title': 'Échange Facile',
+    'trust.retour.desc': 'Possibilité d\'échanger le produit en cas de non-conformité ou de défaut. Nous prenons l\'entière responsabilité des défauts sur présentation de photos. Livraison et retour 100% gratuits.',
   },
 
   en: {
@@ -1415,6 +1423,14 @@ export const dictionaries: Record<Locale, TranslationDict> = {
     'legal.footerPrivacy': 'Privacy Policy',
     'legal.footerCgv': 'Terms & Conditions',
     'legal.footerCopyright': '© {year} Abaya Collection Chic',
+    'trust.livraison.title': 'Free Delivery',
+    'trust.livraison.desc': 'Fast shipping within 24 to 48 hours to all cities in Morocco, with order tracking and hand delivery.',
+    'trust.paiement.title': 'Cash on Delivery',
+    'trust.paiement.desc': 'Cash payment upon delivery only after inspecting your order.',
+    'trust.qualite.title': 'Quality Guarantee',
+    'trust.qualite.desc': 'Products 100% matching the photos displayed in store and online pages to ensure complete satisfaction.',
+    'trust.retour.title': 'Easy Exchange',
+    'trust.retour.desc': 'Easy product exchange in case of non-conformity or defect. We assume full responsibility for defects upon receiving photos. Delivery and return are completely free.',
   },
 
   ar: {
@@ -2117,6 +2133,14 @@ export const dictionaries: Record<Locale, TranslationDict> = {
     'legal.footerPrivacy': 'سياسة الخصوصية',
     'legal.footerCgv': 'شروط البيع',
     'legal.footerCopyright': '© {year} أبايا كولكشن شيك',
+    'trust.livraison.title': 'توصيل مجاني',
+    'trust.livraison.desc': 'شحن سريع خلال 24 إلى 48 ساعة لجميع مدن المغرب. مع إمكانية تتبع الطلب. والتسليم يكون يدا بيد.',
+    'trust.paiement.title': 'الدفع عند الاستلام',
+    'trust.paiement.desc': 'الدفع عند الاستلام نقدا بعد معاينة الطلب فقط.',
+    'trust.qualite.title': 'ضمان الجودة',
+    'trust.qualite.desc': 'منتجات مطابقة للصور التي تمت معاينتها في المتجر وفي الصفحات الإلكترونية. لضمان الرضا التام على جميع منتجاتنا.',
+    'trust.retour.title': 'تبديل سهل',
+    'trust.retour.desc': 'إمكانية استبدال المنتج في حالة عدم المطابقة أو في حالة وجود عيب في المنتج. نحن نتحمل كامل المسؤولية عن العيوب التي توجد في المنتج بعد إرسال الصور. التوصيل واسترجاع مجانا.',
   },
 };
 

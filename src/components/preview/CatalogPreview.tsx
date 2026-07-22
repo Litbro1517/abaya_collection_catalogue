@@ -17,6 +17,7 @@ import { readCache, writeCache, clearAllCache, sanitizeSections, CACHE_KEYS } fr
 import type { CachedSectionData } from '@/lib/cache';
 import { ProductPage } from './ProductPage';
 import { SocialStickyTickets } from './SocialStickyTickets';
+import { TrustGuaranteesSection } from '@/components/TrustGuaranteesSection';
 import { CheckoutPage, type CheckoutPayload } from './CheckoutPage';
 import { useClientTranslation } from '@/lib/i18n';
 import { buildWhatsappLink } from '@/lib/whatsapp';
@@ -1650,6 +1651,9 @@ export function CatalogPreview({ onAdminLogin }: CatalogPreviewProps) {
           rtl={rtl}
         />
       </main>
+
+      {/* Trust Guarantees — VG32: 4 trust cards above footer */}
+      <TrustGuaranteesSection />
 
       {/* Footer — sticky to bottom, 3-column responsive grid */}
       <footer className="mt-auto py-8 sm:py-10" style={{ backgroundColor: secondaryColor }}>
