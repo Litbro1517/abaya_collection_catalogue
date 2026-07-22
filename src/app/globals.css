@@ -836,10 +836,23 @@ html.rtl .mobile-cta-button svg {
   opacity: 1;
 }
 
-/* Touch devices (no hover) — keep CTA visible for usability */
+/* Touch devices (no hover) — keep CTA visible for usability on large touchscreens (≥768px) */
 @media (hover: none) {
   .product-card-hover-cta {
     opacity: 1;
+  }
+}
+
+/* ── Mobile / tablet-compact (< 768px) — hide COMMANDER CTA completely ── */
+/* VG30: on small touchscreens the hover CTA is unpredictable/permanent and
+   clutters the garment visual. display:none removes it from the render tree
+   entirely (non-interactive, no space reserved). display:none wins over the
+   opacity rules above, so the CTA is fully hidden on mobile regardless of
+   hover capability. Desktop (≥768px) keeps the exact hover behavior:
+   opacity:0 at rest → group-hover:opacity:100 on hover. */
+@media (max-width: 767px) {
+  .product-card-hover-cta {
+    display: none;
   }
 }
 
