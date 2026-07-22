@@ -44,11 +44,13 @@ import {
   ListChecks, Layers, ToggleRight, ExternalLink, Link2, SquareStack,
   MoveRight, Activity, Lock, Unlock, ArrowUpDown, Zap,
   ChevronUp, Minus, ChevronLeft, Database, Palette, RefreshCw,
+  FolderOpen, Cloud,
 } from 'lucide-react';
 import { Switch } from '@/components/ui/switch';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import { STATUS_OPTIONS, resolveAdminStatusBadge } from '@/lib/status-config';
+import { GoogleDrivePicker } from '@/components/admin/GoogleDrivePicker';
 import { ColumnEditorDialog } from './ColumnEditorDialog';
 import { ColorCell } from './ColorCell';
 import { StockSourceModal, type StockSourceConfig } from './StockSourceModal';
@@ -439,6 +441,10 @@ export function DataTable({ columns, rows, dataSourceId, loading, onRefresh, onU
   // Column options popover — track which col's popover is open and expanded sections
   const [colOptionsOpen, setColOptionsOpen] = useState<string | null>(null); // col.id
   const [colOptionsExpanded, setColOptionsExpanded] = useState<Set<string>>(new Set());
+
+  // VG33: Drive Picker + CDN migrate state
+  const [pickerCol, setPickerCol] = useState<{ slug: string; type: 'IMAGE' | 'IMAGE_ARRAY' } | null>(null);
+  const [migratingCol, setMigratingCol] = useState<string | null>(null);
 
   // Delete confirmation
   const [deleteTarget, setDeleteTarget] = useState<{ type: 'row' | 'column'; id: string; name?: string } | null>(null);
@@ -1581,6 +1587,56 @@ export function DataTable({ columns, rows, dataSourceId, loading, onRefresh, onU
             )}
 
             <div className="flex-1" />
+
+            {/* VG33: Bulk CDN export — migrate selected rows' images to CDN */}
+            {visibleColumns.some(c => c.type === 'IMAGE' || c.type === 'IMAGE_ARRAY') && (
+              <Button
+                variant="outline"
+                size="sm"
+                className="h-7 text-xs gap-1 border-emerald-200 text-emerald-600 hover:bg-emerald-50 hover:text-emerald-700"
+                disabled={migratingCol === 'bulk'}
+                onClick={async () => {
+                  setMigratingCol('bulk');
+                  toast.info(`Migration CDN de ${selectedRows.size} ligne(s)…`);
+                  try {
+                    const imageCols = visibleColumns.filter(c => c.type === 'IMAGE' || c.type === 'IMAGE_ARRAY');
+                    let totalMigrated = 0;
+                    let totalConflicts = 0;
+                    for (const col of imageCols) {
+                      const res = await fetch('/api/catalog/media/cdn-migrate', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                          dataSourceId,
+                          columnSlug: col.slug,
+                          columnType: col.type,
+                          rowIds: Array.from(selectedRows),
+                        }),
+                      });
+                      if (res.ok) {
+                        const json = await res.json();
+                        totalMigrated += json.data.migrated || 0;
+                        totalConflicts += json.data.conflicts || 0;
+                      }
+                    }
+                    if (totalMigrated > 0) toast.success(`${totalMigrated} image(s) migrée(s) vers le CDN`);
+                    if (totalConflicts > 0) toast.error(`${totalConflicts} conflit(s) — image(s) déjà attribuée(s)`);
+                    if (totalMigrated === 0 && totalConflicts === 0) toast.info('Aucune image à migrer');
+                    onRefresh({ forceNetwork: true });
+                  } catch {
+                    toast.error('Erreur lors de la migration CDN');
+                  } finally {
+                    setMigratingCol(null);
+                  }
+                }}
+              >
+                {migratingCol === 'bulk'
+                  ? <Loader2 className="w-3 h-3 animate-spin" />
+                  : <Cloud className="w-3 h-3" />}
+                ☁️ Exporter vers le CDN
+              </Button>
+            )}
+
             <Button variant="destructive" size="sm" className="h-7 text-xs gap-1" onClick={() => setShowBulkDeleteDialog(true)}>
               <Trash2 className="w-3 h-3" /> Supprimer la sélection
             </Button>
@@ -1844,6 +1900,56 @@ export function DataTable({ columns, rows, dataSourceId, loading, onRefresh, onU
                                   {colorSourceConfig && (
                                     <span className="text-[8px] text-emerald-500">● Config</span>
                                   )}
+                                </button>
+                              )}
+
+                              {/* ━━━ VG33: Drive Picker — for IMAGE / IMAGE_ARRAY columns ━━━ */}
+                              {(col.type === 'IMAGE' || col.type === 'IMAGE_ARRAY') && (
+                                <button
+                                  className="w-full flex items-center gap-2 px-3 py-1.5 text-left text-xs hover:bg-blue-50 text-blue-600 transition-colors"
+                                  onClick={() => {
+                                    setPickerCol({ slug: col.slug, type: col.type as 'IMAGE' | 'IMAGE_ARRAY' });
+                                    setColOptionsOpen(null);
+                                  }}
+                                >
+                                  <FolderOpen className="w-3.5 h-3.5" />
+                                  <span className="flex-1">📁 Importer via Drive Picker</span>
+                                </button>
+                              )}
+
+                              {/* ━━━ VG33: Export column to CDN — for IMAGE / IMAGE_ARRAY columns ━━━ */}
+                              {(col.type === 'IMAGE' || col.type === 'IMAGE_ARRAY') && (
+                                <button
+                                  className="w-full flex items-center gap-2 px-3 py-1.5 text-left text-xs hover:bg-emerald-50 text-emerald-600 transition-colors disabled:opacity-50"
+                                  disabled={migratingCol === col.slug}
+                                  onClick={async () => {
+                                    setMigratingCol(col.slug);
+                                    setColOptionsOpen(null);
+                                    toast.info('Migration CDN en cours…');
+                                    try {
+                                      const res = await fetch('/api/catalog/media/cdn-migrate', {
+                                        method: 'POST',
+                                        headers: { 'Content-Type': 'application/json' },
+                                        body: JSON.stringify({ dataSourceId, columnSlug: col.slug, columnType: col.type }),
+                                      });
+                                      if (!res.ok) throw new Error('migrate failed');
+                                      const json = await res.json();
+                                      const { migrated, conflicts } = json.data;
+                                      if (migrated > 0) toast.success(`${migrated} image(s) migrée(s) vers le CDN`);
+                                      if (conflicts > 0) toast.error(`${conflicts} conflit(s) — image(s) déjà attribuée(s) à un autre produit`);
+                                      if (migrated === 0 && conflicts === 0) toast.info('Aucune image à migrer');
+                                      onRefresh({ forceNetwork: true });
+                                    } catch {
+                                      toast.error('Erreur lors de la migration CDN');
+                                    } finally {
+                                      setMigratingCol(null);
+                                    }
+                                  }}
+                                >
+                                  {migratingCol === col.slug
+                                    ? <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                                    : <Cloud className="w-3.5 h-3.5" />}
+                                  <span className="flex-1">☁️ Exporter vers le CDN</span>
                                 </button>
                               )}
 
@@ -2298,6 +2404,18 @@ export function DataTable({ columns, rows, dataSourceId, loading, onRefresh, onU
             onRefresh({ forceNetwork: true }); // force network reload to get imported colors
           }}
         />
+
+        {/* VG33: Google Drive Picker — inject image URLs into IMAGE/IMAGE_ARRAY columns */}
+        {pickerCol && (
+          <GoogleDrivePicker
+            open={!!pickerCol}
+            onOpenChange={(open) => { if (!open) setPickerCol(null); }}
+            dataSourceId={dataSourceId}
+            columnSlug={pickerCol.slug}
+            columnType={pickerCol.type}
+            onSynced={() => { onRefresh({ forceNetwork: true }); }}
+          />
+        )}
       </div>
     </TooltipProvider>
   );

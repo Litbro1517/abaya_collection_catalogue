@@ -3,6 +3,11 @@
 import { useState, useRef, useCallback, useEffect, useMemo } from 'react';
 import type { Section, SectionConfig, Column, ColumnConfig, Row } from '@/types';
 import { resolveColorHex, buildColorLookupMap, normalizeCouleurKey } from '@/lib/color-utils';
+import {
+  resolveHybridImageUrl as resolveDirectImageUrl,
+  resolveProxyUrl as resolveProxyImageUrl,
+  extractDriveFileId,
+} from '@/lib/media-utils';
 import { readCache, writeCache, CACHE_KEYS } from '@/lib/cache';
 import { buildWhatsappLink } from '@/lib/whatsapp';
 import {
@@ -45,56 +50,10 @@ const BRAND = {
 } as const;
 
 // ── Image URL Resolution ──
-function resolveDirectImageUrl(url: string, size = 1200): string {
-  if (!url) return '';
-  const proxyMatch = url.match(/\/api\/google\/image-proxy\?id=([^&]+)&sz=(\d+)/);
-  if (proxyMatch) return `https://lh3.googleusercontent.com/d/${proxyMatch[1]}=w${size}`;
-  const drivePatterns = [
-    /drive\.google\.com\/file\/d\/([a-zA-Z0-9_-]+)/,
-    /drive\.google\.com\/open\?id=([a-zA-Z0-9_-]+)/,
-    /drive\.google\.com\/uc\?[^#]*id=([a-zA-Z0-9_-]+)/,
-    /lh3\.googleusercontent\.com\/d\/([a-zA-Z0-9_-]+)/,
-  ];
-  for (const pattern of drivePatterns) {
-    const match = url.match(pattern);
-    if (match) return `https://lh3.googleusercontent.com/d/${match[1]}=w${size}`;
-  }
-  return url;
-}
-
-function resolveProxyImageUrl(url: string, size = 1200): string {
-  if (!url) return '';
-  const proxyMatch = url.match(/\/api\/google\/image-proxy\?id=([^&]+)&sz=(\d+)/);
-  if (proxyMatch) {
-    if (parseInt(proxyMatch[2]) < size) return `/api/google/image-proxy?id=${proxyMatch[1]}&sz=${size}`;
-    return url;
-  }
-  const drivePatterns = [
-    /drive\.google\.com\/file\/d\/([a-zA-Z0-9_-]+)/,
-    /drive\.google\.com\/open\?id=([a-zA-Z0-9_-]+)/,
-    /drive\.google\.com\/uc\?[^#]*id=([a-zA-Z0-9_-]+)/,
-    /lh3\.googleusercontent\.com\/d\/([a-zA-Z0-9_-]+)/,
-  ];
-  for (const pattern of drivePatterns) {
-    const match = url.match(pattern);
-    if (match) return `/api/google/image-proxy?id=${match[1]}&sz=${size}`;
-  }
-  return url;
-}
-
+// (VG33) Centralized in src/lib/media-utils.ts. Local re-exports preserve call sites.
+// extractImageId wraps extractDriveFileId for backward compat (returns URL as fallback).
 function extractImageId(url: string): string {
-  const proxyMatch = url.match(/\/api\/google\/image-proxy\?id=([^&]+)/);
-  if (proxyMatch) return proxyMatch[1];
-  for (const pattern of [
-    /drive\.google\.com\/file\/d\/([a-zA-Z0-9_-]+)/,
-    /drive\.google\.com\/open\?id=([a-zA-Z0-9_-]+)/,
-    /drive\.google\.com\/uc\?[^#]*id=([a-zA-Z0-9_-]+)/,
-    /lh3\.googleusercontent\.com\/d\/([a-zA-Z0-9_-]+)/,
-  ]) {
-    const match = url.match(pattern);
-    if (match) return match[1];
-  }
-  return url;
+  return extractDriveFileId(url) ?? url;
 }
 
 // Collect raw image URLs from a cell value

@@ -12,6 +12,7 @@ import { GoogleSheetsBrowser } from './GoogleSheetsBrowser';
 import { GoogleConnectPanel } from './GoogleConnectPanel';
 import { SyncStatusIndicator } from './SyncStatusIndicator';
 import { ColumnVisibilityDropdown } from './ColumnVisibilityDropdown';
+import { MediaLibrary } from '@/components/admin/MediaLibrary';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
@@ -313,6 +314,9 @@ export function DataPillar() {
   // Reorder popover state (Axe 4 — lock catalog sequence to BDD)
   const [reorderPopoverOpen, setReorderPopoverOpen] = useState(false);
   const [reordering, setReordering] = useState(false);
+
+  // VG33: MediaLibrary dialog
+  const [showMediaLibrary, setShowMediaLibrary] = useState(false);
 
   // Pending status changes (local only, not yet synced to DB)
   const [pendingStatusChanges, setPendingStatusChanges] = useState<Record<string, { statut: string; locked: boolean }>>({});
@@ -1724,6 +1728,18 @@ export function DataPillar() {
                 </PopoverContent>
               </Popover>
 
+              {/* ── VG33: Médiathèque button — open MediaLibrary dialog ── */}
+              <Button
+                variant="outline"
+                size="sm"
+                disabled={!activeDataSourceId}
+                className="h-7 text-xs gap-1.5 hover:bg-muted"
+                onClick={() => setShowMediaLibrary(true)}
+              >
+                <Images className="w-3.5 h-3.5" />
+                <span className="hidden sm:inline">Médiathèque</span>
+              </Button>
+
               {/* Sync Status button */}
               <Tooltip>
                 <TooltipTrigger asChild>
@@ -2022,6 +2038,26 @@ export function DataPillar() {
             <Button variant="outline" onClick={() => setShowUrlDialog(false)}>Annuler</Button>
             <Button onClick={handleManualUrlImport} disabled={!manualUrl.trim()}>Importer</Button>
           </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* VG33: MediaLibrary dialog */}
+      <Dialog open={showMediaLibrary} onOpenChange={setShowMediaLibrary}>
+        <DialogContent className="max-w-4xl max-h-[85vh] overflow-hidden flex flex-col">
+          <DialogHeader>
+            <DialogTitle className="text-sm flex items-center gap-2">
+              <Images className="w-4 h-4" />
+              Médiathèque
+            </DialogTitle>
+          </DialogHeader>
+          {activeDataSourceId && (
+            <div className="flex-1 overflow-y-auto">
+              <MediaLibrary
+                dataSourceId={activeDataSourceId}
+                onRefresh={() => loadDataSourceData({ forceNetwork: true })}
+              />
+            </div>
+          )}
         </DialogContent>
       </Dialog>
     </div>

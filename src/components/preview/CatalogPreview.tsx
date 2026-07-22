@@ -26,6 +26,12 @@ import { computeDiscount, getCompareAtPrice } from '@/lib/discount-utils';
 import { PriceText } from '@/components/PriceText';
 import { useAutoTranslatedText } from '@/lib/useAutoTranslatedText';
 import { resolveMarketingStatus } from '@/lib/status-config';
+import {
+  resolveHybridImageUrl as resolveDirectImageUrl,
+  resolveProxyUrl as resolveProxyImageUrl,
+  resolveImageUrl,
+  extractDriveFileId,
+} from '@/lib/media-utils';
 // DEBT-6 revert: ContactModal retiré — retour à la Méthode Hybride mailto: + clipboard (DEBT-5)
 
 // ── Brand Constants removed — all values migrated to CSS pivot variables & global classes ──
@@ -46,81 +52,13 @@ function slugify(text: string): string {
 }
 
 // ── Image URL Resolution ──
-
-// Direct CDN URL — for <img> src (no CORS proxy needed, instant loading)
-function resolveDirectImageUrl(url: string, size = 1200): string {
-  if (!url) return '';
-
-  // Already a proxy URL — extract the ID and build direct CDN URL
-  const proxyMatch = url.match(/\/api\/google\/image-proxy\?id=([^&]+)&sz=(\d+)/);
-  if (proxyMatch) {
-    return `https://lh3.googleusercontent.com/d/${proxyMatch[1]}=w${size}`;
-  }
-
-  const drivePatterns = [
-    /drive\.google\.com\/file\/d\/([a-zA-Z0-9_-]+)/,
-    /drive\.google\.com\/open\?id=([a-zA-Z0-9_-]+)/,
-    /drive\.google\.com\/uc\?[^#]*id=([a-zA-Z0-9_-]+)/,
-    /lh3\.googleusercontent\.com\/d\/([a-zA-Z0-9_-]+)/,
-  ];
-
-  for (const pattern of drivePatterns) {
-    const match = url.match(pattern);
-    if (match) {
-      return `https://lh3.googleusercontent.com/d/${match[1]}=w${size}`;
-    }
-  }
-
-  return url;
-}
-
-// Proxy URL — fallback for images that fail to load via direct CDN
-function resolveProxyImageUrl(url: string, size = 1200): string {
-  if (!url) return '';
-
-  const proxyMatch = url.match(/\/api\/google\/image-proxy\?id=([^&]+)&sz=(\d+)/);
-  if (proxyMatch) {
-    if (parseInt(proxyMatch[2]) < size) {
-      return `/api/google/image-proxy?id=${proxyMatch[1]}&sz=${size}`;
-    }
-    return url;
-  }
-
-  const drivePatterns = [
-    /drive\.google\.com\/file\/d\/([a-zA-Z0-9_-]+)/,
-    /drive\.google\.com\/open\?id=([a-zA-Z0-9_-]+)/,
-    /drive\.google\.com\/uc\?[^#]*id=([a-zA-Z0-9_-]+)/,
-    /lh3\.googleusercontent\.com\/d\/([a-zA-Z0-9_-]+)/,
-  ];
-
-  for (const pattern of drivePatterns) {
-    const match = url.match(pattern);
-    if (match) {
-      return `/api/google/image-proxy?id=${match[1]}&sz=${size}`;
-    }
-  }
-
-  return url;
-}
-
-// Legacy alias — routes through proxy (kept for non-img usage)
-function resolveImageUrl(url: string, size = 1200): string {
-  return resolveProxyImageUrl(url, size);
-}
+// (VG33) These functions are now centralized in src/lib/media-utils.ts.
+// Local re-exports above (resolveDirectImageUrl, resolveProxyImageUrl,
+// resolveImageUrl) preserve all existing call sites without code changes.
+// extractImageId wraps extractDriveFileId for backward compat (returns URL as fallback).
 
 function extractImageId(url: string): string {
-  const proxyMatch = url.match(/\/api\/google\/image-proxy\?id=([^&]+)/);
-  if (proxyMatch) return proxyMatch[1];
-  for (const pattern of [
-    /drive\.google\.com\/file\/d\/([a-zA-Z0-9_-]+)/,
-    /drive\.google\.com\/open\?id=([a-zA-Z0-9_-]+)/,
-    /drive\.google\.com\/uc\?[^#]*id=([a-zA-Z0-9_-]+)/,
-    /lh3\.googleusercontent\.com\/d\/([a-zA-Z0-9_-]+)/,
-  ]) {
-    const match = url.match(pattern);
-    if (match) return match[1];
-  }
-  return url;
+  return extractDriveFileId(url) ?? url;
 }
 
 function parseImageUrls(val: unknown, separator?: string): string[] {
