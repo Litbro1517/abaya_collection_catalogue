@@ -247,6 +247,17 @@ function applyFilter(val: unknown, filter: FilterConfig): boolean {
   }
 }
 
+// Native (system) column slugs — excluded from the Réorganiser menu (Axe 4).
+// These columns are "immobile": system-managed, not merchant-sortable data.
+const REORDER_NATIVE_SLUGS = [
+  '__category__',
+  '__sub_category__',
+  '__colors__',
+  '__disponibilite__',
+  '__stock__',
+  '__statut__',
+];
+
 export function DataPillar() {
   const {
     activeDataSourceId,
@@ -297,6 +308,10 @@ export function DataPillar() {
 
   // Sort popover internal state
   const [sortSearch, setSortSearch] = useState('');
+
+  // Reorder popover state (Axe 4 — lock catalog sequence to BDD)
+  const [reorderPopoverOpen, setReorderPopoverOpen] = useState(false);
+  const [reordering, setReordering] = useState(false);
 
   // Pending status changes (local only, not yet synced to DB)
   const [pendingStatusChanges, setPendingStatusChanges] = useState<Record<string, { statut: string; locked: boolean }>>({});
@@ -646,6 +661,56 @@ export function DataPillar() {
   useEffect(() => {
     loadDataSourceData();
   }, [loadDataSourceData]);
+
+  // ── Axe 4: Réorganiser — numeric columns eligible to lock the catalog sequence ──
+  // Excludes native (immobile) columns; lists only user-created NUMBER columns.
+  const numericColumnsForReorder = useMemo(
+    () => columns.filter(
+      (c) => c.type === 'NUMBER' && !REORDER_NATIVE_SLUGS.includes(c.slug) && c.visible
+    ),
+    [columns]
+  );
+
+  const handleReorderByColumn = useCallback(async (col: Column) => {
+    if (!activeDataSourceId || rows.length === 0) return;
+    setReorderPopoverOpen(false);
+    setReordering(true);
+    try {
+      // Parse a numeric cell value (tolerant: strips currency, FR/US decimals).
+      const parseNum = (v: unknown): number | null => {
+        if (v == null) return null;
+        if (typeof v === 'number') return Number.isFinite(v) ? v : null;
+        const cleaned = String(v).replace(/[^\d.,-]/g, '').replace(/\s/g, '').replace(',', '.');
+        if (!cleaned) return null;
+        const n = Number(cleaned);
+        return Number.isFinite(n) ? n : null;
+      };
+      // Ascending sort (1 → N). Missing/unparseable values sort LAST (stable).
+      const sorted = [...rows].sort((a, b) => {
+        const av = parseNum((a.data as Record<string, unknown>)[col.slug]);
+        const bv = parseNum((b.data as Record<string, unknown>)[col.slug]);
+        if (av === null && bv === null) return 0;
+        if (av === null) return 1;
+        if (bv === null) return -1;
+        return av - bv;
+      });
+      const updates = sorted.map((row, idx) => ({ id: row.id, order: idx + 1 }));
+      const res = await fetch(`/api/datasources/${activeDataSourceId}/rows/batch`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ updates }),
+      });
+      if (!res.ok) throw new Error('batch update failed');
+      toast.success(`Catalogue réorganisé par « ${col.name} » (1 → ${sorted.length})`);
+      // Reload from network so the table + vitrine reflect the new order.
+      await loadDataSourceData({ forceNetwork: true });
+    } catch (err) {
+      console.error('Reorder failed:', err);
+      toast.error('Échec de la réorganisation du catalogue');
+    } finally {
+      setReordering(false);
+    }
+  }, [activeDataSourceId, rows, loadDataSourceData]);
 
   const handleCreate = async () => {
     if (!newName.trim()) return;
@@ -1605,6 +1670,55 @@ export function DataPillar() {
                 <Plus className="w-3.5 h-3.5" />
                 <span className="hidden sm:inline">Colonne</span>
               </Button>
+
+              {/* ── Réorganiser (Axe 4) — lock catalog sequence to BDD via row.order ── */}
+              <Popover open={reorderPopoverOpen} onOpenChange={setReorderPopoverOpen}>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    disabled={reordering || rows.length === 0}
+                    className="h-7 text-xs gap-1.5 hover:bg-muted"
+                  >
+                    {reordering
+                      ? <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                      : <ArrowRightLeft className="w-3.5 h-3.5" />}
+                    <span className="hidden sm:inline">Réorganiser</span>
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent align="end" className="w-72 p-0 shadow-lg border-border/60" sideOffset={4}>
+                  <div className="px-3 pt-3 pb-2">
+                    <span className="text-xs font-semibold text-foreground tracking-wide">
+                      Réorganiser le catalogue
+                    </span>
+                    <p className="text-[10px] text-muted-foreground mt-1 leading-relaxed">
+                      Verrouille l&apos;ordre des produits en base (1 → N) selon une colonne numérique. La vitrine suivra exclusivement cet ordre.
+                    </p>
+                  </div>
+                  <Separator className="bg-border/40" />
+                  <div className="max-h-72 overflow-y-auto">
+                    {numericColumnsForReorder.length === 0 ? (
+                      <div className="px-3 py-6 text-center text-[11px] text-muted-foreground leading-relaxed">
+                        Aucune colonne numérique éditable. Créez une colonne de type Nombre pour réorganiser le catalogue.
+                      </div>
+                    ) : (
+                      numericColumnsForReorder.map((col) => (
+                        <button
+                          key={col.id}
+                          onClick={() => handleReorderByColumn(col)}
+                          disabled={reordering}
+                          className="w-full flex items-center gap-2 px-3 py-2 text-xs text-left hover:bg-muted/60 transition-colors disabled:opacity-50"
+                        >
+                          <Hash className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
+                          <span className="truncate flex-1">{col.name}</span>
+                          <span className="text-[9px] text-muted-foreground/70">1 → N</span>
+                          <ChevronRight className="w-3 h-3 text-muted-foreground" />
+                        </button>
+                      ))
+                    )}
+                  </div>
+                </PopoverContent>
+              </Popover>
 
               {/* Sync Status button */}
               <Tooltip>
