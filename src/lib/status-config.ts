@@ -1,6 +1,6 @@
 /**
  * Centralized marketing-status configuration for the product card
- * "pied d'image" ribbon (VG28 Axe 2 → VG29 Ribbon Redesign).
+ * "pied d'image" ribbon (VG28 Axe 2 → VG29 Ribbon Redesign → VG31 AR Harmony).
  *
  * Each status maps to bilingual labels (FR / AR / EN) + a vibrant ribbon color.
  * The ribbon text is rendered in ITALIC + Sentence case (first letter uppercase
@@ -11,9 +11,18 @@
  * Source of truth: row.data.__statut__ (free string). Unknown values resolve
  * to null (no ribbon), same as "Courant".
  *
+ * VG31 (AR Harmony) changes:
+ * - "Livraison Gratuite" statut replaced by "Trend" (FR/EN) / "ترند" (AR).
+ *   Livraison is now offered globally on the boutique, no longer a per-product
+ *   status. Old BDD values ("Livraison Gratuite", "توصيل مجاني") kept as
+ *   aliases for backward compatibility (existing rows resolve to Trend).
+ * - Color permutation: Nouveauté ← green (#10B981), Trend ← cyan (#06B6D4).
+ * - Prix Choc AR label: "تخفيض استثنائي" → "عرض خيالي" (shorter, harmonious).
+ *   Old AR label kept as alias for backward compatibility.
+ *
  * VG29 changes:
  * - "Nouveau" officially replaced by "Nouveauté" throughout the project.
- * - Color palette revised per mandate (cyan, orange corail, rouge carmin,
+ * - Color palette introduced (cyan, orange corail, rouge carmin,
  *   jaune solaire, vert émeraude, violet magenta).
  * - STATUS_OPTIONS export: single source of truth for the admin dropdown
  *   (DataTable.tsx) + column-creation config.options.
@@ -27,7 +36,7 @@ export type StatusKey =
   | 'stock_limite'
   | 'offre_limite'
   | 'top_vente'
-  | 'livraison_gratuite'
+  | 'trend'
   | 'prix_choc';
 
 export interface StatusConfig {
@@ -52,7 +61,7 @@ export const STATUS_CONFIG: Record<StatusKey, StatusConfig> = {
     fr: 'Nouveauté',
     ar: 'جديد',
     en: 'New',
-    color: '#06B6D4', // cyan-500
+    color: '#10B981', // emerald-500 (VG31: green ← formerly cyan)
   },
   stock_limite: {
     bddValue: 'Stock limité',
@@ -78,19 +87,23 @@ export const STATUS_CONFIG: Record<StatusKey, StatusConfig> = {
     en: 'Top seller',
     color: '#EAB308', // yellow-500 (solaire)
   },
-  livraison_gratuite: {
-    bddValue: 'Livraison Gratuite',
-    aliases: ['livraison gratuite', 'free shipping', 'توصيل مجاني'],
-    fr: 'Livraison Gratuite',
-    ar: 'توصيل مجاني',
-    en: 'Free shipping',
-    color: '#10B981', // emerald-500
+  trend: {
+    bddValue: 'Trend',
+    // VG31: "Livraison Gratuite" rebranded to "Trend". Old aliases kept for
+    // backward compatibility (existing DB rows with "Livraison Gratuite" /
+    // "توصيل مجاني" resolve to Trend automatically).
+    aliases: ['trend', 'ترند', 'livraison gratuite', 'free shipping', 'توصيل مجاني'],
+    fr: 'Trend',
+    ar: 'ترند',
+    en: 'Trend',
+    color: '#06B6D4', // cyan-500 (VG31: cyan ← formerly green/Nouveauté)
   },
   prix_choc: {
     bddValue: 'Prix Choc',
-    aliases: ['prix choc', 'flash price', 'تخفيض استثنائي'],
+    // VG31: AR label "تخفيض استثنائي" → "عرض خيالي". Old AR label kept as alias.
+    aliases: ['prix choc', 'flash price', 'عرض خيالي', 'تخفيض استثنائي'],
     fr: 'Prix Choc',
-    ar: 'تخفيض استثنائي',
+    ar: 'عرض خيالي',
     en: 'Flash price',
     color: '#D946EF', // fuchsia-500 (magenta)
   },

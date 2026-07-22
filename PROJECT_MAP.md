@@ -170,6 +170,7 @@ src/
 | VG28 | Catalog UI & Reorder — Carte épurée + Suprématie BDD | Carte produit : `group` sur `<article>`, bouton COMMANDER noir (#000) révélé au survol (`opacity:0` → `group-hover:opacity:100` + `focus-within` + `@media (hover:none)`), suppression badge images (🖼️ N) + badge Nouveau top-left ; badge réduction `-X%` DÉPLACÉ de la zone prix (bordeaux #800020) vers top-left image en corail adouci (#EF4444, `Math.round`) — prix barré conservé en zone prix ; bandeau statut « Pied d'image » italic + Sentence case (FR/AR/EN, null pour Courant) via `status-config.ts` ; Sort vitrine = `row.order` UNIQUE (purge priorité Nouveau rank-0 + tri stock) ; bouton Réorganiser admin (menu colonnes numériques non-natives, tri ascendant 1→N, persistance `PATCH /rows/batch` étendu au champ `order`) ; réutilise `discount-utils.ts` existant (DEBT-9 `computeDiscount`/`getCompareAtPrice`) ; correction bug latent batch route (`JSON.parse(r.data)` → `readRowData()` défensif, alignée sur le pattern déjà utilisé par la route single-row) ; vérifié E2E navigateur. **Audit** (commit `588d014`) : 5 axes validés, non-régression confirmée (fichiers vitaux + schema.prisma intacts), `eslint` 0 erreur/warning, `tsc` 0 nouvelle erreur. Note mineure non-bloquante : badge réduction ne flip pas en RTL (`left: 8px` fixe). *Renuméroté VG26→VG28 (collision d'ID avec la mission Sitemap dynamique déjà existante sous VG26).* | ✅ DÉPLOYÉE EN PRODUCTION — branche `feature/catalog-ui-and-reorder` mergée puis supprimée |
 | VG29 | Status Badge Ribbon Redesign — Ruban épuré + 6 statuts BDD | **A. Blocage BDD résolu** : `__statut__` admin dropdown (DataTable.tsx) passe de 2 options codées en dur (Nouveau/Courant) à 7 options dynamiques via `STATUS_OPTIONS` (Courant + 6 statuts marketing) ; `resolveAdminStatusBadge()` génère le badge coloré dynamiquement (bg = couleur du statut, texte blanc) ; route `PUT /api/datasources/[id]/status` validée contre `STATUS_OPTIONS` (accepte Nouveauté/Stock limité/Offre limitée/Top Vente/Livraison Gratuite/Prix Choc/Courant, rejette le reste en 400) ; auto-compute `computeStatut()` → `'Nouveauté'` (au lieu de `'Nouveau'`) ; `config.options` synchronisé dans 4 routes (columns/import/google-sync×2/status). **B. Ruban épuré** : bandeau 100% largeur → ruban partiel bottom-left (`max-width: 60%`, `border-top-right-radius: 6px` = rounded-tr-md, 3 autres coins droits) ; hauteur ultra-ajustée au texte (`padding: 1.5px 12px`, pas de hauteur fixe) ; typographie `12px` (text-xs) + `font-weight: 600` (semibold) + `italic` + `leading-tight` (1.25) + `text-transform: none` (Sentence case). **Terminologie** : « Nouveau » officiellement remplacé par « Nouveauté » dans tout le système de statuts (status-config.ts + DataTable + DataPillar + status API). **Palette révisée** : Nouveauté=#06B6D4 (cyan), Stock limité=#F97316 (orange corail), Offre limitée=#EF4444 (rouge carmin), Top Vente=#EAB308 (jaune solaire), Livraison Gratuite=#10B981 (vert émeraude), Prix Choc=#D946EF (violet magenta). Alias-aware : legacy `'Nouveau'` résolut vers `'Nouveauté'` (rétrocompatibilité BDD existante). Filtre `is_nouveau` + tri `__statut__` alias-aware dans DataPillar. Vérifié E2E navigateur (6 rubans + Courant null) + API (PUT Nouveauté=200, PUT Bogus=400). **Audit** (commit `866787a`) : 4 axes validés (CSS exacte, dropdown 7 options, source unique STATUS_OPTIONS×3 routes, non-régression), aucune anomalie détectée, `eslint` 0 erreur/warning, `tsc` 0 nouvelle erreur. Bonus : filtre/tri `__statut__` alias-aware confirmés (rétrocompatibilité sans script de migration). | ✅ DÉPLOYÉE EN PRODUCTION — branche `feature/status-badge-ribbon-redesign` mergée puis supprimée |
 | VG30 | Catalog Hide CTA Mobile — Masquage responsive du bouton COMMANDER | Bouton « COMMANDER » (`.product-card-hover-cta`) masqué totalement sur petits écrans (`< 768px` / mobile + tablettes compactes) via `@media (max-width: 767px) { display: none }` dans `globals.css`. `display:none` retire le bouton de l'arbre de rendu (non-interactif, aucune place réservée) et l'emporte sur les règles `opacity` existantes (`@media (hover:none) { opacity:1 }` et `group-hover:opacity:100`) — le CTA est donc invisible sur mobile quel que soit le mode hover. Desktop (≥ 768px) conserve exactement le comportement VG28 : `opacity:0` au repos → `group-hover:opacity:100` au survol. **Aucun changement JSX/React** — masquage CSS-only (le composant reste dans le DOM, aucune régression du render). **Aucun impact sur les autres éléments** : ruban de statut (Nouveauté, etc.), badge de réduction (-X%), et prix restent visibles sur tous les écrans. Vérifié E2E navigateur à 4 largeurs : 375px (display:none ✅), 767px (display:none ✅), 768px (display:block ✅), 1280px (display:block ✅). **Audit** (commit `dc3ef03`) : 3 axes validés, cascade CSS vérifiée précisément (règle mobile déclarée après `hover:none`, gagne à spécificité égale par ordre de source), ruban statut et badge réduction confirmés non impactés, non-régression confirmée, `eslint` 0 erreur/warning, `tsc` inchangé (84 erreurs préexistantes, aucun fichier TS touché). | ✅ DÉPLOYÉE EN PRODUCTION — branche `feature/catalog-hide-cta-mobile` mergée puis supprimée |
+| VG31 | Status Ribbon AR Harmony — Harmonisation des étiquettes de statut | **A. Remplacement Livraison Gratuite → Trend** : statut `livraison_gratuite` renommé `trend` ; `bddValue: 'Livraison Gratuite'` → `'Trend'` ; `fr: 'Trend'`, `ar: 'ترند'`, `en: 'Trend'` ; aliases rétrocompatibles (`'livraison gratuite'`, `'توصيل مجاني'`, `'free shipping'`) conservés — les rows BDD existantes avec `'Livraison Gratuite'` résolvent automatiquement vers Trend. **B. Permutation des couleurs** : Nouveauté `#06B6D4` (cyan) → `#10B981` (vert émeraude) ; Trend `#10B981` (vert) → `#06B6D4` (cyan). Aucun nouveau code couleur créé — palette existante permutée. **C. Prix Choc AR** : `ar: 'تخفيض استثنائي'` → `ar: 'عرض خيالي'` (plus court, harmonieux) ; ancien label AR conservé comme alias. Autres statuts inchangés : Nouveauté (Nouveauté/جديد), Stock limité (كمية محدودة), Offre limitée (عرض محدود), Top Vente (الأكثر مبيعاً). **D. Harmonisation CSS** : `.product-card-status-band` `min-width: 88px` ajouté (rallonge les étiquettes à mot unique — Trend, ترند, Nouveauté, جديد — pour s'aligner sur le gabarit moyen des étiquettes à deux mots ~88-97px) ; `max-width: 60%` → `55%` (plus contenu, évite le débordement sur l'image). Vérifié E2E navigateur FR + AR : 7 rubans (6 statuts + 1 rétrocompatibilité Livraison Gratuite→Trend), couleurs exactes (Nouveauté=green, Trend=cyan), largeurs harmonisées (Trend 58px→88px, ترند 88px, جميع الـ AR labels ≤ 98px), `dir=rtl` + `lang=ar` confirmés en AR. | ⏳ EN ATTENTE D'AUDIT — branche `feature/status-ribbon-ar-harmony` |
 | FX26 | Fix régressions V4.1.2 — Recherche cross-DB | `GET /api/orders` : correction du `$queryRaw` — `is_deleted = ${archived ? 1 : 0}` (integer SQLite) remplacé par `is_deleted = ${archived}` (booléen paramétré, compatible SQLite driver auto-conversion + PostgreSQL natif) ; commentaire mis à jour ; branche `feature/full-fix-v4.1.2` | ✅ CORRIGÉ — DÉPLOYÉ |
 | FX27 | Fix régressions V4.1.1 — Archivage cancelled | `POST /api/orders/archive` : ajout de `'cancelled'` dans le tableau `{ in: ['delivered', 'confirmed', 'cancelled'] }` ; message d'erreur utilisateur mis à jour pour refléter les 3 statuts éligibles ; branche `fix/orders-v4.1.1` | ✅ CORRIGÉ — DÉPLOYÉ |
 | FX28 | Fix régressions V4.1.1 — Badge i18n | `OrderStatusBadge.tsx` : suppression du champ `labelKey` obsolète (clés `order.status*` non existantes), ajout d'une prop `label?: string` (pattern controlled label) ; appelants mis à jour : `OrdersTable.tsx` L.340 et `OrderDetailSheet.tsx` L.124 passent `t(\`adminOrder.status_\${status}\`)` ; branche `fix/orders-v4.1.1` | ✅ CORRIGÉ — DÉPLOYÉ |
@@ -240,6 +241,7 @@ src/
 - ✅ P25 (VG28) : Catalog UI & Reorder — 4 axes (carte épurée, bandeau statut pied d'image, suprématie BDD row.order, bouton Réorganiser) — déployé (branche `feature/catalog-ui-and-reorder` mergée)
 - ✅ P26 (VG29) : Status Badge Ribbon Redesign — ruban épuré bottom-left + 6 statuts BDD + Nouveauté — déployé (branche `feature/status-badge-ribbon-redesign` mergée)
 - ✅ P27 (VG30) : Catalog Hide CTA Mobile — masquage responsive du bouton COMMANDER (< 768px) — déployé (branche `feature/catalog-hide-cta-mobile` mergée)
+- ⏳ P28 (VG31) : Status Ribbon AR Harmony — Trend remplace Livraison Gratuite + permutation couleurs + عرض خيالي + harmonisation CSS — branche `feature/status-ribbon-ar-harmony` (EN ATTENTE D'AUDIT, non fusionnée)
 - ✅ P23 : Sitemap dynamique — module products.ts partagé (resolveProduct + resolveAllProducts) + sitemap.ts boucle produits + revalidate=3600 — déployé (branche feat/seo-sitemap-dynamic merged)
 - ✅ P24 : Support alphabet arabe dans les slugs — regex Unicode \p{L}\p{N} + sync server/client — déployé (branche feat/arabic-slug-support merged)
 
@@ -675,6 +677,69 @@ Ajout d'un bloc `@media (max-width: 767px)` dans `globals.css` qui applique `dis
 
 ### Branche
 `feature/catalog-hide-cta-mobile` (créée depuis `main@6c50116`) — **EN ATTENTE D'AUDIT** (aucune fusion sur main).
+
+---
+Date de mise à jour : 22/07/2026
+
+## [STATUS RIBBON AR HARMONY — VG31 / P28]
+
+### Contexte
+L'analyse visuelle des cartes produits a révélé plusieurs incohérences : (A) déséquilibre des formats en AR — les mots uniques courts (جديد) génèrent des bandeaux trop étroits, tandis que les expressions longues (تخفيض استثنائي) s'étirent disproportionnément ; (B) le statut « Livraison Gratuite » ne doit plus apparaître comme statut de produit individuel (livraison désormais offerte globalement) — remplacé par « Trend » ; (C) permutation des couleurs (vert → Nouveauté, cyan → Trend) ; (D) les mots uniques (FR et AR) paraissent isolés et trop petits par rapport aux étiquettes à deux mots.
+
+### A. Remplacement Livraison Gratuite → Trend
+- `status-config.ts` : clé `livraison_gratuite` → `trend` ; `bddValue: 'Livraison Gratuite'` → `'Trend'` ; `fr/en: 'Trend'`, `ar: 'ترند'`.
+- **Aliases rétrocompatibles** : `'livraison gratuite'`, `'توصيل مجاني'`, `'free shipping'` conservés dans le tableau `aliases` — les rows BDD existantes avec `'Livraison Gratuite'` résolvent automatiquement vers Trend (aucune migration de données nécessaire).
+- Vérifié E2E : une row avec `__statut__: 'Livraison Gratuite'` affiche le ruban « Trend » / « ترند » avec la couleur cyan.
+
+### B. Permutation des couleurs (palette existante, aucun nouveau code)
+| Statut | Avant (VG29) | Après (VG31) |
+|---|---|---|
+| Nouveauté | `#06B6D4` (cyan) | `#10B981` (vert émeraude) |
+| Trend (ex-Livraison Gratuite) | `#10B981` (vert) | `#06B6D4` (cyan) |
+Autres statuts inchangés : Stock limité=`#F97316`, Offre limitée=`#EF4444`, Top Vente=`#EAB308`, Prix Choc=`#D946EF`.
+
+### C. Prix Choc AR — libellé harmonisé
+- `ar: 'تخفيض استثنائي'` → `ar: 'عرض خيالي'` (plus court, harmonieux — évite le bandeau trop long qui débordait sur l'image).
+- Ancien label AR `'تخفيض استثنائي'` conservé comme alias (rétrocompatibilité BDD).
+
+### D. Harmonisation CSS du ruban
+**Justification des choix CSS** :
+- `min-width: 88px` : les étiquettes à deux mots mesurent entre 81px (Prix Choc) et 97px (Offre limitée) — moyenne ~88px. Les mots uniques (Trend=58px, ترند, nouveau=88px) étaient trop étroits. `min-width: 88px` rallonge les mots uniques pour s'aligner sur le gabarit moyen des étiquettes à deux mots, créant une grille visuellement régulière.
+- `max-width: 60%` → `55%` : réduction de 5% pour contenir les libellés AR longs (الأكثر مبيعاً = 98px) et éviter tout débordement sur l'image du produit. 55% d'une carte ~300px = ~165px, largement suffisant pour tous les libellés.
+- `padding: 1.5px 12px` inchangé (hauteur ultra-ajustée au texte préservée).
+- `border-top-right-radius: 6px` inchangé (rounded-tr-md préservé).
+
+### Fichiers modifiés
+| # | Fichier | Modification |
+|---|---------|-------------|
+| 1 | `src/lib/status-config.ts` | Clé `livraison_gratuite`→`trend` ; `bddValue`/`fr`/`ar`/`en` → Trend/ترند ; couleurs permutées (Nouveauté=green, Trend=cyan) ; Prix Choc AR → عرض خيالي ; aliases rétrocompatibles ; en-tête doc VG31 |
+| 2 | `src/app/globals.css` | `.product-card-status-band` : `min-width: 88px` ajouté, `max-width: 60%`→`55%` ; commentaire VG31 |
+
+### Vérification E2E navigateur
+**FR locale** (7 rubans) :
+| Statut | Texte | Couleur | Largeur |
+|---|---|---|---|
+| Nouveauté | Nouveauté | rgb(16,185,129) green ✅ | 88px |
+| Stock limité | Stock limité | rgb(249,115,22) orange ✅ | 93px |
+| Offre limitée | Offre limitée | rgb(239,68,68) red ✅ | 97px |
+| Top Vente | Top Vente | rgb(234,179,8) yellow ✅ | 88px |
+| Trend | Trend | rgb(6,182,212) cyan ✅ | 88px (was 58px) |
+| Prix Choc | Prix Choc | rgb(217,70,239) magenta ✅ | 88px |
+| Legacy (Livraison Gratuite) | Trend | rgb(6,182,212) cyan ✅ | 88px (rétrocompatibilité) |
+
+**AR locale** (htmlDir=rtl, htmlLang=ar, 7 rubans) :
+| Statut | Texte AR | Couleur | Largeur |
+|---|---|---|---|
+| Nouveauté | جديد | rgb(16,185,129) green ✅ | 88px |
+| Stock limité | كمية محدودة | orange ✅ | 98px |
+| Offre limitée | عرض محدود | red ✅ | 96px |
+| Top Vente | الأكثر مبيعاً | yellow ✅ | 88px |
+| Trend | ترند | rgb(6,182,212) cyan ✅ | 88px |
+| Prix Choc | عرض خيالي | magenta ✅ | 94px |
+| Legacy | ترند | cyan ✅ | 88px (rétrocompatibilité) |
+
+### Branche
+`feature/status-ribbon-ar-harmony` (créée depuis `main@599e3ca`) — **EN ATTENTE D'AUDIT** (aucune fusion sur main).
 
 ---
 Date de mise à jour : 22/07/2026

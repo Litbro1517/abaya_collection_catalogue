@@ -877,9 +877,13 @@ html.rtl .mobile-cta-button svg {
   background-color: #6B7280;
 }
 
-/* ── Product Card: Status ribbon — Pied d'image "Designer Tag" (Axe 2 / VG29) ── */
+/* ── Product Card: Status ribbon — Pied d'image "Designer Tag" (Axe 2 / VG29 → VG31) ── */
 /* Partial bottom-left ribbon (NOT full-width). Top-right corner rounded only.
-   Ultra-adjusted height: padding-driven (no fixed height). Italic + semibold. */
+   Ultra-adjusted height: padding-driven (no fixed height). Italic + semibold.
+   VG31: min-width added so single-word labels (Nouveauté, Trend, جديد, ترند)
+   align with the average width of two-word labels (Stock limité, Top Vente…).
+   max-width reduced from 60% → 55% to contain long labels (عرض خيالي) and
+   prevent overflow on the product image. */
 .product-card-status-band {
   position: absolute;
   left: 0;
@@ -888,7 +892,8 @@ html.rtl .mobile-cta-button svg {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  max-width: 60%;
+  min-width: 88px; /* VG31: elongate single-word labels to match two-word gabarit */
+  max-width: 55%; /* VG31: more contained (was 60%) — prevents image overflow */
   padding: 1.5px 12px;
   border-radius: 0;
   border-top-right-radius: 6px; /* rounded-tr-md — seul coin arrondi */
