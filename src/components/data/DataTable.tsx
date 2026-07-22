@@ -48,6 +48,7 @@ import {
 import { Switch } from '@/components/ui/switch';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
+import { STATUS_OPTIONS, resolveAdminStatusBadge } from '@/lib/status-config';
 import { ColumnEditorDialog } from './ColumnEditorDialog';
 import { ColorCell } from './ColorCell';
 import { StockSourceModal, type StockSourceConfig } from './StockSourceModal';
@@ -1176,35 +1177,26 @@ export function DataTable({ columns, rows, dataSourceId, loading, onRefresh, onU
       if (isEditingStatus && !isLocked) {
         return (
           <select
-            className="h-6 text-xs bg-background border border-gold/40 rounded px-1 focus:border-gold focus:ring-1 focus:ring-gold/20 outline-none"
+            className="h-6 text-xs bg-background border border-gold/40 rounded px-1 focus:border-gold focus:ring-1 focus:ring-gold/20 outline-none max-w-[140px]"
             value={displayStatut || 'Courant'}
             onChange={(e) => handleLocalStatusChangeLocal(row.id, e.target.value)}
             onBlur={() => setEditingStatusCell(null)}
             autoFocus
           >
-            <option value="Nouveau">🟢 Nouveau</option>
-            <option value="Courant">🔵 Courant</option>
+            {STATUS_OPTIONS.map((opt) => (
+              <option key={opt.value} value={opt.value}>{opt.label}</option>
+            ))}
           </select>
         );
       }
 
+      // Resolve badge dynamically from STATUS_CONFIG (VG29 — supports all marketing statuses)
+      const badge = resolveAdminStatusBadge(displayStatut);
+
       return (
         <div className="flex items-center gap-1.5">
           {/* Status badge — NOT clickable; use double-click on cell instead */}
-          {displayStatut === 'Nouveau' ? (
-            <span
-              className={cn(
-                "inline-flex items-center rounded-md px-1.5 py-0.5 text-[10px] font-medium border transition-colors",
-                "bg-emerald-100 text-[var(--dt-stock-ok-text)] border-emerald-200",
-                isLocked && "opacity-70",
-                hasPendingChange && "ring-2 ring-gold/50 ring-offset-1"
-              )}
-              title={isLocked ? "🔒 Verrouillé — Double-clic bloqué" : "🔓 Déverrouillé — Double-cliquer pour modifier"}
-            >
-              {hasPendingChange && <span className="mr-0.5 text-[8px]">⏳</span>}
-              Nouveau
-            </span>
-          ) : displayStatut === 'Courant' ? (
+          {badge.isNull ? (
             <span
               className={cn(
                 "inline-flex items-center rounded-md px-1.5 py-0.5 text-[10px] font-medium border transition-colors",
@@ -1215,10 +1207,21 @@ export function DataTable({ columns, rows, dataSourceId, loading, onRefresh, onU
               title={isLocked ? "🔒 Verrouillé — Double-clic bloqué" : "🔓 Déverrouillé — Double-cliquer pour modifier"}
             >
               {hasPendingChange && <span className="mr-0.5 text-[8px]">⏳</span>}
-              Courant
+              {badge.label}
             </span>
           ) : (
-            <span className="text-muted-foreground/40 text-[10px]">—</span>
+            <span
+              className={cn(
+                "inline-flex items-center rounded-md px-1.5 py-0.5 text-[10px] font-medium border transition-colors text-white",
+                isLocked && "opacity-70",
+                hasPendingChange && "ring-2 ring-gold/50 ring-offset-1"
+              )}
+              style={{ backgroundColor: badge.color, borderColor: badge.color }}
+              title={isLocked ? "🔒 Verrouillé — Double-clic bloqué" : "🔓 Déverrouillé — Double-cliquer pour modifier"}
+            >
+              {hasPendingChange && <span className="mr-0.5 text-[8px]">⏳</span>}
+              {badge.label}
+            </span>
           )}
 
           {/* Lock toggle icon — always clickable */}

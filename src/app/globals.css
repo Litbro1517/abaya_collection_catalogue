@@ -864,33 +864,34 @@ html.rtl .mobile-cta-button svg {
   background-color: #6B7280;
 }
 
-/* ── Product Card: Status band — Pied d'image (Axe 2) ── */
-/* Anchored at the bottom of the photo. Italic + Sentence case (NO uppercase).
-   Text fills nearly the full band height (1-2px breathing margin top/bottom). */
+/* ── Product Card: Status ribbon — Pied d'image "Designer Tag" (Axe 2 / VG29) ── */
+/* Partial bottom-left ribbon (NOT full-width). Top-right corner rounded only.
+   Ultra-adjusted height: padding-driven (no fixed height). Italic + semibold. */
 .product-card-status-band {
   position: absolute;
   left: 0;
-  right: 0;
   bottom: 0;
   z-index: 3;
-  display: flex;
+  display: inline-flex;
   align-items: center;
   justify-content: center;
-  height: 22px;
-  padding: 1px 8px;
+  max-width: 60%;
+  padding: 1.5px 12px;
+  border-radius: 0;
+  border-top-right-radius: 6px; /* rounded-tr-md — seul coin arrondi */
   overflow: hidden;
 }
 
 .product-card-status-band-text {
   color: #FFFFFF;
-  font-size: 13px;
-  font-weight: 600;
+  font-size: 12px; /* text-xs */
+  font-weight: 600; /* font-semibold */
   font-style: italic;
-  text-transform: none;
+  text-transform: none; /* Sentence case — PAS d'UPPERCASE */
   letter-spacing: 0.01em;
-  line-height: 1;
+  line-height: 1.25; /* leading-tight */
   white-space: nowrap;
-  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.25);
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
 }
 
 @keyframes epuise-pulse {
@@ -923,10 +924,10 @@ html.rtl .mobile-cta-button svg {
     padding: 2px 6px;
   }
   .product-card-status-band {
-    height: 18px;
+    padding: 1px 8px;
   }
   .product-card-status-band-text {
-    font-size: 11px;
+    font-size: 10px;
   }
 }
 

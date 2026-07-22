@@ -1,5 +1,6 @@
 import { db } from '@/lib/db';
 import { NextRequest, NextResponse } from 'next/server';
+import { STATUS_OPTIONS } from '@/lib/status-config';
 
 function parseCSV(text: string): string[][] {
   const lines: string[][] = [];
@@ -261,7 +262,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
       { slug: '__sub_category__', name: 'Sous-catégorie', type: 'SELECT', order: -4, config: {} },
       { slug: '__disponibilite__', name: 'Disponibilité', type: 'BOOLEAN', order: -3, config: { labels: { true: 'Disponible', false: 'Épuisé' } } },
       { slug: '__stock__', name: 'Stock', type: 'NUMBER', order: -2, config: { isCounter: true, min: 0 } },
-      { slug: '__statut__', name: 'Statut', type: 'STATUS', order: -1, config: { options: ['Nouveau', 'Courant'] } },
+      { slug: '__statut__', name: 'Statut', type: 'STATUS', order: -1, config: { options: STATUS_OPTIONS.map(o => o.value) } },
       { slug: '__compare_at_price__', name: 'Prix barré', type: 'CURRENCY', order: 7, config: {} },
     ];
 
