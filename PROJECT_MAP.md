@@ -168,6 +168,7 @@ src/
 | VG24 | Sécurisation API Orders (Plan V2) | Middleware : `/api/orders` ajouté à `ADMIN_WRITE_ROUTES` + exemption `isPublicOrderCreation` (POST client COD) ; Handler GET liste : `getCurrentAdmin()` — bloque PII anonyme (401) ; Handler PATCH : `getCurrentAdmin()` — bloque update anonyme (401) ; GET `[id]` reste public (page Merci, cuid entropy) ; POST reste public (tunnel COD) ; Defense in depth : middleware Guard #4 + auth handler ; Tests curl validés : POST=201, GET_liste=401, PATCH=401, GET_id=404 (route accessible) ; branche `evolue-admin-orders` merged puis supprimée | ✅ DÉPLOYÉ — BRANCHE MERGED |
 | VG25 | Orders V4.1 — Refonte complète | i18n : 70 clés `adminOrder.*` (FR/EN/AR) + migration `order.*`→`adminOrder.*` (fix bug clés brutes) ; Prisma : `OrderHistory` (shadow table) + `Order.isDeleted` + `Order.deletedAt` (soft delete) ; Backend : GET search ILIKE + archived filter ; PATCH étendu (10 champs) + snapshot OrderHistory ; GET `/api/orders/[id]/history` ; POST restore field ; POST archive (delivered/confirmed only) ; POST restore bulk ; DELETE purge (10-day rule) ; GET export CSV (2 vues) ; Frontend : 7ème carte Dashboard + debounce corrigé (useRef) + Tabs active/archived + checkboxes + inline edit double-clic (pattern DataTable.tsx) + DataQualityIcon (vide/zéro/faible) + OrderDetailSheet historique diff rouge/vert + restauration + purge AlertDialog confirmation ; branche `feature/orders-refactor` merged puis supprimée | ✅ DÉPLOYÉ — CLÔTURÉ |
 | VG28 | Catalog UI & Reorder — Carte épurée + Suprématie BDD | Carte produit : `group` sur `<article>`, bouton COMMANDER noir (#000) révélé au survol (`opacity:0` → `group-hover:opacity:100` + `focus-within` + `@media (hover:none)`), suppression badge images (🖼️ N) + badge Nouveau top-left ; badge réduction `-X%` DÉPLACÉ de la zone prix (bordeaux #800020) vers top-left image en corail adouci (#EF4444, `Math.round`) — prix barré conservé en zone prix ; bandeau statut « Pied d'image » italic + Sentence case (FR/AR/EN, null pour Courant) via `status-config.ts` ; Sort vitrine = `row.order` UNIQUE (purge priorité Nouveau rank-0 + tri stock) ; bouton Réorganiser admin (menu colonnes numériques non-natives, tri ascendant 1→N, persistance `PATCH /rows/batch` étendu au champ `order`) ; réutilise `discount-utils.ts` existant (DEBT-9 `computeDiscount`/`getCompareAtPrice`) ; correction bug latent batch route (`JSON.parse(r.data)` → `readRowData()` défensif, alignée sur le pattern déjà utilisé par la route single-row) ; vérifié E2E navigateur. **Audit** (commit `588d014`) : 5 axes validés, non-régression confirmée (fichiers vitaux + schema.prisma intacts), `eslint` 0 erreur/warning, `tsc` 0 nouvelle erreur. Note mineure non-bloquante : badge réduction ne flip pas en RTL (`left: 8px` fixe). *Renuméroté VG26→VG28 (collision d'ID avec la mission Sitemap dynamique déjà existante sous VG26).* | ✅ DÉPLOYÉE EN PRODUCTION — branche `feature/catalog-ui-and-reorder` mergée puis supprimée |
+| VG29 | Status Badge Ribbon Redesign — Ruban épuré + 6 statuts BDD | **A. Blocage BDD résolu** : `__statut__` admin dropdown (DataTable.tsx) passe de 2 options codées en dur (Nouveau/Courant) à 7 options dynamiques via `STATUS_OPTIONS` (Courant + 6 statuts marketing) ; `resolveAdminStatusBadge()` génère le badge coloré dynamiquement (bg = couleur du statut, texte blanc) ; route `PUT /api/datasources/[id]/status` validée contre `STATUS_OPTIONS` (accepte Nouveauté/Stock limité/Offre limitée/Top Vente/Livraison Gratuite/Prix Choc/Courant, rejette le reste en 400) ; auto-compute `computeStatut()` → `'Nouveauté'` (au lieu de `'Nouveau'`) ; `config.options` synchronisé dans 4 routes (columns/import/google-sync×2/status). **B. Ruban épuré** : bandeau 100% largeur → ruban partiel bottom-left (`max-width: 60%`, `border-top-right-radius: 6px` = rounded-tr-md, 3 autres coins droits) ; hauteur ultra-ajustée au texte (`padding: 1.5px 12px`, pas de hauteur fixe) ; typographie `12px` (text-xs) + `font-weight: 600` (semibold) + `italic` + `leading-tight` (1.25) + `text-transform: none` (Sentence case). **Terminologie** : « Nouveau » officiellement remplacé par « Nouveauté » dans tout le système de statuts (status-config.ts + DataTable + DataPillar + status API). **Palette révisée** : Nouveauté=#06B6D4 (cyan), Stock limité=#F97316 (orange corail), Offre limitée=#EF4444 (rouge carmin), Top Vente=#EAB308 (jaune solaire), Livraison Gratuite=#10B981 (vert émeraude), Prix Choc=#D946EF (violet magenta). Alias-aware : legacy `'Nouveau'` résolut vers `'Nouveauté'` (rétrocompatibilité BDD existante). Filtre `is_nouveau` + tri `__statut__` alias-aware dans DataPillar. Vérifié E2E navigateur (6 rubans + Courant null) + API (PUT Nouveauté=200, PUT Bogus=400). | ⏳ EN ATTENTE D'AUDIT — branche `feature/status-badge-ribbon-redesign` |
 | FX26 | Fix régressions V4.1.2 — Recherche cross-DB | `GET /api/orders` : correction du `$queryRaw` — `is_deleted = ${archived ? 1 : 0}` (integer SQLite) remplacé par `is_deleted = ${archived}` (booléen paramétré, compatible SQLite driver auto-conversion + PostgreSQL natif) ; commentaire mis à jour ; branche `feature/full-fix-v4.1.2` | ✅ CORRIGÉ — DÉPLOYÉ |
 | FX27 | Fix régressions V4.1.1 — Archivage cancelled | `POST /api/orders/archive` : ajout de `'cancelled'` dans le tableau `{ in: ['delivered', 'confirmed', 'cancelled'] }` ; message d'erreur utilisateur mis à jour pour refléter les 3 statuts éligibles ; branche `fix/orders-v4.1.1` | ✅ CORRIGÉ — DÉPLOYÉ |
 | FX28 | Fix régressions V4.1.1 — Badge i18n | `OrderStatusBadge.tsx` : suppression du champ `labelKey` obsolète (clés `order.status*` non existantes), ajout d'une prop `label?: string` (pattern controlled label) ; appelants mis à jour : `OrdersTable.tsx` L.340 et `OrderDetailSheet.tsx` L.124 passent `t(\`adminOrder.status_\${status}\`)` ; branche `fix/orders-v4.1.1` | ✅ CORRIGÉ — DÉPLOYÉ |
@@ -236,6 +237,7 @@ src/
 - ✅ P21 : Sécurisation API Orders (Plan V2) — middleware ADMIN_WRITE_ROUTES + exemption POST + getCurrentAdmin() GET liste + getCurrentAdmin() PATCH + tests curl validés — déployé (branche evolue-admin-orders merged)
 - ✅ P22 : Orders V4.1 Refonte — i18n adminOrder.* + OrderHistory + search ILIKE + inline edit + archive/purge + DataQualityIcon — déployé (branche feature/orders-refactor merged)
 - ✅ P25 (VG28) : Catalog UI & Reorder — 4 axes (carte épurée, bandeau statut pied d'image, suprématie BDD row.order, bouton Réorganiser) — déployé (branche `feature/catalog-ui-and-reorder` mergée)
+- ⏳ P26 (VG29) : Status Badge Ribbon Redesign — ruban épuré bottom-left + 6 statuts BDD + Nouveauté — branche `feature/status-badge-ribbon-redesign` (EN ATTENTE D'AUDIT, non fusionnée)
 - ✅ P23 : Sitemap dynamique — module products.ts partagé (resolveProduct + resolveAllProducts) + sitemap.ts boucle produits + revalidate=3600 — déployé (branche feat/seo-sitemap-dynamic merged)
 - ✅ P24 : Support alphabet arabe dans les slugs — regex Unicode \p{L}\p{N} + sync server/client — déployé (branche feat/arabic-slug-support merged)
 
@@ -575,6 +577,59 @@ Le module `src/lib/discount-utils.ts` (DEBT-9) existait déjà sur le point d'an
 
 ### Branche
 `feature/catalog-ui-and-reorder` (créée depuis `main@13ec46e`) — **EN ATTENTE D'AUDIT** (aucune fusion sur main).
+
+---
+Date de mise à jour : 22/07/2026
+
+## [STATUS BADGE RIBBON REDESIGN — VG29 / P26]
+
+### Contexte
+L'audit post-VG28 a révélé deux problèmes : (A) le blocage de gestion BDD — la colonne `__statut__` dans l'admin (DataPillar/DataTable) restreignait la sélection aux 2 valeurs historiques (Nouveau/Courant), empêchant les administrateurs de sélectionner les nouveaux statuts commerciaux (Stock limité, Offre limitée, Top Vente, etc.) ; (B) le défaut d'ergonomie du bandeau vitrine — le bandeau 100% pleine largeur au bas de l'image « amputait » le textile, avec une hauteur excessive par rapport à la typographie flottant au milieu d'un grand vide.
+
+### A. Blocage BDD résolu (Admin)
+- **DataTable.tsx `<select>`** : remplacement des 2 `<option>` codées en dur par `STATUS_OPTIONS.map(opt => ...)` (source de vérité unique depuis `status-config.ts`). 7 options : Courant + 6 statuts marketing.
+- **DataTable.tsx badge** : remplacement du rendu codé en dur (Nouveau=emerald, Courant=gray) par `resolveAdminStatusBadge(displayStatut)` — résout dynamiquement la couleur + le label depuis `STATUS_CONFIG`. Badge coloré (bg = couleur du statut, texte blanc) pour les statuts marketing ; badge gris « Courant » pour le cas nul.
+- **`PUT /api/datasources/[id]/status`** : validation `statut !== 'Nouveau' && statut !== 'Courant'` (qui rejetait tous les nouveaux statuts en 400) remplacée par `STATUS_OPTIONS.includes(statut)` — accepte les 7 valeurs, rejette le reste.
+- **`computeStatut()` (auto-compute)** : `'Nouveau'` → `'Nouveauté'` (terminologie officielle).
+- **`config.options`** synchronisé dans 4 routes backend : `columns/route.ts`, `import/route.ts`, `google/sync/route.ts` (×2), `status/route.ts` — utiliseient `['Nouveau', 'Courant']` codé en dur, désormais `STATUS_OPTIONS.map(o => o.value)`.
+
+### B. Ruban épuré « Designer Tag » (Storefront)
+- **`globals.css .product-card-status-band`** : `left:0; right:0; height:22px` (pleine largeur) → `left:0; bottom:0; max-width:60%` (ruban partiel bottom-left) + `border-top-right-radius: 6px` (rounded-tr-md — seul coin arrondi, 3 autres droits) + `padding: 1.5px 12px` (ultra-ajusté au texte, pas de hauteur fixe).
+- **`.product-card-status-band-text`** : `font-size: 13px → 12px` (text-xs) + `font-weight: 600` (semibold) + `line-height: 1.25` (leading-tight) + italic + Sentence case (`text-transform: none`) préservés.
+- Largeur adaptive selon le texte (81px à 128px mesurés selon le libellé).
+
+### Terminologie — « Nouveau » → « Nouveauté »
+Remplacement officiel dans tout le système de statuts :
+- `status-config.ts` : clé `nouveau` → `nouveaute`, `fr: 'Nouveau'` → `fr: 'Nouveauté'`, `bddValue: 'Nouveauté'`.
+- Alias rétrocompatibles : `'nouveauté'` + `'nouveau'` (les rows BDD existantes avec `'Nouveau'` résolvent vers `'Nouveauté'` automatiquement).
+- DataPillar : preset de tri « Nouveau » → « Nouveauté » (label + emoji ✨) ; filtre `is_nouveau` alias-aware (`['nouveauté', 'nouveau']`).
+- Sort comparator `__statut__` : alias-aware (reconnaît `'Nouveauté'` + legacy `'Nouveau'`).
+
+### Palette révisée (VG29)
+| Statut | BDD Value | FR | AR | Couleur |
+|---|---|---|---|---|
+| Nouveauté | `Nouveauté` | Nouveauté | جديد | #06B6D4 (cyan) |
+| Stock limité | `Stock limité` | Stock limité | كمية محدودة | #F97316 (orange corail) |
+| Offre limitée | `Offre limitée` | Offre limitée | عرض محدود | #EF4444 (rouge carmin) |
+| Top Vente | `Top Vente` | Top Vente | الأكثر مبيعاً | #EAB308 (jaune solaire) |
+| Livraison Gratuite | `Livraison Gratuite` | Livraison Gratuite | توصيل مجاني | #10B981 (vert émeraude) |
+| Prix Choc | `Prix Choc` | Prix Choc | تخفيض استثنائي | #D946EF (violet magenta) |
+| Courant | `Courant` | (aucun) | (aucun) | (cas nul — pas de ruban) |
+
+### Fichiers modifiés
+| # | Fichier | Modification |
+|---|---------|-------------|
+| 1 | `src/lib/status-config.ts` | **Réécrit** — clé `nouveau`→`nouveaute`, palette révisée (6 couleurs), `bddValue` field, `STATUS_OPTIONS` export (single source of truth), `resolveAdminStatusBadge()` helper ; aliases rétrocompatibles (nouveau + nouveauté) |
+| 2 | `src/components/data/DataTable.tsx` | `<select>` dynamique depuis `STATUS_OPTIONS` ; badge dynamique via `resolveAdminStatusBadge()` (couleur + label) ; import `STATUS_OPTIONS` + `resolveAdminStatusBadge` |
+| 3 | `src/app/api/datasources/[id]/status/route.ts` | Validation `STATUS_OPTIONS.includes()` (accepte 7 valeurs) ; `computeStatut()` → `'Nouveauté'` ; `config.options` dynamique ; import `STATUS_OPTIONS` + `STATUS_NULL` |
+| 4 | `src/app/globals.css` | `.product-card-status-band` : ruban partiel bottom-left (`max-width:60%`, `border-top-right-radius:6px`, `padding:1.5px 12px`) ; `.product-card-status-band-text` : `12px`/`600`/`1.25` ; responsive mobile ajusté |
+| 5 | `src/app/api/datasources/[id]/columns/route.ts` | `NATIVE_COLUMNS_FALLBACK` `__statut__` config.options → `STATUS_OPTIONS.map()` ; import `STATUS_OPTIONS` |
+| 6 | `src/app/api/datasources/[id]/import/route.ts` | `nativeColumns` `__statut__` config.options → `STATUS_OPTIONS.map()` ; import `STATUS_OPTIONS` |
+| 7 | `src/app/api/google/sync/route.ts` | 2 occurrences `config.options` → `STATUS_OPTIONS.map()` ; import `STATUS_OPTIONS` |
+| 8 | `src/components/data/DataPillar.tsx` | Filtre `is_nouveau` alias-aware ; tri `__statut__` alias-aware (Nouveauté + legacy Nouveau) ; preset « Nouveau » → « Nouveauté » (✨) |
+
+### Branche
+`feature/status-badge-ribbon-redesign` (créée depuis `main@c6f036b`) — **EN ATTENTE D'AUDIT** (aucune fusion sur main).
 
 ---
 Date de mise à jour : 22/07/2026

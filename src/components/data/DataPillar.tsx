@@ -146,7 +146,7 @@ const OPERATORS_BY_TYPE: Record<string, OperatorDef[]> = {
     { value: 'doesn\'t_equal', label: 'N\'est pas égal à', needsValue: true },
     { value: 'is_empty', label: 'Est vide', needsValue: false },
     { value: 'is_not_empty', label: 'N\'est pas vide', needsValue: false },
-    { value: 'is_nouveau', label: '🟢 Nouveau', needsValue: false },
+    { value: 'is_nouveau', label: '✨ Nouveauté', needsValue: false },
     { value: 'is_courant', label: '🔵 Courant', needsValue: false },
   ],
 };
@@ -239,7 +239,8 @@ function applyFilter(val: unknown, filter: FilterConfig): boolean {
     case 'is_false':
       return val === false || val === 'false';
     case 'is_nouveau':
-      return String(val ?? '').toLowerCase() === 'nouveau';
+      // VG29: alias-aware — matches both 'Nouveauté' (new BDD value) and 'Nouveau' (legacy rows)
+      return ['nouveauté', 'nouveau'].includes(String(val ?? '').toLowerCase().trim());
     case 'is_courant':
       return String(val ?? '').toLowerCase() === 'courant';
     default:
@@ -401,11 +402,14 @@ export function DataPillar() {
           return new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
         }
 
-        // Special sort: by Statut (Nouveau first, then Courant)
+        // Special sort: by Statut (Nouveauté first, then everything else)
+        // VG29: alias-aware — recognizes both 'Nouveauté' and legacy 'Nouveau'
         if (sortConfig.columnSlug === '__statut__') {
-          const aStatut = (a.data as Record<string, unknown>).__statut__ || 'Courant';
-          const bStatut = (b.data as Record<string, unknown>).__statut__ || 'Courant';
-          const cmp = aStatut === 'Nouveau' ? (bStatut === 'Nouveau' ? 0 : -1) : 1;
+          const aStatut = String((a.data as Record<string, unknown>).__statut__ || 'Courant').toLowerCase().trim();
+          const bStatut = String((b.data as Record<string, unknown>).__statut__ || 'Courant').toLowerCase().trim();
+          const aIsNouveaute = aStatut === 'nouveauté' || aStatut === 'nouveau';
+          const bIsNouveaute = bStatut === 'nouveauté' || bStatut === 'nouveau';
+          const cmp = aIsNouveaute ? (bIsNouveaute ? 0 : -1) : 1;
           return sortConfig.direction === 'asc' ? cmp : -cmp;
         }
 
@@ -1457,14 +1461,14 @@ export function DataPillar() {
                           "w-full flex items-center gap-2 px-3 py-1.5 text-left transition-colors hover:bg-secondary/60",
                           sortConfig?.columnSlug === '__statut__' && sortConfig?.direction === 'asc' && "bg-gold/5"
                         )}
-                        onClick={() => setSortConfig({ columnSlug: '__statut__', columnName: 'Statut (Nouveau)', direction: 'asc' })}
+                        onClick={() => setSortConfig({ columnSlug: '__statut__', columnName: 'Statut (Nouveauté)', direction: 'asc' })}
                       >
-                        <span className="w-3.5 h-3.5 shrink-0 flex items-center justify-center text-emerald-500 text-[10px]">🟢</span>
+                        <span className="w-3.5 h-3.5 shrink-0 flex items-center justify-center text-cyan-500 text-[10px]">✨</span>
                         <span className={cn(
                           "text-xs flex-1",
                           sortConfig?.columnSlug === '__statut__' && sortConfig?.direction === 'asc' ? "text-gold font-medium" : "text-foreground"
                         )}>
-                          Nouveau
+                          Nouveauté
                         </span>
                         {sortConfig?.columnSlug === '__statut__' && sortConfig?.direction === 'asc' && (
                           <ArrowUp className="w-3 h-3 text-gold" />

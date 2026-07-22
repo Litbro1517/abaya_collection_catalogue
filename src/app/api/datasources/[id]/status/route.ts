@@ -1,5 +1,6 @@
 import { db } from '@/lib/db';
 import { NextRequest, NextResponse } from 'next/server';
+import { STATUS_OPTIONS, STATUS_NULL } from '@/lib/status-config';
 
 // ─── Helpers ────────────────────────────────────────────────────────────────────
 
@@ -13,27 +14,27 @@ const THIRTY_DAYS_MS = 30 * 24 * 60 * 60 * 1000;
 function computeStatut(
   row: { id: string; data: RowData; createdAt: Date },
   topFiveIds: Set<string>,
-): { statut: 'Nouveau' | 'Courant'; locked: boolean } {
+): { statut: string; locked: boolean } {
   const locked = row.data.__statut_locked__ === true;
 
   // If locked, respect the existing stored status
   if (locked) {
     return {
-      statut: (row.data.__statut__ as 'Nouveau' | 'Courant') || 'Courant',
+      statut: (row.data.__statut__ as string) || STATUS_NULL,
       locked: true,
     };
   }
 
   // Auto-transition rules:
-  // 'Nouveau' if createdAt < 30 days ago AND row is in the top 5 newest
+  // 'Nouveauté' if createdAt < 30 days ago AND row is in the top 5 newest
   const isRecent = Date.now() - row.createdAt.getTime() < THIRTY_DAYS_MS;
   const isInTopFive = topFiveIds.has(row.id);
 
   if (isRecent && isInTopFive) {
-    return { statut: 'Nouveau', locked: false };
+    return { statut: 'Nouveauté', locked: false };
   }
 
-  return { statut: 'Courant', locked: false };
+  return { statut: STATUS_NULL, locked: false };
 }
 
 // ─── GET /api/datasources/[id]/status ───────────────────────────────────────────
@@ -106,7 +107,7 @@ export async function POST(
         dataSourceId: id,
         visible: true,
         required: false,
-        config: { options: ['Nouveau', 'Courant'] },
+        config: { options: STATUS_OPTIONS.map(o => o.value) },
         order: -1,
       },
     });
@@ -168,9 +169,12 @@ export async function PUT(
       );
     }
 
-    if (statut !== 'Nouveau' && statut !== 'Courant') {
+    // Accept any value from STATUS_OPTIONS (Courant + 6 marketing statuses).
+    // This unblocks the admin BDD — previously restricted to Nouveau/Courant only.
+    const validValues = STATUS_OPTIONS.map(o => o.value);
+    if (!validValues.includes(statut)) {
       return NextResponse.json(
-        { error: "statut must be 'Nouveau' or 'Courant'" },
+        { error: `statut must be one of: ${validValues.join(', ')}` },
         { status: 400 },
       );
     }

@@ -1,5 +1,6 @@
 import { db } from '@/lib/db';
 import { NextRequest, NextResponse } from 'next/server';
+import { STATUS_OPTIONS } from '@/lib/status-config';
 
 // ── 7 native columns that MUST always exist for every DataSource ──
 // If any are missing from DB (e.g. DataSource created via admin UI without
@@ -11,7 +12,7 @@ const NATIVE_COLUMNS_FALLBACK = [
   { slug: '__sub_category__', name: 'Sous-catégorie', type: 'SELECT', order: -4, config: {} },
   { slug: '__disponibilite__', name: 'Disponibilité', type: 'BOOLEAN', order: -3, config: { labels: { true: 'Disponible', false: 'Épuisé' } } },
   { slug: '__stock__', name: 'Stock', type: 'NUMBER', order: -2, config: { isCounter: true, min: 0 } },
-  { slug: '__statut__', name: 'Statut', type: 'STATUS', order: -1, config: { options: ['Nouveau', 'Courant'] } },
+  { slug: '__statut__', name: 'Statut', type: 'STATUS', order: -1, config: { options: STATUS_OPTIONS.map(o => o.value) } },
 ];
 
 export async function GET(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {

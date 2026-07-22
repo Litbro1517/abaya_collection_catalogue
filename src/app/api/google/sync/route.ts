@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { fetchPrivateSheetData, fetchPublicSheetAsCsv, generateSlug } from '@/lib/google/sheets';
 import { getValidAccessToken } from '@/lib/google/auth';
 import { resolveImageUrl } from '@/lib/google/drive-images';
+import { STATUS_OPTIONS } from '@/lib/status-config';
 
 /**
  * syncCategoriesFromRows
@@ -481,7 +482,7 @@ export async function POST(req: NextRequest) {
           dataSourceId: dsId,
           visible: true,
           required: false,
-          config: { options: ['Nouveau', 'Courant'] },
+          config: { options: STATUS_OPTIONS.map(o => o.value) },
           order: -1,
         },
       });
