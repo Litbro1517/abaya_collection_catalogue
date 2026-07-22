@@ -24,6 +24,7 @@ import { toast } from 'sonner';
 import { computeDiscount, getCompareAtPrice } from '@/lib/discount-utils';
 import { PriceText } from '@/components/PriceText';
 import { useAutoTranslatedText } from '@/lib/useAutoTranslatedText';
+import { resolveMarketingStatus } from '@/lib/status-config';
 // DEBT-6 revert: ContactModal retiré — retour à la Méthode Hybride mailto: + clipboard (DEBT-5)
 
 // ── Brand Constants removed — all values migrated to CSS pivot variables & global classes ──
@@ -594,10 +595,6 @@ export function CatalogPreview({ onAdminLogin }: CatalogPreviewProps) {
     return images;
   }, []);
 
-  const getImageCount = useCallback((row: Row, config: SectionConfig, columns?: Column[]): number => {
-    return getCarouselImages(row, config, columns).length;
-  }, [getCarouselImages]);
-
   const buildConversionLink = (row: Row, config: SectionConfig): string => {
     const title = getCellValue(row, config.titleColumn || '');
     const price = getCellValue(row, config.priceColumn || '');
@@ -775,19 +772,11 @@ export function CatalogPreview({ onAdminLogin }: CatalogPreviewProps) {
         return { row, columns, section, config, statut, stockState };
       });
     });
-    // Composite sort: Nouveau+en_stock first, then by stock state, then by row order
-    items.sort((a, b) => {
-      // Nouveau + en_stock products come first
-      const aIsNouveau = a.statut === 'Nouveau' && a.stockState === 'en_stock' ? 0 : 1;
-      const bIsNouveau = b.statut === 'Nouveau' && b.stockState === 'en_stock' ? 0 : 1;
-      if (aIsNouveau !== bIsNouveau) return aIsNouveau - bIsNouveau;
-      // Then en_stock > sur_commande > epuise
-      const stateOrder: Record<StockState, number> = { en_stock: 0, sur_commande: 1, epuise: 2 };
-      const aState = stateOrder[a.stockState];
-      const bState = stateOrder[b.stockState];
-      if (aState !== bState) return aState - bState;
-      return a.row.order - b.row.order;
-    });
+    // BDD supremacy (Axe 3): row.order is the SOLE source of truth for the
+    // vitrine sequence. The previous composite sort (Nouveau+en_stock rank 0,
+    // then stock state, then row.order) has been removed — it reset the
+    // merchandising on every refresh and destroyed the admin's locked order.
+    items.sort((a, b) => a.row.order - b.row.order);
     return items;
   }, [sections, filterRows]);
 
@@ -1448,12 +1437,17 @@ export function CatalogPreview({ onAdminLogin }: CatalogPreviewProps) {
             const title = config.titleColumn ? getCellValue(row, config.titleColumn) : '';
             const price = config.priceColumn ? getCellValue(row, config.priceColumn) : '';
             const isLiked = likedProducts.has(row.id);
-            const imageCount = getImageCount(row, config, columns);
             const isEpuise = stockState === 'epuise';
             const isSurCommande = stockState === 'sur_commande';
+            // ━━ Axe 2: marketing status band (pied d'image) ━━
+            // Resolves row.data.__statut__ → bilingual label + vibrant color.
+            // Returns null for "Courant" / unrecognized statut → no band.
+            const marketingStatus = resolveMarketingStatus(statut, locale);
+            // ━━ Axe 1: discount (hoisted — feeds top-left badge + price-row strikethrough) ━━
+            const discount = computeDiscount(price, getCompareAtPrice(rawData));
 
             return (
-              <article key={row.id} className="product-card">
+              <article key={row.id} className="product-card group">
                 {/* Clickable overlay */}
                 <button
                   className="product-card-action"
@@ -1504,30 +1498,18 @@ export function CatalogPreview({ onAdminLogin }: CatalogPreviewProps) {
                     <Heart className={isLiked ? 'fill-current' : ''} style={{ width: 14, height: 14, color: isLiked ? '#EF4444' : '#808080' }} />
                   </button>
 
-                  {/* ━━━ BADGE ENGINE — Only Nouveau on image, NO status overlays ━━━ */}
-                  {/* Nouveau badge — STRICTLY preserved, only shown for in-stock products */}
-                  {statut === 'Nouveau' && stockState === 'en_stock' && (
-                    <span
-                      className="absolute left-2.5 top-2.5 z-10 rounded-sm px-2.5 py-1 text-[9px] font-medium tracking-[0.15em] uppercase text-white/90 badge-nouveau"
-                      style={{ backdropFilter: 'blur(4px)' }}
-                    >
-                      {t('product.new')}
+                  {/* ━━━ DISCOUNT BADGE — top-left, soft coral (#EF4444) ━━ Axe 1 ━━━ */}
+                  {discount.hasDiscount && (
+                    <span className="product-card-discount-badge" aria-label={`-${discount.percentage}%`}>
+                      -{discount.percentage}%
                     </span>
                   )}
 
-                  {/* Image count badge */}
-                  {imageCount > 1 && (
-                    <div className="product-card-count">
-                      <ImageIcon style={{ width: 11, height: 11 }} />
-                      {imageCount}
-                    </div>
-                  )}
-
-                  {/* ━━━ MICRO-CTA ON IMAGE — Amber/Gold capsule (cloned Masquer style) ━━━ */}
+                  {/* ━━━ HOVER CTA — black, revealed on hover ━━ Axe 1 ━━━ */}
                   <button
                     className={cn(
-                      'product-card-micro-cta',
-                      isEpuise ? 'product-card-micro-cta--disabled' : 'product-card-micro-cta--active'
+                      'product-card-hover-cta',
+                      isEpuise && 'product-card-hover-cta--disabled'
                     )}
                     onClick={(e) => {
                       e.stopPropagation();
@@ -1540,6 +1522,20 @@ export function CatalogPreview({ onAdminLogin }: CatalogPreviewProps) {
                   >
                     {isEpuise ? t('product.soldOut') : t('product.commander')}
                   </button>
+
+                  {/* ━━━ STATUS BAND — Pied d'image (italic, Sentence case) ━━ Axe 2 ━━━ */}
+                  {/* Null for "Courant" / unrecognized statut → no band rendered. */}
+                  {marketingStatus && (
+                    <div
+                      className="product-card-status-band"
+                      style={{ backgroundColor: marketingStatus.color }}
+                      dir={rtl ? 'rtl' : 'ltr'}
+                    >
+                      <span className="product-card-status-band-text">
+                        {marketingStatus.label}
+                      </span>
+                    </div>
+                  )}
                 </div>
 
                 {/* Text — DEBT-10 repair : traduction auto via ProductCardTitle */}
@@ -1583,65 +1579,44 @@ export function CatalogPreview({ onAdminLogin }: CatalogPreviewProps) {
                 })()}
 
                 {/* Price line with inline status — minimalist, high-end */}
-                {(() => {
-                  const compareAtPrice = getCompareAtPrice(row.data as Record<string, unknown> | null);
-                  const discount = computeDiscount(price, compareAtPrice);
-                  return (
-                    <div className="product-card-price-row">
-                      {price && config.showPrice !== false && (
-                        <>
-                          <span className="product-card-price">
-                            <PriceText>{formatPrice(price)}</PriceText>
+                {/* Axe 1: discount badge -X% moved to top-left of image (coral #EF4444). Strikethrough original price kept here. */}
+                {((price && config.showPrice !== false) || isEpuise || isSurCommande) && (
+                  <div className="product-card-price-row">
+                    {price && config.showPrice !== false && (
+                      <>
+                        <span className="product-card-price">
+                          <PriceText>{formatPrice(price)}</PriceText>
+                        </span>
+                        {/* DEBT-9 : prix barré si compareAtPrice > price */}
+                        {discount.hasDiscount && (
+                          <span
+                            className="product-card-price-original"
+                            style={{
+                              color: 'var(--muted-foreground, #888)',
+                              fontSize: '0.85em',
+                              opacity: 0.7,
+                            }}
+                            aria-label={t('product.originalPrice')}
+                          >
+                            <PriceText strikethrough>{formatPrice(discount.compareAtPrice!)}</PriceText>
                           </span>
-                          {/* DEBT-9 : prix barré + badge discount si compareAtPrice > price */}
-                          {discount.hasDiscount && (
-                            <>
-                              <span
-                                className="product-card-price-original"
-                                style={{
-                                  color: 'var(--muted-foreground, #888)',
-                                  fontSize: '0.85em',
-                                  opacity: 0.7,
-                                }}
-                                aria-label={t('product.originalPrice')}
-                              >
-                                <PriceText strikethrough>{formatPrice(discount.compareAtPrice!)}</PriceText>
-                              </span>
-                              <span
-                                className="product-card-discount-badge"
-                                style={{
-                                  backgroundColor: 'var(--pivot-danger, #800020)',
-                                  color: '#fff',
-                                  fontSize: '0.7em',
-                                  fontWeight: 700,
-                                  padding: '2px 6px',
-                                  borderRadius: '4px',
-                                  marginLeft: rtl ? '0' : '4px',
-                                  marginRight: rtl ? '4px' : '0',
-                                }}
-                                aria-label={t('product.discount')}
-                              >
-                                -{discount.percentage}%
-                              </span>
-                            </>
-                          )}
-                        </>
-                      )}
-                      {/* Scenario B: Épuisé — soft rose, no background */}
-                      {isEpuise && (
-                        <span className="product-card-status product-card-status--epuise">
-                          {t('product.soldOut')}
-                        </span>
-                      )}
-                      {/* Scenario C: Sur commande — amber/gold, no background */}
-                      {isSurCommande && (
-                        <span className="product-card-status product-card-status--sur-commande">
-                          {t('product.onOrder')}
-                        </span>
-                      )}
-                    </div>
-                  );
-                })()}
+                        )}
+                      </>
+                    )}
+                    {/* Scenario B: Épuisé — soft rose, no background */}
+                    {isEpuise && (
+                      <span className="product-card-status product-card-status--epuise">
+                        {t('product.soldOut')}
+                      </span>
+                    )}
+                    {/* Scenario C: Sur commande — amber/gold, no background */}
+                    {isSurCommande && (
+                      <span className="product-card-status product-card-status--sur-commande">
+                        {t('product.onOrder')}
+                      </span>
+                    )}
+                  </div>
+                )}
 
                 {/* No CTA below card — micro-CTA is on the image */}
               </article>
