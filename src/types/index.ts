@@ -178,6 +178,24 @@ export interface ComponentConfig {
 
 // ─── Settings ─────────────────────────────────────────────────────────────
 
+// ─── Trust Guarantees (VG32) ─────────────────────────────────────────────
+
+export type GuaranteeKey = 'livraison' | 'paiement' | 'qualite' | 'retour';
+
+export interface TrustGuaranteeItem {
+  title: string;
+  description: string;
+}
+
+export interface TrustGuaranteesConfig {
+  isVisible: boolean;
+  items: Record<GuaranteeKey, {
+    fr: TrustGuaranteeItem;
+    en: TrustGuaranteeItem;
+    ar: TrustGuaranteeItem;
+  }>;
+}
+
 export interface CatalogSettings {
   id: string;
   catalogId: string;
@@ -206,6 +224,7 @@ export interface CatalogSettings {
   borderColor: string;
   customCSS: string;
   clientOverrides: Record<string, string> | null;
+  trustGuarantees: TrustGuaranteesConfig | null;
   favicon: string | null;
   logo: string | null;
   logoHeight: number | null;
@@ -252,7 +271,7 @@ export type SyncStatus = 'idle' | 'syncing' | 'success' | 'error';
 
 export type AppView = 'preview' | 'builder' | 'dashboard';
 export type Pillar = 'data' | 'layout' | 'settings' | 'orders';
-export type SettingsTab = 'general' | 'appearance' | 'conversion' | 'display' | 'admin' | 'catalogue' | 'couleurs';
+export type SettingsTab = 'general' | 'appearance' | 'conversion' | 'display' | 'admin' | 'catalogue' | 'couleurs' | 'trust';
 
 export interface ImportResult {
   success: boolean;

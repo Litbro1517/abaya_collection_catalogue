@@ -18,10 +18,11 @@ import { Badge } from '@/components/ui/badge';
 import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
 import { AdminUserManager } from '@/components/settings/AdminUserManager';
 import { ColorMapManager } from '@/components/settings/ColorMapManager';
+import { TrustGuaranteesPillar } from '@/components/settings/TrustGuaranteesPillar';
 import { ClientStylePanel } from '@/components/settings/ClientStylePanel';
 import { cn } from '@/lib/utils';
 import {
-  Globe, Palette, Share2, Monitor, Shield, Save, Loader2,
+  Globe, Palette, Share2, Monitor, Shield, ShieldCheck, Save, Loader2,
   MessageCircle, ExternalLink, Mail, Instagram, Copy, Check, Key,
   BookOpen, Trash2, Plus, RotateCcw
 } from 'lucide-react';
@@ -566,7 +567,7 @@ export function SettingsPillar() {
         </div>
 
         <Tabs value={settingsTab} onValueChange={(v) => setSettingsTab(v as SettingsTab)} className="space-y-4">
-          <TabsList className="grid w-full grid-cols-7">
+          <TabsList className="grid w-full grid-cols-8">
             <TabsTrigger value="general" className="text-xs gap-1"><Globe className="w-3 h-3" /> {t('settings.general')}</TabsTrigger>
             <TabsTrigger value="appearance" className="text-xs gap-1"><Palette className="w-3 h-3" /> {t('settings.appearance')}</TabsTrigger>
             <TabsTrigger value="conversion" className="text-xs gap-1"><Share2 className="w-3 h-3" /> {t('settings.conversion')}</TabsTrigger>
@@ -574,6 +575,7 @@ export function SettingsPillar() {
             <TabsTrigger value="admin" className="text-xs gap-1"><Shield className="w-3 h-3" /> {t('settings.admin')}</TabsTrigger>
             <TabsTrigger value="catalogue" className="text-xs gap-1"><BookOpen className="w-3 h-3" /> {t('settings.catalogue')}</TabsTrigger>
             <TabsTrigger value="couleurs" className="text-xs gap-1"><Palette className="w-3 h-3" /> {t('settings.colors')}</TabsTrigger>
+            <TabsTrigger value="trust" className="text-xs gap-1"><ShieldCheck className="w-3 h-3" /> Confiance</TabsTrigger>
           </TabsList>
 
           {/* Général */}
@@ -1518,6 +1520,18 @@ export function SettingsPillar() {
           {/* Couleurs */}
           <TabsContent value="couleurs">
             <ColorMapManager />
+          </TabsContent>
+
+          {/* Confiance — VG32: Trust Guarantees */}
+          <TabsContent value="trust">
+            {local && (
+              <TrustGuaranteesPillar
+                local={local}
+                updateField={updateField}
+                handleSave={handleSave}
+                saving={saving}
+              />
+            )}
           </TabsContent>
         </Tabs>
       </div>

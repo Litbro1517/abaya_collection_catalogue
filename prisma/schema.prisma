@@ -161,6 +161,7 @@ model CatalogSettings {
   borderColor       String   @default("#E8E2D9") @map("border_color")
   customCSS         String   @default("") @map("custom_css")
   clientOverrides   Json?    @map("client_overrides")
+  trustGuarantees   Json?    @map("trust_guarantees")
   favicon           String?
   logo              String?
   logoHeight        Int?

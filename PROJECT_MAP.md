@@ -171,6 +171,7 @@ src/
 | VG29 | Status Badge Ribbon Redesign — Ruban épuré + 6 statuts BDD | **A. Blocage BDD résolu** : `__statut__` admin dropdown (DataTable.tsx) passe de 2 options codées en dur (Nouveau/Courant) à 7 options dynamiques via `STATUS_OPTIONS` (Courant + 6 statuts marketing) ; `resolveAdminStatusBadge()` génère le badge coloré dynamiquement (bg = couleur du statut, texte blanc) ; route `PUT /api/datasources/[id]/status` validée contre `STATUS_OPTIONS` (accepte Nouveauté/Stock limité/Offre limitée/Top Vente/Livraison Gratuite/Prix Choc/Courant, rejette le reste en 400) ; auto-compute `computeStatut()` → `'Nouveauté'` (au lieu de `'Nouveau'`) ; `config.options` synchronisé dans 4 routes (columns/import/google-sync×2/status). **B. Ruban épuré** : bandeau 100% largeur → ruban partiel bottom-left (`max-width: 60%`, `border-top-right-radius: 6px` = rounded-tr-md, 3 autres coins droits) ; hauteur ultra-ajustée au texte (`padding: 1.5px 12px`, pas de hauteur fixe) ; typographie `12px` (text-xs) + `font-weight: 600` (semibold) + `italic` + `leading-tight` (1.25) + `text-transform: none` (Sentence case). **Terminologie** : « Nouveau » officiellement remplacé par « Nouveauté » dans tout le système de statuts (status-config.ts + DataTable + DataPillar + status API). **Palette révisée** : Nouveauté=#06B6D4 (cyan), Stock limité=#F97316 (orange corail), Offre limitée=#EF4444 (rouge carmin), Top Vente=#EAB308 (jaune solaire), Livraison Gratuite=#10B981 (vert émeraude), Prix Choc=#D946EF (violet magenta). Alias-aware : legacy `'Nouveau'` résolut vers `'Nouveauté'` (rétrocompatibilité BDD existante). Filtre `is_nouveau` + tri `__statut__` alias-aware dans DataPillar. Vérifié E2E navigateur (6 rubans + Courant null) + API (PUT Nouveauté=200, PUT Bogus=400). **Audit** (commit `866787a`) : 4 axes validés (CSS exacte, dropdown 7 options, source unique STATUS_OPTIONS×3 routes, non-régression), aucune anomalie détectée, `eslint` 0 erreur/warning, `tsc` 0 nouvelle erreur. Bonus : filtre/tri `__statut__` alias-aware confirmés (rétrocompatibilité sans script de migration). | ✅ DÉPLOYÉE EN PRODUCTION — branche `feature/status-badge-ribbon-redesign` mergée puis supprimée |
 | VG30 | Catalog Hide CTA Mobile — Masquage responsive du bouton COMMANDER | Bouton « COMMANDER » (`.product-card-hover-cta`) masqué totalement sur petits écrans (`< 768px` / mobile + tablettes compactes) via `@media (max-width: 767px) { display: none }` dans `globals.css`. `display:none` retire le bouton de l'arbre de rendu (non-interactif, aucune place réservée) et l'emporte sur les règles `opacity` existantes (`@media (hover:none) { opacity:1 }` et `group-hover:opacity:100`) — le CTA est donc invisible sur mobile quel que soit le mode hover. Desktop (≥ 768px) conserve exactement le comportement VG28 : `opacity:0` au repos → `group-hover:opacity:100` au survol. **Aucun changement JSX/React** — masquage CSS-only (le composant reste dans le DOM, aucune régression du render). **Aucun impact sur les autres éléments** : ruban de statut (Nouveauté, etc.), badge de réduction (-X%), et prix restent visibles sur tous les écrans. Vérifié E2E navigateur à 4 largeurs : 375px (display:none ✅), 767px (display:none ✅), 768px (display:block ✅), 1280px (display:block ✅). **Audit** (commit `dc3ef03`) : 3 axes validés, cascade CSS vérifiée précisément (règle mobile déclarée après `hover:none`, gagne à spécificité égale par ordre de source), ruban statut et badge réduction confirmés non impactés, non-régression confirmée, `eslint` 0 erreur/warning, `tsc` inchangé (84 erreurs préexistantes, aucun fichier TS touché). | ✅ DÉPLOYÉE EN PRODUCTION — branche `feature/catalog-hide-cta-mobile` mergée puis supprimée |
 | VG31 | Status Ribbon AR Harmony — Harmonisation des étiquettes de statut | **A. Remplacement Livraison Gratuite → Trend** : statut `livraison_gratuite` renommé `trend` ; `bddValue: 'Livraison Gratuite'` → `'Trend'` ; `fr: 'Trend'`, `ar: 'ترند'`, `en: 'Trend'` ; aliases rétrocompatibles (`'livraison gratuite'`, `'توصيل مجاني'`, `'free shipping'`) conservés — les rows BDD existantes avec `'Livraison Gratuite'` résolvent automatiquement vers Trend. **B. Permutation des couleurs** : Nouveauté `#06B6D4` (cyan) → `#10B981` (vert émeraude) ; Trend `#10B981` (vert) → `#06B6D4` (cyan). Aucun nouveau code couleur créé — palette existante permutée. **C. Prix Choc AR** : `ar: 'تخفيض استثنائي'` → `ar: 'عرض خيالي'` (plus court, harmonieux) ; ancien label AR conservé comme alias. Autres statuts inchangés : Nouveauté (Nouveauté/جديد), Stock limité (كمية محدودة), Offre limitée (عرض محدود), Top Vente (الأكثر مبيعاً). **D. Harmonisation CSS** : `.product-card-status-band` `min-width: 88px` ajouté (rallonge les étiquettes à mot unique — Trend, ترند, Nouveauté, جديد — pour s'aligner sur le gabarit moyen des étiquettes à deux mots ~88-97px) ; `max-width: 60%` → `55%` (plus contenu, évite le débordement sur l'image). Vérifié E2E navigateur FR + AR : 7 rubans (6 statuts + 1 rétrocompatibilité Livraison Gratuite→Trend), couleurs exactes (Nouveauté=green, Trend=cyan), largeurs harmonisées (Trend 58px→88px, ترند 88px, جميع الـ AR labels ≤ 98px), `dir=rtl` + `lang=ar` confirmés en AR. | ⏳ EN ATTENTE D'AUDIT — branche `feature/status-ribbon-ar-harmony` |
+| VG32 | Trust Guarantees Section — Section Garanties de Confiance (Vitrine + Admin) | **Volet Vitrine** (`TrustGuaranteesSection.tsx`) : 4 cartes garanties (Livraison Gratuite, Paiement à la Livraison, Garantie Qualité, Échange Facile) injectées au-dessus du `<footer>` dans `CatalogPreview.tsx`. Arrière-plan transparent (s'intègre sur crème #FAF8F5, aucun conteneur noir). Ligne supérieure séparatrice centrée (~65% largeur, gold-tinted `rgba(201,168,76,0.35)`). Icônes lucide-react (Truck, Banknote, ShieldCheck, RefreshCw) au contour fin doré (`#C9A84C`, `strokeWidth:1.5`) dans cercle vitré glassmorphism (`rgba(255,255,255,0.45)` + `backdrop-filter:blur(6px)` + bordure or `rgba(201,168,76,0.55)`). Titres anthracite doux (`#3D3D3D`, pas de noir pur). Tooltip bulle fluide au-dessus au survol/clic/focus (glassmorphism `rgba(255,255,255,0.92)` + `blur(8px)`, transition 300ms, flèche pointant vers le bas). Grille responsive : 1 col mobile / 2 cols tablette (`sm:`) / 4 cols desktop (`lg:`). Fallback : champs admin vides → dictionnaire `trust.*`. `isVisible=false` → rendu `null` (aucun espace vide). **Volet Admin** (`TrustGuaranteesPillar.tsx`) : 8ème onglet « Confiance » (`value="trust"`) dans `SettingsPillar.tsx` (grid-cols-7→8, icône `ShieldCheck`). Interrupteur `Switch` `isVisible` (Afficher/Cacher). Sélecteur onglets FR/EN/AR (pattern WhatsApp). 4 garanties × 2 champs (Titre `Input` + Description `Textarea`), `dir="rtl"` sur champs AR. Placeholder = texte par défaut du dictionnaire. Bouton Enregistrer (PUT `/api/catalog/settings`). **BDD** : `trustGuarantees Json? @map("trust_guarantees")` sur `CatalogSettings` (Prisma + `db:push`). **API** : `trustGuarantees` ajouté à `allowedFields`. **Types** : `TrustGuaranteesConfig` + `GuaranteeKey` + `TrustGuaranteeItem` + `SettingsTab` étendu `'trust'`. **Dictionnaire** : 8 clés `trust.*` × 3 locales (24 clés) — textes officiels du mandat. Vérifié E2E vitrine (4 titres, 4 colonnes desktop, icônes or, cercles glassmorphism, séparateur gold, bg transparent, au-dessus du footer). `eslint` 0 erreur, `tsc` 0 erreur dans `src/`. | ⏳ EN ATTENTE D'AUDIT — branche `feature/trust-guarantees-section` |
 | FX26 | Fix régressions V4.1.2 — Recherche cross-DB | `GET /api/orders` : correction du `$queryRaw` — `is_deleted = ${archived ? 1 : 0}` (integer SQLite) remplacé par `is_deleted = ${archived}` (booléen paramétré, compatible SQLite driver auto-conversion + PostgreSQL natif) ; commentaire mis à jour ; branche `feature/full-fix-v4.1.2` | ✅ CORRIGÉ — DÉPLOYÉ |
 | FX27 | Fix régressions V4.1.1 — Archivage cancelled | `POST /api/orders/archive` : ajout de `'cancelled'` dans le tableau `{ in: ['delivered', 'confirmed', 'cancelled'] }` ; message d'erreur utilisateur mis à jour pour refléter les 3 statuts éligibles ; branche `fix/orders-v4.1.1` | ✅ CORRIGÉ — DÉPLOYÉ |
 | FX28 | Fix régressions V4.1.1 — Badge i18n | `OrderStatusBadge.tsx` : suppression du champ `labelKey` obsolète (clés `order.status*` non existantes), ajout d'une prop `label?: string` (pattern controlled label) ; appelants mis à jour : `OrdersTable.tsx` L.340 et `OrderDetailSheet.tsx` L.124 passent `t(\`adminOrder.status_\${status}\`)` ; branche `fix/orders-v4.1.1` | ✅ CORRIGÉ — DÉPLOYÉ |
@@ -242,6 +243,7 @@ src/
 - ✅ P26 (VG29) : Status Badge Ribbon Redesign — ruban épuré bottom-left + 6 statuts BDD + Nouveauté — déployé (branche `feature/status-badge-ribbon-redesign` mergée)
 - ✅ P27 (VG30) : Catalog Hide CTA Mobile — masquage responsive du bouton COMMANDER (< 768px) — déployé (branche `feature/catalog-hide-cta-mobile` mergée)
 - ⏳ P28 (VG31) : Status Ribbon AR Harmony — Trend remplace Livraison Gratuite + permutation couleurs + عرض خيالي + harmonisation CSS — branche `feature/status-ribbon-ar-harmony` (EN ATTENTE D'AUDIT, non fusionnée)
+- ⏳ P29 (VG32) : Trust Guarantees Section — section garanties de confiance vitrine (4 cartes, tooltip, glassmorphism) + admin (8ème onglet, toggle isVisible, FR/EN/AR, fallback dictionnaire) — branche `feature/trust-guarantees-section` (EN ATTENTE D'AUDIT, non fusionnée)
 - ✅ P23 : Sitemap dynamique — module products.ts partagé (resolveProduct + resolveAllProducts) + sitemap.ts boucle produits + revalidate=3600 — déployé (branche feat/seo-sitemap-dynamic merged)
 - ✅ P24 : Support alphabet arabe dans les slugs — regex Unicode \p{L}\p{N} + sync server/client — déployé (branche feat/arabic-slug-support merged)
 
@@ -740,6 +742,64 @@ Autres statuts inchangés : Stock limité=`#F97316`, Offre limitée=`#EF4444`, T
 
 ### Branche
 `feature/status-ribbon-ar-harmony` (créée depuis `main@599e3ca`) — **EN ATTENTE D'AUDIT** (aucune fusion sur main).
+
+---
+Date de mise à jour : 22/07/2026
+
+## [TRUST GUARANTEES SECTION — VG32 / P29]
+
+### Contexte
+Le mandat vise à renforcer la confiance des visiteurs en affichant 4 garanties commerciales (Livraison Gratuite, Paiement à la Livraison, Garantie Qualité, Échange Facile) juste au-dessus du footer de la vitrine, avec un volet admin permettant de personnaliser les textes en FR/EN/AR ou de cacher la section.
+
+### Volet Vitrine (`src/components/TrustGuaranteesSection.tsx` — nouveau)
+- **Point d'injection** : `<TrustGuaranteesSection />` inséré au-dessus du `<footer>` dans `CatalogPreview.tsx` (ligne ~1655).
+- **Arrière-plan** : transparent (s'intègre sur crème #FAF8F5, aucun conteneur noir/séparé).
+- **Ligne séparatrice** : `div.h-px` centrée, `w-[65%] max-w-[700px]`, gold-tinted `rgba(201,168,76,0.35)`.
+- **Iconographie** : lucide-react (Truck, Banknote, ShieldCheck, RefreshCw) dans cercle vitré glassmorphism : `bg rgba(255,255,255,0.45)` + `backdrop-filter:blur(6px)` + bordure or `1.5px solid rgba(201,168,76,0.55)`. Icônes or `#C9A84C`, `strokeWidth:1.5`.
+- **Typographie** : titres anthracite doux `#3D3D3D` (pas de noir pur).
+- **Tooltip** : bulle fluide au-dessus de chaque carte au survol/clic/focus — `bg rgba(255,255,255,0.92)` + `blur(8px)`, transition `opacity+translate-y 300ms`, flèche CSS pointant vers le bas. Mobile : `onClick` toggle (tap pour ouvrir/fermer).
+- **Responsivité** : `grid-cols-1 sm:grid-cols-2 lg:grid-cols-4` (1 col mobile, 2×2 tablette, 4 cols desktop).
+- **Fallback** : champs admin vides → `t('trust.{key}.title')` / `t('trust.{key}.desc')` du dictionnaire.
+- **isVisible=false** : `return null` (aucun espace vide).
+
+### Volet Admin (`src/components/settings/TrustGuaranteesPillar.tsx` — nouveau)
+- **8ème onglet** « Confiance » (`value="trust"`) dans `SettingsPillar.tsx` — `grid-cols-7`→`grid-cols-8`, icône `ShieldCheck`.
+- **Interrupteur** `Switch` contrôlé par `config.isVisible` — si Cacher, la section vitrine disparaît entièrement.
+- **Sélecteur de langues** : onglets FR/EN/AR (pattern WhatsApp, `Tabs` + `TabsList` + `TabsTrigger`).
+- **4 garanties × 2 champs** : Titre (`Input` court) + Description (`Textarea` 3 rows). `dir="rtl"` appliqué sur tous les champs quand l'onglet Arabe est sélectionné.
+- **Placeholder** = texte par défaut du dictionnaire (indique visuellement le fallback).
+- **Save** : bouton « Enregistrer » → `handleSave({ trustGuarantees: config })` → `PUT /api/catalog/settings`.
+
+### Infrastructure
+- **Prisma** : `trustGuarantees Json? @map("trust_guarantees")` sur `CatalogSettings` + `bun run db:push`.
+- **Types** (`src/types/index.ts`) : `GuaranteeKey` (`'livraison'|'paiement'|'qualite'|'retour'`) + `TrustGuaranteeItem` (`{title, description}`) + `TrustGuaranteesConfig` (`{isVisible, items}`) + `CatalogSettings.trustGuarantees` + `SettingsTab` étendu `'trust'`.
+- **API** (`src/app/api/catalog/settings/route.ts`) : `'trustGuarantees'` ajouté à `allowedFields`.
+- **Dictionnaire** (`src/lib/i18n/dictionaries.ts`) : 8 clés `trust.{key}.title` + `trust.{key}.desc` × 3 locales = 24 clés. Textes officiels du mandat (livraison/paiement/qualite/retour).
+
+### Fichiers créés
+| # | Fichier | Rôle |
+|---|---------|------|
+| 1 | `src/components/TrustGuaranteesSection.tsx` | Composant vitrine — 4 cartes garanties + tooltip + glassmorphism + séparateur |
+| 2 | `src/components/settings/TrustGuaranteesPillar.tsx` | Composant admin — toggle isVisible + onglets FR/EN/AR + 4×2 champs + save |
+
+### Fichiers modifiés
+| # | Fichier | Modification |
+|---|---------|-------------|
+| 1 | `prisma/schema.prisma` | `trustGuarantees Json? @map("trust_guarantees")` sur `CatalogSettings` |
+| 2 | `src/types/index.ts` | `TrustGuaranteesConfig` + `GuaranteeKey` + `TrustGuaranteeItem` + `CatalogSettings.trustGuarantees` + `SettingsTab` `'trust'` |
+| 3 | `src/app/api/catalog/settings/route.ts` | `'trustGuarantees'` dans `allowedFields` |
+| 4 | `src/lib/i18n/dictionaries.ts` | 24 clés `trust.*` (8 × 3 locales) — textes officiels |
+| 5 | `src/components/preview/CatalogPreview.tsx` | Import + `<TrustGuaranteesSection />` au-dessus du `<footer>` |
+| 6 | `src/components/settings/SettingsPillar.tsx` | Import `TrustGuaranteesPillar` + `ShieldCheck` + onglet « Confiance » (`grid-cols-8`) + `<TabsContent value="trust">` |
+
+### Vérifications
+- `bun run lint` : 0 erreur, 0 warning ✅
+- `tsc --noEmit` : 0 erreur dans `src/` ✅ (1 erreur préexistante dans `.next/dev/types/validator.ts` auto-généré, hors scope)
+- `bun run db:push` : colonne `trust_guarantees` ajoutée à SQLite ✅
+- E2E vitrine : 4 titres rendus (Livraison Gratuite, Paiement à la Livraison, Garantie Qualité, Échange Facile), 4 colonnes desktop (285.5px×4), 4 cercles glassmorphism (bg rgba(255,255,255,0.45), bordure rgba(201,168,76,0.55)), icônes or (rgb(201,168,76)), séparateur gold 700px, bg transparent, positionné au-dessus du footer ✅
+
+### Branche
+`feature/trust-guarantees-section` (créée depuis `main@be3d655`) — **EN ATTENTE D'AUDIT** (aucune fusion sur main).
 
 ---
 Date de mise à jour : 22/07/2026
