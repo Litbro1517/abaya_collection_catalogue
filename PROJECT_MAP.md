@@ -167,6 +167,7 @@ src/
 | VG23 | Admin Orders — 4ème Pilier | `OrdersPillar` (KPI cards + table + filters + detail drawer) ; `OrdersTable` (@tanstack/react-table pattern + shadcn Table + Tabs status filter + search debounce) ; `OrderDetailSheet` (shadcn Sheet right-side + status update form + sonner toast) ; `OrderStatusBadge` (5 variants : pending/confirmed/shipped/delivered/cancelled) ; `PATCH /api/orders/[id]` (whitelist validation + `getCurrentAdmin()`) ; route `/admin/orders` (auth guard + redirect `?view=builder&pillar=orders`) ; `Pillar` type étendu (`'orders'`) ; BuilderShell 4ème icône ShoppingBag ; 34 clés i18n `adminOrder.*` × 3 locales ; zéro dépendance ajoutée (shadcn/ui + tanstack-table + date-fns existants) ; `CheckoutPage.tsx` NON touché (périmètre respecté) ; branche `evolue-admin-orders` merged puis supprimée | ✅ DÉPLOYÉ — BRANCHE MERGED |
 | VG24 | Sécurisation API Orders (Plan V2) | Middleware : `/api/orders` ajouté à `ADMIN_WRITE_ROUTES` + exemption `isPublicOrderCreation` (POST client COD) ; Handler GET liste : `getCurrentAdmin()` — bloque PII anonyme (401) ; Handler PATCH : `getCurrentAdmin()` — bloque update anonyme (401) ; GET `[id]` reste public (page Merci, cuid entropy) ; POST reste public (tunnel COD) ; Defense in depth : middleware Guard #4 + auth handler ; Tests curl validés : POST=201, GET_liste=401, PATCH=401, GET_id=404 (route accessible) ; branche `evolue-admin-orders` merged puis supprimée | ✅ DÉPLOYÉ — BRANCHE MERGED |
 | VG25 | Orders V4.1 — Refonte complète | i18n : 70 clés `adminOrder.*` (FR/EN/AR) + migration `order.*`→`adminOrder.*` (fix bug clés brutes) ; Prisma : `OrderHistory` (shadow table) + `Order.isDeleted` + `Order.deletedAt` (soft delete) ; Backend : GET search ILIKE + archived filter ; PATCH étendu (10 champs) + snapshot OrderHistory ; GET `/api/orders/[id]/history` ; POST restore field ; POST archive (delivered/confirmed only) ; POST restore bulk ; DELETE purge (10-day rule) ; GET export CSV (2 vues) ; Frontend : 7ème carte Dashboard + debounce corrigé (useRef) + Tabs active/archived + checkboxes + inline edit double-clic (pattern DataTable.tsx) + DataQualityIcon (vide/zéro/faible) + OrderDetailSheet historique diff rouge/vert + restauration + purge AlertDialog confirmation ; branche `feature/orders-refactor` merged puis supprimée | ✅ DÉPLOYÉ — CLÔTURÉ |
+| VG26 | Catalog UI & Reorder — Carte épurée + Suprématie BDD | Carte produit : `group` sur `<article>`, bouton COMMANDER noir (#000) révélé au survol (`opacity:0` → `group-hover:opacity:100` + `focus-within` + `@media (hover:none)`), suppression badge images (🖼️ N) + badge Nouveau top-left ; badge réduction `-X%` DÉPLACÉ de la zone prix (bordeaux #800020) vers top-left image en corail adouci (#EF4444, `Math.round`) — prix barré conservé en zone prix ; bandeau statut « Pied d'image » italic + Sentence case (FR/AR/EN, null pour Courant) via `status-config.ts` ; Sort vitrine = `row.order` UNIQUE (purge priorité Nouveau rank-0 + tri stock) ; bouton Réorganiser admin (menu colonnes numériques non-natives, tri ascendant 1→N, persistance `PATCH /rows/batch` étendu au champ `order`) ; réutilise `discount-utils.ts` existant (DEBT-9 `computeDiscount`/`getCompareAtPrice`) ; correction bug latent batch route (`JSON.parse(r.data)` → `readRowData()` défensif) ; vérifié E2E navigateur | ⏳ EN ATTENTE D'AUDIT — branche `feature/catalog-ui-and-reorder` |
 | FX26 | Fix régressions V4.1.2 — Recherche cross-DB | `GET /api/orders` : correction du `$queryRaw` — `is_deleted = ${archived ? 1 : 0}` (integer SQLite) remplacé par `is_deleted = ${archived}` (booléen paramétré, compatible SQLite driver auto-conversion + PostgreSQL natif) ; commentaire mis à jour ; branche `feature/full-fix-v4.1.2` | ✅ CORRIGÉ — DÉPLOYÉ |
 | FX27 | Fix régressions V4.1.1 — Archivage cancelled | `POST /api/orders/archive` : ajout de `'cancelled'` dans le tableau `{ in: ['delivered', 'confirmed', 'cancelled'] }` ; message d'erreur utilisateur mis à jour pour refléter les 3 statuts éligibles ; branche `fix/orders-v4.1.1` | ✅ CORRIGÉ — DÉPLOYÉ |
 | FX28 | Fix régressions V4.1.1 — Badge i18n | `OrderStatusBadge.tsx` : suppression du champ `labelKey` obsolète (clés `order.status*` non existantes), ajout d'une prop `label?: string` (pattern controlled label) ; appelants mis à jour : `OrdersTable.tsx` L.340 et `OrderDetailSheet.tsx` L.124 passent `t(\`adminOrder.status_\${status}\`)` ; branche `fix/orders-v4.1.1` | ✅ CORRIGÉ — DÉPLOYÉ |
@@ -234,6 +235,7 @@ src/
 - ✅ P20 : Admin Orders 4ème Pilier — OrdersPillar + OrdersTable + OrderDetailSheet + PATCH endpoint + /admin/orders route + 34 clés i18n adminOrder.* — déployé (branche evolue-admin-orders merged)
 - ✅ P21 : Sécurisation API Orders (Plan V2) — middleware ADMIN_WRITE_ROUTES + exemption POST + getCurrentAdmin() GET liste + getCurrentAdmin() PATCH + tests curl validés — déployé (branche evolue-admin-orders merged)
 - ✅ P22 : Orders V4.1 Refonte — i18n adminOrder.* + OrderHistory + search ILIKE + inline edit + archive/purge + DataQualityIcon — déployé (branche feature/orders-refactor merged)
+- ⏳ P25 : Catalog UI & Reorder — 4 axes (carte épurée, bandeau statut pied d'image, suprématie BDD row.order, bouton Réorganiser) — branche `feature/catalog-ui-and-reorder` (EN ATTENTE D'AUDIT, non fusionnée)
 - ✅ P23 : Sitemap dynamique — module products.ts partagé (resolveProduct + resolveAllProducts) + sitemap.ts boucle produits + revalidate=3600 — déployé (branche feat/seo-sitemap-dynamic merged)
 - ✅ P24 : Support alphabet arabe dans les slugs — regex Unicode \p{L}\p{N} + sync server/client — déployé (branche feat/arabic-slug-support merged)
 
@@ -521,3 +523,58 @@ Fusion de `feat/finalisation-lancement` dans `main` (commit de merge, contenu va
 - [x] Restauration route `/api/upload` (régression `f0ec683`) — voir entrée `FIX-Upload`
 
 Branche `feat/finalisation-lancement` supprimée après validation post-déploiement (mandat ABAYA-MERGE-01-FINAL).
+
+## [CATALOG UI & REORDER — VG26 / P25]
+
+### Contexte
+L'exploration a révélé une surcharge visuelle des cartes produits (bouton d'achat doré permanent, badge images 🖼️ N, badge Nouveau massif top-left, badge réduction bordeaux dans la zone de prix), une instabilité du tri vitrine (priorité automatique Nouveau+en_stock rang 0 réinitialisant le marchandisage à chaque rafraîchissement) et l'absence d'outil de réorganisation pérenne en base de données.
+
+### Architecture livrée (4 axes)
+
+#### Axe 1 — Carte produit épurée (`CatalogPreview.tsx` + `globals.css`)
+- `group` ajouté sur `<article className="product-card group">`.
+- Bouton « COMMANDER » noir (#000000) texte blanc (#FFFFFF), `rounded-full`, masqué au repos (`opacity:0`) révélé au survol via `.product-card.group:hover .product-card-hover-cta { opacity:1 }` (+ `focus-within` + `@media (hover:none)` pour tactile).
+- Suppression de l'indicateur d'images (🖼️ N) — `.product-card-count` retiré du DOM et du CSS.
+- Suppression du badge Nouveau top-left (déplacé vers le bandeau Axe 2).
+- Badge de réduction `-X%` DÉPLACÉ de la zone de prix (bordeaux `#800020`) vers le top-left de l'image, corail adouci (#EF4444), pourcentage entier (`Math.round`). Le prix barré (strikethrough) est conservé dans la zone de prix.
+- CSS mort purgé : `.product-card-micro-cta*`, `.product-card-count`, `.badge-nouveau` retirés ; règle RTL mise à jour.
+
+#### Axe 2 — Bandeau statut « Pied d'image » (`src/lib/status-config.ts`)
+- Module centralisé `STATUS_CONFIG` : 6 statuts marketing (Nouveau, Stock limité, Offre limitée, Top vente, Livraison gratuite, Prix choc) × FR/AR/EN + couleur vive.
+- `resolveMarketingStatus(rawStatut, locale)` : résout `row.data.__statut__` → label localisé + couleur. Retourne `null` pour « Courant » / valeur inconnue → aucun bandeau (cas nul).
+- Rendu : `.product-card-status-band` ancré `bottom:0` de l'image ; texte `font-style:italic`, `text-transform:none` (Sentence case — première lettre majuscule uniquement, PAS d'UPPERCASE), remplissant quasi toute la hauteur du bandeau (1-2px de marge).
+- `dir` adapté au locale (rtl pour AR).
+
+#### Axe 3 — Purge des tris parasites & Suprématie BDD (`CatalogPreview.tsx`)
+- `allProducts` useMemo : le tri composite (Nouveau+en_stock rang 0 → stock state → row.order) est remplacé par `items.sort((a, b) => a.row.order - b.row.order)`.
+- `row.order` (base de données) est désormais l'UNIQUE source de vérité du classement vitrine.
+- Vérifié E2E : après réordonnancement BDD, la vitrine suit exactement le nouvel ordre (le produit « Nouveau » n'est plus priorisé).
+
+#### Axe 4 — Bouton « Réorganiser » (`DataPillar.tsx` + `batch/route.ts`)
+- Bouton « Réorganiser » ajouté dans la barre d'outils de la table admin (icône `ArrowRightLeft`).
+- Popover listant EXCLUSIVEMENT les colonnes numériques non-natives (`type === 'NUMBER'` hors `__category__`, `__sub_category__`, `__colors__`, `__disponibilite__`, `__stock__`, `__statut__`).
+- Au clic : tri ascendant (1 → N) de toutes les lignes selon la colonne choisie (valeurs manquantes en dernier, stable), assignation `order = idx + 1`, persistance via `PATCH /api/datasources/[id]/rows/batch` (`{ updates: [{ id, order }] }`).
+- Rechargement réseau forcé (`forceNetwork: true`) après persistance.
+- Route batch étendue : le format `updates` accepte désormais `order?: number` (écrit `Row.order`) ; correction d'un bug latent (`JSON.parse(r.data)` échouait car Prisma retourne un objet — `readRowData()` défensif ajouté, écriture objet cohérente avec la route PUT single-row).
+
+### Réutilisation de l'existant (DEBT-9)
+Le module `src/lib/discount-utils.ts` (DEBT-9) existait déjà sur le point d'ancrage `13ec46e` : `computeDiscount(price, compareAtPrice)` → `{ hasDiscount, compareAtPrice, percentage }` et `getCompareAtPrice(rowData)`. Ces fonctions sont RÉUTILISÉES telles quelles — aucun doublon créé. Le badge de réduction existant (bordeaux, zone de prix) a été RELOCALISÉ vers le top-left de l'image en corail (#EF4444).
+
+### Fichiers créés
+| # | Fichier | Rôle |
+|---|---------|------|
+| 1 | `src/lib/status-config.ts` | Dictionnaire centralisé des statuts marketing (FR/AR/EN + couleurs) + `resolveMarketingStatus()` |
+
+### Fichiers modifiés
+| # | Fichier | Modification |
+|---|---------|-------------|
+| 1 | `src/components/preview/CatalogPreview.tsx` | `group` sur article ; purge tri composite → `row.order` seul ; suppression badge images + badge Nouveau top-left ; badge réduction RELOCALISÉ de la zone prix vers top-left image (corail) ; bandeau statut pied d'image ; hover CTA noir ; hoist `discount` (réutilise DEBT-9) ; retrait `getImageCount` (inutilisé) ; import `resolveMarketingStatus` |
+| 2 | `src/app/globals.css` | Nouvelles classes : `.product-card-discount-badge`, `.product-card-hover-cta(--disabled)`, `.product-card-status-band(-text)` ; purge `.product-card-micro-cta*`, `.product-card-count`, `.badge-nouveau` ; règle RTL + responsive mises à jour |
+| 3 | `src/components/data/DataPillar.tsx` | Bouton « Réorganiser » + Popover (colonnes numériques non-natives) ; `handleReorderByColumn()` (tri ascendant + persistance batch + reload) ; `REORDER_NATIVE_SLUGS` ; états `reorderPopoverOpen`/`reordering` |
+| 4 | `src/app/api/datasources/[id]/rows/batch/route.ts` | Support champ `order` (Axe 4) ; `readRowData()` défensif (string OR object) ; écriture objet cohérente avec PUT single-row ; corrige bug latent `JSON.parse(r.data)` |
+
+### Branche
+`feature/catalog-ui-and-reorder` (créée depuis `main@13ec46e`) — **EN ATTENTE D'AUDIT** (aucune fusion sur main).
+
+---
+Date de mise à jour : 22/07/2026
