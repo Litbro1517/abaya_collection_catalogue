@@ -12,6 +12,7 @@ import { GoogleSheetsBrowser } from './GoogleSheetsBrowser';
 import { GoogleConnectPanel } from './GoogleConnectPanel';
 import { SyncStatusIndicator } from './SyncStatusIndicator';
 import { ColumnVisibilityDropdown } from './ColumnVisibilityDropdown';
+import { DeleteColumnsMenu } from './DeleteColumnsMenu';
 import { MediaLibrary } from '@/components/admin/MediaLibrary';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -1667,6 +1668,13 @@ export function DataPillar() {
                 onToggleVisibility={handleToggleColumnVisibility}
                 onShowAll={handleShowAllColumns}
                 onHideAll={handleHideAllColumns}
+              />
+
+              {/* VG33.4: Bulk delete IMAGE columns — safe cleanup tool */}
+              <DeleteColumnsMenu
+                columns={columns}
+                dataSourceId={activeDataSourceId || ''}
+                onDeleted={() => loadDataSourceData({ forceNetwork: true })}
               />
 
               {/* Add column button */}
