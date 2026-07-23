@@ -98,35 +98,48 @@ export async function POST(req: NextRequest) {
           continue;
         }
 
-        // ── Uniqueness check: is this file_id attached to ANOTHER row? ──
+        // ── Cross-column deduplication (VG33.3): is this file_id already migrated
+        //    in ANY column? If yes, reuse the existing CDN URL — no re-download.
+        //    Previous code checked fileId+columnSlug (per-column), causing double
+        //    downloads when the same image appears in both individual IMAGE columns
+        //    and the IMAGE_ARRAY gallery (40 downloads for 20 images).
         const existingAsset = await db.mediaAsset.findFirst({
           where: {
             fileId,
-            columnSlug,
+            status: 'cdn',
+            cdnUrl: { not: null },
             rowId: { not: row.id },
           },
-          select: { rowId: true, status: true },
+          select: { rowId: true, status: true, cdnUrl: true, columnSlug: true, id: true },
         });
 
-        if (existingAsset) {
+        if (existingAsset && existingAsset.cdnUrl) {
+          // File already on CDN (possibly in another column) — reuse the URL.
+          // This is NOT a conflict: the same image can legitimately appear in
+          // multiple columns of the same product. We just avoid re-downloading.
+          newUrls.push(existingAsset.cdnUrl);
+          results.push({ rowId: row.id, fileId, status: 'skipped', cdnUrl: existingAsset.cdnUrl });
+          continue;
+        }
+
+        // Check if this file_id is already attached to ANOTHER row (true conflict)
+        const conflictAsset = await db.mediaAsset.findFirst({
+          where: {
+            fileId,
+            rowId: { not: row.id, not: null },
+          },
+          select: { rowId: true, status: true, cdnUrl: true },
+        });
+
+        if (conflictAsset) {
           results.push({
             rowId: row.id,
             fileId,
             status: 'conflict',
-            conflictRowId: existingAsset.rowId,
+            conflictRowId: conflictAsset.rowId,
           });
           conflictCount++;
           newUrls.push(url); // keep the Drive URL
-          continue;
-        }
-
-        // Already migrated?
-        const selfAsset = await db.mediaAsset.findUnique({
-          where: { fileId_columnSlug: { fileId, columnSlug } },
-        });
-        if (selfAsset?.status === 'cdn' && selfAsset.cdnUrl) {
-          newUrls.push(selfAsset.cdnUrl);
-          results.push({ rowId: row.id, fileId, status: 'skipped', cdnUrl: selfAsset.cdnUrl });
           continue;
         }
 
@@ -220,9 +233,16 @@ export async function POST(req: NextRequest) {
         results.push({ rowId: row.id, fileId, status: 'migrated', cdnUrl });
       }
 
-      // Update the cell if any URL changed
+      // Update the cell if any URL changed.
+      // VG33.3: IMAGE_ARRAY cells are stored as JSON.stringify (strict JSON array)
+      // to preserve the gallery format. Previous code used join(', ') which broke
+      // the carousel (badge showed "1 image" instead of "X images").
       if (cellChanged) {
-        data[columnSlug] = columnType === 'IMAGE_ARRAY' ? newUrls.join(', ') : newUrls[0];
+        if (columnType === 'IMAGE_ARRAY') {
+          data[columnSlug] = JSON.stringify(newUrls);
+        } else {
+          data[columnSlug] = newUrls[0];
+        }
         await db.row.update({ where: { id: row.id }, data: { data } });
       }
     }

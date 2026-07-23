@@ -4,6 +4,7 @@ import { fetchPrivateSheetData, fetchPublicSheetAsCsv, generateSlug } from '@/li
 import { getValidAccessToken } from '@/lib/google/auth';
 import { resolveImageUrl } from '@/lib/google/drive-images';
 import { STATUS_OPTIONS } from '@/lib/status-config';
+import { extractDriveFileId } from '@/lib/media-utils';
 
 /**
  * syncCategoriesFromRows
@@ -599,6 +600,16 @@ export async function POST(req: NextRequest) {
 
       // Build row data with auto-initialization for first import
       const rowsToCreate: { dataSourceId: string; data: Record<string, unknown>; order: number }[] = [];
+
+      // ━━━ VG33.3: Auto-reassociation — fetch existing CDN assets for this datasource.
+      // Drive file_ids in the new data that already have a CDN URL are auto-replaced.
+      // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+      const existingCdnAssets = await db.mediaAsset.findMany({
+        where: { dataSourceId: dsId, status: 'cdn', cdnUrl: { not: null } },
+        select: { fileId: true, cdnUrl: true },
+      });
+      const cdnAssetMap = new Map(existingCdnAssets.map((a) => [a.fileId, a.cdnUrl!]));
+
       for (let i = 0; i < dataRows.length; i++) {
         const row = dataRows[i];
         const rowData: Record<string, unknown> = {};
@@ -691,6 +702,25 @@ export async function POST(req: NextRequest) {
           rowData.__disponibilite__ = 'true'; // CASCADE: stock positif → Disponible
         } else {
           rowData.__disponibilite__ = 'false'; // CASCADE: stock nul → Épuisé
+        }
+
+        // ━━━ VG33.3: Auto-reassociation — replace Drive URLs with CDN URLs ━━━
+        for (const key of Object.keys(rowData)) {
+          const val = rowData[key];
+          if (typeof val === 'string') {
+            const fid = extractDriveFileId(val);
+            if (fid && cdnAssetMap.has(fid)) {
+              rowData[key] = cdnAssetMap.get(fid);
+            }
+          } else if (Array.isArray(val)) {
+            rowData[key] = val.map((u: unknown) => {
+              if (typeof u === 'string') {
+                const fid = extractDriveFileId(u);
+                if (fid && cdnAssetMap.has(fid)) return cdnAssetMap.get(fid);
+              }
+              return u;
+            });
+          }
         }
 
         rowsToCreate.push({
