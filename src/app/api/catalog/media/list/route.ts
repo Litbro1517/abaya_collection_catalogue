@@ -112,11 +112,35 @@ export async function GET(req: NextRequest) {
       }> = [];
 
       for (const col of imageColumns) {
-        const cellValue = String(data[col.slug] || '').trim();
-        if (!cellValue) continue;
-        const urls = col.type === 'IMAGE_ARRAY'
-          ? cellValue.split(/[,;]\s*/).filter(Boolean)
-          : [cellValue];
+        const rawVal = data[col.slug];
+        // VG33.3: IMAGE_ARRAY cells may be JSON arrays (JSON.stringify) or
+        // comma-separated strings (legacy). Handle both formats.
+        let urls: string[] = [];
+        if (Array.isArray(rawVal)) {
+          urls = rawVal.filter((u): u is string => typeof u === 'string' && u.trim());
+        } else {
+          const cellValue = String(rawVal || '').trim();
+          if (!cellValue) continue;
+          if (col.type === 'IMAGE_ARRAY') {
+            // Try JSON parse first (VG33.3 format)
+            if (cellValue.startsWith('[')) {
+              try {
+                const parsed = JSON.parse(cellValue);
+                if (Array.isArray(parsed)) {
+                  urls = parsed.filter((u): u is string => typeof u === 'string' && u.trim());
+                }
+              } catch {
+                // Not valid JSON — fall back to comma split (legacy)
+                urls = cellValue.split(/[,;]\s*/).filter(Boolean);
+              }
+            } else {
+              // Legacy comma-separated format
+              urls = cellValue.split(/[,;]\s*/).filter(Boolean);
+            }
+          } else {
+            urls = [cellValue];
+          }
+        }
         for (const url of urls) {
           const fileId = extractDriveFileId(url);
           const source = detectImageSource(url);

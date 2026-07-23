@@ -63,6 +63,14 @@ export function MediaLibrary({ dataSourceId, onRefresh }: Props) {
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [bulkAction, setBulkAction] = useState(false);
 
+  // VG33.3: CDN bucket scanner state
+  const [viewMode, setViewMode] = useState<'library' | 'bucket'>('library');
+  const [ghostFiles, setGhostFiles] = useState<Array<{ name: string; size: number; fileId: string | null }>>([]);
+  const [bucketStats, setBucketStats] = useState({ totalBucket: 0, totalGhosts: 0, totalTracked: 0 });
+  const [scanning, setScanning] = useState(false);
+  const [selectedGhosts, setSelectedGhosts] = useState<Set<string>>(new Set());
+  const [purging, setPurging] = useState(false);
+
   const loadMedia = useCallback(async () => {
     setLoading(true);
     try {
@@ -82,6 +90,57 @@ export function MediaLibrary({ dataSourceId, onRefresh }: Props) {
   useEffect(() => {
     loadMedia();
   }, [loadMedia]);
+
+  // VG33.3: CDN bucket scanner
+  const scanBucket = useCallback(async () => {
+    setScanning(true);
+    try {
+      const res = await fetch(`/api/catalog/media/scan-bucket?dataSourceId=${dataSourceId}`);
+      if (!res.ok) throw new Error('Scan failed');
+      const json = await res.json();
+      setGhostFiles(json.data?.ghostFiles || []);
+      setBucketStats({
+        totalBucket: json.data?.totalBucket || 0,
+        totalGhosts: json.data?.totalGhosts || 0,
+        totalTracked: json.data?.totalTracked || 0,
+      });
+      setSelectedGhosts(new Set());
+    } catch {
+      toast.error('Erreur du scan du bucket CDN');
+    } finally {
+      setScanning(false);
+    }
+  }, [dataSourceId]);
+
+  useEffect(() => {
+    if (viewMode === 'bucket' && ghostFiles.length === 0 && !scanning) {
+      scanBucket();
+    }
+  }, [viewMode, ghostFiles.length, scanning, scanBucket]);
+
+  const handlePurgeGhosts = async () => {
+    const files = Array.from(selectedGhosts);
+    if (files.length === 0) return;
+    if (!confirm(`Supprimer définitivement ${files.length} fichier(s) fantôme(s) du bucket CDN ?`)) return;
+    setPurging(true);
+    try {
+      const res = await fetch('/api/catalog/media/purge-ghosts', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ files }),
+      });
+      if (!res.ok) throw new Error('Purge failed');
+      const json = await res.json();
+      toast.success(`${json.data.deleted} fichier(s) fantôme(s) supprimé(s)`);
+      await scanBucket(); // refresh
+      onRefresh?.();
+    } catch {
+      toast.error('Erreur lors de la purge');
+    } finally {
+      setPurging(false);
+      setSelectedGhosts(new Set());
+    }
+  };
 
   // Collect all images from all entries (for select-all)
   const allImages: Array<{ entry: MediaEntry; img: MediaImage; key: string }> = [];
@@ -212,6 +271,111 @@ export function MediaLibrary({ dataSourceId, onRefresh }: Props) {
 
   return (
     <div className="space-y-4">
+      {/* View mode toggle: Médiathèque (database) vs Bucket CDN (physical scan) */}
+      <div className="flex items-center gap-1 p-1 bg-muted/40 rounded-lg w-fit">
+        <button
+          onClick={() => setViewMode('library')}
+          className={cn(
+            'px-3 py-1 text-xs rounded transition-colors',
+            viewMode === 'library' ? 'bg-background shadow-sm font-medium' : 'text-muted-foreground hover:text-foreground',
+          )}
+        >
+          Médiathèque
+        </button>
+        <button
+          onClick={() => setViewMode('bucket')}
+          className={cn(
+            'px-3 py-1 text-xs rounded transition-colors flex items-center gap-1',
+            viewMode === 'bucket' ? 'bg-background shadow-sm font-medium' : 'text-muted-foreground hover:text-foreground',
+          )}
+        >
+          <Cloud className="w-3 h-3" />
+          Bucket CDN
+          {bucketStats.totalGhosts > 0 && (
+            <span className="ml-1 px-1.5 py-0.5 text-[9px] font-bold bg-red-100 text-red-700 rounded-full">
+              {bucketStats.totalGhosts}
+            </span>
+          )}
+        </button>
+      </div>
+
+      {/* ━━━ BUCKET CDN VIEW (VG33.3) — physical scan + ghost purge ━━━ */}
+      {viewMode === 'bucket' && (
+        <div className="space-y-3">
+          {/* Bucket stats */}
+          <div className="flex items-center gap-4 px-3 py-2 bg-muted/30 rounded text-xs">
+            <span className="text-muted-foreground">Total bucket: <strong className="text-foreground">{bucketStats.totalBucket}</strong></span>
+            <span className="text-emerald-600">Suivis: <strong>{bucketStats.totalTracked}</strong></span>
+            <span className="text-red-600">Fantômes: <strong>{bucketStats.totalGhosts}</strong></span>
+            <Button variant="ghost" size="sm" onClick={scanBucket} disabled={scanning} className="ml-auto h-6 text-[10px]">
+              {scanning ? <Loader2 className="w-3 h-3 animate-spin" /> : 'Rescanner'}
+            </Button>
+          </div>
+
+          {/* Ghost files bulk action bar */}
+          {selectedGhosts.size > 0 && (
+            <div className="flex items-center gap-2 px-3 py-2 bg-red-50 border border-red-200 rounded text-xs">
+              <span className="font-medium text-red-700">{selectedGhosts.size} fantôme(s) sélectionné(s)</span>
+              <Button variant="destructive" size="sm" className="h-6 text-[10px] gap-1" onClick={handlePurgeGhosts} disabled={purging}>
+                {purging ? <Loader2 className="w-3 h-3 animate-spin" /> : <Trash2 className="w-3 h-3" />}
+                Purger les fantômes
+              </Button>
+              <Button variant="ghost" size="sm" className="h-6 text-[10px] ml-auto" onClick={() => setSelectedGhosts(new Set())}>
+                Désélectionner
+              </Button>
+            </div>
+          )}
+
+          {/* Ghost files list */}
+          <div className="max-h-[500px] overflow-y-auto space-y-1">
+            {scanning && ghostFiles.length === 0 && (
+              <div className="flex justify-center py-12">
+                <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
+              </div>
+            )}
+            {!scanning && ghostFiles.length === 0 && (
+              <div className="text-center py-12 text-xs text-muted-foreground">
+                Aucun fichier fantôme — le bucket est propre ✅
+              </div>
+            )}
+            {ghostFiles.map((file) => (
+              <div
+                key={file.name}
+                className="flex items-center gap-3 px-3 py-2 rounded border border-border/40 hover:bg-muted/20 transition-colors"
+              >
+                <Checkbox
+                  checked={selectedGhosts.has(file.name)}
+                  onCheckedChange={() => {
+                    setSelectedGhosts((prev) => {
+                      const next = new Set(prev);
+                      if (next.has(file.name)) next.delete(file.name);
+                      else next.add(file.name);
+                      return next;
+                    });
+                  }}
+                  className="w-3.5 h-3.5"
+                />
+                <div className="w-10 h-10 rounded bg-muted/40 flex items-center justify-center shrink-0">
+                  <ImageIcon className="w-4 h-4 text-muted-foreground" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-xs font-mono truncate">{file.name}</p>
+                  <p className="text-[10px] text-muted-foreground">
+                    {(file.size / 1024).toFixed(1)} KB · fileId: {file.fileId || '(inconnu)'}
+                  </p>
+                </div>
+                <span className="text-[9px] font-bold px-1.5 py-0.5 bg-red-100 text-red-700 rounded">
+                  FANTÔME
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* ━━━ MÉDIATHÈQUE VIEW (database) — original view ━━━ */}
+      {viewMode === 'library' && (
+        <>
       {/* Toolbar */}
       <div className="flex items-center gap-3 flex-wrap">
         <div className="relative max-w-[220px] flex-1 min-w-[140px]">
@@ -415,6 +579,8 @@ export function MediaLibrary({ dataSourceId, onRefresh }: Props) {
           </div>
         ))}
       </div>
+        </>
+      )}
     </div>
   );
 }

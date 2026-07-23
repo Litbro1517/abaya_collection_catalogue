@@ -1,6 +1,7 @@
 import { db } from '@/lib/db';
 import { NextRequest, NextResponse } from 'next/server';
 import { STATUS_OPTIONS } from '@/lib/status-config';
+import { extractDriveFileId } from '@/lib/media-utils';
 
 function parseCSV(text: string): string[][] {
   const lines: string[][] = [];
@@ -283,6 +284,18 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
       });
     }
 
+    // ━━━ VG33.3: Auto-reassociation — fetch existing CDN assets for this datasource.
+    // When a table is reimported (after delete+reimport), Drive file_ids in the new
+    // data that already have a CDN URL in MediaAsset are automatically replaced
+    // with the CDN URL — no re-download needed.
+    // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+    const existingCdnAssets = await db.mediaAsset.findMany({
+      where: { dataSourceId: id, status: 'cdn', cdnUrl: { not: null } },
+      select: { fileId: true, cdnUrl: true },
+    });
+    const cdnAssetMap = new Map(existingCdnAssets.map((a) => [a.fileId, a.cdnUrl!]));
+    let reassocCount = 0;
+
     // Create rows — sequential to avoid connection pool exhaustion with pgbouncer
     for (let i = 0; i < dataRows.length; i++) {
       const row = dataRows[i];
@@ -301,6 +314,32 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
         });
         if (images.length > 0) {
           rowData[imageArraySlug] = images;
+        }
+      }
+
+      // ━━━ VG33.3: Auto-reassociation — replace Drive URLs with CDN URLs ━━━
+      // Scan every cell value for Drive file_ids. If a CDN asset exists, replace
+      // the Drive URL with the CDN URL automatically (no re-download on next migrate).
+      for (const key of Object.keys(rowData)) {
+        const val = rowData[key];
+        if (typeof val === 'string') {
+          const fileId = extractDriveFileId(val);
+          if (fileId && cdnAssetMap.has(fileId)) {
+            rowData[key] = cdnAssetMap.get(fileId);
+            reassocCount++;
+          }
+        } else if (Array.isArray(val)) {
+          const replaced = val.map((u: unknown) => {
+            if (typeof u === 'string') {
+              const fid = extractDriveFileId(u);
+              if (fid && cdnAssetMap.has(fid)) {
+                reassocCount++;
+                return cdnAssetMap.get(fid);
+              }
+            }
+            return u;
+          });
+          rowData[key] = replaced;
         }
       }
 
@@ -338,6 +377,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
         rowsCreated: dataRows.length,
         columnsCreated: columnsToCreate.length,
         imageGroupCreated: imageArraySlug !== null,
+        cdnReassociated: reassocCount,
         columnTypes: Object.fromEntries(columnSlugs.map((s, i) => [s, columnTypes[i]])),
       },
       error: null,
