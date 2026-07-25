@@ -18,6 +18,8 @@ import type { CachedSectionData } from '@/lib/cache';
 import { ProductPage } from './ProductPage';
 import { SocialStickyTickets } from './SocialStickyTickets';
 import { TrustGuaranteesSection } from '@/components/TrustGuaranteesSection';
+import { CartDrawer } from './CartDrawer';
+import { useCartStore } from '@/lib/cart-store';
 import { CheckoutPage, type CheckoutPayload } from './CheckoutPage';
 import { useClientTranslation } from '@/lib/i18n';
 import { buildWhatsappLink } from '@/lib/whatsapp';
@@ -222,9 +224,39 @@ function ProductCardTitle({ title, locale }: { title: string; locale: string }) 
   return <span className="product-card-title">{translatedTitle}</span>;
 }
 
+// ── VG34: Cart Header Button — floating cart icon with badge count ──
+function CartHeaderButton() {
+  const { toggleDrawer, getTotalItems } = useCartStore();
+  const count = getTotalItems();
+  if (count === 0) return null;
+  return (
+    <button
+      onClick={toggleDrawer}
+      className="fixed top-4 z-50 w-11 h-11 rounded-full flex items-center justify-center shadow-lg transition-all hover:scale-105"
+      style={{
+        backgroundColor: 'var(--vert-deep, #14241E)',
+        right: '1rem',
+      }}
+      aria-label="Open cart"
+    >
+      <ShoppingBag className="w-5 h-5" style={{ color: 'var(--gold-accent, #C5A059)' }} />
+      {count > 0 && (
+        <span
+          className="absolute -top-1 -right-1 w-5 h-5 rounded-full text-[10px] font-bold flex items-center justify-center"
+          style={{ backgroundColor: 'var(--gold-accent, #C5A059)', color: '#fff' }}
+        >
+          {count}
+        </span>
+      )}
+    </button>
+  );
+}
+
 export function CatalogPreview({ onAdminLogin }: CatalogPreviewProps) {
   const { catalog, settings, isAdmin, adminUser, setView } = useAppStore();
   const { t, formatPrice, rtl, locale, resolveTranslation: resolveT } = useClientTranslation();
+  // VG34.1: Cart store — quick buy from catalog adds to cart + opens drawer
+  const { addItem: cartAddItem, openDrawer: cartOpenDrawer } = useCartStore();
 
   // Only owner/admin can access the builder — editors and public users cannot
   const canAccessBuilder = isAdmin && adminUser && (adminUser.role === 'owner' || adminUser.role === 'admin' || adminUser.role === 'super_admin');
@@ -1444,7 +1476,7 @@ export function CatalogPreview({ onAdminLogin }: CatalogPreviewProps) {
                     </span>
                   )}
 
-                  {/* ━━━ HOVER CTA — black, revealed on hover ━━ Axe 1 ━━━ */}
+                  {/* ━━━ HOVER CTA — quick buy: adds to cart + opens drawer ━━ VG34.1 ━━━ */}
                   <button
                     className={cn(
                       'product-card-hover-cta',
@@ -1453,8 +1485,17 @@ export function CatalogPreview({ onAdminLogin }: CatalogPreviewProps) {
                     onClick={(e) => {
                       e.stopPropagation();
                       if (!isEpuise) {
-                        setSelectedProduct({ row, columns, section });
-                        setCarouselIdx(0);
+                        // VG34.1: Quick buy — add to cart + open drawer
+                        cartAddItem({
+                          productId: row.id,
+                          title: title || 'Produit',
+                          price: price || '0',
+                          color: '',
+                          size: '',
+                          image: coverUrl || '',
+                        });
+                        cartOpenDrawer();
+                        toast.success(t('cart.added'));
                       }
                     }}
                     aria-label={isEpuise ? t('product.soldOut') : t('product.commander')}
@@ -1760,6 +1801,12 @@ export function CatalogPreview({ onAdminLogin }: CatalogPreviewProps) {
           </div>
         </div>
       </footer>
+
+      {/* VG34: Cart Drawer — slide-over for multi-product cart */}
+      <CartDrawer />
+
+      {/* VG34: Cart badge in header — floating button */}
+      <CartHeaderButton />
     </>
   );
 

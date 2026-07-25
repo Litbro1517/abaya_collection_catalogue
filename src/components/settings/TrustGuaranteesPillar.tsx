@@ -11,7 +11,7 @@ import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Truck, Banknote, ShieldCheck, RefreshCw, Save, Loader2, Eye, EyeOff } from 'lucide-react';
+import { Truck, Banknote, ShieldCheck, RefreshCw, Headphones, Save, Loader2, Eye, EyeOff } from 'lucide-react';
 
 type Lang = 'fr' | 'en' | 'ar';
 
@@ -22,6 +22,7 @@ const GUARANTEE_META: ReadonlyArray<{ key: GuaranteeKey; Icon: IconType }> = [
   { key: 'paiement', Icon: Banknote },
   { key: 'qualite', Icon: ShieldCheck },
   { key: 'retour', Icon: RefreshCw },
+  { key: 'sav', Icon: Headphones },
 ];
 
 // Default config: isVisible=true, all fields empty (→ dictionary fallback)
@@ -35,6 +36,7 @@ function buildDefaultConfig(): TrustGuaranteesConfig {
       paiement: { fr: { ...emptyItem }, en: { ...emptyItem }, ar: { ...emptyItem } },
       qualite: { fr: { ...emptyItem }, en: { ...emptyItem }, ar: { ...emptyItem } },
       retour: { fr: { ...emptyItem }, en: { ...emptyItem }, ar: { ...emptyItem } },
+      sav: { fr: { ...emptyItem }, en: { ...emptyItem }, ar: { ...emptyItem } },
     },
   };
 }

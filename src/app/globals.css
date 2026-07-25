@@ -759,7 +759,7 @@ html.rtl .mobile-cta-button svg {
 }
 
 .product-card span.product-card-price {
-  color: var(--client-text-subtitle);
+  color: var(--price-charcoal, #121212); /* VG34: Noir Charbonné */
   font-size: 16px;
   font-weight: 400;
 }
@@ -1025,7 +1025,7 @@ html.rtl .mobile-cta-button svg {
   margin: 6px 0 0;
   font-size: 22px;
   font-weight: 700;
-  color: var(--client-text-price);
+  color: var(--price-charcoal, #121212); /* VG34.1: Noir Charbonné */
 }
 
 @media (max-width: 900px) {
@@ -1842,7 +1842,7 @@ img {
 .product-page-price {
   font-size: 24px;
   font-weight: 700;
-  color: var(--client-text-price);
+  color: var(--price-charcoal, #121212); /* VG34.1: Noir Charbonné */
   font-family: 'Inter', sans-serif;
 }
 
@@ -2436,7 +2436,7 @@ html.rtl .product-page-quantity-control {
 .mobile-cta-price {
   font-size: 18px;
   font-weight: 700;
-  color: var(--client-text-price);
+  color: var(--price-charcoal, #121212); /* VG34.1: Noir Charbonné */
 }
 
 .mobile-cta-button {
@@ -3436,4 +3436,28 @@ html.rtl .product-page-quantity-control {
 .merci-cod-box-tail {
   color: #1F1F1F;
   font-weight: 400;
+}
+
+/* ── VG34.1: Arabic Typography — Beiruti (titres) + Tajawal (corps) ── */
+html[lang="ar"] body,
+html[lang="ar"] .product-card-title,
+html[lang="ar"] .product-page-title,
+html[lang="ar"] .product-card-price,
+html[lang="ar"] .product-page-price,
+html[lang="ar"] .mobile-cta-price,
+html[lang="ar"] .catalog-header-title,
+html[lang="ar"] h1, html[lang="ar"] h2, html[lang="ar"] h3,
+html[lang="ar"] h4, html[lang="ar"] h5, html[lang="ar"] h6 {
+  font-family: var(--font-beiruti), 'Beiruti', sans-serif !important;
+}
+
+html[lang="ar"] p,
+html[lang="ar"] span,
+html[lang="ar"] label,
+html[lang="ar"] input,
+html[lang="ar"] textarea,
+html[lang="ar"] button,
+html[lang="ar"] a,
+html[lang="ar"] div {
+  font-family: var(--font-tajawal), 'Tajawal', sans-serif;
 }
