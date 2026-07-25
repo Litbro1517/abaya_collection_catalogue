@@ -255,6 +255,8 @@ function CartHeaderButton() {
 export function CatalogPreview({ onAdminLogin }: CatalogPreviewProps) {
   const { catalog, settings, isAdmin, adminUser, setView } = useAppStore();
   const { t, formatPrice, rtl, locale, resolveTranslation: resolveT } = useClientTranslation();
+  // VG34.1: Cart store — quick buy from catalog adds to cart + opens drawer
+  const { addItem: cartAddItem, openDrawer: cartOpenDrawer } = useCartStore();
 
   // Only owner/admin can access the builder — editors and public users cannot
   const canAccessBuilder = isAdmin && adminUser && (adminUser.role === 'owner' || adminUser.role === 'admin' || adminUser.role === 'super_admin');
@@ -1474,7 +1476,7 @@ export function CatalogPreview({ onAdminLogin }: CatalogPreviewProps) {
                     </span>
                   )}
 
-                  {/* ━━━ HOVER CTA — black, revealed on hover ━━ Axe 1 ━━━ */}
+                  {/* ━━━ HOVER CTA — quick buy: adds to cart + opens drawer ━━ VG34.1 ━━━ */}
                   <button
                     className={cn(
                       'product-card-hover-cta',
@@ -1483,8 +1485,17 @@ export function CatalogPreview({ onAdminLogin }: CatalogPreviewProps) {
                     onClick={(e) => {
                       e.stopPropagation();
                       if (!isEpuise) {
-                        setSelectedProduct({ row, columns, section });
-                        setCarouselIdx(0);
+                        // VG34.1: Quick buy — add to cart + open drawer
+                        cartAddItem({
+                          productId: row.id,
+                          title: title || 'Produit',
+                          price: price || '0',
+                          color: '',
+                          size: '',
+                          image: coverUrl || '',
+                        });
+                        cartOpenDrawer();
+                        toast.success(t('cart.added'));
                       }
                     }}
                     aria-label={isEpuise ? t('product.soldOut') : t('product.commander')}

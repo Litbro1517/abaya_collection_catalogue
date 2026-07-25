@@ -27,6 +27,7 @@ import { useClientTranslation } from '@/lib/i18n';
 import { toast } from 'sonner';
 import { computeDiscount, getCompareAtPrice } from '@/lib/discount-utils';
 import { useAutoTranslatedText } from '@/lib/useAutoTranslatedText';
+import { useCartStore } from '@/lib/cart-store';
 import { PriceText } from '@/components/PriceText';
 import {
   Sheet,
@@ -445,6 +446,25 @@ export function ProductPage({
       return;
     }
     // Variants OK — let the browser follow the href normally
+  };
+
+  // VG34.1: Add to cart — increments header badge WITHOUT opening the drawer (PDP behavior)
+  const { addItem } = useCartStore();
+  const handleAddToCart = () => {
+    if (isEpuise) return;
+    if (hasMissingVariant) {
+      setShowVariantError(true);
+      return;
+    }
+    addItem({
+      productId: row.id,
+      title,
+      price,
+      color: selectedColor || '',
+      size: selectedSize || '',
+      image: carouselImages[0] || '',
+    });
+    toast.success(t('cart.added'));
   };
 
   // CTA click handler — tunnels to the dedicated checkout page in ALL modes.
@@ -1018,6 +1038,32 @@ export function ProductPage({
                 {isEpuise ? t('product.soldOut') : t('product.commander')}
               </a>
             )}
+
+            {/* VG34.1: Add to Cart button — increments badge without opening drawer */}
+            <button
+              className="product-page-cta"
+              disabled={isEpuise}
+              onClick={handleAddToCart}
+              style={{
+                backgroundColor: 'var(--vert-deep, #14241E)',
+                color: '#fff',
+                borderRadius: '10px',
+                padding: '14px 18px',
+                fontSize: '0.92rem',
+                fontWeight: 700,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '8px',
+                marginTop: '8px',
+                width: '100%',
+                border: 'none',
+                cursor: isEpuise ? 'not-allowed' : 'pointer',
+              }}
+            >
+              <ShoppingBag className="w-4 h-4" style={{ color: 'var(--gold-accent, #C5A059)' }} />
+              {t('cart.added') === 'Produit ajouté au panier' ? 'Ajouter au panier' : 'Add to Cart'}
+            </button>
 
             {/* ── Favoris / Partage moved to floating overlay on the carousel (top-right) ── */}
           </div>

@@ -1148,3 +1148,42 @@ Le mandat vise à transformer l'application d'un achat mono-produit vers un tunn
 
 ---
 Date de mise à jour : 22/07/2026
+
+## [VG34.1 — RECTIFICATION POST-AUDIT NO-GO]
+
+### Contexte
+L'audit du commit `a0b1edd` a identifié 3 anomalies bloquantes (🔴 NO-GO). Cette rectification les résout toutes les 3 sur la même branche `feature/checkout-ui-integration`.
+
+### Anomalie 1 — Panier déconnecté (addItem non appelé) → RÉSOLUE
+- **ProductPage.tsx** : `useCartStore` importé + `handleAddToCart()` fonction qui appelle `addItem()` avec productId, title, price, color, size, image. Bouton « Ajouter au panier » (vert deep #14241E + accent or #C5A059) ajouté sous le CTA existant. Incrémente le badge du header SANS ouvrir le drawer (comportement PDP conforme au mandat).
+- **CatalogPreview.tsx** : le hover CTA « COMMANDER » appelle désormais `cartAddItem()` + `cartOpenDrawer()` (quick buy : ajoute au panier + ouvre le drawer). `useCartStore` importé dans le composant principal.
+
+### Anomalie 2 — Prix non harmonisé (#121212) → RÉSOLUE
+- `.product-page-price` : `var(--client-text-price)` → `var(--price-charcoal, #121212)` ✅
+- `.product-hero-price` : `var(--client-text-price)` → `var(--price-charcoal, #121212)` ✅
+- `.mobile-cta-price` : `var(--client-text-price)` → `var(--price-charcoal, #121212)` ✅
+- `.product-card-price` : déjà `var(--price-charcoal, #121212)` (VG34) ✅
+- `CartDrawer.tsx` : prix articles + total en `var(--price-charcoal, #121212)` ✅
+- Le gold shimmer (décoratif) conserve `var(--client-text-price)` (effet de brillance, pas un prix).
+
+### Anomalie 3 — Polices arabes manquantes (Beiruti & Tajawal) → RÉSOLUE
+- **layout.tsx** : `Beiruti` (titres, weights 400-700) + `Tajawal` (corps, weights 400-700) importés via `next/font/google` avec variables CSS `--font-beiruti` + `--font-tajawal`. Appliqués au `<body>` className.
+- **globals.css** : règles CSS `html[lang="ar"]` qui appliquent Beiruti aux titres (h1-h6, .product-page-title, .product-card-title, etc.) et Tajawal au corps (p, span, label, input, button, a, div).
+
+### Fichiers modifiés (rectification)
+| # | Fichier | Correction |
+|---|---------|------------|
+| 1 | `src/components/preview/ProductPage.tsx` | Import `useCartStore` + `handleAddToCart()` + bouton « Ajouter au panier » |
+| 2 | `src/components/preview/CatalogPreview.tsx` | Import `useCartStore` + hover CTA → `cartAddItem()` + `cartOpenDrawer()` |
+| 3 | `src/app/globals.css` | Prix #121212 (product-page-price, product-hero-price, mobile-cta-price) + AR font CSS rules |
+| 4 | `src/app/layout.tsx` | Import `Beiruti` + `Tajawal` via `next/font/google` + variables CSS + `<body>` className |
+| 5 | `PROJECT_MAP.md` | Section VG34.1 rectification |
+
+### Vérifications
+- `bun run lint` : 0 erreur, 0 warning ✅
+- `addItem()` appelé dans ProductPage (handleAddToCart) + CatalogPreview (hover CTA) ✅
+- 4 localisations prix → `var(--price-charcoal, #121212)` ✅
+- Beiruti + Tajawal chargés via next/font/google + CSS `html[lang="ar"]` ✅
+
+---
+Date de mise à jour : 22/07/2026

@@ -112,19 +112,6 @@
   --bg-toast: #f0faf0;
   --bg-empty-state: var(--pivot-surface);
   --btn-primary-bg: var(--pivot-brand);
-
-  /* ── VG34: Checkout UI Design System (from PDP reference) ── */
-  --bg-app: #fffefe;
-  --vert-deep: #14241E;
-  --vert-hover: #1A2E27;
-  --gold-accent: #C5A059;
-  --gold-aura: rgba(197, 160, 89, 0.15);
-  --border-soft: #EAE4DC;
-  --bg-btn-secondary: #F7F4EE;
-  --badge-red: #70001B;
-  --text-main: #14241E;
-  --text-muted: #706B63;
-  --price-charcoal: #121212;
   --btn-primary-text: #FFFFFF;
   --btn-primary-hover-bg: color-mix(in oklch, var(--pivot-brand) 82%, white);
   --btn-gold-bg: var(--pivot-gold);
@@ -1038,7 +1025,7 @@ html.rtl .mobile-cta-button svg {
   margin: 6px 0 0;
   font-size: 22px;
   font-weight: 700;
-  color: var(--client-text-price);
+  color: var(--price-charcoal, #121212); /* VG34.1: Noir Charbonné */
 }
 
 @media (max-width: 900px) {
@@ -1855,7 +1842,7 @@ img {
 .product-page-price {
   font-size: 24px;
   font-weight: 700;
-  color: var(--client-text-price);
+  color: var(--price-charcoal, #121212); /* VG34.1: Noir Charbonné */
   font-family: 'Inter', sans-serif;
 }
 
@@ -2449,7 +2436,7 @@ html.rtl .product-page-quantity-control {
 .mobile-cta-price {
   font-size: 18px;
   font-weight: 700;
-  color: var(--client-text-price);
+  color: var(--price-charcoal, #121212); /* VG34.1: Noir Charbonné */
 }
 
 .mobile-cta-button {
@@ -3449,4 +3436,28 @@ html.rtl .product-page-quantity-control {
 .merci-cod-box-tail {
   color: #1F1F1F;
   font-weight: 400;
+}
+
+/* ── VG34.1: Arabic Typography — Beiruti (titres) + Tajawal (corps) ── */
+html[lang="ar"] body,
+html[lang="ar"] .product-card-title,
+html[lang="ar"] .product-page-title,
+html[lang="ar"] .product-card-price,
+html[lang="ar"] .product-page-price,
+html[lang="ar"] .mobile-cta-price,
+html[lang="ar"] .catalog-header-title,
+html[lang="ar"] h1, html[lang="ar"] h2, html[lang="ar"] h3,
+html[lang="ar"] h4, html[lang="ar"] h5, html[lang="ar"] h6 {
+  font-family: var(--font-beiruti), 'Beiruti', sans-serif !important;
+}
+
+html[lang="ar"] p,
+html[lang="ar"] span,
+html[lang="ar"] label,
+html[lang="ar"] input,
+html[lang="ar"] textarea,
+html[lang="ar"] button,
+html[lang="ar"] a,
+html[lang="ar"] div {
+  font-family: var(--font-tajawal), 'Tajawal', sans-serif;
 }
