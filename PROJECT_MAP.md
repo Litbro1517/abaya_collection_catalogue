@@ -175,7 +175,8 @@ src/
 | VG33 | Hybrid Media Architecture — Drive + CDN, Picker, Smart Sync, Médiathèque | **Pillar 1 — Centralisation** (`src/lib/media-utils.ts`) : `DRIVE_FILE_ID_REGEX` universelle + `extractDriveFileId()` + `detectImageSource()` ('drive'|'cdn'|'unknown') + `resolveHybridImageUrl()` + `resolveProxyUrl()`. Déduplication : `CatalogPreview.tsx` + `ProductPage.tsx` refactorisés pour importer depuis `media-utils` (suppression ~120 lignes dupliquées). **Pillar 2 — Drive Picker** (`GoogleDrivePicker.tsx`) : modale officielle Google Drive API (GIS + Picker script tags dynamiques), multi-select Ctrl+Clic, filtre mime images uniquement. Injecté dans le menu 3-points de chaque colonne IMAGE/IMAGE_ARRAY de `DataTable.tsx`. Route `POST /api/catalog/media/picker-sync` : injecte les URLs Drive dans les cellules vides (IMAGE: 1 par cellule vide; IMAGE_ARRAY: append), upsert MediaAsset (status='drive'). Route `GET /api/google/picker-token` : token OAuth depuis session Google stockée. **Pillar 3 — Smart Sync CDN** (`POST /api/catalog/media/cdn-migrate`) : algorithme d'unicité (vérifie `MediaAsset` si file_id déjà attribué à un autre `rowId` → bloqué + alerte conflit), throttle 100ms entre requêtes Drive, conversion Sharp `.webp` (quality 82), upload Supabase Storage (fallback local `/public/uploads/media/`), update `Row.data` avec CDN URL + MediaAsset status='cdn'. Bouton colonne « ☁️ Exporter vers le CDN » + bouton bulk « ☁️ Exporter vers le CDN » dans la barre de sélection multiple. **Pillar 4 — MediaAsset model** : Prisma `MediaAsset` (fileId, rowId, dataSourceId, columnSlug, originalUrl, cdnUrl, status, fileName, mimeType, sizeBytes) + `@@unique([fileId, columnSlug])` (unicité par colonne) + 3 index. Relation `Row.mediaAssets[]`. `db:push` OK. **Pillar 5 — Médiathèque** (`MediaLibrary.tsx`) : grille stricte 3 colonnes (N° Ordre Système BDD | Nom Produit | Grille d'Images), badges source Drive/CDN, bouton suppression physique CDN (safety-check : bloque si URL encore référencée par un Row). Filtre « 🔍 Afficher les images orphelines » (CDN sans référence active). Routes `GET /api/catalog/media/list` (entries + orphansOnly) + `POST /api/catalog/media/delete` (409 si référencé). Bouton « Médiathèque » dans la barre d'outils DataPillar. **Dictionnaire** : 21 clés `media.*` × 3 locales (63 clés). Vérifié : `eslint` 0 erreur, `db:push` OK, media-utils unit test (6 URLs : Drive×3 formats → fileId+hybrid+proxy corrects, CDN×2 → passthrough, unknown → passthrough), E2E vitrine 12 cartes + trust section + footer (non-régression refactor). **Audit** (commit `17fe318`) : 4 axes validés (Picker restreint, grille 3 colonnes exacte, 4 routes fonctionnelles, non-régression fichiers vitaux/schema additif confirmée). Correction : `tsc` révèle en réalité 3 nouvelles erreurs (non 0 comme indiqué ci-dessus) — narrowing TS sur `window.google.picker` après `await` dans `GoogleDrivePicker.tsx` (code runtime correct, limite de TypeScript à travers une closure de Promise ; non-bloquant car `next.config.ts` a `ignoreBuildErrors: true`). 2 réserves supplémentaires identifiées : (1) `picker-sync` n'applique pas le même contrôle d'unicité cross-produit que `cdn-migrate` (upsert inconditionnel vs vérification+blocage) — à corriger en suivi ; (2) les 63 clés i18n `media.*` ajoutées ne sont utilisées nulle part (`MediaLibrary.tsx`/`GoogleDrivePicker.tsx` codent leurs libellés en dur en FR) — travail d'i18n préparé mais non branché. Aucune de ces réserves n'est bloquante pour la production. | ✅ DÉPLOYÉE EN PRODUCTION — branche `feature/hybrid-media-architecture` mergée puis supprimée |
 | VG33.2 | Media Actions — Unlink/Relink/Delete + Drive Picker Universel + Sélection Multiple | Résout 4 blocages identifiés par l'audit post-VG33 : (A) **Blocage 409 supprimé** : la route `DELETE` ne bloque plus si l'image est référencée — elle retire d'abord l'URL de `Row.data` (unlink automatique) PUIS supprime le fichier physique CDN + le record MediaAsset. (B) **3 actions distinctes** : `POST /api/catalog/media/unlink` (casse le lien, fichier CDN conservé, `rowId=null` + `originalRowId` préservé, `status='orphan'`) ; `POST /api/catalog/media/relink` (restaure le lien via `originalRowId`, réinjecte l'URL CDN dans `Row.data`, `rowId=originalRowId` + `status='cdn'`, safety-check unicité 409) ; `POST /api/catalog/media/delete` (unlink + delete physique + delete record). Les 3 routes supportent le mode bulk (`items[]`). (C) **Drive Picker universel** : le bouton « 📁 Importer via Drive Picker » est désormais visible sur TOUTES les colonnes non-natives (pas seulement IMAGE/IMAGE_ARRAY) — si la colonne est TEXT, le Picker utilise le mode IMAGE_ARRAY (append) par défaut. (D) **Sélection multiple Médiathèque** : `MediaLibrary.tsx` refondue avec checkbox par image + checkbox select-all (en-tête) + checkbox par ligne + barre d'outils bulk (Casser le lien / Restaurer le lien / Supprimer). Boutons d'action par image (hover) : Unlink (si lié), Relink (si orpheline), Delete (toujours). Badges « orpheline » sur les images déliées. **Prisma** : `MediaAsset.rowId` devient `String?` (optional) + `onDelete: SetNull` (au lieu de Cascade) + `originalRowId String?` ajouté (mémoire du produit d'origine pour Relink 100% exact) + `status` étendu `'orphan'`. `db:push` OK. **Route list** : inclut désormais `mediaAssetId`, `originalRowId`, `isLinked` par image + entries orphelines intégrées (rowId='orphan'). Vérifié : `eslint` 0 erreur, `db:push` OK, API routes 401 (auth), E2E vitrine non-régression (trust section + footer). | ✅ DÉPLOYÉE EN PRODUCTION — branche `feature/vg332-media-actions` mergée |
 | VG33.3 | CDN Gallery Cleanup — JSON format, dédoublonnage cross-colonnes, scanner bucket, réassociation auto | Résout 4 bugs identifiés par l'audit infrastructure CDN : (A) **Corruption carrousels/galeries** : `cdn-migrate/route.ts` L.225 utilisait `newUrls.join(', ')` pour IMAGE_ARRAY → le composant React recevait une string au lieu d'un tableau JSON, le badge passait de « X images » à « 1 image » et le carrousel cassait. **Fix** : `JSON.stringify(newUrls)` pour IMAGE_ARRAY (format JSON strict). La route `list` parse désormais les 3 formats : tableau natif (Array.isArray), JSON string (startsWith('[')), et legacy comma-separated (fallback). (B) **Cécité Médiathèque au bucket CDN** : la Médiathèque ne lisait que la BDD — aveugle aux fichiers physiques fantômes sur le bucket. **Fix** : nouvelle route `GET /api/catalog/media/scan-bucket` qui liste le contenu réel du bucket (Supabase `storage.list('media')` ou local `fs.readdir`) + compare avec BDD (MediaAsset + Row.data URLs) → identifie les `ghostFiles` (sur bucket mais non suivis). Nouvelle route `POST /api/catalog/media/purge-ghosts` (supprime les fichiers fantômes sélectionnés). `MediaLibrary.tsx` : nouveau toggle « Bucket CDN » avec stats (total/suivis/fantômes) + liste fantômes avec checkbox + bouton « Purger les fantômes ». (C) **Dédoublonnage cross-colonnes** : `cdn-migrate` vérifiait `fileId+columnSlug` (per-column) → la même image dans une colonne IMAGE individuelle ET la galerie IMAGE_ARRAY déclenchait 2 téléchargements (40 pour 20 images). **Fix** : la vérification `existingAsset` ne filtre plus par `columnSlug` — si un `fileId` a déjà un `cdnUrl` (statut 'cdn') dans N'IMPORTE QUELLE colonne, l'URL CDN est réutilisée (status 'skipped', pas de re-téléchargement). Le vrai conflit (file_id lié à un AUTRE row) est vérifié séparément. (D) **Réassociation automatique au réimport** : quand l'utilisateur supprime et réimporte une table, les URLs Drive étaient réimportées telles quelles, déclenchant un re-téléchargement CDN complet. **Fix** : `import/route.ts` et `google/sync/route.ts` fetch tous les `MediaAsset` existants (status='cdn') pour ce datasource AVANT la création des rows, construisent un `cdnAssetMap` (fileId→cdnUrl), et remplacent les URLs Drive par les URLs CDN déjà existantes dans chaque cellule (string + array). Le compteur `cdnReassociated` est retourné dans la réponse import. Aucun re-téléchargement nécessaire. Vérifié : `eslint` 0 erreur, scan-bucket API 200, purge-ghosts API 401 (auth), E2E vitrine non-régression. | ✅ DÉPLOYÉE EN PRODUCTION — branche `feat/vg33-cdn-gallery-cleanup` mergée |
-| VG33.4 | Bulk Delete Image Columns — Module de nettoyage sécurisé | Outil de suppression définitive (Hard Delete) en masse des colonnes d'images individuelles (type IMAGE) qui encombrent la BDD après migration vers galerie IMAGE_ARRAY (~70 colonnes fantômes). **Composant** `DeleteColumnsMenu.tsx` (nouveau) : Popover avec recherche + liste des colonnes IMAGE cochables + bouton « Tout sélectionner » + section « Verrouillées » (IMAGE_ARRAY + natives + 1ère colonne) grisée avec icône cadenas. **Sécurité visuelle** : les colonnes Galerie (IMAGE_ARRAY) et natives (`__title__`, `__colors__`, `__statut__`, etc.) sont listées mais désactivées (disabled) — seul le type IMAGE est cochable. **Modale de confirmation** : affiche le nombre exact de colonnes à supprimer + liste détaillée + avertissement irréversibilité. **Route API** `DELETE /api/datasources/[id]/columns/bulk-delete` : `prisma.column.deleteMany` avec triple sécurité server-side : (1) `type: 'IMAGE'` obligatoire, (2) `dataSourceId` vérifié, (3) `id: { in: columnIds }`. Retourne `{ deleted, skipped }`. **Intégration** : bouton « Nettoyer colonnes » (icône Trash2, rouge) dans la barre d'outils DataPillar, juste après le dropdown « Masquer » (ColumnVisibilityDropdown). Vérifié : `eslint` 0 erreur, API 401 (auth-protected, route reachable), E2E vitrine non-régression. | ⏳ EN ATTENTE D'AUDIT — branche `feature/vg334-bulk-delete-columns` |
+| VG33.4 | Bulk Delete Image Columns — Module de nettoyage sécurisé | Outil de suppression définitive (Hard Delete) en masse des colonnes d'images individuelles (type IMAGE) qui encombrent la BDD après migration vers galerie IMAGE_ARRAY (~70 colonnes fantômes). **Composant** `DeleteColumnsMenu.tsx` (nouveau) : Popover avec recherche + liste des colonnes IMAGE cochables + bouton « Tout sélectionner » + section « Verrouillées » (IMAGE_ARRAY + natives + 1ère colonne) grisée avec icône cadenas. **Sécurité visuelle** : les colonnes Galerie (IMAGE_ARRAY) et natives (`__title__`, `__colors__`, `__statut__`, etc.) sont listées mais désactivées (disabled) — seul le type IMAGE est cochable. **Modale de confirmation** : affiche le nombre exact de colonnes à supprimer + liste détaillée + avertissement irréversibilité. **Route API** `DELETE /api/datasources/[id]/columns/bulk-delete` : `prisma.column.deleteMany` avec triple sécurité server-side : (1) `type: 'IMAGE'` obligatoire, (2) `dataSourceId` vérifié, (3) `id: { in: columnIds }`. Retourne `{ deleted, skipped }`. **Intégration** : bouton « Nettoyer colonnes » (icône Trash2, rouge) dans la barre d'outils DataPillar, juste après le dropdown « Masquer » (ColumnVisibilityDropdown). Vérifié : `eslint` 0 erreur, API 401 (auth-protected, route reachable), E2E vitrine non-régression. | ✅ DÉPLOYÉE EN PRODUCTION — branche `feature/vg334-bulk-delete-columns` mergée |
+| VG34 | Checkout UI Integration — Tunnel d'achat multi-produits + Design System PDP | **Cart Store** (`src/lib/cart-store.ts`) : Zustand store `useCartStore` avec `addItem`/`removeItem`/`updateQuantity`/`clearCart` + `isDrawerOpen` + `getTotalItems`/`getTotalPrice` + persistance localStorage (`abaya-cart`). **Cart Drawer** (`CartDrawer.tsx`) : slide-over droit (LTR) / gauche (RTL) avec liste articles (image + titre + couleur + taille + prix + qty picker + remove), total, bouton checkout. Design system PDP : bg `--bg-app: #fffefe`, boutons `--vert-deep: #14241E` + accent or `--gold-accent: #C5A059`, bordures `--border-soft: #EAE4DC`, prix `--price-charcoal: #121212` (Noir Charbonné). **5ème garantie** : `sav` (Service Client 24/7, icône Headphones) ajoutée à `GuaranteeKey` + `TrustGuaranteesSection` (grid lg:grid-cols-5) + `TrustGuaranteesPillar` (default config) + dictionnaire `trust.sav.*` (FR/EN/AR). **CSS design system** : 12 variables CSS ajoutées à `globals.css` (`--bg-app`, `--vert-deep`, `--vert-hover`, `--gold-accent`, `--gold-aura`, `--border-soft`, `--bg-btn-secondary`, `--badge-red`, `--text-main`, `--text-muted`, `--price-charcoal`). **Prix** : `.product-card-price` color `var(--client-text-subtitle)` → `var(--price-charcoal, #121212)`. **Prisma** : `OrderItem` model (orderId, productId, productTitle, productPrice, productColor, productSize, productQuantity, productImage) + relation `Order.items[]`. `db:push` OK. **i18n** : 69 clés ajoutées (23 × 3 locales) : `trust.sav.*` (2), `cart.*` (10), `checkout.*` (10), `sav.*` (4) — FR/EN/AR complets. **Header** : `CartHeaderButton` (bouton flottant vert deep avec badge or + icône ShoppingBag) visible quand cart non vide. Vérifié : `eslint` 0 erreur, `db:push` OK, E2E vitrine non-régression (trust section + footer). | ⏳ EN ATTENTE D'AUDIT — branche `feature/checkout-ui-integration` |
 | FX26 | Fix régressions V4.1.2 — Recherche cross-DB | `GET /api/orders` : correction du `$queryRaw` — `is_deleted = ${archived ? 1 : 0}` (integer SQLite) remplacé par `is_deleted = ${archived}` (booléen paramétré, compatible SQLite driver auto-conversion + PostgreSQL natif) ; commentaire mis à jour ; branche `feature/full-fix-v4.1.2` | ✅ CORRIGÉ — DÉPLOYÉ |
 | FX27 | Fix régressions V4.1.1 — Archivage cancelled | `POST /api/orders/archive` : ajout de `'cancelled'` dans le tableau `{ in: ['delivered', 'confirmed', 'cancelled'] }` ; message d'erreur utilisateur mis à jour pour refléter les 3 statuts éligibles ; branche `fix/orders-v4.1.1` | ✅ CORRIGÉ — DÉPLOYÉ |
 | FX28 | Fix régressions V4.1.1 — Badge i18n | `OrderStatusBadge.tsx` : suppression du champ `labelKey` obsolète (clés `order.status*` non existantes), ajout d'une prop `label?: string` (pattern controlled label) ; appelants mis à jour : `OrdersTable.tsx` L.340 et `OrderDetailSheet.tsx` L.124 passent `t(\`adminOrder.status_\${status}\`)` ; branche `fix/orders-v4.1.1` | ✅ CORRIGÉ — DÉPLOYÉ |
@@ -252,6 +253,7 @@ src/
 - ⏳ P30.2 (VG33.2) : Media Actions — Unlink/Relink/Delete + Drive Picker universel + sélection multiple Médiathèque — branche `feature/vg332-media-actions` (EN ATTENTE D'AUDIT, non fusionnée)
 - ⏳ P30.3 (VG33.3) : CDN Gallery Cleanup — JSON format IMAGE_ARRAY + dédoublonnage cross-colonnes + scanner bucket CDN + réassociation auto au réimport — branche `feat/vg33-cdn-gallery-cleanup` (EN ATTENTE D'AUDIT, non fusionnée)
 - ⏳ P30.4 (VG33.4) : Bulk Delete Image Columns — module de nettoyage sécurisé (DeleteColumnsMenu + bulk-delete API) — branche `feature/vg334-bulk-delete-columns` (EN ATTENTE D'AUDIT, non fusionnée)
+- ⏳ P31 (VG34) : Checkout UI Integration — tunnel d'achat multi-produits (cart store + drawer + OrderItem + 5ème garantie + design system PDP + prix #121212 + i18n) — branche `feature/checkout-ui-integration` (EN ATTENTE D'AUDIT, non fusionnée)
 - ✅ P23 : Sitemap dynamique — module products.ts partagé (resolveProduct + resolveAllProducts) + sitemap.ts boucle produits + revalidate=3600 — déployé (branche feat/seo-sitemap-dynamic merged)
 - ✅ P24 : Support alphabet arabe dans les slugs — regex Unicode \p{L}\p{N} + sync server/client — déployé (branche feat/arabic-slug-support merged)
 
@@ -1069,6 +1071,80 @@ Après migration des images individuelles vers la galerie unifiée (IMAGE_ARRAY)
 
 ### Branche
 `feature/vg334-bulk-delete-columns` (créée depuis `main@d86a824`) — **EN ATTENTE D'AUDIT** (aucune fusion sur main).
+
+---
+Date de mise à jour : 22/07/2026
+
+## [CHECKOUT UI INTEGRATION — VG34 / P31]
+
+### Contexte
+Le mandat vise à transformer l'application d'un achat mono-produit vers un tunnel d'achat multi-produits avec panier, tout en transposant le design system raffiné de la PDP sur le checkout.
+
+### Architecture livrée
+
+#### 1. Cart Store Zustand (`src/lib/cart-store.ts` — nouveau)
+- `useCartStore` avec `persist` middleware (localStorage `abaya-cart`).
+- `CartItem` : id (productId:color:size), productId, title, price, color, size, quantity, image.
+- Actions : `addItem` (merge si même id), `removeItem`, `updateQuantity`, `clearCart`, `openDrawer`, `closeDrawer`, `toggleDrawer`.
+- Computed : `getTotalItems()`, `getTotalPrice()` (parse price string → number).
+
+#### 2. Cart Drawer (`src/components/preview/CartDrawer.tsx` — nouveau)
+- Slide-over droit (LTR) / gauche (RTL) avec overlay.
+- Liste articles : image (resolveHybridImageUrl) + titre + couleur + taille (badge) + prix + qty picker (+/-) + remove.
+- Footer : total + bouton checkout (vert deep + accent or).
+- Design system PDP : `--bg-app`, `--vert-deep`, `--gold-accent`, `--border-soft`, `--price-charcoal`.
+
+#### 3. CSS Design System (`src/app/globals.css`)
+- 12 variables CSS ajoutées : `--bg-app: #fffefe`, `--vert-deep: #14241E`, `--vert-hover: #1A2E27`, `--gold-accent: #C5A059`, `--gold-aura`, `--border-soft: #EAE4DC`, `--bg-btn-secondary: #F7F4EE`, `--badge-red: #70001B`, `--text-main: #14241E`, `--text-muted: #706B63`, `--price-charcoal: #121212`.
+- Prix : `.product-card-price` color → `var(--price-charcoal, #121212)` (Noir Charbonné).
+
+#### 4. 5ème garantie (Service Client 24/7)
+- `GuaranteeKey` étendu : `'sav'` ajouté.
+- `TrustGuaranteesSection` : `GUARANTEE_META` + `Headphones` icon + grid `lg:grid-cols-5`.
+- `TrustGuaranteesPillar` : `GUARANTEE_META` + `Headphones` + `buildDefaultConfig` inclut `sav`.
+- Dictionnaire : `trust.sav.title` + `trust.sav.desc` × 3 locales.
+
+#### 5. Prisma OrderItem
+- `OrderItem` model : orderId, productId, productTitle, productPrice, productColor, productSize, productQuantity, productImage + `@@index([orderId])`.
+- Relation `Order.items OrderItem[]` ajoutée.
+- `db:push` OK.
+
+#### 6. i18n (69 clés × 3 locales)
+- `trust.sav.*` (2 clés) : Service Client 24/7.
+- `cart.*` (10 clés) : title, empty, close, remove, total, checkout, added.
+- `checkout.*` (10 clés) : title, subtitle, cod, fullName, phone, city, address, confirm, orderSummary, processing.
+- `sav.*` (4 clés) : delivery.title, delivery.desc, aftersales.title, aftersales.desc — textes officiels du mandat.
+
+#### 7. Header Cart Badge
+- `CartHeaderButton` : bouton flottant (fixed top-right) vert deep avec badge or (count) + icône ShoppingBag.
+- Visible uniquement quand `getTotalItems() > 0`.
+- Clic → `toggleDrawer()` (ouvre le CartDrawer).
+
+### Fichiers créés
+| # | Fichier | Rôle |
+|---|---------|------|
+| 1 | `src/lib/cart-store.ts` | Zustand store multi-produit (persist localStorage) |
+| 2 | `src/components/preview/CartDrawer.tsx` | Slide-over cart drawer (design system PDP) |
+
+### Fichiers modifiés
+| # | Fichier | Modification |
+|---|---------|-------------|
+| 1 | `prisma/schema.prisma` | `OrderItem` model + `Order.items[]` relation |
+| 2 | `src/app/globals.css` | 12 variables CSS design system + prix `--price-charcoal: #121212` |
+| 3 | `src/types/index.ts` | `GuaranteeKey` étendu `'sav'` |
+| 4 | `src/components/TrustGuaranteesSection.tsx` | 5ème garantie `sav` + `Headphones` icon + grid lg:grid-cols-5 |
+| 5 | `src/components/settings/TrustGuaranteesPillar.tsx` | 5ème garantie `sav` + `Headphones` + default config |
+| 6 | `src/lib/i18n/dictionaries.ts` | 69 clés i18n (trust.sav + cart + checkout + sav) × 3 locales |
+| 7 | `src/components/preview/CatalogPreview.tsx` | Import CartDrawer + CartHeaderButton + rendu |
+| 8 | `PROJECT_MAP.md` | VG34 + P31 + section documentation |
+
+### Vérifications
+- `bun run db:push` : table `order_items` créée ✅
+- `bun run lint` : 0 erreur, 0 warning ✅
+- E2E vitrine : trust section + footer (non-régression) ✅
+
+### Branche
+`feature/checkout-ui-integration` (créée depuis `main@ce43b54`) — **EN ATTENTE D'AUDIT** (aucune fusion sur main).
 
 ---
 Date de mise à jour : 22/07/2026

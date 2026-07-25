@@ -180,7 +180,7 @@ export interface ComponentConfig {
 
 // ─── Trust Guarantees (VG32) ─────────────────────────────────────────────
 
-export type GuaranteeKey = 'livraison' | 'paiement' | 'qualite' | 'retour';
+export type GuaranteeKey = 'livraison' | 'paiement' | 'qualite' | 'retour' | 'sav';
 
 export interface TrustGuaranteeItem {
   title: string;

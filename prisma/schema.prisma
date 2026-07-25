@@ -327,8 +327,27 @@ model Order {
   updatedAt       DateTime @updatedAt @map("updated_at")
   // ━━ Shadow table for cell-level edit history (V4.1) ━━
   history         OrderHistory[]
+  // ━━ VG34: Multi-item cart support ━━
+  items           OrderItem[]
 
   @@map("orders")
+}
+
+// ━━ OrderItem — Multi-product cart items (VG34) ━━
+model OrderItem {
+  id          String  @id @default(cuid())
+  orderId     String  @map("order_id")
+  order       Order   @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  productId   String  @map("product_id")
+  productTitle String @map("product_title")
+  productPrice String @map("product_price")
+  productColor String? @map("product_color")
+  productSize  String? @map("product_size")
+  productQuantity Int @default(1) @map("product_quantity")
+  productImage String? @map("product_image")
+
+  @@index([orderId])
+  @@map("order_items")
 }
 
 // ━━ OrderHistory — Shadow table for cell-level modification tracking ━━

@@ -112,6 +112,19 @@
   --bg-toast: #f0faf0;
   --bg-empty-state: var(--pivot-surface);
   --btn-primary-bg: var(--pivot-brand);
+
+  /* ── VG34: Checkout UI Design System (from PDP reference) ── */
+  --bg-app: #fffefe;
+  --vert-deep: #14241E;
+  --vert-hover: #1A2E27;
+  --gold-accent: #C5A059;
+  --gold-aura: rgba(197, 160, 89, 0.15);
+  --border-soft: #EAE4DC;
+  --bg-btn-secondary: #F7F4EE;
+  --badge-red: #70001B;
+  --text-main: #14241E;
+  --text-muted: #706B63;
+  --price-charcoal: #121212;
   --btn-primary-text: #FFFFFF;
   --btn-primary-hover-bg: color-mix(in oklch, var(--pivot-brand) 82%, white);
   --btn-gold-bg: var(--pivot-gold);
@@ -759,7 +772,7 @@ html.rtl .mobile-cta-button svg {
 }
 
 .product-card span.product-card-price {
-  color: var(--client-text-subtitle);
+  color: var(--price-charcoal, #121212); /* VG34: Noir Charbonné */
   font-size: 16px;
   font-weight: 400;
 }

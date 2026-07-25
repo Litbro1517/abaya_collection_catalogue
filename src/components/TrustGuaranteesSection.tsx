@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { Truck, Banknote, ShieldCheck, RefreshCw } from 'lucide-react';
+import { Truck, Banknote, ShieldCheck, RefreshCw, Headphones } from 'lucide-react';
 import type { ComponentType, CSSProperties } from 'react';
 import { useAppStore } from '@/lib/store';
 import { useClientTranslation } from '@/lib/i18n';
@@ -32,6 +32,7 @@ const GUARANTEE_META: ReadonlyArray<{ key: GuaranteeKey; Icon: IconType }> = [
   { key: 'paiement', Icon: Banknote },
   { key: 'qualite', Icon: ShieldCheck },
   { key: 'retour', Icon: RefreshCw },
+  { key: 'sav', Icon: Headphones },
 ];
 
 export function TrustGuaranteesSection() {
@@ -67,7 +68,7 @@ export function TrustGuaranteesSection() {
         </div>
 
         {/* Responsive grid: 1 col mobile, 2 cols tablet, 4 cols desktop */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 sm:gap-8">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-6 sm:gap-8">
           {GUARANTEE_META.map(({ key, Icon }) => {
             const { title, desc } = resolveItem(key);
             return (
