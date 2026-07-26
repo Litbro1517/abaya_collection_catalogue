@@ -103,7 +103,7 @@ export function CodForm({ productId, productName, productPrice }: CodFormProps) 
       </div>
 
       {/* Form — 4 clean fields, no icons, thin labels */}
-      <form onSubmit={handleSubmit} className="cod-form-fields" style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+      <form onSubmit={handleSubmit} className="cod-form-fields" style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
         {/* Name */}
         <div className="pdp-form-group">
           <label className="pdp-form-label" htmlFor="customer-name" style={{ marginBottom: '2px' }}>
