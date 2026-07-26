@@ -1468,9 +1468,20 @@ Date de mise à jour : 22/07/2026
 
 ### Vérifications
 - `bun run lint` : 0 erreur, 0 warning ✅
+- `bun run build` : exit code 0, 0 erreur de compilation ✅ (11.6s compile, 57/57 pages)
+- Isolation branche main : main@c5d3be3 strictement intacte avant fusion ✅
+
+### Audit & Déploiement (Protocole 0 — 100% GO avec dérogation B2)
+- **Audit 5 axes (A/B/C/D/E)** : 18/18 points validés
+  - 17/18 validés à 100% sans réserve
+  - **B2 (placeholder color #6B7280)** : validé **par dérogation explicite** — valeur hex #6B7280 levée et ajournée, gris lisible navigateur (~#757575) officiellement accepté
+- **Fusion** : `git merge --no-ff fix/pdp-placeholders-and-carousel → main` (commit `467baf6`) ✅
+- **Poussée GitHub** : `git push origin main` (`c5d3be3..467baf6`) — déclenchement pipeline Vercel Production ✅
+- **Nettoyage branches** : locale `fix/pdp-placeholders-and-carousel` supprimée + distante `origin/fix/pdp-placeholders-and-carousel` supprimée ✅
+- **Statut** : ✅ **DÉPLOYÉ EN PRODUCTION** (Vercel auto-deploy via GitHub main)
 
 ### Branche
-`fix/pdp-placeholders-and-carousel` (créée depuis `main@c5d3be3`) — **EN ATTENTE D'AUDIT** (aucune fusion sur main).
+`fix/pdp-placeholders-and-carousel` (créée depuis `main@c5d3be3`) — **FUSIONNÉE & SUPPRIMÉE** (main désormais à `467baf6`).
 
 ---
-Date de mise à jour : 22/07/2026
+Date de mise à jour : 27/07/2026
