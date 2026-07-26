@@ -374,8 +374,8 @@ export function ProductPage({
   const [descOverflow, setDescOverflow] = useState(false);
 
   // ── Color overflow: show max 11 pills + a matte-black "+X" button when > 12 colors ──
-  const MAX_VISIBLE_COLORS = 11;
-  const colorOverflow = colorData.length > 12;
+  const MAX_VISIBLE_COLORS = 5; // FIX 4: max 5 colors inline + +N badge
+  const colorOverflow = colorData.length > MAX_VISIBLE_COLORS;
   const visibleColorData = colorOverflow ? colorData.slice(0, MAX_VISIBLE_COLORS) : colorData;
   const hiddenColorCount = colorOverflow ? colorData.length - MAX_VISIBLE_COLORS : 0;
 
@@ -764,35 +764,59 @@ export function ProductPage({
             </div>
           </div>
 
-          {/* Thumbnail strip */}
+          {/* Thumbnail strip — FIX 3: mini-slider with arrows */}
           {carouselImages.length > 1 && (
-            <div className="pdp-thumbnail-row">
-              {carouselImages.map((rawUrl, i) => {
-                const thumbUrl = resolveDirectImageUrl(rawUrl, 200);
-                const thumbProxy = resolveProxyImageUrl(rawUrl, 200);
-                return (
-                  <button
-                    key={i}
-                    className={cn('pdp-thumb-box', i === carouselIdx && 'active')}
-                    onClick={() => goTo(i)}
-                    aria-label={`${t('carousel.thumbnail')} ${i + 1}`}
-                  >
-                    <img
-                      src={thumbUrl}
-                      alt={`${title} - ${t('carousel.thumbnail')} ${i + 1}`}
-                      loading="lazy"
-                      decoding="async"
-                      onError={(e) => {
-                        const el = e.target as HTMLImageElement;
-                        if (!el.dataset.retried) {
-                          el.dataset.retried = '1';
-                          el.src = thumbProxy;
-                        }
-                      }}
-                    />
-                  </button>
-                );
-              })}
+            <div className="pdp-thumb-slider-wrapper">
+              <button
+                className="pdp-thumb-arrow pdp-thumb-arrow-left"
+                onClick={() => {
+                  const row = document.querySelector('.pdp-thumbnail-row') as HTMLElement;
+                  if (row) row.scrollBy({ left: -160, behavior: 'smooth' });
+                }}
+                aria-label="Scroll left"
+                type="button"
+              >
+                ‹
+              </button>
+              <div className="pdp-thumbnail-row">
+                {carouselImages.map((rawUrl, i) => {
+                  const thumbUrl = resolveDirectImageUrl(rawUrl, 200);
+                  const thumbProxy = resolveProxyImageUrl(rawUrl, 200);
+                  return (
+                    <button
+                      key={i}
+                      className={cn('pdp-thumb-box', i === carouselIdx && 'active')}
+                      onClick={() => goTo(i)}
+                      aria-label={`${t('carousel.thumbnail')} ${i + 1}`}
+                    >
+                      <img
+                        src={thumbUrl}
+                        alt={`${title} - ${t('carousel.thumbnail')} ${i + 1}`}
+                        loading="lazy"
+                        decoding="async"
+                        onError={(e) => {
+                          const el = e.target as HTMLImageElement;
+                          if (!el.dataset.retried) {
+                            el.dataset.retried = '1';
+                            el.src = thumbProxy;
+                          }
+                        }}
+                      />
+                    </button>
+                  );
+                })}
+              </div>
+              <button
+                className="pdp-thumb-arrow pdp-thumb-arrow-right"
+                onClick={() => {
+                  const row = document.querySelector('.pdp-thumbnail-row') as HTMLElement;
+                  if (row) row.scrollBy({ left: 160, behavior: 'smooth' });
+                }}
+                aria-label="Scroll right"
+                type="button"
+              >
+                ›
+              </button>
             </div>
           )}
 
@@ -877,7 +901,8 @@ export function ProductPage({
                 {t('product.colors')}{selectedColor ? <span className="selected-value">: {selectedColor}</span> : ''}
               </div>
               <div
-                className={cn('product-page-colors grid grid-cols-6 gap-2 content-start', showVariantError && colorMissing && 'product-page-colors--error')}
+                className={cn('product-page-colors flex flex-nowrap gap-2.5', showVariantError && colorMissing && 'product-page-colors--error')}
+                style={{ flexWrap: 'nowrap', gap: '10px' }}
                 role="group"
                 aria-label={showVariantError && colorMissing ? t('product.colorRequiredAria') : t('product.colors')}
               >

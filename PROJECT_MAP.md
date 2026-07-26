@@ -1292,3 +1292,53 @@ Nouvelle structure (injectée) :
 
 ---
 Date de mise à jour : 22/07/2026
+
+## [VG34.6 — PDP PIXEL-PERFECT LAYOUT]
+
+### 5 Corrections chirurgicales
+
+#### FIX 1 — Alignement supérieur du Titre (Haut Image = Haut Titre)
+- `.pdp-grid` : `align-items: flex-start` ajouté → les colonnes galerie et détails démarrent au même niveau Y.
+
+#### FIX 2 — Cadre d'image fixe & Ratio d'Or (Zéro Déformation)
+- `.pdp-main-image-frame` : `height: 480px` → `aspect-ratio: 1 / 1.618` (Nombre d'Or φ≈1.618) + `max-height: 600px`.
+- `.product-page-img` : `object-fit: cover` → l'image s'adapte au cadre fixe, jamais l'inverse.
+- `.product-page-carousel-slide` : `height: 100%` pour remplir le cadre.
+
+#### FIX 3 — Miniatures en mini-slider avec flèches
+- `.pdp-thumbnail-row` : `overflow-x: auto` + `scroll-behavior: smooth` + `scrollbar-width: none` + `::-webkit-scrollbar { display: none }` (scrollbar cachée).
+- `.pdp-thumb-slider-wrapper` : conteneur relatif pour les flèches.
+- `.pdp-thumb-arrow` (left/right) : boutons circulaires blancs avec bordure `--border-soft`, position absolute, `scrollBy({ left: ±160, behavior: 'smooth' })` au clic.
+- JSX : flèches `<` et `>` encadrant la rangée de miniatures.
+
+#### FIX 4 — Couleurs limitées à 5 + pastille +N + Modal
+- `MAX_VISIBLE_COLORS` : 11 → **5** (max 5 pastilles visibles).
+- `colorOverflow` : déclenché si > 5 (au lieu de > 12).
+- Container couleurs : `grid grid-cols-6` → **`flex flex-nowrap`** avec `gap: 10px` (une seule ligne, espacement resserré).
+- Pastille `+N` conservée (ouvre le Sheet/Modal existant avec toutes les couleurs).
+
+#### FIX 5 — Compactage du rythme vertical
+- `.pdp-details-section` : `gap: 18px` → **`gap: 12px`** (compacté).
+- `.product-page-section` dans détails : `margin-bottom: 0` + `gap: 6px`.
+- `.product-page-section-title` : `margin-bottom: 2px`.
+
+### Fichiers modifiés
+| # | Fichier | Modification |
+|---|---------|-------------|
+| 1 | `src/app/globals.css` | FIX 1 (align-items) + FIX 2 (aspect-ratio + object-fit) + FIX 3 (thumbnail slider + arrows + hidden scrollbar) + FIX 5 (gap 12px) |
+| 2 | `src/components/preview/ProductPage.tsx` | FIX 3 (arrows JSX) + FIX 4 (MAX_VISIBLE_COLORS=5 + flex nowrap) |
+| 3 | `PROJECT_MAP.md` | Section VG34.6 |
+
+### Vérifications
+- `bun run lint` : 0 erreur, 0 warning ✅
+- FIX 1: `align-items: flex-start` ✅
+- FIX 2: `aspect-ratio: 1 / 1.618` + `object-fit: cover` ✅
+- FIX 3: `pdp-thumb-slider-wrapper` + `pdp-thumb-arrow` + `scrollbar-width: none` ✅
+- FIX 4: `MAX_VISIBLE_COLORS = 5` + `flex-nowrap` ✅
+- FIX 5: `gap: 12px` ✅
+
+### Branche
+`fix/pdp-pixel-perfect-layout` (créée depuis `main@fb39cb1`) — **EN ATTENTE D'AUDIT** (aucune fusion sur main).
+
+---
+Date de mise à jour : 22/07/2026
