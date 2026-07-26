@@ -1187,3 +1187,43 @@ L'audit du commit `a0b1edd` a identifié 3 anomalies bloquantes (🔴 NO-GO). Ce
 
 ---
 Date de mise à jour : 22/07/2026
+
+## [VG34.2 — CORRECTIONS CONSOLIDATED (Post-Audit NO-GO Phase 2)]
+
+### Contexte
+L'audit post-VG34.1 a identifié 4 axes d'anomalies sur main@4c918a8. Cette correction consolidée les résout toutes sur la branche `fix/vg34-corrections-consolidated`.
+
+### Axe A — PDP & CodForm
+- **CodForm.tsx** (266 lignes, orphelin) → **réintégré dans ProductPage.tsx** : importé et rendu inline sous les boutons CTA (formulaire COD direct sur la PDP).
+- **TrustGuaranteesSection** → **importé dans ProductPage.tsx** : rendu sous la galerie d'images (entre le carousel et la colonne détails).
+
+### Axe B — Navigation & Cart
+- **Hover CTA** (CatalogPreview.tsx) : `cartAddItem + cartOpenDrawer` → **`setSelectedProduct`** (ouvre la PDP au lieu du drawer).
+- **CartDrawer checkout** : `window.location.href = '/?checkout=true'` → **callback `onCheckout`** passé par CatalogPreview qui déclenche `setCheckoutData` (checkout view sans rechargement).
+- **Header badge** : `backgroundColor: var(--vert-deep, #14241E)` → **`rgba(255,255,255,0.9)` + backdrop-filter** (cercle blanc vitré au lieu du vert en dur).
+
+### Axe C — Crash Admin Confiance
+- **TrustGuaranteesPillar.tsx L.130** : `config.items[key][lang]` → **`config.items[key]?.[lang] ?? { title: '', description: '' }`** (optional chaining + fallback).
+- **L.67** (updateItem) : même garde-fou défensif. Les configs legacy à 4 clés (pré-VG34) ne crashent plus.
+
+### Axe D — i18n
+- 9 libellés hardcoded FR dans TrustGuaranteesPillar → **remplacés par `t('trust.admin.*')`** (sectionTitle, toggleLabel, toggleDesc, editLang, default, fieldTitle, fieldDesc, emptyHint, save).
+- 27 clés i18n `trust.admin.*` ajoutées (9 × 3 locales FR/EN/AR) dans dictionaries.ts.
+
+### Fichiers modifiés
+| # | Fichier | Correction |
+|---|---------|------------|
+| 1 | `src/components/settings/TrustGuaranteesPillar.tsx` | P0 crash fix (optional chaining) + i18n (9 libellés → t()) |
+| 2 | `src/components/preview/ProductPage.tsx` | Import CodForm + TrustGuaranteesSection + rendu |
+| 3 | `src/components/preview/CatalogPreview.tsx` | Hover CTA → PDP + header badge blanc + CartDrawer onCheckout callback |
+| 4 | `src/lib/i18n/dictionaries.ts` | 27 clés trust.admin.* (9 × 3 locales) |
+| 5 | `PROJECT_MAP.md` | Section VG34.2 |
+
+### Vérifications
+- `bun run lint` : 0 erreur, 0 warning ✅
+
+### Branche
+`fix/vg34-corrections-consolidated` (créée depuis `main@4c918a8`) — **EN ATTENTE D'AUDIT** (aucune fusion sur main).
+
+---
+Date de mise à jour : 22/07/2026

@@ -64,13 +64,13 @@ export function TrustGuaranteesPillar({ local, updateField, handleSave, saving }
   };
 
   const updateItem = (key: GuaranteeKey, field: 'title' | 'description', value: string) => {
-    const langItem = config.items[key][lang];
+    const langItem = config.items[key]?.[lang] ?? { title: '', description: '' };
     updateConfig({
       ...config,
       items: {
         ...config.items,
         [key]: {
-          ...config.items[key],
+          ...(config.items[key] ?? { fr: { title: '', description: '' }, en: { title: '', description: '' }, ar: { title: '', description: '' } }),
           [lang]: { ...langItem, [field]: value },
         },
       },
@@ -90,17 +90,17 @@ export function TrustGuaranteesPillar({ local, updateField, handleSave, saving }
         <CardHeader className="pb-3">
           <CardTitle className="text-sm flex items-center gap-2">
             {config.isVisible ? <Eye className="w-4 h-4 text-gold" /> : <EyeOff className="w-4 h-4 text-muted-foreground" />}
-            Section Garanties de Confiance
+            {t('trust.admin.sectionTitle')}
           </CardTitle>
         </CardHeader>
         <CardContent>
           <div className="flex items-center justify-between">
             <div className="space-y-0.5">
               <Label htmlFor="trust-visible" className="text-xs font-medium cursor-pointer">
-                Afficher la section sur la vitrine
+                {t('trust.admin.toggleLabel')}
               </Label>
               <p className="text-[10px] text-muted-foreground">
-                Si désactivé, la section disparaît entièrement sans laisser d&apos;espace vide.
+                {t('trust.admin.toggleDesc')}
               </p>
             </div>
             <Switch
@@ -114,7 +114,7 @@ export function TrustGuaranteesPillar({ local, updateField, handleSave, saving }
 
       {/* ── Language tabs (FR / EN / AR) ── */}
       <div>
-        <Label className="text-xs font-medium mb-2 block">Langue d&apos;édition</Label>
+        <Label className="text-xs font-medium mb-2 block">{t('trust.admin.editLang')}</Label>
         <Tabs value={lang} onValueChange={(v) => setLang(v as Lang)}>
           <TabsList className="grid grid-cols-3 w-full max-w-[240px]">
             <TabsTrigger value="fr" className="text-xs">FR</TabsTrigger>
@@ -127,7 +127,8 @@ export function TrustGuaranteesPillar({ local, updateField, handleSave, saving }
       {/* ── 4 guarantees × 2 fields ── */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         {GUARANTEE_META.map(({ key, Icon }) => {
-          const item = config.items[key][lang];
+          // P0 FIX: defensive access — legacy configs (pre-VG34) may not have 'sav' key
+          const item = config.items[key]?.[lang] ?? { title: '', description: '' };
           const defaultTitle = t(`trust.${key}.title`);
           const defaultDesc = t(`trust.${key}.desc`);
           return (
@@ -139,12 +140,12 @@ export function TrustGuaranteesPillar({ local, updateField, handleSave, saving }
                   <span className="text-sm font-semibold" style={{ color: '#3D3D3D' }}>
                     {defaultTitle}
                   </span>
-                  <span className="text-[10px] text-muted-foreground ml-auto">défaut</span>
+                  <span className="text-[10px] text-muted-foreground ml-auto">{t('trust.admin.default')}</span>
                 </div>
 
                 {/* Title input */}
                 <div className="space-y-1">
-                  <Label className="text-[11px] text-muted-foreground">Titre</Label>
+                  <Label className="text-[11px] text-muted-foreground">{t('trust.admin.fieldTitle')}</Label>
                   <Input
                     value={item.title}
                     onChange={(e) => updateItem(key, 'title', e.target.value)}
@@ -156,7 +157,7 @@ export function TrustGuaranteesPillar({ local, updateField, handleSave, saving }
 
                 {/* Description textarea */}
                 <div className="space-y-1">
-                  <Label className="text-[11px] text-muted-foreground">Description</Label>
+                  <Label className="text-[11px] text-muted-foreground">{t('trust.admin.fieldDesc')}</Label>
                   <Textarea
                     value={item.description}
                     onChange={(e) => updateItem(key, 'description', e.target.value)}
@@ -168,7 +169,7 @@ export function TrustGuaranteesPillar({ local, updateField, handleSave, saving }
                 </div>
 
                 <p className="text-[10px] text-muted-foreground leading-relaxed">
-                  Laisser vide pour utiliser le texte par défaut affiché en placeholder.
+                  {t('trust.admin.emptyHint')}
                 </p>
               </CardContent>
             </Card>
@@ -180,7 +181,7 @@ export function TrustGuaranteesPillar({ local, updateField, handleSave, saving }
       <div className="flex justify-end pt-2">
         <Button onClick={handleSaveTrust} disabled={saving} size="sm" className="gap-1.5">
           {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
-          Enregistrer
+          {t('trust.admin.save')}
         </Button>
       </div>
     </div>
