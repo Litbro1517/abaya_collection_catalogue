@@ -1119,6 +1119,18 @@ export function ProductPage({
         </div>
       </div>
 
+      {/* ── VG34.4: SAV blocks (Service Après-Vente) — bottom of PDP ── */}
+      <div className="pdp-conversion-texts-container" style={{ marginTop: '25px' }}>
+        <div className="pdp-sav-block">
+          <h4 className="pdp-sav-title">{t('sav.delivery.title')}</h4>
+          <p className="pdp-sav-description">{t('sav.delivery.desc')}</p>
+        </div>
+        <div className="pdp-sav-block">
+          <h4 className="pdp-sav-title">{t('sav.aftersales.title')}</h4>
+          <p className="pdp-sav-description">{t('sav.aftersales.desc')}</p>
+        </div>
+      </div>
+
       {/* ── Mobile sticky CTA ── */}
       <div className="product-page-mobile-cta">
         <div className="mobile-cta-price-row" style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>

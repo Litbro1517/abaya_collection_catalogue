@@ -1227,3 +1227,57 @@ L'audit post-VG34.1 a identifié 4 axes d'anomalies sur main@4c918a8. Cette corr
 
 ---
 Date de mise à jour : 22/07/2026
+
+## [VG34.4 — PDP DETECTION & SAFE INJECTION]
+
+### Contexte
+Audit d'alignement du code de référence HTML/CSS (gemini-code-1785005761753.html) avec l'environnement Next.js/Tailwind actuel, et injection sécurisée des styles scopés `.pdp-` sur la branche isolée.
+
+### Phase 1 — Investigation & Auto-Détection
+- **Variables CSS** : vérifié que `--pivot-text`, `--pivot-brand`, `--pivot-gold` existent (ligne 54-57 de globals.css). Découvert que le bloc VG34 design system (`--bg-app`, `--vert-deep`, `--gold-accent`, `--border-soft`, `--price-charcoal`, etc.) avait été **perdu lors des merges** — restauré.
+- **Typographie** : `Playfair_Display` chargé via `next/font/google` avec variable `--font-playfair`. `Beiruti` + `Tajawal` également chargés pour l'arabe.
+- **RTL** : support via `html[lang="ar"]` dans globals.css + `html.rtl` (ThemeInjector).
+- **Encapsulation CSS** : 0 collision — toutes les nouvelles classes utilisent le préfixe `.pdp-`.
+
+### Phase 2 — Étude de Compatibilité
+- Le code de référence utilise les variables `--vert-deep`, `--gold-accent`, `--border-soft`, `--bg-btn-secondary`, `--badge-red`, `--text-main`, `--text-muted`, `--price-charcoal` — toutes restaurées dans le bloc VG34.
+- Les callbacks React (`handleCtaClick`, `handleAddToCart`, `handleSelectColor`, `handleSelectSize`) ne sont pas modifiés — seule la structure visuelle est améliorée.
+- Le routage global n'est pas affecté (pas de changement de routes).
+
+### Phase 3 — Injection Sécurisée
+
+#### globals.css
+1. **Restauration du bloc VG34 design system** (12 variables CSS) : `--bg-app: #fffefe`, `--vert-deep: #14241E`, `--vert-hover: #1A2E27`, `--gold-accent: #C5A059`, `--gold-aura`, `--border-soft: #EAE4DC`, `--bg-btn-secondary: #F7F4EE`, `--badge-red: #70001B`, `--text-main: #14241E`, `--text-muted: #706B63`, `--price-charcoal: #121212`.
+2. **CodForm** : bordure dorée `2px solid var(--gold-accent)` + shadow `rgba(197, 160, 89, 0.12)` (conforme au reference HTML `.checkout-form-box`).
+3. **56 nouvelles classes `.pdp-*`** injectées : wrapper, grid responsive (1fr → 1.1fr 1fr @850px), gallery-section, main-image-frame, thumbnail-row, social-icons-group, guarantees-row, details-section, product-title (Playfair), price-row, size-btn, qty-picker, cta-duo-container, btn-buy-now (vert deep + rounded-50px), btn-add-cart (beige), checkout-form-box (gold border), form-header, form-group, input-field, btn-confirm-order, SAV blocks (conversion-texts-container, sav-block, sav-title, sav-description).
+4. **Règles RTL** `html[lang="ar"]` pour les classes `.pdp-*` (Beiruti pour titres, Tajawal pour corps).
+
+#### ProductPage.tsx
+1. **SAV blocks** ajoutés en bas de page : 2 blocs (delivery + aftersales) avec titres + descriptions depuis le dictionnaire i18n `sav.*`.
+2. **Imports** : `Instagram` de lucide-react (déjà présent depuis VG34.3).
+3. **handleCtaClick** : smooth scroll vers `#cod-form` (déjà présent depuis VG34.3).
+4. **Badge SOLDE** : `-{percentage}% SOLDE` (déjà présent depuis VG34.3).
+5. **Social icons** : rangée sous la galerie (déjà présent depuis VG34.3).
+6. **CodForm** : inline sur la PDP (déjà présent depuis VG34.2).
+
+### Fichiers modifiés
+| # | Fichier | Modification |
+|---|---------|-------------|
+| 1 | `src/app/globals.css` | Restauration bloc VG34 vars (12) + CodForm gold border + 56 classes `.pdp-*` + RTL rules |
+| 2 | `src/components/preview/ProductPage.tsx` | SAV blocks (delivery + aftersales) en bas de PDP |
+| 3 | `PROJECT_MAP.md` | Section VG34.4 |
+
+### Vérifications
+- `bun run lint` : 0 erreur, 0 warning ✅
+- Variables CSS restaurées : 3 occurrences de `--bg-app:`, `--vert-deep:`, `--gold-accent:` ✅
+- 56 classes `.pdp-*` injectées ✅
+- SAV blocks : 6 références `pdp-sav`/`sav.*` dans ProductPage ✅
+- scrollIntoView : 1 ✅
+- SOLDE : 1 ✅
+- Social icons : 6 références ✅
+
+### Branche
+`feat/pdp-detection-and-safe-injection` (créée depuis `main@fabfd71`) — **EN ATTENTE D'AUDIT** (aucune fusion sur main).
+
+---
+Date de mise à jour : 22/07/2026
