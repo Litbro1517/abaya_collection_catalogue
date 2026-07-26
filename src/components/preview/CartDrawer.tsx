@@ -34,9 +34,8 @@ export function CartDrawer({ onCheckout }: Props) {
     closeDrawer();
     if (onCheckout) {
       onCheckout();
-    } else {
-      window.location.href = '/?checkout=true';
     }
+    // VG34.3: No window.location fallback — caller must provide onCheckout
     setCheckingOut(false);
   };
 

@@ -21,6 +21,7 @@ import {
   Plus,
   ShoppingBag,
   Sparkles,
+  Instagram,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useClientTranslation } from '@/lib/i18n';
@@ -28,6 +29,8 @@ import { toast } from 'sonner';
 import { computeDiscount, getCompareAtPrice } from '@/lib/discount-utils';
 import { useAutoTranslatedText } from '@/lib/useAutoTranslatedText';
 import { useCartStore } from '@/lib/cart-store';
+import { CodForm } from './CodForm';
+import { TrustGuaranteesSection } from '@/components/TrustGuaranteesSection';
 import { PriceText } from '@/components/PriceText';
 import {
   Sheet,
@@ -106,6 +109,9 @@ interface ProductPageProps {
   conversionMessages?: Record<string, string> | null;  // { fr, en, ar } multilingual admin messages
   primaryColor: string;
   secondaryColor: string;
+  instagramHandle?: string;
+  facebookPage?: string;
+  tiktokHandle?: string;
   onBack: () => void;
   onCheckout: (payload: CheckoutPayload) => void;
 }
@@ -190,6 +196,9 @@ export function ProductPage({
   conversionMessages,
   primaryColor,
   secondaryColor,
+  instagramHandle,
+  facebookPage,
+  tiktokHandle,
   onBack,
   onCheckout,
 }: ProductPageProps) {
@@ -477,18 +486,15 @@ export function ProductPage({
     if (isEpuise) return;
     if (hasMissingVariant) {
       setShowVariantError(true);
-      return; // ← hard stop: no checkout redirect
+      return;
     }
-    onCheckout({
-      productId: row.id,
-      productTitle: title,
-      productPrice: price,
-      productImage: resolveProxyImageUrl(carouselImages[0] || '', 400),
-      selectedColor,
-      selectedColorHex,
-      selectedSize,
-      quantity,
-    });
+    // VG34.3: Smooth scroll to inline COD form (not checkout redirect)
+    const codForm = document.getElementById('cod-form');
+    if (codForm) {
+      codForm.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      codForm.classList.add('ring-2', 'ring-[var(--gold-accent,#C5A059)]', 'ring-offset-2');
+      setTimeout(() => codForm.classList.remove('ring-2', 'ring-[var(--gold-accent,#C5A059)]', 'ring-offset-2'), 2000);
+    }
   };
 
   // Select a color. The derived colorMissing flag updates instantly, so the
@@ -798,6 +804,33 @@ export function ProductPage({
           )}
         </div>
 
+        {/* VG34.2: Trust Guarantees under the gallery */}
+        <TrustGuaranteesSection />
+
+        {/* VG34.3: Social media icons row — under gallery */}
+        <div className="flex items-center gap-3 mt-4 mb-2">
+          {instagramHandle && (
+            <a href={`https://instagram.com/${instagramHandle.replace('@', '')}`} target="_blank" rel="noopener noreferrer" className="w-9 h-9 rounded-full bg-white border border-[var(--border-soft,#EAE4DC)] flex items-center justify-center hover:border-[var(--gold-accent,#C5A059)] transition-colors" aria-label="Instagram">
+              <Instagram className="w-4 h-4" style={{ color: '#E4405F' }} />
+            </a>
+          )}
+          {facebookPage && (
+            <a href={facebookPage.startsWith('http') ? facebookPage : `https://facebook.com/${facebookPage}`} target="_blank" rel="noopener noreferrer" className="w-9 h-9 rounded-full bg-white border border-[var(--border-soft,#EAE4DC)] flex items-center justify-center hover:border-[var(--gold-accent,#C5A059)] transition-colors" aria-label="Facebook">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="#1877F2"><path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/></svg>
+            </a>
+          )}
+          {tiktokHandle && (
+            <a href={`https://tiktok.com/@${tiktokHandle.replace('@', '')}`} target="_blank" rel="noopener noreferrer" className="w-9 h-9 rounded-full bg-white border border-[var(--border-soft,#EAE4DC)] flex items-center justify-center hover:border-[var(--gold-accent,#C5A059)] transition-colors" aria-label="TikTok">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="#000000"><path d="M12.525.02c1.31-.02 2.61-.01 3.91-.02.08 1.53.63 3.09 1.75 4.17 1.12 1.11 2.7 1.62 4.24 1.79v4.03c-1.44-.05-2.89-.35-4.2-.97-.57-.26-1.1-.59-1.62-.93-.01 2.92.01 5.84-.02 8.75-.08 1.4-.54 2.79-1.35 3.94-1.31 1.92-3.58 3.17-5.91 3.21-1.43.08-2.86-.31-4.08-1.03-2.02-1.19-3.44-3.37-3.65-5.71-.02-.5-.03-1-.01-1.49.18-1.9 1.12-3.72 2.58-4.96 1.66-1.44 3.98-2.13 6.15-1.72.02 1.48-.04 2.96-.04 4.44-.99-.32-2.15-.23-3.02.37-.82.56-1.36 1.52-1.38 2.52-.01.8.31 1.61.88 2.16.63.63 1.55.91 2.43.8 1.05-.08 2.01-.73 2.45-1.68.21-.49.3-1.02.3-1.54V.02z"/></svg>
+            </a>
+          )}
+          {whatsappNumber && (
+            <a href={`https://wa.me/${whatsappNumber.replace(/[^\d]/g, '')}`} target="_blank" rel="noopener noreferrer" className="w-9 h-9 rounded-full bg-white border border-[var(--border-soft,#EAE4DC)] flex items-center justify-center hover:border-[var(--gold-accent,#C5A059)] transition-colors" aria-label="WhatsApp">
+              <MessageCircle className="w-4 h-4" style={{ color: '#25D366' }} />
+            </a>
+          )}
+        </div>
+
         {/* ═══════ RIGHT: Product Info — fluid layout, natural top-to-bottom flow ═══════ */}
         {/* Abandoned fixed-height lockdown. Content flows naturally with section margins.
             Long descriptions are clamped to 3 lines + "Lire la suite" opens a side drawer.
@@ -842,7 +875,7 @@ export function ProductPage({
                     }}
                     aria-label={t('product.discount')}
                   >
-                    -{discount.percentage}%
+                    -{discount.percentage}% SOLDE
                   </span>
                 </>
               )}
@@ -1064,6 +1097,13 @@ export function ProductPage({
               <ShoppingBag className="w-4 h-4" style={{ color: 'var(--gold-accent, #C5A059)' }} />
               {t('cart.added') === 'Produit ajouté au panier' ? 'Ajouter au panier' : 'Add to Cart'}
             </button>
+
+            {/* VG34.2: Inline COD Form — commande directe sur la PDP */}
+            <CodForm
+              productId={row.id}
+              productName={title}
+              productPrice={price}
+            />
 
             {/* ── Favoris / Partage moved to floating overlay on the carousel (top-right) ── */}
           </div>
