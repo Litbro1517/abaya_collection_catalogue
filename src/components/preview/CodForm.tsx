@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, type FormEvent } from 'react';
-import { ShoppingBag, Loader2, CheckCircle2, User, Phone, MapPin, Home } from 'lucide-react';
+import { Loader2, CheckCircle2, Check } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useClientTranslation } from '@/lib/i18n';
 
@@ -30,7 +30,7 @@ interface FormState {
 }
 
 export function CodForm({ productId, productName, productPrice }: CodFormProps) {
-  const { t, rtl } = useClientTranslation();
+  const { t, rtl, formatPrice } = useClientTranslation();
   const [form, setForm] = useState<FormState>({
     customerName: '',
     customerPhone: '',
@@ -50,26 +50,12 @@ export function CodForm({ productId, productName, productPrice }: CodFormProps) 
     e.preventDefault();
     setError(null);
 
-    // Validate
-    if (!form.customerName.trim()) {
-      setError(t('order.errorName'));
-      return;
-    }
-    if (!form.customerPhone.trim() || form.customerPhone.trim().length < 6) {
-      setError(t('order.errorPhone'));
-      return;
-    }
-    if (!form.customerCity.trim()) {
-      setError(t('order.errorCity'));
-      return;
-    }
-    if (!form.customerAddress.trim()) {
-      setError(t('order.errorAddress'));
-      return;
-    }
+    if (!form.customerName.trim()) { setError(t('order.errorName')); return; }
+    if (!form.customerPhone.trim() || form.customerPhone.trim().length < 6) { setError(t('order.errorPhone')); return; }
+    if (!form.customerCity.trim()) { setError(t('order.errorCity')); return; }
+    if (!form.customerAddress.trim()) { setError(t('order.errorAddress')); return; }
 
     setIsSubmitting(true);
-
     try {
       const res = await fetch('/api/orders', {
         method: 'POST',
@@ -84,21 +70,11 @@ export function CodForm({ productId, productName, productPrice }: CodFormProps) 
           productPrice,
         }),
       });
-
       const data = await res.json();
-
-      if (!res.ok || data.error) {
-        setError(data.error || t('order.errorGeneric'));
-        return;
-      }
-
+      if (!res.ok || data.error) { setError(data.error || t('order.errorGeneric')); return; }
       setSuccess(true);
-
-      // Redirect to thank you page after a short delay
       const orderId = data.data?.id;
-      setTimeout(() => {
-        window.location.href = `/merci${orderId ? `?order_id=${orderId}` : ''}`;
-      }, 800);
+      setTimeout(() => { window.location.href = `/merci${orderId ? `?order_id=${orderId}` : ''}`; }, 800);
     } catch {
       setError(t('order.errorNetwork'));
     } finally {
@@ -113,153 +89,124 @@ export function CodForm({ productId, productName, productPrice }: CodFormProps) 
         <h3 style={{ fontSize: 18, fontWeight: 700, color: BRAND.vertFonce, fontFamily: "'Playfair Display', serif" }}>
           {t('order.sent')}
         </h3>
-        <p style={{ fontSize: 14, color: BRAND.grisMoyen }}>
-          {t('order.redirecting')}
-        </p>
+        <p style={{ fontSize: 14, color: BRAND.grisMoyen }}>{t('order.redirecting')}</p>
       </div>
     );
   }
 
   return (
     <div className="cod-form-wrapper" id="cod-form" dir={rtl ? 'rtl' : 'ltr'}>
-      {/* Header */}
-      <div className="cod-form-header">
-        <div className="cod-form-header-icon">
-          <ShoppingBag className="w-5 h-5" style={{ color: BRAND.dore }} />
-        </div>
-        <div>
-          <h3 className="cod-form-title">{t('order.title')}</h3>
-          <p className="cod-form-subtitle">{t('order.cod')}</p>
-        </div>
+      {/* Header — 1 line: title right, COD badge left */}
+      <div className="pdp-form-header" style={{ marginBottom: '10px' }}>
+        <span className="pdp-form-title">{t('order.title')}</span>
+        <span className="pdp-form-badge-cod">⚡ {t('order.cod')}</span>
       </div>
 
-      {/* Product summary */}
-      {productName && (
-        <div className="cod-form-product-summary">
-          <span className="cod-form-product-name">{productName}</span>
-          {productPrice && (
-            <span className="cod-form-product-price">{productPrice}</span>
-          )}
-        </div>
-      )}
-
-      {/* Form */}
-      <form onSubmit={handleSubmit} className="cod-form-fields">
+      {/* Form — 4 clean fields, no icons, thin labels */}
+      <form onSubmit={handleSubmit} className="cod-form-fields" style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
         {/* Name */}
-        <div className="cod-form-field">
-          <label className="cod-form-label" htmlFor="customer-name">
-            {t('order.fullName')} <span style={{ color: '#800020' }}>{t('order.required')}</span>
+        <div className="pdp-form-group">
+          <label className="pdp-form-label" htmlFor="customer-name" style={{ marginBottom: '2px' }}>
+            {t('order.fullName')}
           </label>
-          <div className="cod-form-input-wrapper">
-            <User className="cod-form-input-icon" />
-            <input
-              id="customer-name"
-              type="text"
-              className="cod-form-input"
-              placeholder={t('order.fullNamePlaceholder')}
-              value={form.customerName}
-              onChange={e => handleChange('customerName', e.target.value)}
-              disabled={isSubmitting}
-              autoComplete="name"
-            />
-          </div>
+          <input
+            id="customer-name"
+            type="text"
+            className="pdp-input-field"
+            placeholder={t('order.fullNamePlaceholder')}
+            value={form.customerName}
+            onChange={e => handleChange('customerName', e.target.value)}
+            disabled={isSubmitting}
+            autoComplete="name"
+          />
         </div>
 
         {/* Phone */}
-        <div className="cod-form-field">
-          <label className="cod-form-label" htmlFor="customer-phone">
-            {t('order.phone')} <span style={{ color: '#800020' }}>{t('order.required')}</span>
+        <div className="pdp-form-group">
+          <label className="pdp-form-label" htmlFor="customer-phone" style={{ marginBottom: '2px' }}>
+            {t('order.phone')}
           </label>
-          <div className="cod-form-input-wrapper">
-            <Phone className="cod-form-input-icon" />
-            <input
-              id="customer-phone"
-              type="tel"
-              className="cod-form-input"
-              placeholder={t('order.phonePlaceholder')}
-              value={form.customerPhone}
-              onChange={e => handleChange('customerPhone', e.target.value)}
-              disabled={isSubmitting}
-              autoComplete="tel"
-              dir="ltr"
-            />
-          </div>
-        </div>
-
-        {/* City */}
-        <div className="cod-form-field">
-          <label className="cod-form-label" htmlFor="customer-city">
-            {t('order.city')} <span style={{ color: '#800020' }}>{t('order.required')}</span>
-          </label>
-          <div className="cod-form-input-wrapper">
-            <MapPin className="cod-form-input-icon" />
-            <input
-              id="customer-city"
-              type="text"
-              className="cod-form-input"
-              placeholder={t('order.cityPlaceholder')}
-              value={form.customerCity}
-              onChange={e => handleChange('customerCity', e.target.value)}
-              disabled={isSubmitting}
-              autoComplete="address-level2"
-            />
-          </div>
+          <input
+            id="customer-phone"
+            type="tel"
+            className="pdp-input-field"
+            placeholder={t('order.phonePlaceholder')}
+            value={form.customerPhone}
+            onChange={e => handleChange('customerPhone', e.target.value)}
+            disabled={isSubmitting}
+            autoComplete="tel"
+            dir="ltr"
+          />
         </div>
 
         {/* Address */}
-        <div className="cod-form-field">
-          <label className="cod-form-label" htmlFor="customer-address">
-            {t('order.address')} <span style={{ color: '#800020' }}>{t('order.required')}</span>
+        <div className="pdp-form-group">
+          <label className="pdp-form-label" htmlFor="customer-address" style={{ marginBottom: '2px' }}>
+            {t('order.address')}
           </label>
-          <div className="cod-form-input-wrapper">
-            <Home className="cod-form-input-icon" />
-            <input
-              id="customer-address"
-              type="text"
-              className="cod-form-input"
-              placeholder={t('order.addressPlaceholder')}
-              value={form.customerAddress}
-              onChange={e => handleChange('customerAddress', e.target.value)}
-              disabled={isSubmitting}
-              autoComplete="street-address"
-            />
-          </div>
+          <input
+            id="customer-address"
+            type="text"
+            className="pdp-input-field"
+            placeholder={t('order.addressPlaceholder')}
+            value={form.customerAddress}
+            onChange={e => handleChange('customerAddress', e.target.value)}
+            disabled={isSubmitting}
+            autoComplete="street-address"
+          />
         </div>
 
-        {/* Error message */}
-        {error && (
-          <div className="cod-form-error">
-            {error}
+        {/* City */}
+        <div className="pdp-form-group">
+          <label className="pdp-form-label" htmlFor="customer-city" style={{ marginBottom: '2px' }}>
+            {t('order.city')}
+          </label>
+          <input
+            id="customer-city"
+            type="text"
+            className="pdp-input-field"
+            placeholder={t('order.cityPlaceholder')}
+            value={form.customerCity}
+            onChange={e => handleChange('customerCity', e.target.value)}
+            disabled={isSubmitting}
+            autoComplete="address-level2"
+          />
+        </div>
+
+        {/* Error */}
+        {error && <div className="cod-form-error">{error}</div>}
+
+        {/* Total line — just above button */}
+        {productPrice && (
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '6px 0', borderTop: '1px solid var(--border-soft, #EAE4DC)', borderBottom: '1px solid var(--border-soft, #EAE4DC)', marginTop: '4px' }}>
+            <span style={{ fontSize: '0.88rem', fontWeight: 600, color: 'var(--vert-deep, #14241E)' }}>
+              {t('checkout.orderSummary')} :
+            </span>
+            <span style={{ fontSize: '1rem', fontWeight: 700, color: 'var(--price-charcoal, #121212)' }}>
+              {formatPrice(productPrice)}
+            </span>
           </div>
         )}
 
-        {/* Submit button */}
+        {/* Submit button — dark, with gold checkmark */}
         <button
           type="submit"
-          className={cn('cod-form-submit', isSubmitting && 'cod-form-submit-loading')}
+          className="pdp-btn-confirm-order"
           disabled={isSubmitting}
-          style={{
-            backgroundColor: isSubmitting ? BRAND.grisClair : 'rgb(0 0 0 / 89%)',
-            color: isSubmitting ? BRAND.grisMoyen : 'rgb(255, 255, 255)',
-          }}
+          style={{ marginTop: '4px' }}
         >
           {isSubmitting ? (
             <>
-              <Loader2 className="w-5 h-5 animate-spin" />
+              <Loader2 className="w-5 h-5 animate-spin" style={{ color: 'var(--gold-accent, #C5A059)' }} />
               {t('order.sending')}
             </>
           ) : (
             <>
-              <ShoppingBag className="w-5 h-5" />
+              <Check className="w-5 h-5" style={{ color: 'var(--gold-accent, #C5A059)' }} strokeWidth={2.8} />
               {t('order.confirm')}
             </>
           )}
         </button>
-
-        {/* Trust badge */}
-        <p className="cod-form-trust">
-          {t('order.secureData')}
-        </p>
       </form>
     </div>
   );

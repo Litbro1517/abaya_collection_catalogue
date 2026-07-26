@@ -1342,3 +1342,45 @@ Date de mise à jour : 22/07/2026
 
 ---
 Date de mise à jour : 22/07/2026
+
+## [VG34.7 — PDP REFINEMENT & COD FORM REFOCUS]
+
+### Corrections appliquées
+
+#### A. Dilatation et déformation de l'image principale
+- `.pdp-gallery-section` : `max-width: 480px` ajouté → la colonne galerie ne peut pas s'élargir au-delà de 480px.
+- `.pdp-main-image-frame` : `aspect-ratio: 1 / 1.618` (Ratio d'Or) + `object-fit: cover` (déjà en place depuis VG34.6, confirmé intact).
+
+#### B. Refonte du Formulaire COD (CodForm.tsx)
+- **Supprimé** : toutes les icônes SVG intérieures (User, Phone, MapPin, Home), `cod-form-input-wrapper`, `cod-form-input-icon`, `cod-form-product-summary`, `cod-form-trust` (texte de réassurance sous le bouton), `cod-form-header-icon` (icône ShoppingBag), `cod-form-label` gras → remplacés par des labels fins (`pdp-form-label`).
+- **En-tête 1 ligne** : `.pdp-form-header` avec titre à droite + badge COD `⚡` à gauche (rouge/orange).
+- **4 champs épurés** : `.pdp-input-field` (paddings 14px, bordures `--border-soft`, pas d'icônes). Labels `pdp-form-label` non gras avec `margin-bottom: 2px`.
+- **Total à payer** : ligne récapitulative dynamique juste au-dessus du bouton avec `formatPrice(productPrice)` + bordures top/bottom `--border-soft`.
+- **Bouton** : `.pdp-btn-confirm-order` (vert deep `--vert-deep`) avec icône Check doré (`--gold-accent`). Suppression du pied de page sous le bouton.
+
+#### C. Flèches de miniatures inversées + scrollBy corrigé
+- Flèche gauche : `‹` → **`›`** (pointe vers l'extérieur gauche en RTL).
+- Flèche droite : `›` → **`‹`** (pointe vers l'extérieur droit en RTL).
+- `scrollBy` : `±160` → **`±200`** (défilement plus ample).
+
+#### D. Déséquilibre du rythme vertical et alignement des icônes
+- `.pdp-under-image-space` : `justify-content: space-between` + `flex-grow: 1` → répartition égale (miniatures ↔ social = social ↔ garanties).
+- `.pdp-guarantee-circle-icon` : `44px` → **`36px`** (réduit, garde la dominance visuelle).
+- `.pdp-social-circle-btn` : `flex-shrink: 0` ajouté + SVG `18px` explicite (plus visibles mais restent plus petits que les garanties).
+
+### Fichiers modifiés
+| # | Fichier | Modification |
+|---|---------|-------------|
+| 1 | `src/components/preview/CodForm.tsx` | Refonte complète : suppression icônes/headers/trust, 4 champs épurés, total line, bouton vert deep + Check doré |
+| 2 | `src/app/globals.css` | FIX A (max-width 480px galerie) + FIX D (guarantee 36px, social flex-shrink, under-image space-between) |
+| 3 | `src/components/preview/ProductPage.tsx` | FIX C (flèches inversées + scrollBy 200) |
+| 4 | `PROJECT_MAP.md` | Section VG34.7 |
+
+### Vérifications
+- `bun run lint` : 0 erreur, 0 warning ✅
+
+### Branche
+`fix/pdp-refinement-and-cod-form` (créée depuis `main@e5a7b5b`) — **EN ATTENTE D'AUDIT** (aucune fusion sur main).
+
+---
+Date de mise à jour : 22/07/2026
