@@ -112,6 +112,19 @@
   --bg-toast: #f0faf0;
   --bg-empty-state: var(--pivot-surface);
   --btn-primary-bg: var(--pivot-brand);
+  /* ── VG34: Checkout UI Design System (from PDP reference) ── */
+  --bg-app: #fffefe;
+  --vert-deep: #14241E;
+  --vert-hover: #1A2E27;
+  --gold-accent: #C5A059;
+  --gold-aura: rgba(197, 160, 89, 0.15);
+  --border-soft: #EAE4DC;
+  --bg-btn-secondary: #F7F4EE;
+  --badge-red: #70001B;
+  --text-main: #14241E;
+  --text-muted: #706B63;
+  --price-charcoal: #121212;
+
   --btn-primary-text: #FFFFFF;
   --btn-primary-hover-bg: color-mix(in oklch, var(--pivot-brand) 82%, white);
   --btn-gold-bg: var(--pivot-gold);
@@ -2471,10 +2484,11 @@ html.rtl .product-page-quantity-control {
 
 .cod-form-wrapper {
   margin-top: 20px;
-  padding: 24px;
+  padding: 22px;
   border-radius: 16px;
-  background: white;
-  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.06);
+  border: 2px solid var(--gold-accent, #C5A059);
+  background: #FFFFFF;
+  box-shadow: 0 4px 20px rgba(197, 160, 89, 0.12);
   animation: cod-form-in 0.4s ease;
 }
 
@@ -3459,5 +3473,427 @@ html[lang="ar"] textarea,
 html[lang="ar"] button,
 html[lang="ar"] a,
 html[lang="ar"] div {
+  font-family: var(--font-tajawal), 'Tajawal', sans-serif;
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   VG34.4 — PDP REDESIGN (Safe Injection from Reference HTML/CSS)
+   Scoped with .pdp- prefix for zero collision with existing classes.
+   ═══════════════════════════════════════════════════════════════ */
+
+/* ── PDP Wrapper: max-width container ── */
+.pdp-wrapper {
+  max-width: 1100px;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 30px;
+}
+
+/* ── PDP Grid: responsive 2-column layout ── */
+.pdp-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 30px;
+}
+
+@media (min-width: 850px) {
+  .pdp-grid {
+    grid-template-columns: 1.1fr 1fr;
+  }
+}
+
+/* ── Gallery Section ── */
+.pdp-gallery-section {
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+}
+
+.pdp-main-image-frame {
+  width: 100%;
+  height: 480px;
+  background-color: #FAFAFA;
+  border: 1px solid var(--border-soft, #EAE4DC);
+  border-radius: 16px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-muted, #706B63);
+  overflow: hidden;
+}
+
+.pdp-thumbnail-row {
+  display: flex;
+  gap: 10px;
+}
+
+.pdp-thumb-box {
+  width: 70px;
+  height: 85px;
+  background-color: #FAFAFA;
+  border: 1px solid var(--border-soft, #EAE4DC);
+  border-radius: 8px;
+  overflow: hidden;
+  cursor: pointer;
+  transition: border-color 0.2s ease;
+}
+
+.pdp-thumb-box:hover {
+  border-color: var(--gold-accent, #C5A059);
+}
+
+.pdp-thumb-box.active {
+  border-color: var(--vert-deep, #14241E);
+  box-shadow: 0 0 0 1px var(--vert-deep, #14241E);
+}
+
+/* ── Under-image space: social icons + guarantees ── */
+.pdp-under-image-space {
+  margin-top: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.pdp-social-icons-group {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 12px;
+  width: 100%;
+}
+
+.pdp-social-circle-btn {
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  background-color: #FFFFFF;
+  border: 1px solid var(--border-soft, #EAE4DC);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.03);
+  transition: all 0.2s ease;
+  text-decoration: none;
+}
+
+.pdp-social-circle-btn:hover {
+  border-color: var(--gold-accent, #C5A059);
+  transform: translateY(-2px);
+}
+
+/* ── Guarantees row ── */
+.pdp-guarantees-row {
+  display: flex;
+  align-items: flex-start;
+  justify-content: flex-start;
+  flex-wrap: wrap;
+  gap: 16px;
+  width: 100%;
+  padding-top: 5px;
+}
+
+.pdp-guarantee-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  text-align: center;
+  width: 68px;
+}
+
+.pdp-guarantee-circle-icon {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  border: 1px solid var(--border-soft, #EAE4DC);
+  background-color: #FFFFFF;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.pdp-guarantee-label {
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: var(--vert-deep, #14241E);
+  line-height: 1.2;
+}
+
+/* ── Details section ── */
+.pdp-details-section {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.pdp-product-title {
+  font-family: var(--font-playfair), 'Playfair Display', serif;
+  font-size: 2rem;
+  font-weight: 700;
+  color: var(--vert-deep, #14241E);
+}
+
+@media (max-width: 640px) {
+  .pdp-product-title {
+    font-size: 1.5rem;
+  }
+}
+
+.pdp-price-row {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.pdp-current-price {
+  font-size: 1.6rem;
+  font-weight: 700;
+  color: var(--price-charcoal, #121212);
+}
+
+.pdp-old-price {
+  text-decoration: line-through;
+  color: #A0A0A0;
+  font-size: 1.1rem;
+}
+
+.pdp-discount-badge {
+  background-color: var(--badge-red, #70001B);
+  color: #FFF;
+  font-size: 0.75rem;
+  font-weight: 700;
+  padding: 3px 10px;
+  border-radius: 20px;
+}
+
+/* ── Size buttons ── */
+.pdp-sizes-row {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.pdp-size-btn {
+  padding: 10px 18px;
+  border-radius: 8px;
+  border: 1px solid var(--border-soft, #EAE4DC);
+  background-color: #FFFFFF;
+  font-size: 0.88rem;
+  font-weight: 600;
+  color: var(--text-main, #14241E);
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.pdp-size-btn.active {
+  border-color: var(--vert-deep, #14241E);
+  box-shadow: 0 0 0 1px var(--vert-deep, #14241E);
+  color: var(--vert-deep, #14241E);
+  font-weight: 700;
+}
+
+/* ── Quantity picker ── */
+.pdp-qty-picker {
+  display: inline-flex;
+  align-items: center;
+  border: 1px solid var(--border-soft, #EAE4DC);
+  border-radius: 8px;
+  background-color: #FFFFFF;
+  width: fit-content;
+}
+
+.pdp-qty-btn {
+  padding: 8px 16px;
+  border: none;
+  background: none;
+  font-size: 1.1rem;
+  color: var(--vert-deep, #14241E);
+  cursor: pointer;
+}
+
+.pdp-qty-val {
+  padding: 0 16px;
+  font-weight: 700;
+  color: var(--vert-deep, #14241E);
+}
+
+/* ── CTA duo ── */
+.pdp-cta-duo-container {
+  display: flex;
+  gap: 12px;
+  margin-top: 10px;
+}
+
+.pdp-btn-buy-now {
+  flex: 1.3;
+  background-color: var(--vert-deep, #14241E);
+  color: #FFFFFF;
+  border: none;
+  padding: 15px 24px;
+  border-radius: 50px;
+  font-size: 1rem;
+  font-weight: 700;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  transition: background-color 0.2s ease;
+  text-decoration: none;
+}
+
+.pdp-btn-buy-now:hover {
+  background-color: var(--vert-hover, #1A2E27);
+}
+
+.pdp-btn-add-cart {
+  flex: 1;
+  background-color: var(--bg-btn-secondary, #F7F4EE);
+  color: var(--vert-deep, #14241E);
+  border: 1px solid var(--border-soft, #EAE4DC);
+  padding: 15px 18px;
+  border-radius: 10px;
+  font-size: 0.92rem;
+  font-weight: 700;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  transition: background-color 0.2s ease;
+}
+
+.pdp-btn-add-cart:hover {
+  background-color: #EFE9DF;
+}
+
+/* ── COD form box (gold border) ── */
+.pdp-checkout-form-box {
+  margin-top: 10px;
+  padding: 22px;
+  border-radius: 16px;
+  border: 2px solid var(--gold-accent, #C5A059);
+  background-color: #FFFFFF;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  box-shadow: 0 4px 20px rgba(197, 160, 89, 0.12);
+}
+
+.pdp-form-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.pdp-form-title {
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: var(--vert-deep, #14241E);
+}
+
+.pdp-form-badge-cod {
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: #DC2626;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.pdp-form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.pdp-form-label {
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: var(--vert-deep, #14241E);
+}
+
+.pdp-input-field {
+  width: 100%;
+  padding: 14px 16px;
+  border-radius: 10px;
+  border: 1px solid var(--border-soft, #EAE4DC);
+  background-color: #FFFFFF;
+  font-size: 0.92rem;
+  outline: none;
+  font-family: inherit;
+  color: var(--text-main, #14241E);
+}
+
+.pdp-input-field:focus {
+  border-color: var(--vert-deep, #14241E);
+}
+
+.pdp-btn-confirm-order {
+  width: 100%;
+  background-color: var(--vert-deep, #14241E);
+  color: #FFFFFF;
+  border: none;
+  padding: 16px;
+  border-radius: 10px;
+  font-size: 1.05rem;
+  font-weight: 700;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  margin-top: 4px;
+  transition: background-color 0.2s ease;
+}
+
+.pdp-btn-confirm-order:hover {
+  background-color: var(--vert-hover, #1A2E27);
+}
+
+/* ── SAV blocks ── */
+.pdp-conversion-texts-container {
+  display: flex;
+  flex-direction: column;
+  gap: 22px;
+  width: 100%;
+  background-color: transparent;
+  padding: 10px 0;
+  border: none;
+}
+
+.pdp-sav-block {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.pdp-sav-title {
+  color: var(--vert-deep, #14241E);
+  font-weight: 700;
+  font-size: 1.1rem;
+}
+
+.pdp-sav-description {
+  font-size: 0.92rem;
+  font-weight: 600;
+  color: #2B2B2B;
+  line-height: 1.8;
+  text-align: justify;
+}
+
+/* ── RTL adjustments for PDP scoped classes ── */
+html[lang="ar"] .pdp-product-title,
+html[lang="ar"] .pdp-sav-title {
+  font-family: var(--font-beiruti), 'Beiruti', sans-serif !important;
+}
+
+html[lang="ar"] .pdp-sav-description,
+html[lang="ar"] .pdp-form-label,
+html[lang="ar"] .pdp-input-field,
+html[lang="ar"] .pdp-guarantee-label {
   font-family: var(--font-tajawal), 'Tajawal', sans-serif;
 }
