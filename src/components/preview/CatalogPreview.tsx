@@ -224,7 +224,7 @@ function ProductCardTitle({ title, locale }: { title: string; locale: string }) 
   return <span className="product-card-title">{translatedTitle}</span>;
 }
 
-// ── VG34: Cart Header Button — floating cart icon with badge count ──
+// ── VG34.3: Cart Header Button — clean, no dark bg/shadow ──
 function CartHeaderButton() {
   const { toggleDrawer, getTotalItems } = useCartStore();
   const count = getTotalItems();
@@ -232,16 +232,16 @@ function CartHeaderButton() {
   return (
     <button
       onClick={toggleDrawer}
-      className="fixed top-4 z-50 w-11 h-11 rounded-full flex items-center justify-center shadow-lg transition-all hover:scale-105"
+      className="fixed top-4 z-50 flex items-center justify-center transition-all hover:scale-105"
       style={{
-        backgroundColor: 'rgba(255,255,255,0.9)',
-        backdropFilter: 'blur(4px)',
         right: '1rem',
-        border: '1px solid var(--border-soft, #EAE4DC)',
+        background: 'transparent',
+        border: 'none',
+        boxShadow: 'none',
       }}
       aria-label="Open cart"
     >
-      <ShoppingBag className="w-5 h-5" style={{ color: 'var(--vert-deep, #14241E)' }} />
+      <ShoppingBag className="w-6 h-6" style={{ color: '#1A1A1A' }} />
       {count > 0 && (
         <span
           className="absolute -top-1 -right-1 w-5 h-5 rounded-full text-[10px] font-bold flex items-center justify-center"
@@ -1058,6 +1058,9 @@ export function CatalogPreview({ onAdminLogin }: CatalogPreviewProps) {
         conversionMessages={s?.conversionMessages || null}
         primaryColor={primaryColor}
         secondaryColor={secondaryColor}
+        instagramHandle={s?.instagramHandle || undefined}
+        facebookPage={s?.facebookPage || undefined}
+        tiktokHandle={s?.tiktokHandle || undefined}
         onBack={() => setSelectedProduct(null)}
         onCheckout={(payload) => setCheckoutData(payload)}
       />

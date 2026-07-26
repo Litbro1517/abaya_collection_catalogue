@@ -152,7 +152,9 @@ function MerciContent() {
         {/* Title */}
         <h1 className="merci-title">{t('thanks.title')}</h1>
         <p className="merci-subtitle">
-          {t('thanks.subtitle')}
+          {order?.customerName
+            ? `${t('thanks.subtitle')} ${order.customerName} !`
+            : t('thanks.subtitle')}
         </p>
 
         {/* Order ID */}
