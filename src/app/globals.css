@@ -3599,12 +3599,14 @@ html[lang="ar"] div {
 .pdp-thumb-box {
   width: 70px;
   height: 85px;
+  min-width: 70px; /* VG34.9: prevent compression into sticks */
   background-color: #FAFAFA;
   border: 1px solid var(--border-soft, #EAE4DC);
   border-radius: 8px;
   overflow: hidden;
   cursor: pointer;
   transition: border-color 0.2s ease;
+  flex-shrink: 0; /* VG34.9: never shrink, always scroll instead */
 }
 
 .pdp-thumb-box:hover {
@@ -3618,13 +3620,14 @@ html[lang="ar"] div {
 
 /* ── Under-image space: social icons + guarantees ── */
 .pdp-under-image-space {
-  margin-top: 10px;
+  margin-top: 8px;
   display: flex;
   flex-direction: column;
-  gap: 14px;
+  gap: 12px;
   justify-content: space-between;
   flex-grow: 1;
-  min-height: 100px;
+  min-height: 80px;
+  width: 100%;
 }
 
 .pdp-social-icons-group {
@@ -3669,7 +3672,7 @@ html[lang="ar"] div {
   gap: 20px;
   width: 100%;
   padding-top: 0;
-  border-top: none;
+  border-top: none !important; /* VG34.9: definitive removal of separator line */
 }
 
 .pdp-guarantee-item {

@@ -1433,3 +1433,44 @@ Date de mise à jour : 22/07/2026
 
 ---
 Date de mise à jour : 22/07/2026
+
+## [VG34.9 — PDP PLACEHOLDERS & CAROUSEL FIX]
+
+### Corrections appliquées (5 axes)
+
+#### A. Formulaire COD — labels supprimés, placeholders, bouton compact
+- **Supprimé** : tous les `<label>` externes au-dessus des champs (Nom, Téléphone, Adresse, Ville).
+- **Placeholders intérieurs** : chaque champ utilise son intitulé comme placeholder (texte gris #6B7280).
+- **Bouton compact** : `padding: 16px` → `height: 40px` fixe (hauteur réduite à 40px max).
+- **Gap réduit** : `6px` → `5px` (serrage vertical).
+- **Inputs compacts** : `height: 38px`, `padding: 8px 12px`, `font-size: 0.85rem`.
+
+#### B. Miniatures — anti-compression (flex-shrink: 0 + min-width)
+- `.pdp-thumb-box` : `min-width: 70px` + `flex-shrink: 0` ajoutés → les miniatures ne peuvent jamais être compressées en bâtonnets, même avec 25 images. Le conteneur scroll horizontalement (overflow-x: auto déjà en place).
+
+#### C. Ligne de séparation & alignement latéral
+- `.pdp-guarantees-row` : `border-top: none !important` (suppression définitive de la ligne).
+- `.pdp-under-image-space` : `width: 100%` ajouté → le bloc icônes s'aligne sur la largeur complète du cadre image (bord latéral extérieur respecté en RTL comme en LTR).
+
+#### D. Flèches de miniatures
+- Flèche gauche : **`‹`** (pointe vers l'extérieur gauche) ✅ déjà correct.
+- Flèche droite : **`›`** (pointe vers l'extérieur droit) ✅ déjà correct.
+
+#### E. Alignement vertical du texte produit
+- `.pdp-grid` : `align-items: flex-start` déjà en place → le haut du titre est aligné avec le haut du cadre image.
+
+### Fichiers modifiés
+| # | Fichier | Modification |
+|---|---------|-------------|
+| 1 | `src/components/preview/CodForm.tsx` | Suppression labels externes, placeholders only, bouton 40px, gap 5px, inputs 38px |
+| 2 | `src/app/globals.css` | thumb-box min-width + flex-shrink:0, guarantees border-top none !important, under-image width 100% |
+| 3 | `PROJECT_MAP.md` | Section VG34.9 |
+
+### Vérifications
+- `bun run lint` : 0 erreur, 0 warning ✅
+
+### Branche
+`fix/pdp-placeholders-and-carousel` (créée depuis `main@c5d3be3`) — **EN ATTENTE D'AUDIT** (aucune fusion sur main).
+
+---
+Date de mise à jour : 22/07/2026
