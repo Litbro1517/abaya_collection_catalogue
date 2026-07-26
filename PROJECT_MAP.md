@@ -1227,3 +1227,68 @@ L'audit post-VG34.1 a identifié 4 axes d'anomalies sur main@4c918a8. Cette corr
 
 ---
 Date de mise à jour : 22/07/2026
+
+## [VG34.5 — PDP LAYOUT RESTRUCTURE (pdp-grid injection)]
+
+### Contexte
+Le rappel de mission a identifié que les micro-correctifs VG34.3 n'avaient pas réorganisé la mise en page globale. Cette injection remplace la structure `product-page-layout` par la grille `pdp-grid` du code de référence.
+
+### Restructuration effectuée
+
+#### ProductPage.tsx — Remplacement complet de la mise en page
+Ancienne structure (supprimée) :
+```
+<main className="product-page">
+  <div className="product-page-layout">     ← flex, pas grid
+    <div className="product-page-gallery">  ← colonne gauche
+    <div className="product-page-info">     ← colonne droite
+      <div className="product-page-info-inner">
+```
+
+Nouvelle structure (injectée) :
+```
+<main className="product-page pdp-wrapper">
+  <div className="pdp-grid">                ← CSS grid 1.1fr 1fr @850px
+    <div className="pdp-gallery-section">   ← colonne gauche
+      <div className="pdp-main-image-frame">← galerie
+      <div className="pdp-thumbnail-row">   ← miniatures
+      <div className="pdp-under-image-space">← social + guarantees
+    <div className="pdp-details-section">   ← colonne droite
+      <h1 className="pdp-product-title">    ← titre Playfair
+      <div className="pdp-price-row">       ← prix #121212
+      <div className="pdp-sizes-row">       ← tailles
+      <div className="pdp-qty-picker">      ← quantité
+      <div className="pdp-cta-duo-container">← duo boutons
+        <button className="pdp-btn-buy-now">  ← vert deep + gold
+        <button className="pdp-btn-add-cart"> ← beige
+      <CodForm>                             ← formulaire COD gold border
+  <div className="pdp-conversion-texts-container"> ← SAV blocks
+```
+
+#### Classes `.pdp-*` appliquées (35 occurrences dans ProductPage.tsx)
+- `pdp-wrapper`, `pdp-grid`, `pdp-gallery-section`, `pdp-main-image-frame`, `pdp-thumbnail-row`, `pdp-thumb-box`, `pdp-under-image-space`, `pdp-social-icons-group`, `pdp-social-circle-btn`, `pdp-guarantees-row`, `pdp-guarantee-item`, `pdp-guarantee-circle-icon`, `pdp-guarantee-label`, `pdp-details-section`, `pdp-product-title`, `pdp-price-row`, `pdp-current-price`, `pdp-old-price`, `pdp-discount-badge`, `pdp-sizes-row`, `pdp-size-btn`, `pdp-qty-picker`, `pdp-qty-btn`, `pdp-qty-val`, `pdp-cta-duo-container`, `pdp-btn-buy-now`, `pdp-btn-add-cart`, `pdp-conversion-texts-container`, `pdp-sav-block`, `pdp-sav-title`, `pdp-sav-description`
+
+#### globals.css — 56 classes `.pdp-*` + 12 variables VG34
+- Bloc VG34 design system restauré (`--bg-app`, `--vert-deep`, `--gold-accent`, `--border-soft`, `--price-charcoal`, etc.)
+- CodForm gold border (`2px solid var(--gold-accent)`)
+- 56 classes `.pdp-*` injectées (wrapper, grid responsive, gallery, social, guarantees, details, sizes, qty, CTA duo, COD form, SAV blocks) + règles RTL `html[lang="ar"]`
+
+### Fichiers modifiés
+| # | Fichier | Modification |
+|---|---------|-------------|
+| 1 | `src/components/preview/ProductPage.tsx` | Restructuration complète : `product-page-layout` → `pdp-wrapper` + `pdp-grid` |
+| 2 | `src/app/globals.css` | 56 classes `.pdp-*` + 12 variables VG34 + CodForm gold border + RTL |
+| 3 | `PROJECT_MAP.md` | Section VG34.5 |
+
+### Vérifications
+- `bun run lint` : 0 erreur, 0 warning ✅
+- 35 classes `.pdp-*` dans ProductPage.tsx ✅
+- 56 classes `.pdp-*` dans globals.css ✅
+- 12 variables VG34 dans globals.css ✅
+- Anciennes classes (`product-page-layout`, `product-page-gallery`, `product-page-info-inner`) supprimées du JSX ✅
+
+### Branche
+`feat/pdp-redesign-and-ui-fixes` (recréée depuis `main@fabfd71`) — **EN ATTENTE D'AUDIT** (aucune fusion sur main).
+
+---
+Date de mise à jour : 22/07/2026

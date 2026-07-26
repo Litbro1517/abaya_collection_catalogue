@@ -620,12 +620,12 @@ export function ProductPage({
   // ═══════════════════════════════════════════════════════════════════
 
   return (
-    <main className="product-page">
-      {/* ── Main Layout: Carousel + Info ── */}
-      <div className="product-page-layout">
-        {/* ═══════ LEFT: Breadcrumb + Carousel + Thumbnails ═══════ */}
-        <div className="product-page-gallery">
-          {/* ── Breadcrumb — inside left column, scrolls with images ── */}
+    <main className="product-page pdp-wrapper">
+      {/* ── PDP Grid: 2-column responsive (gallery left, details right) ── */}
+      <div className="pdp-grid">
+        {/* ═══════ LEFT COLUMN: Breadcrumb + Gallery + Social + Guarantees ═══════ */}
+        <div className="pdp-gallery-section">
+          {/* ── Breadcrumb ── */}
           <nav className="product-page-breadcrumb">
             <button onClick={onBack} className="breadcrumb-back" aria-label={t('catalog.back')}>
               <ArrowLeft className="w-4 h-4" />
@@ -637,10 +637,8 @@ export function ProductPage({
             <span className="breadcrumb-current">{title}</span>
           </nav>
 
-          {/* Main Carousel — wrapped in a relative container so the floating
-              overlay (badge + actions) positions against the carousel area
-              regardless of whether images are loaded. */}
-          <div className="product-page-carousel-wrap relative">
+          {/* Main Carousel */}
+          <div className="pdp-main-image-frame product-page-carousel-wrap relative">
             {carouselImages.length > 0 ? (
             <section
               className="product-page-carousel"
@@ -735,7 +733,7 @@ export function ProductPage({
             </div>
           )}
 
-            {/* ── Floating "Nouveau" badge — absolute top-left of carousel ── */}
+            {/* ── Floating "Nouveau" badge ── */}
             {statut === 'Nouveau' && stockState === 'en_stock' && (
               <div className="product-page-float-badge absolute top-4 left-4 z-10">
                 <Sparkles className="w-3 h-3" aria-hidden="true" />
@@ -743,12 +741,7 @@ export function ProductPage({
               </div>
             )}
 
-            {/* ── Floating action buttons — Mobile-first responsive ──
-                MOBILE (default): compact top-right (top-3 right-3, gap-2) so the
-                rigid 200px offset doesn't break short mobile carousels.
-                DESKTOP (md+): validated 200px offset (md:top-[200px] md:right-4
-                md:gap-3) sitting below the Nouveau badge and above the center
-                carousel arrow (>). z-20 keeps buttons above carousel arrows. */}
+            {/* ── Floating action buttons ── */}
             <div className="absolute top-3 right-3 z-20 flex flex-col gap-2 md:top-[200px] md:right-4 md:gap-3">
               <button
                 className="product-page-float-action"
@@ -771,16 +764,16 @@ export function ProductPage({
             </div>
           </div>
 
-          {/* Thumbnail strip (desktop only) */}
+          {/* Thumbnail strip */}
           {carouselImages.length > 1 && (
-            <div className="product-page-thumbnails">
+            <div className="pdp-thumbnail-row">
               {carouselImages.map((rawUrl, i) => {
                 const thumbUrl = resolveDirectImageUrl(rawUrl, 200);
                 const thumbProxy = resolveProxyImageUrl(rawUrl, 200);
                 return (
                   <button
                     key={i}
-                    className={cn('product-page-thumb', i === carouselIdx && 'active')}
+                    className={cn('pdp-thumb-box', i === carouselIdx && 'active')}
                     onClick={() => goTo(i)}
                     aria-label={`${t('carousel.thumbnail')} ${i + 1}`}
                   >
@@ -802,79 +795,55 @@ export function ProductPage({
               })}
             </div>
           )}
+
+          {/* ── Under-image space: Social icons + Guarantees ── */}
+          <div className="pdp-under-image-space">
+            {/* Social media icons */}
+            <div className="pdp-social-icons-group">
+              {instagramHandle && (
+                <a href={`https://instagram.com/${instagramHandle.replace('@', '')}`} target="_blank" rel="noopener noreferrer" className="pdp-social-circle-btn" aria-label="Instagram">
+                  <Instagram className="w-5 h-5" style={{ color: '#E4405F' }} />
+                </a>
+              )}
+              {facebookPage && (
+                <a href={facebookPage.startsWith('http') ? facebookPage : `https://facebook.com/${facebookPage}`} target="_blank" rel="noopener noreferrer" className="pdp-social-circle-btn" aria-label="Facebook">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="#1877F2"><path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/></svg>
+                </a>
+              )}
+              {tiktokHandle && (
+                <a href={`https://tiktok.com/@${tiktokHandle.replace('@', '')}`} target="_blank" rel="noopener noreferrer" className="pdp-social-circle-btn" aria-label="TikTok">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="#000000"><path d="M12.525.02c1.31-.02 2.61-.01 3.91-.02.08 1.53.63 3.09 1.75 4.17 1.12 1.11 2.7 1.62 4.24 1.79v4.03c-1.44-.05-2.89-.35-4.2-.97-.57-.26-1.1-.59-1.62-.93-.01 2.92.01 5.84-.02 8.75-.08 1.4-.54 2.79-1.35 3.94-1.31 1.92-3.58 3.17-5.91 3.21-1.43.08-2.86-.31-4.08-1.03-2.02-1.19-3.44-3.37-3.65-5.71-.02-.5-.03-1-.01-1.49.18-1.9 1.12-3.72 2.58-4.96 1.66-1.44 3.98-2.13 6.15-1.72.02 1.48-.04 2.96-.04 4.44-.99-.32-2.15-.23-3.02.37-.82.56-1.36 1.52-1.38 2.52-.01.8.31 1.61.88 2.16.63.63 1.55.91 2.43.8 1.05-.08 2.01-.73 2.45-1.68.21-.49.3-1.02.3-1.54V.02z"/></svg>
+                </a>
+              )}
+              {whatsappNumber && (
+                <a href={`https://wa.me/${whatsappNumber.replace(/[^\d]/g, '')}`} target="_blank" rel="noopener noreferrer" className="pdp-social-circle-btn" aria-label="WhatsApp">
+                  <MessageCircle className="w-5 h-5" style={{ color: '#25D366' }} />
+                </a>
+              )}
+            </div>
+
+            {/* Trust Guarantees */}
+            <TrustGuaranteesSection />
+          </div>
         </div>
 
-        {/* VG34.2: Trust Guarantees under the gallery */}
-        <TrustGuaranteesSection />
-
-        {/* VG34.3: Social media icons row — under gallery */}
-        <div className="flex items-center gap-3 mt-4 mb-2">
-          {instagramHandle && (
-            <a href={`https://instagram.com/${instagramHandle.replace('@', '')}`} target="_blank" rel="noopener noreferrer" className="w-9 h-9 rounded-full bg-white border border-[var(--border-soft,#EAE4DC)] flex items-center justify-center hover:border-[var(--gold-accent,#C5A059)] transition-colors" aria-label="Instagram">
-              <Instagram className="w-4 h-4" style={{ color: '#E4405F' }} />
-            </a>
-          )}
-          {facebookPage && (
-            <a href={facebookPage.startsWith('http') ? facebookPage : `https://facebook.com/${facebookPage}`} target="_blank" rel="noopener noreferrer" className="w-9 h-9 rounded-full bg-white border border-[var(--border-soft,#EAE4DC)] flex items-center justify-center hover:border-[var(--gold-accent,#C5A059)] transition-colors" aria-label="Facebook">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="#1877F2"><path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/></svg>
-            </a>
-          )}
-          {tiktokHandle && (
-            <a href={`https://tiktok.com/@${tiktokHandle.replace('@', '')}`} target="_blank" rel="noopener noreferrer" className="w-9 h-9 rounded-full bg-white border border-[var(--border-soft,#EAE4DC)] flex items-center justify-center hover:border-[var(--gold-accent,#C5A059)] transition-colors" aria-label="TikTok">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="#000000"><path d="M12.525.02c1.31-.02 2.61-.01 3.91-.02.08 1.53.63 3.09 1.75 4.17 1.12 1.11 2.7 1.62 4.24 1.79v4.03c-1.44-.05-2.89-.35-4.2-.97-.57-.26-1.1-.59-1.62-.93-.01 2.92.01 5.84-.02 8.75-.08 1.4-.54 2.79-1.35 3.94-1.31 1.92-3.58 3.17-5.91 3.21-1.43.08-2.86-.31-4.08-1.03-2.02-1.19-3.44-3.37-3.65-5.71-.02-.5-.03-1-.01-1.49.18-1.9 1.12-3.72 2.58-4.96 1.66-1.44 3.98-2.13 6.15-1.72.02 1.48-.04 2.96-.04 4.44-.99-.32-2.15-.23-3.02.37-.82.56-1.36 1.52-1.38 2.52-.01.8.31 1.61.88 2.16.63.63 1.55.91 2.43.8 1.05-.08 2.01-.73 2.45-1.68.21-.49.3-1.02.3-1.54V.02z"/></svg>
-            </a>
-          )}
-          {whatsappNumber && (
-            <a href={`https://wa.me/${whatsappNumber.replace(/[^\d]/g, '')}`} target="_blank" rel="noopener noreferrer" className="w-9 h-9 rounded-full bg-white border border-[var(--border-soft,#EAE4DC)] flex items-center justify-center hover:border-[var(--gold-accent,#C5A059)] transition-colors" aria-label="WhatsApp">
-              <MessageCircle className="w-4 h-4" style={{ color: '#25D366' }} />
-            </a>
-          )}
-        </div>
-
-        {/* ═══════ RIGHT: Product Info — fluid layout, natural top-to-bottom flow ═══════ */}
-        {/* Abandoned fixed-height lockdown. Content flows naturally with section margins.
-            Long descriptions are clamped to 3 lines + "Lire la suite" opens a side drawer.
-            Abundant colors (>12) collapse to 11 pills + a matte-black "+X" drawer button. */}
-        <div className="product-page-info">
-          <div className="product-page-info-inner" dir={rtl ? 'rtl' : 'ltr'}>
-          {/* ── Statut badge moved to floating overlay on the carousel (top-left) ── */}
-
+        {/* ═══════ RIGHT COLUMN: Product Details + COD Form ═══════ */}
+        <div className="pdp-details-section" dir={rtl ? 'rtl' : 'ltr'}>
           {/* ── Title ── */}
-          <h1 className="product-page-title">{translatedTitle}</h1>
+          <h1 className="pdp-product-title">{translatedTitle}</h1>
 
-          {/* ── Price (avec DEBT-9 : prix barré + badge discount si compareAtPrice) ── */}
+          {/* ── Price ── */}
           {price && (
-            <div className="product-page-price-row" style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
-              <span className="product-page-price">
+            <div className="pdp-price-row">
+              <span className="pdp-current-price">
                 <PriceText>{formatPrice(price)}</PriceText>
               </span>
-              {/* DEBT-9 : prix barré + badge discount */}
               {discount.hasDiscount && (
                 <>
-                  <span
-                    className="product-page-price-original"
-                    style={{
-                      color: 'var(--muted-foreground, #888)',
-                      fontSize: '0.9em',
-                      opacity: 0.7,
-                    }}
-                    aria-label={t('product.originalPrice')}
-                  >
+                  <span className="pdp-old-price">
                     <PriceText strikethrough>{formatPrice(discount.compareAtPrice!)}</PriceText>
                   </span>
-                  <span
-                    className="product-page-discount-badge"
-                    style={{
-                      backgroundColor: 'var(--pivot-danger, #800020)',
-                      color: '#fff',
-                      fontSize: '0.75em',
-                      fontWeight: 700,
-                      padding: '3px 8px',
-                      borderRadius: '5px',
-                      letterSpacing: '0.02em',
-                    }}
-                    aria-label={t('product.discount')}
-                  >
+                  <span className="pdp-discount-badge">
                     -{discount.percentage}% SOLDE
                   </span>
                 </>
@@ -888,9 +857,6 @@ export function ProductPage({
           {description && (
             <div className="product-page-section">
               <div className="product-page-section-title">{t('product.description')}</div>
-              {/* Fluid layout: line-clamp-3 clamps long descriptions. A "Lire la suite"
-                  micro-button appears only when the text overflows 3 lines, opening a
-                  side drawer (Sheet) with the full description for comfortable reading. */}
               <p ref={descriptionRef} className="product-page-description line-clamp-3">{translatedDescription}</p>
               {descOverflow && (
                 <button
@@ -904,16 +870,12 @@ export function ProductPage({
             </div>
           )}
 
-          {/* ── Color swatches (40×40px circles from ColorMap) ── */}
+          {/* ── Color swatches ── */}
           {colorData.length > 0 && (
             <div className="product-page-section">
               <div className="product-page-section-title">
                 {t('product.colors')}{selectedColor ? <span className="selected-value">: {selectedColor}</span> : ''}
               </div>
-              {/* Fluid 6-col grid, content-start. Max 11 pills shown inline; when the
-                  product has more than 12 colors, the 12th cell becomes a matte-black
-                  "+X" button that opens a side drawer listing every color with its
-                  Arabic name calligraphied beside the swatch. */}
               <div
                 className={cn('product-page-colors grid grid-cols-6 gap-2 content-start', showVariantError && colorMissing && 'product-page-colors--error')}
                 role="group"
@@ -924,19 +886,13 @@ export function ProductPage({
                   return (
                     <button
                       key={name}
-                      className={cn(
-                        'product-page-color-circle',
-                        isSelected && 'selected'
-                      )}
+                      className={cn('product-page-color-circle', isSelected && 'selected')}
                       onClick={() => handleSelectColor(name)}
                       title={name}
                       aria-label={`${t('product.colorAria')} ${name}${isSelected ? ` ${t('product.selectedAria')}` : ''}`}
                     >
                       <span
-                        className={cn(
-                          'color-circle-inner',
-                          !hex && 'color-circle-missing'
-                        )}
+                        className={cn('color-circle-inner', !hex && 'color-circle-missing')}
                         style={hex ? { backgroundColor: hex } : undefined}
                       />
                       {isSelected && (
@@ -969,19 +925,11 @@ export function ProductPage({
               <div className="product-page-section-title">
                 {t('product.sizes')}{selectedSize ? <span className="selected-value">: {selectedSize}</span> : ''}
               </div>
-              <div
-                className={cn('product-page-sizes', showVariantError && sizeMissing && 'product-page-sizes--error')}
-                role="group"
-                aria-label={showVariantError && sizeMissing ? t('product.sizeRequiredAria') : t('product.sizes')}
-              >
+              <div className="pdp-sizes-row">
                 {sizes.map(size => (
                   <button
                     key={size}
-                    className={cn(
-                      'product-page-size-chip',
-                      selectedSize === size && 'selected',
-                      isEpuise && 'disabled'
-                    )}
+                    className={cn('pdp-size-btn', selectedSize === size && 'active', isEpuise && 'disabled')}
                     onClick={() => handleSelectSize(size)}
                     disabled={isEpuise}
                   >
@@ -1005,108 +953,79 @@ export function ProductPage({
             </div>
           )}
 
-          {/* ── Action buttons ── */}
-          <div className="product-page-actions">
-            {/* Quantity selector — minimalist, sits just above the main CTA */}
-            <div className="product-page-quantity">
-              <span className="product-page-quantity-label">{t('product.quantity')}</span>
-              <div className="product-page-quantity-control" role="group" aria-label={t('product.quantity')}>
-                <button
-                  type="button"
-                  className="product-page-quantity-btn"
-                  onClick={() => setQuantity(q => Math.max(1, q - 1))}
-                  disabled={quantity <= 1 || isEpuise}
-                  aria-label={t('product.decreaseQuantity')}
-                >
-                  <Minus className="w-4 h-4" />
-                </button>
-                <span className="product-page-quantity-value" aria-live="polite">{quantity}</span>
-                <button
-                  type="button"
-                  className="product-page-quantity-btn"
-                  onClick={() => setQuantity(q => Math.min(99, q + 1))}
-                  disabled={isEpuise}
-                  aria-label={t('product.increaseQuantity')}
-                >
-                  <Plus className="w-4 h-4" />
-                </button>
-              </div>
-            </div>
+          {/* ── Quantity picker ── */}
+          <div className="pdp-qty-picker">
+            <button
+              type="button"
+              className="pdp-qty-btn"
+              onClick={() => setQuantity(q => Math.max(1, q - 1))}
+              disabled={quantity <= 1 || isEpuise}
+              aria-label={t('product.decreaseQuantity')}
+            >
+              <Minus className="w-4 h-4" />
+            </button>
+            <span className="pdp-qty-val" aria-live="polite">{quantity}</span>
+            <button
+              type="button"
+              className="pdp-qty-btn"
+              onClick={() => setQuantity(q => Math.min(99, q + 1))}
+              disabled={isEpuise}
+              aria-label={t('product.increaseQuantity')}
+            >
+              <Plus className="w-4 h-4" />
+            </button>
+          </div>
 
-            {/* ── Variant error alert (red, above the main CTA) ── */}
-            {showVariantError && hasMissingVariant && (
-              <p className="product-page-variant-error" role="alert" aria-live="assertive">
-                {t('product.selectMissingVariants')}
-              </p>
-            )}
+          {/* ── Variant error alert ── */}
+          {showVariantError && hasMissingVariant && (
+            <p className="product-page-variant-error" role="alert" aria-live="assertive">
+              {t('product.selectMissingVariants')}
+            </p>
+          )}
 
-            {/* Main CTA — dynamic based on conversion mode */}
+          {/* ── CTA duo: Buy Now + Add to Cart ── */}
+          <div className="pdp-cta-duo-container">
             {isLandingMode ? (
               <button
-                className={cn('product-page-cta', isEpuise && 'cta-disabled')}
+                type="button"
+                className="pdp-btn-buy-now"
                 disabled={isEpuise}
                 onClick={isEpuise ? undefined : handleCtaClick}
-                style={{
-                  backgroundColor: isEpuise ? BRAND.grisClair : 'rgb(0 0 0 / 89%)',
-                  color: isEpuise ? BRAND.grisMoyen : 'rgb(255, 255, 255)',
-                }}
               >
-                <ShoppingBag className="w-5 h-5 shrink-0" />
+                <ShoppingBag className="w-5 h-5 shrink-0" style={{ color: 'var(--gold-accent, #C5A059)' }} />
                 {isEpuise ? t('product.soldOut') : isSurCommande ? t('product.onOrder') : t('product.quickBuy')}
               </button>
             ) : (
               <a
-                className={cn('product-page-cta', isEpuise && 'cta-disabled')}
+                className="pdp-btn-buy-now"
                 href={isEpuise ? '#' : whatsappLink}
                 target={isEpuise ? undefined : '_blank'}
                 rel={isEpuise ? undefined : 'noopener noreferrer'}
                 onClick={isEpuise ? (e) => e.preventDefault() : handleWhatsappCtaClick}
-                style={{
-                  backgroundColor: isEpuise ? BRAND.grisClair : '#25D366',
-                  color: isEpuise ? BRAND.grisMoyen : 'rgb(255, 255, 255)',
-                  textDecoration: 'none',
-                }}
+                style={{ textDecoration: 'none' }}
               >
-                <MessageCircle className="w-5 h-5 shrink-0" />
+                <MessageCircle className="w-5 h-5 shrink-0" style={{ color: 'var(--gold-accent, #C5A059)' }} />
                 {isEpuise ? t('product.soldOut') : t('product.commander')}
               </a>
             )}
 
-            {/* VG34.1: Add to Cart button — increments badge without opening drawer */}
             <button
-              className="product-page-cta"
+              type="button"
+              className="pdp-btn-add-cart"
               disabled={isEpuise}
               onClick={handleAddToCart}
-              style={{
-                backgroundColor: 'var(--vert-deep, #14241E)',
-                color: '#fff',
-                borderRadius: '10px',
-                padding: '14px 18px',
-                fontSize: '0.92rem',
-                fontWeight: 700,
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                gap: '8px',
-                marginTop: '8px',
-                width: '100%',
-                border: 'none',
-                cursor: isEpuise ? 'not-allowed' : 'pointer',
-              }}
             >
-              <ShoppingBag className="w-4 h-4" style={{ color: 'var(--gold-accent, #C5A059)' }} />
+              <ShoppingBag className="w-4 h-4" />
               {t('cart.added') === 'Produit ajouté au panier' ? 'Ajouter au panier' : 'Add to Cart'}
             </button>
-
-            {/* VG34.2: Inline COD Form — commande directe sur la PDP */}
-            <CodForm
-              productId={row.id}
-              productName={title}
-              productPrice={price}
-            />
-
-            {/* ── Favoris / Partage moved to floating overlay on the carousel (top-right) ── */}
           </div>
+
+          {/* ── Inline COD Form (gold border) ── */}
+          <CodForm
+            productId={row.id}
+            productName={title}
+            productPrice={price}
+          />
 
           {/* ── Share toast ── */}
           {showShareToast && (
@@ -1115,7 +1034,18 @@ export function ProductPage({
               {t('product.linkCopied')}
             </div>
           )}
-          </div>{/* end .product-page-info-inner */}
+        </div>
+      </div>
+
+      {/* ═══════ BOTTOM: SAV Blocks ═══════ */}
+      <div className="pdp-conversion-texts-container" style={{ marginTop: '25px' }}>
+        <div className="pdp-sav-block">
+          <h4 className="pdp-sav-title">{t('sav.delivery.title')}</h4>
+          <p className="pdp-sav-description">{t('sav.delivery.desc')}</p>
+        </div>
+        <div className="pdp-sav-block">
+          <h4 className="pdp-sav-title">{t('sav.aftersales.title')}</h4>
+          <p className="pdp-sav-description">{t('sav.aftersales.desc')}</p>
         </div>
       </div>
 
