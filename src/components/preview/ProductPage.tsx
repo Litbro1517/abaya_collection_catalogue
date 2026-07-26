@@ -764,7 +764,7 @@ export function ProductPage({
             </div>
           </div>
 
-          {/* Thumbnail strip — FIX C: mini-slider with outward-pointing arrows */}
+          {/* Thumbnail strip — FIX D: mini-slider with outward-pointing arrows */}
           {carouselImages.length > 1 && (
             <div className="pdp-thumb-slider-wrapper">
               <button
@@ -776,7 +776,7 @@ export function ProductPage({
                 aria-label="Previous thumbnails"
                 type="button"
               >
-                ›
+                ‹
               </button>
               <div className="pdp-thumbnail-row">
                 {carouselImages.map((rawUrl, i) => {
@@ -815,7 +815,7 @@ export function ProductPage({
                 aria-label="Next thumbnails"
                 type="button"
               >
-                ‹
+                ›
               </button>
             </div>
           )}

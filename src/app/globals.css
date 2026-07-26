@@ -3514,9 +3514,10 @@ html[lang="ar"] div {
 
 .pdp-main-image-frame {
   width: 100%;
-  /* FIX 2: Golden ratio φ≈1.618 — height = width × 1.618 */
-  aspect-ratio: 1 / 1.618;
-  max-height: 600px;
+  /* FIX A: Stable, elongated portrait frame — slightly taller than 1:1.618 */
+  aspect-ratio: 1 / 1.75; /* ~10% taller than golden ratio for Reels/Portrait feel */
+  max-height: 620px;
+  min-height: 400px;
   background-color: #FAFAFA;
   border: 1px solid var(--border-soft, #EAE4DC);
   border-radius: 16px;
@@ -3620,23 +3621,23 @@ html[lang="ar"] div {
   margin-top: 10px;
   display: flex;
   flex-direction: column;
-  gap: 18px;
-  justify-content: space-between; /* FIX D: equal distribution */
+  gap: 14px;
+  justify-content: space-between;
   flex-grow: 1;
-  min-height: 120px;
+  min-height: 100px;
 }
 
 .pdp-social-icons-group {
   display: flex;
   align-items: center;
   justify-content: flex-start;
-  gap: 12px;
+  gap: 15px;
   width: 100%;
 }
 
 .pdp-social-circle-btn {
-  width: 38px;
-  height: 38px;
+  width: 40px;
+  height: 40px;
   border-radius: 50%;
   background-color: #FFFFFF;
   border: 1px solid var(--border-soft, #EAE4DC);
@@ -3649,9 +3650,9 @@ html[lang="ar"] div {
   flex-shrink: 0;
 }
 
-.pdp-social-circle-btn svg, .pdp-social-circle-btn svg path {
-  width: 18px;
-  height: 18px;
+.pdp-social-circle-btn svg {
+  width: 20px !important;
+  height: 20px !important;
 }
 
 .pdp-social-circle-btn:hover {
@@ -3665,9 +3666,10 @@ html[lang="ar"] div {
   align-items: flex-start;
   justify-content: flex-start;
   flex-wrap: wrap;
-  gap: 16px;
+  gap: 20px;
   width: 100%;
-  padding-top: 5px;
+  padding-top: 0;
+  border-top: none;
 }
 
 .pdp-guarantee-item {
@@ -3680,8 +3682,8 @@ html[lang="ar"] div {
 }
 
 .pdp-guarantee-circle-icon {
-  width: 36px; /* FIX D: reduced from 44px */
-  height: 36px;
+  width: 50px;
+  height: 50px;
   border-radius: 50%;
   border: 1px solid var(--border-soft, #EAE4DC);
   background-color: #FFFFFF;
@@ -3895,21 +3897,22 @@ html[lang="ar"] div {
 }
 
 .pdp-form-label {
-  font-size: 0.85rem;
-  font-weight: 700;
-  color: var(--vert-deep, #14241E);
+  font-size: 0.8rem;
+  font-weight: 400;
+  color: var(--text-muted, #706B63);
 }
 
 .pdp-input-field {
   width: 100%;
-  padding: 14px 16px;
-  border-radius: 10px;
+  padding: 10px 14px;
+  border-radius: 8px;
   border: 1px solid var(--border-soft, #EAE4DC);
   background-color: #FFFFFF;
-  font-size: 0.92rem;
+  font-size: 0.88rem;
   outline: none;
   font-family: inherit;
   color: var(--text-main, #14241E);
+  height: 40px;
 }
 
 .pdp-input-field:focus {

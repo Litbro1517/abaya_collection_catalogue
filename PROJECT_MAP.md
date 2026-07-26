@@ -1384,3 +1384,43 @@ Date de mise à jour : 22/07/2026
 
 ---
 Date de mise à jour : 22/07/2026
+
+## [VG34.8 — PDP RESPONSIVE REFINEMENT]
+
+### Corrections appliquées
+
+#### A. Hauteur instable de l'image principale
+- `.pdp-main-image-frame` : `aspect-ratio: 1 / 1.75` (cadre portrait allongé, +10% vs golden ratio 1.618) + `max-height: 620px` + `min-height: 400px` + `object-fit: cover` strict → hauteur fixe, aucune fluctuation selon la taille du fichier image.
+
+#### B. Hauteur excessive du Formulaire COD
+- `.pdp-form-label` : `font-weight: 700` → **`400`** (non gras) + `font-size: 0.85rem` → **`0.8rem`** (12-13px) + `color: var(--vert-deep)` → **`var(--text-muted)`** (discret).
+- `.pdp-input-field` : `padding: 14px 16px` → **`10px 14px`** + `border-radius: 10px` → **`8px`** + `height: 40px` fixe (compact).
+- CodForm `gap: 8px` → **`6px`** (espacement vertical réduit).
+
+#### C. Proportions et espacements des icônes
+- **Icônes réseaux sociaux** : `38px` → **`40px`** cercles + `gap: 12px` → **`15px`** + SVG `18px` → **`20px`** (plus visibles, `!important` pour override lucide).
+- **Icônes de garantie** : `36px` → **`50px`** cercles + `gap: 16px` → **`20px`** (harmonisées, dominantes vs social 40px).
+- **Ligne de séparation** : `padding-top: 5px` → **`0`** + `border-top: none` ajouté (séparateur supprimé).
+- **Espace vertical** : `gap: 18px` → **`14px`** + `min-height: 120px` → **`100px`** (plus fluide).
+
+#### D. Sens des flèches de miniatures
+- Flèche gauche : `›` → **`‹`** (pointe vers l'extérieur gauche).
+- Flèche droite : `‹` → **`›`** (pointe vers l'extérieur droit).
+- `scrollBy: ±200` conservé (défilement fluide).
+
+### Fichiers modifiés
+| # | Fichier | Modification |
+|---|---------|-------------|
+| 1 | `src/app/globals.css` | FIX A (aspect-ratio 1/1.75) + FIX B (label font-weight 400, input height 40px) + FIX C (social 40px, guarantee 50px, border-top none, gap 14px) |
+| 2 | `src/components/preview/ProductPage.tsx` | FIX D (flèches ‹ gauche, › droite) |
+| 3 | `src/components/preview/CodForm.tsx` | FIX B (gap 6px) |
+| 4 | `PROJECT_MAP.md` | Section VG34.8 |
+
+### Vérifications
+- `bun run lint` : 0 erreur, 0 warning ✅
+
+### Branche
+`fix/pdp-responsive-refinement` (créée depuis `main@b95f7bd`) — **EN ATTENTE D'AUDIT** (aucune fusion sur main).
+
+---
+Date de mise à jour : 22/07/2026
