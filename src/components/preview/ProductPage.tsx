@@ -764,19 +764,19 @@ export function ProductPage({
             </div>
           </div>
 
-          {/* Thumbnail strip — FIX 3: mini-slider with arrows */}
+          {/* Thumbnail strip — FIX C: mini-slider with outward-pointing arrows */}
           {carouselImages.length > 1 && (
             <div className="pdp-thumb-slider-wrapper">
               <button
                 className="pdp-thumb-arrow pdp-thumb-arrow-left"
                 onClick={() => {
                   const row = document.querySelector('.pdp-thumbnail-row') as HTMLElement;
-                  if (row) row.scrollBy({ left: -160, behavior: 'smooth' });
+                  if (row) row.scrollBy({ left: -200, behavior: 'smooth' });
                 }}
-                aria-label="Scroll left"
+                aria-label="Previous thumbnails"
                 type="button"
               >
-                ‹
+                ›
               </button>
               <div className="pdp-thumbnail-row">
                 {carouselImages.map((rawUrl, i) => {
@@ -810,12 +810,12 @@ export function ProductPage({
                 className="pdp-thumb-arrow pdp-thumb-arrow-right"
                 onClick={() => {
                   const row = document.querySelector('.pdp-thumbnail-row') as HTMLElement;
-                  if (row) row.scrollBy({ left: 160, behavior: 'smooth' });
+                  if (row) row.scrollBy({ left: 200, behavior: 'smooth' });
                 }}
-                aria-label="Scroll right"
+                aria-label="Next thumbnails"
                 type="button"
               >
-                ›
+                ‹
               </button>
             </div>
           )}
