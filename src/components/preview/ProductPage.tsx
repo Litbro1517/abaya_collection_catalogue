@@ -28,6 +28,8 @@ import { toast } from 'sonner';
 import { computeDiscount, getCompareAtPrice } from '@/lib/discount-utils';
 import { useAutoTranslatedText } from '@/lib/useAutoTranslatedText';
 import { useCartStore } from '@/lib/cart-store';
+import { CodForm } from './CodForm';
+import { TrustGuaranteesSection } from '@/components/TrustGuaranteesSection';
 import { PriceText } from '@/components/PriceText';
 import {
   Sheet,
@@ -798,6 +800,9 @@ export function ProductPage({
           )}
         </div>
 
+        {/* VG34.2: Trust Guarantees under the gallery */}
+        <TrustGuaranteesSection />
+
         {/* ═══════ RIGHT: Product Info — fluid layout, natural top-to-bottom flow ═══════ */}
         {/* Abandoned fixed-height lockdown. Content flows naturally with section margins.
             Long descriptions are clamped to 3 lines + "Lire la suite" opens a side drawer.
@@ -1064,6 +1069,13 @@ export function ProductPage({
               <ShoppingBag className="w-4 h-4" style={{ color: 'var(--gold-accent, #C5A059)' }} />
               {t('cart.added') === 'Produit ajouté au panier' ? 'Ajouter au panier' : 'Add to Cart'}
             </button>
+
+            {/* VG34.2: Inline COD Form — commande directe sur la PDP */}
+            <CodForm
+              productId={row.id}
+              productName={title}
+              productPrice={price}
+            />
 
             {/* ── Favoris / Partage moved to floating overlay on the carousel (top-right) ── */}
           </div>
