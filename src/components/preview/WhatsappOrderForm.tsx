@@ -67,7 +67,9 @@ export function WhatsappOrderForm({
 
   /**
    * Builds the WhatsApp message text.
-   * Structure: Produit, Variante (couleur/taille), Prix, Nom complet, Adresse/Ville.
+   * Structure: Produit, Variante (couleur/taille), Prix, Lien produit, Nom complet, Adresse/Ville.
+   * VG36.1 Fix D: Added product URL line (window.location.href) so the commercial team
+   * can instantly verify the exact product reference the customer selected.
    * Uses Arabic labels (the form header is Arabic: معلومات خاصة بالطلب).
    */
   const buildWhatsAppMessage = (): string => {
@@ -87,6 +89,10 @@ export function WhatsappOrderForm({
     // Price
     if (productPrice) {
       lines.push(`💰 ${locale === 'ar' ? 'السعر' : 'Prix'}: ${formatPrice(productPrice)}`);
+    }
+    // VG36.1 Fix D: Product URL — direct link to the PDP for commercial verification
+    if (typeof window !== 'undefined' && window.location.href) {
+      lines.push(`🔗 ${locale === 'ar' ? 'رابط المنتج' : 'Lien produit'}: ${window.location.href}`);
     }
     lines.push('');
     // Customer info

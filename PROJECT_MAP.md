@@ -1607,3 +1607,56 @@ Optimisation du catalogue WhatsApp et UI — 5 axes sur branche isolee `fix/what
 
 ---
 Date de mise a jour : 27/07/2026
+
+## [VG36.1 — WHATSAPP UI ADJUSTMENTS]
+
+### Mandat
+Finition UI & WhatsApp — 4 correctifs visuels et fonctionnels sur branche isolee `fix/whatsapp-ui-adjustments-vg36.1` (creee depuis `main@863f8c3`). Objectif : corriger l'icône de retour, supprimer le bouton dupliqué, aligner la devise en RTL, et réintégrer le lien produit dans le message WhatsApp.
+
+### Corrections appliquees (4 axes)
+
+#### A. Correction de l'icône de retour (Breadcrumb)
+- **ProductPage.tsx** : remplacement de `RotateCcw`/`RotateCw` (flèche circulaire de rafraîchissement) par `ArrowLeft`/`ArrowRight` (flèche directionnelle droite).
+  - LTR (Français) : `<ArrowLeft />` — pointe vers la gauche.
+  - RTL (Arabe) : `<ArrowRight />` — pointe vers la droite.
+  - Logique : `{rtl ? <ArrowRight/> : <ArrowLeft/>}`
+
+#### B. Suppression du bouton supérieur dupliqué & Recalage vertical
+- **ProductPage.tsx** : suppression du bouton noir `pdp-btn-buy-now` (texte « اطلب » / « Commander ») dans le mode WhatsApp.
+  - Le bloc formulaire `WhatsappOrderForm` remonte pour combler l'espace vide.
+  - Seul le bouton vert WhatsApp (`إرسال الطلب عبر واتساب`) subsiste comme CTA unique.
+  - Mode Landing (COD) inchangé — duo Buy Now + Add to Cart + CodForm préservé.
+
+#### C. Alignement de la devise "Dhs" en mode Arabe (RTL)
+- **ProductPage.tsx** : `pdp-price-row` enveloppé avec `dir="ltr"` + `style={{ unicodeBidi: 'isolate' }}`.
+  - Force l'affichage « 250 Dhs » (montant à gauche, symbole à droite) en LTR comme en RTL.
+  - Scope limité à la PDP — les cartes catalogue utilisent leur propre `PriceText` (non impacté).
+
+#### D. Réintégration du Lien Produit dans le message WhatsApp
+- **WhatsappOrderForm.tsx** : ajout d'une ligne `🔗 Lien produit: {window.location.href}` dans `buildWhatsAppMessage()`.
+  - L'équipe commerciale peut vérifier instantanément la référence produit exacte.
+  - Labels localisés : « Lien produit » (FR) / « رابط المنتج » (AR).
+  - Guard SSR : `typeof window !== 'undefined'`.
+
+### Fichiers modifies
+| # | Fichier | Modification | Tunnel impacte |
+|---|---------|-------------|----------------|
+| 1 | `src/components/preview/ProductPage.tsx` | Fix A (ArrowLeft/Right) + Fix B (remove duplicate btn) + Fix C (price bidi) | WhatsApp + Landing (conditionnel) |
+| 2 | `src/components/preview/WhatsappOrderForm.tsx` | Fix D (product URL in WA message) | WhatsApp seulement |
+| 3 | `PROJECT_MAP.md` | Section VG36.1 | Documentation |
+
+### Fichiers NON modifies (etancheite tunnel Landing)
+| # | Fichier | Statut |
+|---|---------|--------|
+| 1 | `src/components/preview/CodForm.tsx` | NON modifie |
+| 2 | `src/components/preview/CartDrawer.tsx` | NON modifie |
+| 3 | `src/lib/cart-store.ts` | NON modifie |
+| 4 | `src/components/preview/CheckoutPage.tsx` | NON modifie |
+| 5 | `src/lib/whatsapp.ts` | NON modifie |
+| 6 | `src/app/api/orders/*` | NON modifie |
+
+### Branche
+`fix/whatsapp-ui-adjustments-vg36.1` (creee depuis `main@863f8c3`) — commit `1bfef55`. **En attente du Feu Vert** suite à audit visuel et technique. **Aucun merge sur main.**
+
+---
+Date de mise a jour : 27/07/2026
