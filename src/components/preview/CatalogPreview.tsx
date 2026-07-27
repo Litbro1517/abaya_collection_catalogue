@@ -7,7 +7,7 @@ import type { Section, SectionConfig, Column, ColumnConfig, Row, CatalogSettings
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import {
-  ArrowLeft, Search, MessageCircle, ChevronLeft, ChevronRight,
+  ArrowLeft, ArrowRight, Search, MessageCircle, ChevronLeft, ChevronRight,
   Mail, Instagram, ImageIcon, BookOpen, Settings, Heart,
   ShoppingBag, LayoutDashboard, Lock, RefreshCw, Globe, Check, X, Menu
 } from 'lucide-react';
@@ -232,7 +232,7 @@ function CartHeaderButton() {
   return (
     <button
       onClick={toggleDrawer}
-      className="fixed top-4 z-50 flex items-center justify-center transition-all hover:scale-105"
+      className="cart-header-button fixed top-4 z-50 flex items-center justify-center transition-all hover:scale-105"
       style={{
         right: '1rem',
         background: 'transparent',
@@ -807,7 +807,8 @@ export function CatalogPreview({ onAdminLogin }: CatalogPreviewProps) {
             className="flex items-center justify-center w-9 h-9 rounded-full hover:bg-gray-100 transition-colors shrink-0"
             aria-label={t('catalog.backToCatalog')}
           >
-            <ArrowLeft className="w-5 h-5" style={{ color: 'var(--pivot-text)' }} />
+            {/* VG36.2 Sprint 2: RTL-aware header back arrow */}
+            {rtl ? <ArrowRight className="w-5 h-5" style={{ color: 'var(--pivot-text)' }} /> : <ArrowLeft className="w-5 h-5" style={{ color: 'var(--pivot-text)' }} />}
           </button>
         )}
 
@@ -1003,7 +1004,8 @@ export function CatalogPreview({ onAdminLogin }: CatalogPreviewProps) {
             className="flex items-center justify-center shrink-0 hover:opacity-60 transition-opacity"
             aria-label={t('catalog.back')}
           >
-            <ArrowLeft className="w-3.5 h-3.5" style={{ color: 'var(--muted-foreground)' }} />
+            {/* VG36.2 Sprint 2: RTL-aware breadcrumb back arrow */}
+            {rtl ? <ArrowRight className="w-3.5 h-3.5" style={{ color: 'var(--muted-foreground)' }} /> : <ArrowLeft className="w-3.5 h-3.5" style={{ color: 'var(--muted-foreground)' }} />}
           </button>
 
           {/* Catalog Name segment */}
@@ -1092,7 +1094,8 @@ export function CatalogPreview({ onAdminLogin }: CatalogPreviewProps) {
       {/* ═══ Règle 2 & 3: Filters on cream white background ═══ */}
 
       {/* ═══ Mobile Burger Menu (block md:hidden) — minimalist drawer ═══ */}
-      {(dynamicCategories.length > 0 || filterOptions.length > 1) && (
+      {/* VG36.2 Sprint 1: guard switched to sectionsLoaded for category bar resilience */}
+      {sectionsLoaded && (
         <div className="block md:hidden" style={{ backgroundColor: '#FAF8F5', borderBottom: '1px solid var(--client-border, #e7e5e4)' }}>
           <div className="mx-auto max-w-[1270px] px-4 py-2.5">
             <button
@@ -1253,6 +1256,12 @@ export function CatalogPreview({ onAdminLogin }: CatalogPreviewProps) {
       )}
 
       {/* ═══ Desktop Filter Bar (hidden md:block) — horizontal capsule pills ═══ */}
+      {/* VG36.2 Sprint 1: guard switched to sectionsLoaded for category bar resilience.
+          The inner dynamicCategories.length > 0 still decides WHICH bar to render
+          (macro categories vs filter options), but the OUTER wrapper no longer
+          disappears when the API returns an empty array on first load. */}
+      {sectionsLoaded && (
+        <>
       {dynamicCategories.length > 0 ? (
         <div className="catalog-filter-bar-wrap hidden md:block">
           {/* ── Level 1: Macro Categories — elongated capsule pills ── */}
@@ -1353,6 +1362,8 @@ export function CatalogPreview({ onAdminLogin }: CatalogPreviewProps) {
           </div>
         </div>
       ) : null}
+        </>
+      )}
 
       {/* ── Contextual Category Title ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */}
       {activeMacroFilter !== 'all' && dynamicCategories.length > 0 && (() => {

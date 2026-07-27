@@ -863,13 +863,12 @@ export function ProductPage({
           <h1 className="pdp-product-title">{translatedTitle}</h1>
 
           {/* ── Price ── */}
-          {/* VG36.1 Fix C: Bidi-isolated price row — forces "250 Dhs" (amount left,
-              symbol right) in both LTR and RTL. The pdp-price-row itself is wrapped
-              with dir="ltr" + unicodeBidi: isolate to prevent the RTL parent from
-              reordering the price runs. This is scoped to the PDP only — catalog cards
-              use their own PriceText isolation and are NOT impacted. */}
+          {/* VG36.2 Sprint 2: Removed dir="ltr" from the container so the block
+              aligns right and reverses order naturally in RTL. The numeric
+              sub-elements (.pdp-current-price, .pdp-old-price) keep their own
+              PriceText bidi isolation to prevent currency symbol crossover. */}
           {price && (
-            <div className="pdp-price-row" dir="ltr" style={{ unicodeBidi: 'isolate' }}>
+            <div className="pdp-price-row">
               <span className="pdp-current-price">
                 <PriceText>{formatPrice(price)}</PriceText>
               </span>

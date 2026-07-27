@@ -1660,3 +1660,45 @@ Finition UI & WhatsApp — 4 correctifs visuels et fonctionnels sur branche isol
 
 ---
 Date de mise a jour : 27/07/2026
+
+## [VG36.2 — RTL CATEGORIES RECTIFICATION]
+
+### Mandat
+Navigation, categories & harmonisation RTL — 3 sprints sur branche isolee `fix/vg36.2-rtl-categories-rectification` (recreee depuis `main@f2b301c`). Objectif : resoudre les masquages logiques de categories et les decalages d'affichage RTL.
+
+### Sprint 1 — Resilience de la Navigation & Barre de Filtres
+- **CatalogPreview.tsx** : guard `dynamicCategories.length > 0` remplace par `sectionsLoaded` sur le wrapper du menu mobile ET la barre de filtres desktop.
+  - La barre de categories reste visible des l'initialisation de la page, meme si l'API retourne un tableau vide au premier chargement.
+  - La logique interne `dynamicCategories.length > 0` est preservee pour decider QUELLE barre afficher (macro categories vs filter options).
+
+### Sprint 2 — Orientation RTL Critique
+- **CatalogPreview.tsx** : fleche de retour du header `renderHeader()` maintenant RTL-aware (`{rtl ? <ArrowRight/> : <ArrowLeft/>}`).
+- **CatalogPreview.tsx** : fleche de retour du fil d'Ariane egalement RTL-aware.
+- **ProductPage.tsx** : attribut `dir="ltr"` retire du conteneur `.pdp-price-row`.
+- **globals.css** : `html.rtl .pdp-price-row { justify-content: flex-end; flex-direction: row-reverse; }` — alignement a droite + inversion de l'ordre (Prix Actuel ➔ Prix Barre ➔ Badge Reduction).
+- Les sous-elements numeriques conservent leur isolation bidi via `PriceText`.
+
+### Sprint 3 — Positionnement en Miroir RTL
+- **globals.css** : `.product-card-discount-badge` left→right en RTL.
+- **globals.css** : `.product-card-like` right→left en RTL.
+- **globals.css** : `.product-page-img-counter` right→left en RTL.
+- **globals.css** : `.cart-header-button` right→left en RTL (classe ajoutee au composant + regle CSS `!important` pour overrider le style inline).
+- **globals.css** : `footer` text-align right en RTL.
+- **globals.css** : `input[type="tel"]` direction:ltr + unicode-bidi:isolate en RTL (empeche le mal-affichage de l'indicatif +212, applique globalement sans modifier CodForm.tsx).
+
+### Fichiers modifies
+| # | Fichier | Sprint | Modification |
+|---|---------|--------|-------------|
+| 1 | `src/components/preview/CatalogPreview.tsx` | 1+2 | Guard sectionsLoaded + ArrowRight RTL + cart-header-button class |
+| 2 | `src/components/preview/ProductPage.tsx` | 2 | Retrait dir="ltr" du conteneur pdp-price-row |
+| 3 | `src/app/globals.css` | 2+3 | RTL mirror rules (price-row, badges, buttons, counter, tel input) |
+| 4 | `PROJECT_MAP.md` | - | Section VG36.2 |
+
+### Fichiers NON modifies (etancheite tunnel Landing)
+CodForm.tsx, CartDrawer.tsx, cart-store.ts, CheckoutPage.tsx, whatsapp.ts, api/orders/* — TOUS NON MODIFIES.
+
+### Branche
+`fix/vg36.2-rtl-categories-rectification` (recreee depuis `main@f2b301c`). **En attente du Feu Vert**.
+
+---
+Date de mise a jour : 27/07/2026

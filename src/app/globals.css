@@ -329,6 +329,59 @@ html.rtl .mobile-cta-button svg {
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════
+   VG36.2 Sprint 2 & 3 — RTL Mirror Adjustments
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+/* Sprint 2: PDP price block — align right + reverse order (Current ➔ Old ➔ Badge)
+   in RTL. The numeric sub-elements keep their own PriceText bidi isolation. */
+html.rtl .pdp-price-row {
+  justify-content: flex-end;
+  flex-direction: row-reverse;
+}
+
+/* Sprint 3: Mirror absolutely-positioned elements in RTL */
+
+/* Discount badge: left → right in RTL */
+html.rtl .product-card-discount-badge {
+  left: auto;
+  right: 8px;
+}
+
+/* Like button: right → left in RTL */
+html.rtl .product-card-like {
+  right: auto;
+  left: 8px;
+}
+
+/* Image counter: right → left in RTL */
+html.rtl .product-page-img-counter {
+  right: auto;
+  left: 12px;
+}
+
+/* Sprint 3: Cart header button — uses inline style right:'1rem', flip via CSS */
+html.rtl .cart-header-button,
+html.rtl [class*="cart-header"] {
+  right: auto !important;
+  left: 1rem !important;
+}
+
+/* Sprint 3: Footer elements — mirror alignment in RTL */
+html.rtl footer,
+html.rtl .site-footer {
+  text-align: right;
+}
+
+/* Sprint 3: Force LTR on all telephone inputs in RTL mode — prevents
+   country code (+212) from being misplaced by the bidi algorithm.
+   Applied globally via CSS so NO critical file (CodForm.tsx) needs editing. */
+html.rtl input[type="tel"] {
+  direction: ltr;
+  unicode-bidi: isolate;
+  text-align: right;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
    GLIDE-LIKE STYLES — All styles for catalog + product page
    ═══════════════════════════════════════════════════════════════════════════ */
 
