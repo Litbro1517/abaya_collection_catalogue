@@ -1256,6 +1256,15 @@ html.rtl .mobile-cta-button svg {
 /* ── RTL Carousel: VG35.0 Fix B — arrows LOCKED to outward orientation ──
    Left arrow (‹) stays on the LEFT, right arrow (›) stays on the RIGHT,
    in both LTR and RTL. No position swap, no mirror, no rotation. */
+/* VG36.0 Fix B: extend unicode-bidi:isolate + direction:ltr to the MAIN carousel
+   arrows too (VG35.0 only applied it to thumbnails). This prevents the bidi
+   algorithm from mirroring ‹ (U+2039) and › (U+203A) characters in RTL context,
+   which made both arrows point inward. Now ‹ always renders pointing left and
+   › always renders pointing right, regardless of dir attribute. */
+.carousel-arrow {
+  unicode-bidi: isolate;
+  direction: ltr;
+}
 html.rtl .carousel-arrow.left {
   left: 12px;
   right: auto;
@@ -3665,6 +3674,18 @@ html[lang="ar"] div {
   justify-content: flex-start;
   gap: 15px;
   width: 100%;
+  /* VG36.0 Fix C1: align the CENTER of the first social icon with the CENTER
+     of the first guarantee icon (first cell of a 5-col grid with 8px gap).
+     Cell width = (100% - 4×8px) / 5. First cell center = cellWidth / 2.
+     Social icon = 40px → center at padding-left + 20px.
+     → padding-left = cellWidth/2 - 20px = ((100% - 32px)/5)/2 - 20px
+                    = (100% - 32px)/10 - 20px = 10% - 3.2px - 20px = 10% - 23.2px. */
+  padding-left: calc(10% - 23px) !important;
+}
+html[dir="rtl"] .pdp-social-icons-group,
+html.rtl .pdp-social-icons-group {
+  padding-left: 0 !important;
+  padding-right: calc(10% - 23px) !important;
 }
 
 .pdp-social-circle-btn {

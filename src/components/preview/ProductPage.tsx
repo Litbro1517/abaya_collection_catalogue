@@ -31,6 +31,7 @@ import { computeDiscount, getCompareAtPrice } from '@/lib/discount-utils';
 import { useAutoTranslatedText } from '@/lib/useAutoTranslatedText';
 import { useCartStore } from '@/lib/cart-store';
 import { CodForm } from './CodForm';
+import { WhatsappOrderForm } from './WhatsappOrderForm';
 import { TrustGuaranteesSection } from '@/components/TrustGuaranteesSection';
 import { PriceText } from '@/components/PriceText';
 import {
@@ -744,7 +745,10 @@ export function ProductPage({
             )}
 
             {/* ── Floating action buttons ── */}
-            <div className="absolute top-3 right-3 z-20 flex flex-col gap-2 md:top-[200px] md:right-4 md:gap-3">
+            {/* VG36.0 Fix C2: moved to top-3 (12px) on ALL breakpoints to clear the
+                carousel navigation arrows zone. Previously md:top-[200px] overlapped
+                the left/right arrows. Now both mobile and desktop pin to top-right. */}
+            <div className="absolute top-3 right-3 z-20 flex flex-col gap-2">
               <button
                 className="product-page-float-action"
                 onClick={() => setIsLiked(!isLiked)}
@@ -1011,48 +1015,73 @@ export function ProductPage({
           )}
 
           {/* ── CTA duo: Buy Now + Add to Cart ── */}
-          <div className="pdp-cta-duo-container">
-            {isLandingMode ? (
-              <button
-                type="button"
-                className="pdp-btn-buy-now"
-                disabled={isEpuise}
-                onClick={isEpuise ? undefined : handleCtaClick}
-              >
-                <ShoppingBag className="w-5 h-5 shrink-0" style={{ color: 'var(--gold-accent, #C5A059)' }} />
-                {isEpuise ? t('product.soldOut') : isSurCommande ? t('product.onOrder') : t('product.quickBuy')}
-              </button>
-            ) : (
-              <a
-                className="pdp-btn-buy-now"
-                href={isEpuise ? '#' : whatsappLink}
-                target={isEpuise ? undefined : '_blank'}
-                rel={isEpuise ? undefined : 'noopener noreferrer'}
-                onClick={isEpuise ? (e) => e.preventDefault() : handleWhatsappCtaClick}
-                style={{ textDecoration: 'none' }}
-              >
-                <MessageCircle className="w-5 h-5 shrink-0" style={{ color: 'var(--gold-accent, #C5A059)' }} />
-                {isEpuise ? t('product.soldOut') : t('product.commander')}
-              </a>
-            )}
+          {/* VG36.0 Fix A: Tunnel isolation — WhatsApp mode shows only the Buy button
+              (no Add to Cart) + the new WhatsappOrderForm below. Landing mode keeps
+              the original duo (Buy Now + Add to Cart) + CodForm. CodForm.tsx and
+              CheckoutPage.tsx remain STRICTLY UNTOUCHED. */}
+          {isLandingMode ? (
+            <>
+              <div className="pdp-cta-duo-container">
+                <button
+                  type="button"
+                  className="pdp-btn-buy-now"
+                  disabled={isEpuise}
+                  onClick={isEpuise ? undefined : handleCtaClick}
+                >
+                  <ShoppingBag className="w-5 h-5 shrink-0" style={{ color: 'var(--gold-accent, #C5A059)' }} />
+                  {isEpuise ? t('product.soldOut') : isSurCommande ? t('product.onOrder') : t('product.quickBuy')}
+                </button>
 
-            <button
-              type="button"
-              className="pdp-btn-add-cart"
-              disabled={isEpuise}
-              onClick={handleAddToCart}
-            >
-              <ShoppingBag className="w-4 h-4" />
-              {t('cart.added') === 'Produit ajouté au panier' ? 'Ajouter au panier' : 'Add to Cart'}
-            </button>
-          </div>
+                <button
+                  type="button"
+                  className="pdp-btn-add-cart"
+                  disabled={isEpuise}
+                  onClick={handleAddToCart}
+                >
+                  <ShoppingBag className="w-4 h-4" />
+                  {t('cart.added') === 'Produit ajouté au panier' ? 'Ajouter au panier' : 'Add to Cart'}
+                </button>
+              </div>
 
-          {/* ── Inline COD Form (gold border) ── */}
-          <CodForm
-            productId={row.id}
-            productName={title}
-            productPrice={price}
-          />
+              {/* ── Inline COD Form (gold border) — Landing tunnel only ── */}
+              <CodForm
+                productId={row.id}
+                productName={title}
+                productPrice={price}
+              />
+            </>
+          ) : (
+            <>
+              {/* WhatsApp mode: single Buy button (full width), no Add to Cart */}
+              <div className="pdp-cta-duo-container">
+                <a
+                  className="pdp-btn-buy-now"
+                  href={isEpuise ? '#' : whatsappLink}
+                  target={isEpuise ? undefined : '_blank'}
+                  rel={isEpuise ? undefined : 'noopener noreferrer'}
+                  onClick={isEpuise ? (e) => e.preventDefault() : handleWhatsappCtaClick}
+                  style={{ textDecoration: 'none', flex: 'none', width: '100%' }}
+                >
+                  <MessageCircle className="w-5 h-5 shrink-0" style={{ color: 'var(--gold-accent, #C5A059)' }} />
+                  {isEpuise ? t('product.soldOut') : t('product.commander')}
+                </a>
+              </div>
+
+              {/* ── WhatsApp Order Form (2 Arabic fields + green WA button) ──
+                  Isolated from CodForm: does NOT call /api/orders, does NOT touch
+                  cart store, only builds a wa.me URL with the full order details. */}
+              <WhatsappOrderForm
+                productName={title}
+                productPrice={price}
+                selectedColor={selectedColor}
+                selectedSize={selectedSize}
+                whatsappNumber={whatsappNumber}
+                locale={locale}
+                hasMissingVariant={hasMissingVariant}
+                onVariantMissing={() => setShowVariantError(true)}
+              />
+            </>
+          )}
 
           {/* ── Share toast ── */}
           {showShareToast && (
