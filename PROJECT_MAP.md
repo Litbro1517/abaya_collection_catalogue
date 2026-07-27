@@ -1485,3 +1485,52 @@ Date de mise à jour : 22/07/2026
 
 ---
 Date de mise à jour : 27/07/2026
+
+## [VG35.0 — PDP LAYOUT RTL & BACK ARROW]
+
+### Mandat
+Structuration, alignement et navigation PDP — 4 axes sur branche isolee `fix/pdp-layout-rtl-and-back-arrow` (creee depuis `main@182dcff`). Interdiction de merge autonome : attente du Feu Vert.
+
+### Corrections appliquees (4 axes)
+
+#### A. Suppression du separateur & empilement vertical sous-image
+- TrustGuaranteesSection : ajout prop `variant?: 'full' | 'compact'` (defaut 'full').
+  - compact (PDP) : suppression ligne de separation doree, py-0, grille grid-cols-5 gap-2, cercles w-10 h-10, texte text-[0.7rem].
+  - full (catalogue) : inchange.
+- .pdp-under-image-space : refonte — display:flex, flex-direction:column, align-items:center, gap:20px, width:100%.
+- ProductPage.tsx : `<TrustGuaranteesSection variant="compact" />` en contexte PDP.
+
+#### B. Verrouillage des fleches du carrousel (LTR + RTL)
+- Carrousel principal : neutralisation du swap RTL. Fleche gauche TOUJOURS a gauche, fleche droite TOUJOURS a droite.
+- Carrousel miniatures : unicode-bidi:isolate + direction:ltr + transform scaleX(1) verrouilles.
+
+#### C. Alignement strict de la description sur le cadre superieur de l'image
+- ProductPage.tsx : fil d'Ariane deplace hors de .pdp-gallery-section, enfant direct de .pdp-wrapper (au-dessus de .pdp-grid).
+  -> Les deux colonnes demarrent a la meme Y. Sommet du titre cale exactement sur le bord superieur du cadre image.
+- .pdp-wrapper > .product-page-breadcrumb { margin-bottom: 0 }
+- .pdp-details-section { margin-top: 0 }
+- .pdp-product-title { margin: 0 } (suppression marge h1)
+
+#### D. Refonte de la fleche de retour en demi-cercle (U-turn)
+- LTR (Francais) : `<RotateCcw />` — pointe vers la gauche.
+- RTL (Arabe) : `<RotateCw />` — pointe vers la droite.
+- Logique : `{rtl ? <RotateCw /> : <RotateCcw />}`
+
+### Fichiers modifies
+| # | Fichier | Modification |
+|---|---------|-------------|
+| 1 | src/components/preview/ProductPage.tsx | Fix C + Fix D + Fix A |
+| 2 | src/components/TrustGuaranteesSection.tsx | Fix A (prop variant + compact mode) |
+| 3 | src/app/globals.css | Fix A + Fix B + Fix C |
+| 4 | PROJECT_MAP.md | Section VG35.0 |
+
+### Verifications
+- bun run lint : 0 erreur, 0 warning OK
+- Auto-verification Agent Browser (FR + AR) : Fix A (0 separateur), Fix B (fleches vers exterieur LTR+RTL), Fix C (titleImageDiff=0), Fix D (RotateCcw LTR / RotateCw RTL) — tous OK
+- Isolation branche main : main@182dcff strictement intacte OK
+
+### Branche
+`fix/pdp-layout-rtl-and-back-arrow` (creee depuis `main@182dcff`) — commit 6817015. En attente du Feu Vert. Aucun merge sur main.
+
+---
+Date de mise a jour : 27/07/2026
