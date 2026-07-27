@@ -1546,3 +1546,64 @@ Structuration, alignement et navigation PDP — 4 axes sur branche isolee `fix/p
 
 ---
 Date de mise a jour : 27/07/2026
+
+## [VG36.0 — WHATSAPP CATALOG UI OPTIMIZATION & ISOLATED DEPLOYMENT]
+
+### Mandat
+Optimisation du catalogue WhatsApp et UI — 5 axes sur branche isolee `fix/whatsapp-catalog-ui` (creee depuis `main@5d450d1`). Objectif : maximiser la conversion WhatsApp avec un formulaire 2 champs en arabe, isoler strictement du tunnel Landing Page (COD).
+
+### Corrections appliquees (5 axes)
+
+#### A. Refonte Formulaire & Bouton WhatsApp (espace isole)
+- **WhatsappOrderForm.tsx** (nouveau composant isole) : 2 champs obligatoires (الاسم الكامل + العنوان والمدينة), bouton vert WhatsApp (#25D366) avec texte إرسال الطلب عبر واتساب.
+  - Valide selection variante (Taille/Couleur) + 2 champs AVANT de generer l'URL wa.me.
+  - Message WhatsApp pre-rempli : Produit, Variante, Prix, Nom complet, Adresse/Ville.
+  - **Isolation totale** : n'importe pas CodForm, n'appelle pas /api/orders, ne touche pas au cart store.
+- **ProductPage.tsx** : `isLandingMode ? <CodForm/> : <WhatsappOrderForm/>` — tunnel conditionnel.
+  - Mode WhatsApp : bouton Buy seul (pleine largeur, pas de Add to Cart) + WhatsappOrderForm.
+  - Mode Landing : duo Buy Now + Add to Cart + CodForm (INCHANGE).
+- **CodForm.tsx** : NON modifie (tunnel Landing intact).
+- **CheckoutPage.tsx** : NON modifie (tunnel Landing intact).
+
+#### B. Correctif Fleches Carrousel Principal (RTL / Arabe)
+- `.carousel-arrow` : `unicode-bidi: isolate; direction: ltr;` ajoutes (VG35.0 ne l'avait fait que sur `.pdp-thumb-arrow`).
+- Les caracteres ‹ (U+2039) et › (U+203A) ne sont plus mirroires par l'algorithme bidi en mode RTL.
+- Fleche gauche pointe TOUJOURS vers la gauche, fleche droite vers la droite, LTR comme RTL.
+- Miniatures NON modifiees (deja correctes depuis VG35.0).
+
+#### C1. Alignement Reseaux Sociaux & Garanties
+- `.pdp-social-icons-group` : `padding-left: calc(10% - 23px)` (LTR) / `padding-right: calc(10% - 23px)` (RTL).
+- Le centre de la premiere icone sociale s'aligne avec le centre de la premiere icone de la grille des garanties (5 colonnes, gap 8px).
+
+#### C2. Repositionnement Icones Coeur/Partage
+- Boutons flottants (Heart/Share) : `md:top-[200px]` supprime → `top-3 right-3` sur TOUS les breakpoints.
+- Les boutons ne chevauchent plus les fleches de navigation du carrousel.
+
+### Fichiers modifies
+| # | Fichier | Modification | Tunnel impacte |
+|---|---------|-------------|----------------|
+| 1 | `src/components/preview/WhatsappOrderForm.tsx` | Nouveau composant isole (2 champs + bouton WA vert) | WhatsApp seulement |
+| 2 | `src/components/preview/ProductPage.tsx` | Fix A (conditional tunnel) + Fix C2 (float buttons) | WhatsApp + Landing (conditionnel) |
+| 3 | `src/app/globals.css` | Fix B (unicode-bidi) + Fix C1 (social padding) | Global CSS (scoped) |
+| 4 | `PROJECT_MAP.md` | Section VG36.0 | Documentation |
+
+### Fichiers NON modifies (etancheite tunnel Landing)
+| # | Fichier | Statut |
+|---|---------|--------|
+| 1 | `src/components/preview/CodForm.tsx` | NON modifie |
+| 2 | `src/components/preview/CartDrawer.tsx` | NON modifie |
+| 3 | `src/lib/cart-store.ts` | NON modifie |
+| 4 | `src/components/preview/CheckoutPage.tsx` | NON modifie |
+| 5 | `src/lib/whatsapp.ts` | NON modifie |
+| 6 | `src/app/api/orders/*` | NON modifie |
+
+### Verifications
+- `bun run lint` : 0 erreur, 0 warning OK
+- Serveur dev (port 3000) : compilation reussie, page / repond 200 OK
+- Etancheite tunnel Landing : 6 fichiers critiques NON modifies (verifie via git diff)
+
+### Branche
+`fix/whatsapp-catalog-ui` (creee depuis `main@5d450d1`).
+
+---
+Date de mise a jour : 27/07/2026
