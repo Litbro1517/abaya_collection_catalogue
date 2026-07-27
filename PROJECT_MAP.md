@@ -1526,11 +1526,23 @@ Structuration, alignement et navigation PDP — 4 axes sur branche isolee `fix/p
 
 ### Verifications
 - bun run lint : 0 erreur, 0 warning OK
+- bun run build : exit code 0, 0 erreur de compilation OK (11.6s compile, 57/57 pages)
 - Auto-verification Agent Browser (FR + AR) : Fix A (0 separateur), Fix B (fleches vers exterieur LTR+RTL), Fix C (titleImageDiff=0), Fix D (RotateCcw LTR / RotateCw RTL) — tous OK
-- Isolation branche main : main@182dcff strictement intacte OK
+- Isolation branche main : main@182dcff strictement intacte avant fusion OK
+
+### Audit & Deploiement (Protocole 0 — 100% GO)
+- **Audit 4 axes (A/B/C/D)** : 4/4 valides a 100% sans reserve
+  - Axe A (Ligne & Espacement) : separateur supprime en variant compact + .pdp-under-image-space refonte (flex column, gap 20px, align-items center) OK
+  - Axe B (Fleches RTL) : carrousel principal verrouille (left=left, right=right en RTL), miniatures verrouillees (unicode-bidi isolate + direction ltr + scaleX(1)) OK
+  - Axe C (Alignement Cadre Image) : breadcrumb deplace hors galerie (enfant direct .pdp-wrapper), .pdp-details-section margin-top:0, .pdp-product-title margin:0 OK
+  - Axe D (Fleche de Retour) : ArrowLeft remplace par RotateCcw (LTR) / RotateCw (RTL) avec logique dynamique `{rtl ? <RotateCw /> : <RotateCcw />}` OK
+- **Fusion** : `git merge --no-ff fix/pdp-layout-rtl-and-back-arrow -> main` (commit `ece7c27`) OK
+- **Poussee GitHub** : `git push origin main` (`182dcff..ece7c27`) — declenchement pipeline Vercel Production OK
+- **Nettoyage branches** : locale `fix/pdp-layout-rtl-and-back-arrow` supprimee + distante `origin/fix/pdp-layout-rtl-and-back-arrow` supprimee OK
+- **Statut** : OK **DEPLOYE EN PRODUCTION** (Vercel auto-deploy via GitHub main)
 
 ### Branche
-`fix/pdp-layout-rtl-and-back-arrow` (creee depuis `main@182dcff`) — commit 6817015. En attente du Feu Vert. Aucun merge sur main.
+`fix/pdp-layout-rtl-and-back-arrow` (creee depuis `main@182dcff`) — **FUSIONNEE & SUPPRIMEE** (main desormais a `ece7c27`).
 
 ---
 Date de mise a jour : 27/07/2026
