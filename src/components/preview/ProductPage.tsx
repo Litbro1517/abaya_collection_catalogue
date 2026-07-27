@@ -11,8 +11,8 @@ import {
 import { readCache, writeCache, CACHE_KEYS } from '@/lib/cache';
 import { buildWhatsappLink } from '@/lib/whatsapp';
 import {
-  RotateCcw,
-  RotateCw,
+  ArrowLeft,
+  ArrowRight,
   MessageCircle,
   Heart,
   Share2,
@@ -626,8 +626,8 @@ export function ProductPage({
       {/* ── Breadcrumb — full width above grid (VG35.0 Fix C: aligns description top with image frame top) ── */}
       <nav className="product-page-breadcrumb" dir={rtl ? 'rtl' : 'ltr'}>
         <button onClick={onBack} className="breadcrumb-back" aria-label={t('catalog.back')}>
-          {/* VG35.0 Fix D: curved U-turn back arrow — points left in LTR, right in RTL */}
-          {rtl ? <RotateCw className="w-4 h-4" /> : <RotateCcw className="w-4 h-4" />}
+          {/* VG36.1 Fix A: directional back arrow — ArrowLeft in LTR, ArrowRight in RTL */}
+          {rtl ? <ArrowRight className="w-4 h-4" /> : <ArrowLeft className="w-4 h-4" />}
         </button>
         <button className="breadcrumb-link" onClick={onBack}>{catalogName}</button>
         <span className="breadcrumb-sep">/</span>
@@ -863,8 +863,13 @@ export function ProductPage({
           <h1 className="pdp-product-title">{translatedTitle}</h1>
 
           {/* ── Price ── */}
+          {/* VG36.1 Fix C: Bidi-isolated price row — forces "250 Dhs" (amount left,
+              symbol right) in both LTR and RTL. The pdp-price-row itself is wrapped
+              with dir="ltr" + unicodeBidi: isolate to prevent the RTL parent from
+              reordering the price runs. This is scoped to the PDP only — catalog cards
+              use their own PriceText isolation and are NOT impacted. */}
           {price && (
-            <div className="pdp-price-row">
+            <div className="pdp-price-row" dir="ltr" style={{ unicodeBidi: 'isolate' }}>
               <span className="pdp-current-price">
                 <PriceText>{formatPrice(price)}</PriceText>
               </span>
@@ -1019,6 +1024,9 @@ export function ProductPage({
               (no Add to Cart) + the new WhatsappOrderForm below. Landing mode keeps
               the original duo (Buy Now + Add to Cart) + CodForm. CodForm.tsx and
               CheckoutPage.tsx remain STRICTLY UNTOUCHED. */}
+          {/* VG36.1 Fix B: Removed the duplicate black "اطلب" buy button in WhatsApp mode.
+              The form is shifted up to fill the space. Only the green WhatsApp button
+              at the bottom of the form remains as the single call-to-action. */}
           {isLandingMode ? (
             <>
               <div className="pdp-cta-duo-container">
@@ -1052,24 +1060,10 @@ export function ProductPage({
             </>
           ) : (
             <>
-              {/* WhatsApp mode: single Buy button (full width), no Add to Cart */}
-              <div className="pdp-cta-duo-container">
-                <a
-                  className="pdp-btn-buy-now"
-                  href={isEpuise ? '#' : whatsappLink}
-                  target={isEpuise ? undefined : '_blank'}
-                  rel={isEpuise ? undefined : 'noopener noreferrer'}
-                  onClick={isEpuise ? (e) => e.preventDefault() : handleWhatsappCtaClick}
-                  style={{ textDecoration: 'none', flex: 'none', width: '100%' }}
-                >
-                  <MessageCircle className="w-5 h-5 shrink-0" style={{ color: 'var(--gold-accent, #C5A059)' }} />
-                  {isEpuise ? t('product.soldOut') : t('product.commander')}
-                </a>
-              </div>
-
               {/* ── WhatsApp Order Form (2 Arabic fields + green WA button) ──
-                  Isolated from CodForm: does NOT call /api/orders, does NOT touch
-                  cart store, only builds a wa.me URL with the full order details. */}
+                  VG36.1 Fix B: No duplicate buy button above the form. The form
+                  is the single conversion element. Isolated from CodForm: does NOT
+                  call /api/orders, does NOT touch cart store, only builds a wa.me URL. */}
               <WhatsappOrderForm
                 productName={title}
                 productPrice={price}
