@@ -1253,22 +1253,45 @@ html.rtl .mobile-cta-button svg {
   }
 }
 
-/* ── RTL Carousel: swap arrow positions ── */
+/* ── RTL Carousel: VG35.0 Fix B — arrows LOCKED to outward orientation ──
+   Left arrow (‹) stays on the LEFT, right arrow (›) stays on the RIGHT,
+   in both LTR and RTL. No position swap, no mirror, no rotation. */
 html.rtl .carousel-arrow.left {
-  left: auto;
-  right: 12px;
+  left: 12px;
+  right: auto;
 }
 html.rtl .carousel-arrow.right {
-  right: auto;
-  left: 12px;
+  right: 12px;
+  left: auto;
 }
 @media (max-width: 640px) {
   html.rtl .carousel-arrow.left {
-    right: 8px;
+    left: 8px;
+    right: auto;
   }
   html.rtl .carousel-arrow.right {
-    left: 8px;
+    right: 8px;
+    left: auto;
   }
+}
+
+/* VG35.0 Fix B: Lock thumbnail carousel arrows — prevent any bidi mirror/rotation in RTL.
+   ‹ (U+2039) always points left, › (U+203A) always points right, regardless of dir. */
+.pdp-thumb-arrow {
+  unicode-bidi: isolate;
+  direction: ltr;
+}
+html[dir="rtl"] .pdp-thumb-arrow-left,
+html.rtl .pdp-thumb-arrow-left {
+  left: 0;
+  right: auto;
+  transform: translateY(-50%) scaleX(1);
+}
+html[dir="rtl"] .pdp-thumb-arrow-right,
+html.rtl .pdp-thumb-arrow-right {
+  right: 0;
+  left: auto;
+  transform: translateY(-50%) scaleX(1);
 }
 
 .carousel-dots {
@@ -3490,12 +3513,20 @@ html[lang="ar"] div {
   gap: 30px;
 }
 
+/* VG35.0 Fix C: Breadcrumb is now a direct child of .pdp-wrapper (above the grid).
+   Neutralize its margin-bottom so the wrapper gap (30px) controls spacing cleanly.
+   This ensures both grid columns (image + details) start at the exact same Y,
+   aligning the description title with the top of the image frame. */
+.pdp-wrapper > .product-page-breadcrumb {
+  margin-bottom: 0;
+}
+
 /* ── PDP Grid: responsive 2-column layout ── */
 .pdp-grid {
   display: grid;
   grid-template-columns: 1fr;
   gap: 30px;
-  align-items: flex-start; /* FIX 1: Title aligned with top of image frame */
+  align-items: flex-start; /* VG35.0 Fix C: Title aligned with top of image frame */
 }
 
 @media (min-width: 850px) {
@@ -3619,14 +3650,12 @@ html[lang="ar"] div {
 }
 
 /* ── Under-image space: social icons + guarantees ── */
+/* VG35.0 Fix A: clean vertical stack, centered, balanced 20px gap, no separator */
 .pdp-under-image-space {
-  margin-top: 8px;
   display: flex;
   flex-direction: column;
-  gap: 12px;
-  justify-content: space-between;
-  flex-grow: 1;
-  min-height: 80px;
+  align-items: center;
+  gap: 20px;
   width: 100%;
 }
 
@@ -3703,10 +3732,13 @@ html[lang="ar"] div {
 }
 
 /* FIX 5: Compact vertical rhythm — reduced gaps */
+/* VG35.0 Fix C: margin-top:0 guarantees the description title starts exactly
+   at the grid row top, flush with the image frame's top edge. */
 .pdp-details-section {
   display: flex;
   flex-direction: column;
   gap: 12px; /* was 18px — compacted */
+  margin-top: 0;
 }
 
 .pdp-details-section .product-page-section {
@@ -3723,6 +3755,7 @@ html[lang="ar"] div {
   font-size: 2rem;
   font-weight: 700;
   color: var(--vert-deep, #14241E);
+  margin: 0; /* VG35.0 Fix C: kill default h1 margin so title sits flush at column top */
 }
 
 @media (max-width: 640px) {

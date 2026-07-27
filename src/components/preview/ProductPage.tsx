@@ -11,7 +11,8 @@ import {
 import { readCache, writeCache, CACHE_KEYS } from '@/lib/cache';
 import { buildWhatsappLink } from '@/lib/whatsapp';
 import {
-  ArrowLeft,
+  RotateCcw,
+  RotateCw,
   MessageCircle,
   Heart,
   Share2,
@@ -621,22 +622,23 @@ export function ProductPage({
 
   return (
     <main className="product-page pdp-wrapper">
+      {/* ── Breadcrumb — full width above grid (VG35.0 Fix C: aligns description top with image frame top) ── */}
+      <nav className="product-page-breadcrumb" dir={rtl ? 'rtl' : 'ltr'}>
+        <button onClick={onBack} className="breadcrumb-back" aria-label={t('catalog.back')}>
+          {/* VG35.0 Fix D: curved U-turn back arrow — points left in LTR, right in RTL */}
+          {rtl ? <RotateCw className="w-4 h-4" /> : <RotateCcw className="w-4 h-4" />}
+        </button>
+        <button className="breadcrumb-link" onClick={onBack}>{catalogName}</button>
+        <span className="breadcrumb-sep">/</span>
+        <button className="breadcrumb-link" onClick={onBack}>{sectionTitle}</button>
+        <span className="breadcrumb-sep">/</span>
+        <span className="breadcrumb-current">{title}</span>
+      </nav>
+
       {/* ── PDP Grid: 2-column responsive (gallery left, details right) ── */}
       <div className="pdp-grid">
-        {/* ═══════ LEFT COLUMN: Breadcrumb + Gallery + Social + Guarantees ═══════ */}
+        {/* ═══════ LEFT COLUMN: Gallery + Social + Guarantees ═══════ */}
         <div className="pdp-gallery-section">
-          {/* ── Breadcrumb ── */}
-          <nav className="product-page-breadcrumb">
-            <button onClick={onBack} className="breadcrumb-back" aria-label={t('catalog.back')}>
-              <ArrowLeft className="w-4 h-4" />
-            </button>
-            <button className="breadcrumb-link" onClick={onBack}>{catalogName}</button>
-            <span className="breadcrumb-sep">/</span>
-            <button className="breadcrumb-link" onClick={onBack}>{sectionTitle}</button>
-            <span className="breadcrumb-sep">/</span>
-            <span className="breadcrumb-current">{title}</span>
-          </nav>
-
           {/* Main Carousel */}
           <div className="pdp-main-image-frame product-page-carousel-wrap relative">
             {carouselImages.length > 0 ? (
@@ -846,8 +848,8 @@ export function ProductPage({
               )}
             </div>
 
-            {/* Trust Guarantees */}
-            <TrustGuaranteesSection />
+            {/* Trust Guarantees — VG35.0 Fix A: compact variant (no separator, tight padding) */}
+            <TrustGuaranteesSection variant="compact" />
           </div>
         </div>
 

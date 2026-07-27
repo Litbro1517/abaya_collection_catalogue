@@ -35,7 +35,7 @@ const GUARANTEE_META: ReadonlyArray<{ key: GuaranteeKey; Icon: IconType }> = [
   { key: 'sav', Icon: Headphones },
 ];
 
-export function TrustGuaranteesSection() {
+export function TrustGuaranteesSection({ variant = 'full' }: { variant?: 'full' | 'compact' }) {
   const { t, locale, rtl } = useClientTranslation();
   const settings = useAppStore(s => s.settings);
   const config: TrustGuaranteesConfig | null = settings?.trustGuarantees ?? null;
@@ -51,28 +51,36 @@ export function TrustGuaranteesSection() {
     return { title, desc };
   };
 
+  const isCompact = variant === 'compact';
+
   return (
     <section
-      className="w-full py-10 sm:py-12"
+      className={isCompact ? 'w-full py-0' : 'w-full py-10 sm:py-12'}
       style={{ backgroundColor: 'transparent' }}
       dir={rtl ? 'rtl' : 'ltr'}
       aria-label={t('trust.livraison.title') ? 'Trust guarantees' : undefined}
     >
-      <div className="mx-auto px-4" style={{ maxWidth: 1270 }}>
-        {/* Top separator line — centered, ~65% width, gold-tinted */}
-        <div className="flex justify-center mb-8 sm:mb-10">
-          <div
-            className="h-px w-[65%] max-w-[700px]"
-            style={{ backgroundColor: 'rgba(201, 168, 76, 0.35)' }}
-          />
-        </div>
+      <div className={isCompact ? 'w-full' : 'mx-auto px-4'} style={isCompact ? undefined : { maxWidth: 1270 }}>
+        {/* Top separator line — ONLY in full variant (catalog page).
+            VG35.0 Fix A: removed in compact (PDP) variant to eliminate parasitic line. */}
+        {!isCompact && (
+          <div className="flex justify-center mb-8 sm:mb-10">
+            <div
+              className="h-px w-[65%] max-w-[700px]"
+              style={{ backgroundColor: 'rgba(201, 168, 76, 0.35)' }}
+            />
+          </div>
+        )}
 
-        {/* Responsive grid: 1 col mobile, 2 cols tablet, 4 cols desktop */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-6 sm:gap-8">
+        {/* Responsive grid: compact = 5 cols inline (PDP under-image), full = responsive (catalog) */}
+        <div className={isCompact
+          ? 'grid grid-cols-5 gap-2 sm:gap-3'
+          : 'grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-6 sm:gap-8'
+        }>
           {GUARANTEE_META.map(({ key, Icon }) => {
             const { title, desc } = resolveItem(key);
             return (
-              <TrustCard key={key} Icon={Icon} title={title} desc={desc} rtl={rtl} />
+              <TrustCard key={key} Icon={Icon} title={title} desc={desc} rtl={rtl} compact={isCompact} />
             );
           })}
         </div>
@@ -88,11 +96,13 @@ function TrustCard({
   title,
   desc,
   rtl,
+  compact = false,
 }: {
   Icon: IconType;
   title: string;
   desc: string;
   rtl: boolean;
+  compact?: boolean;
 }) {
   const [open, setOpen] = useState(false);
 
@@ -143,9 +153,12 @@ function TrustCard({
         />
       </div>
 
-      {/* Glassmorphism circle with gold icon */}
+      {/* Glassmorphism circle with gold icon — compact uses smaller circle for PDP column */}
       <div
-        className="w-12 h-12 rounded-full flex items-center justify-center mb-3 transition-transform duration-200 group-hover:scale-105"
+        className={cn(
+          'rounded-full flex items-center justify-center transition-transform duration-200 group-hover:scale-105',
+          compact ? 'w-10 h-10 mb-2' : 'w-12 h-12 mb-3'
+        )}
         style={{
           backgroundColor: 'rgba(255, 255, 255, 0.45)',
           backdropFilter: 'blur(6px)',
@@ -154,12 +167,12 @@ function TrustCard({
           boxShadow: '0 2px 8px rgba(201, 168, 76, 0.12)',
         }}
       >
-        <Icon className="w-5 h-5" style={{ color: '#C9A84C' }} strokeWidth={1.5} />
+        <Icon className={compact ? 'w-4 h-4' : 'w-5 h-5'} style={{ color: '#C9A84C' }} strokeWidth={1.5} />
       </div>
 
-      {/* Title — anthracite doux (not pure black) */}
+      {/* Title — anthracite doux (not pure black). Compact = smaller text for PDP. */}
       <span
-        className="text-sm font-semibold leading-snug"
+        className={cn('font-semibold leading-snug', compact ? 'text-[0.7rem]' : 'text-sm')}
         style={{ color: '#3D3D3D' }}
       >
         {title}
