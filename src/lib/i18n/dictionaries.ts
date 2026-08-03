@@ -2321,12 +2321,65 @@ export function isRTL(locale: Locale): boolean {
 /**
  * Resolve a translated value from a JSONB translations object.
  * Falls back to the requested locale → French → English → the `label` fallback → raw key.
- * 
+ *
+ * VG36.7: Added case-insensitive category dictionary lookup as the final fallback.
+ * When the admin hasn't filled the `translations` JSONB, the raw `label` (e.g.
+ * "Manteau") is used as fallback. The CATEGORY_DARIJA_DICTIONARY maps known
+ * category labels to their Darija (Moroccan Arabic) translations, so that
+ * categories like "Manteau", "Burkini", "Ensemble", "Robe" display correctly
+ * in Arabic even without admin-configured translations.
+ *
  * @param translations - JSONB object like { "fr": "Ensemble", "ar": "طقم", "en": "Set" }
  * @param locale - Current locale
  * @param fallback - Fallback string (typically the `label` field from DB)
  */
 const LOCALE_CODES = new Set(['fr', 'en', 'ar']);
+
+/**
+ * VG36.7: Category Darija dictionary — maps known category labels (case-insensitive)
+ * to their Darija (Moroccan Arabic) translations. This is the final fallback when:
+ *   1. The admin hasn't configured the `translations` JSONB for the category
+ *   2. The raw `label` would otherwise be displayed as-is in Arabic
+ *
+ * Keys are lowercase + trimmed for case-insensitive matching.
+ * Values use authentic Darija vocabulary (not literary Arabic):
+ *   - Ensemble → أنصومبل (Ansemble — phonetic transliteration, not طقم)
+ *   - Robe → كسوة (Kiswa — Darija term, not فستان)
+ *   - Manteau → مونطو (exact spelling: م-و-ن-ط-و, NO Alif ا)
+ *   - Burkini → بوركيني (direct transliteration)
+ *   - Abaya → عباية (kept as-is, already Arabic)
+ *   - Kimono → كميون (Darija phonetic)
+ *   - Accessoires → إكسسوارات (Darija term)
+ */
+const CATEGORY_DARIJA_DICTIONARY: Record<string, string> = {
+  // Ensemble → أنصومبل (Darija phonetic, NOT طقم literary)
+  'ensemble': 'أنصومبل',
+  // Robe → كسوة (Darija authentic, NOT فستان literary)
+  'robe': 'كسوة',
+  // Manteau → مونطو (exact: م-و-ن-ط-و, NO Alif)
+  'manteau': 'مونطو',
+  // Burkini → بوركيني (direct transliteration)
+  'burkini': 'بوركيني',
+  // Abaya → عباية (already Arabic, kept as-is)
+  'abaya': 'عباية',
+  'abayas': 'عبايات',
+  // Kimono → كميون (Darija phonetic)
+  'kimono': 'كميون',
+  // Accessoires → إكسسوارات (Darija term)
+  'accessoires': 'إكسسوارات',
+  'accessoire': 'إكسسوار',
+};
+
+/**
+ * VG36.7: Case-insensitive category label lookup in the Darija dictionary.
+ * Normalizes the label (toLowerCase + trim) before matching.
+ * Returns the Darija translation if found, otherwise undefined.
+ */
+function lookupCategoryDarija(label: string): string | undefined {
+  if (!label || typeof label !== 'string') return undefined;
+  const normalized = label.toLowerCase().trim();
+  return CATEGORY_DARIJA_DICTIONARY[normalized];
+}
 
 export function resolveTranslation(
   translations: Record<string, string> | null | undefined,
@@ -2340,6 +2393,13 @@ export function resolveTranslation(
     if (value && !LOCALE_CODES.has(value)) {
       return value;
     }
+  }
+  // VG36.7: Final fallback — case-insensitive Darija dictionary lookup.
+  // If the locale is Arabic and the fallback label matches a known category,
+  // return the Darija translation instead of the raw French label.
+  if (locale === 'ar' && fallback) {
+    const darija = lookupCategoryDarija(fallback);
+    if (darija) return darija;
   }
   return fallback || '';
 }

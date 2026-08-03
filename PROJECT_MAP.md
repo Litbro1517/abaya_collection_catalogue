@@ -1970,3 +1970,50 @@ CodForm.tsx, CartDrawer.tsx, cart-store.ts, CheckoutPage.tsx, whatsapp.ts, api/o
 
 ---
 Date de mise a jour : 03/08/2026
+
+## [VG36.7 — CATEGORY TRANSLATIONS DARIJA]
+
+### Mandat
+Normalisation du dictionnaire de traduction des categories vers le vocabulaire commercial Darija local + securisation du lookup dynamique. Branche isolee `fix/vg36.7-category-translations` (creee depuis `main@3af4bcf`).
+
+### Diagnostic
+Lors du passage en arabe, les categories ajoutees depuis l'admin (Manteau, Burkini) s'affichaient en français car :
+1. L'admin n'avait pas rempli l'objet JSONB `translations` pour ces categories.
+2. `resolveTranslation` retombait sur le `label` brut sans aucun dictionnaire de secours.
+3. Les traductions existantes (طقم, فستان) utilisaient l'arabe litteral au lieu du Darija authentique.
+
+### Solution technique (centralisee dans le module i18n)
+**Approche retenue** : enhancement de `resolveTranslation` avec un dictionnaire de lookup Darija case-insensitive en tant que fallback final. Cette solution est techniquement superieure car :
+- **Centralisee** dans `dictionaries.ts` — tous les callers beneficient automatiquement du fallback.
+- **Non-invasive** — aucun composant JSX modifie, aucune logique de rendu changee.
+- **Peprenne** — ajouter une nouvelle categorie au dictionnaire est trivial (1 ligne).
+- **Case-insensitive** — `toLowerCase().trim()` avant matching, tolerance aux variations de saisie admin.
+
+### Paires cle/valeur ajoutees (Darija authentique)
+| Categorie (FR) | Cles gerees (case-insensitive) | Traduction Darija | Note |
+|---|---|---|---|
+| Ensemble | ensemble, Ensemble | أنصومبل | Translitteration phonetique (Ansemble), NOT طقم |
+| Robe | robe, Robe | كسوة | Terme Darija authentique (Kiswa), NOT فستان |
+| Manteau | manteau, Manteau | مونطو | Orthographe exacte: م-و-ن-ط-و, SANS Alif (ا) |
+| Burkini | burkini, Burkini | بوركيني | Translitteration directe |
+| Abaya | abaya, Abaya | عباية | Deja arabe, conserve |
+| Abayas | abayas, Abayas | عبايات | Pluriel |
+| Kimono | kimono, Kimono | كميون | Darija phonetique |
+| Accessoires | accessoires, Accessoires | إكسسوارات | Terme Darija |
+| Accessoire | accessoire, Accessoire | إكسسوار | Singulier |
+
+### Fichiers modifies (2)
+| # | Fichier | Modification |
+|---|---------|-------------|
+| 1 | `src/lib/i18n/dictionaries.ts` | Ajout `CATEGORY_DARIJA_DICTIONARY` + `lookupCategoryDarija()` + fallback dans `resolveTranslation` |
+| 2 | `PROJECT_MAP.md` | Documentation |
+
+### Fichiers NON modifies (etancheite tunnel Landing)
+CodForm.tsx, CartDrawer.tsx, cart-store.ts, CheckoutPage.tsx, whatsapp.ts, api/orders/* — TOUS NON MODIFIES.
+ProductPage.tsx, CatalogPreview.tsx — NON MODIFIES (la solution est centralisee dans le module i18n).
+
+### Branche
+`fix/vg36.7-category-translations` (creee depuis `main@3af4bcf`). **EN ATTENTE DU FEU VERT EXPLICITE**.
+
+---
+Date de mise a jour : 27/07/2026
