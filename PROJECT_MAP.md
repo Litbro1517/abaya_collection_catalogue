@@ -1943,10 +1943,30 @@ Les solutions proposees par l'audit ont ete acceptees car techniquement exactes 
 | 2 | `PROJECT_MAP.md` | Documentation |
 
 ### Fichiers NON modifies (etancheite tunnel Landing)
-CodForm.tsx, CartDrawer.tsx, cart-store.ts, CheckoutPage.tsx, whatsapp.ts, api/orders/* — TOUS NON MODIFIES. ProductPage.tsx NON modifie (logique translateX preservee).
+CodForm.tsx, CartDrawer.tsx, cart-store.ts, CheckoutPage.tsx, whatsapp.ts, api/orders/*, WhatsappOrderForm.tsx, OrderConfirmation.tsx — TOUS NON MODIFIES (0 ligne modifiee verifiee par git diff, 8 fichiers sanctuarises). ProductPage.tsx NON modifie (logique translateX L.662 preservee).
+
+### Verifications finales (audit pre-fusion)
+- `bun run lint` : 0 erreur, 0 warning ✅
+- `bun run build` : exit code 0, 0 erreur de compilation ✅ (11.5s compile, 57/57 pages)
+- 0 log parasite de debogage (console.log/debug/debugger) ✅
+- Alignement de branche : parent de `3055f65` = `0971a2c` (main HEAD) — fast-forward direct sans conflit ✅
+- Etancheite COD : 0 ligne modifiee sur les 8 fichiers sanctuarises ✅
+- Integrite JS : `translateX(${rtl ? '' : '-'}${carouselIdx * 100}%)` L.662 NON modifie ✅
+
+### Audit & Deploiement (Session unique — 100% VERT)
+- **Audit 5 controles (Layout/Typo/JS/COD/LintBuild)** : 5/5 PASSED a 100% sans reserve
+  - 1. Layout Mobile PDP : `.pdp-grid { grid-template-columns: minmax(0, 1fr) }` mobile + `minmax(0, 1.1fr) minmax(0, 1fr)` desktop ✅ + `.product-page { min-width: 0 }` + `.pdp-gallery-section { min-width: 0 }` OK
+  - 2. Typographie RTL : `html[lang="ar"] .product-page-section-title, .pdp-form-title, .detail-label { font-family: var(--font-tajawal) !important; font-weight: 700 !important; color: var(--pivot-text, #1A1A1A) }` OK
+  - 3. Integrite JS : ProductPage.tsx L.662 `translateX(${rtl ? '' : '-'}${carouselIdx * 100}%)` NON modifie — 0 ligne diff main..HEAD OK
+  - 4. Sanctuaire COD : 0 ligne modifiee sur 8 fichiers (CodForm, CartDrawer, cart-store, CheckoutPage, whatsapp.ts, /api/orders/*, WhatsappOrderForm, OrderConfirmation) OK
+  - 5. Lint + Build : Lint exit 0 (0 erreur, 0 warning), Build exit 0 (11.5s, 57/57 pages) OK
+- **Fusion** : `git merge --ff-only fix/vg36.6-pdp-layout-typo` (fast-forward, `0971a2c -> 3055f65`) OK
+- **Poussee GitHub** : `git push origin main` (`0971a2c..3055f65`) — declenchement pipeline Vercel Production OK
+- **Nettoyage branches** : locale `fix/vg36.6-pdp-layout-typo` supprimee + distante `origin/fix/vg36.6-pdp-layout-typo` supprimee OK
+- **Statut** : OK **MERGE & DEPLOYE SUR MAIN** (Vercel auto-deploy via GitHub main push)
 
 ### Branche
-`fix/vg36.6-pdp-layout-typo` (creee depuis `main@0971a2c`). **EN ATTENTE DU FEU VERT EXPLICITE**.
+`fix/vg36.6-pdp-layout-typo` (creee depuis `main@0971a2c`) — **FUSIONNEE & SUPPRIMEE** (main desormais a `3055f65`).
 
 ---
-Date de mise a jour : 27/07/2026
+Date de mise a jour : 03/08/2026
