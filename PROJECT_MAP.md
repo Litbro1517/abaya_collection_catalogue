@@ -1747,10 +1747,32 @@ Date de mise a jour : 27/07/2026
 | 9 | `src/lib/i18n/dictionaries.ts` | 4 (Intl.NumberFormat) |
 
 ### Fichiers NON modifies (etancheite tunnel Landing)
-CodForm.tsx, CartDrawer.tsx, cart-store.ts, CheckoutPage.tsx, whatsapp.ts, api/orders/* — TOUS NON MODIFIES.
+CodForm.tsx, CartDrawer.tsx, cart-store.ts, CheckoutPage.tsx, whatsapp.ts, api/orders/* — TOUS NON MODIFIES (0 ligne modifiee verifiee par git diff).
+
+### Verifications finales (audit pre-fusion)
+- `bun run lint` : 0 erreur, 0 warning ✅
+- `bun run build` : exit code 0, 0 erreur de compilation ✅ (11.4s compile, 57/57 pages)
+- 0 log parasite de debogage (console.log/debug/debugger) ✅
+- 0 variable non utilisee ✅
+- Alignement de branche : parent de `ed4add1` = `7b11396` (main HEAD) — fast-forward direct sans conflit ✅
+- Etancheite COD : 0 ligne modifiee sur les 6 fichiers sanctuarises ✅
+
+### Audit & Deploiement (Session unique — 100% VERT)
+- **Audit 4 controles (A/B/C/D)** : 4/4 PASSED a 100% sans reserve
+  - A. Lint + build + 0 log parasite + 0 var non utilisee OK
+  - B1. Chantier 1 (Deep Link) : useEffect L494 + deepLinkDone ref L387 + URLSearchParams.get('product') L498 + slugify match L508 + setSelectedProduct L511 OK
+  - B2. Chantier 2 (Images) : width={400} height={300} (ratio 4:3) L1481-1482 + glide-carousel !important relaxed in @media (max-width: 900px) et (max-width: 640px) OK
+  - B3. Chantier 3 (SAV) : Prisma L166 + API L73 + SavTextsPillar.tsx NEW 130 lines + SettingsPillar L1542 mount + SavTextsConfig type + ProductPage resolver L213-217 with dictionary fallback OK
+  - B4. Chantier 4 (Fonts+Prix) : 9 inline Playfair Display supprimes (7 CatalogPreview + 2 ProductPage) + className="font-display" + html[lang=ar] h1-h6 -> var(--font-tajawal) !important (inversion Tajawal titres / Beiruti corps) + Intl.NumberFormat in formatPriceWithCurrency L2398-2401 OK
+  - C. Alignement : parent de ed4add1 = 7b11396 = main HEAD — fast-forward possible OK
+  - D. Etancheite COD : 0 ligne modifiee sur CodForm.tsx, CartDrawer.tsx, cart-store.ts, CheckoutPage.tsx, whatsapp.ts, /api/orders/* OK
+- **Fusion** : `git merge --ff-only fix/whatsapp-deeplink-sav-fonts-vg36.3` (fast-forward, `7b11396 -> ed4add1`) OK
+- **Poussee GitHub** : `git push origin main` (`7b11396..ed4add1`) le 2026-08-03T13:53:44Z — declenchement pipeline Vercel Production OK
+- **Nettoyage branches** : locale `fix/whatsapp-deeplink-sav-fonts-vg36.3` supprimee + distante `origin/fix/whatsapp-deeplink-sav-fonts-vg36.3` supprimee OK
+- **Statut** : OK **DEPLOYE EN PRODUCTION** (Vercel auto-deploy via GitHub main push)
 
 ### Branche
-`fix/whatsapp-deeplink-sav-fonts-vg36.3` (creee depuis `main@7b11396`) — commit `938bc77`. **En attente du Feu Vert**.
+`fix/whatsapp-deeplink-sav-fonts-vg36.3` (creee depuis `main@7b11396`) — **FUSIONNEE & SUPPRIMEE** (main desormais a `ed4add1`).
 
 ---
-Date de mise a jour : 27/07/2026
+Date de mise a jour : 03/08/2026
