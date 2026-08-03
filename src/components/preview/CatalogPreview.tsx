@@ -383,6 +383,8 @@ export function CatalogPreview({ onAdminLogin }: CatalogPreviewProps) {
   const [carouselIdx, setCarouselIdx] = useState(0);
   const touchStartX = useRef(0);
   const touchEndX = useRef(0);
+  // VG36.3 Chantier 1: Deep linking guard — prevents re-render loops
+  const deepLinkDone = useRef(false);
 
   // Scroll to top when switching views
   useEffect(() => {
@@ -474,13 +476,43 @@ export function CatalogPreview({ onAdminLogin }: CatalogPreviewProps) {
       window.history.pushState({ productSlug: slug }, '', url.toString());
     } else {
       // Remove ?product= when going back to catalog grid
-      const url = new URL(window.location.href);
-      if (url.searchParams.has('product')) {
-        url.searchParams.delete('product');
-        window.history.pushState({}, '', url.toString());
+      // VG36.3 Chantier 1: Only strip if deep link has been processed (or no
+      // inbound deep link existed). This preserves ?product= for the deep link
+      // effect to read when sections finish loading.
+      if (deepLinkDone.current) {
+        const url = new URL(window.location.href);
+        if (url.searchParams.has('product')) {
+          url.searchParams.delete('product');
+          window.history.pushState({}, '', url.toString());
+        }
       }
     }
-  }, [selectedProduct]);
+  }, [selectedProduct, sectionsLoaded]);
+
+  // ━━━ VG36.3 Chantier 1: Deep Linking Inbound (?product=slug) ━━━━━━━━━
+  // Auto-open PDP when landing via a shared WhatsApp link containing ?product=slug.
+  useEffect(() => {
+    if (!sectionsLoaded || deepLinkDone.current || selectedProduct) return;
+    if (typeof window === 'undefined') return;
+    const params = new URLSearchParams(window.location.search);
+    const productSlug = params.get('product');
+    // Mark deep link as processed whether or not a slug was found — this
+    // unblocks the SEO URL effect from cleaning up the param later.
+    deepLinkDone.current = true;
+    if (!productSlug) return;
+    for (const { section, columns, rows } of sections) {
+      const config = section.config as SectionConfig;
+      if (!config.titleColumn) continue;
+      const match = rows.find(row => {
+        const title = String(getCellValue(row, config.titleColumn) || '');
+        return slugify(title) === productSlug;
+      });
+      if (match) {
+        setSelectedProduct({ row: match, columns, section });
+        break;
+      }
+    }
+  }, [sectionsLoaded, sections, selectedProduct]);
 
   const getCarouselImages = useCallback((row: Row, config: SectionConfig, columns?: Column[]): string[] => {
     const images: string[] = [];
@@ -840,7 +872,7 @@ export function CatalogPreview({ onAdminLogin }: CatalogPreviewProps) {
               <div className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0" style={{ background: 'linear-gradient(135deg, #C9A84C, #E8D48B, #C9A84C)' }}>
                 <span className="text-sm font-bold" style={{ color: 'var(--pivot-text)' }}>A</span>
               </div>
-              <h1 className="font-bold text-sm sm:text-base truncate" style={{ color: 'var(--pivot-text)', fontFamily: "'Playfair Display', serif" }}>
+              <h1 className="font-display font-bold text-sm sm:text-base truncate" style={{ color: 'var(--pivot-text)' }}>
                 {catalogName}
               </h1>
             </>
@@ -1371,7 +1403,7 @@ export function CatalogPreview({ onAdminLogin }: CatalogPreviewProps) {
         if (!selectedCat) return null;
         return (
           <div className="mx-auto max-w-[1270px] px-4 sm:px-8 pt-5 pb-1">
-            <h2 className="text-2xl sm:text-3xl font-bold" style={{ color: 'var(--pivot-text)', fontFamily: "'Playfair Display', serif" }}>
+            <h2 className="font-display text-2xl sm:text-3xl font-bold" style={{ color: 'var(--pivot-text)' }}>
               {resolveT(selectedCat.translations, selectedCat.label)}
             </h2>
           </div>
@@ -1393,7 +1425,7 @@ export function CatalogPreview({ onAdminLogin }: CatalogPreviewProps) {
         {/* Section title */}
         {sections.length > 0 && sections[0].section.title && (
           <div className="catalog-toolbar">
-            <h2 style={{ color: secondaryColor, fontFamily: "'Playfair Display', serif" }}>
+            <h2 className="font-display" style={{ color: secondaryColor }}>
               {sections[0].section.title}
             </h2>
             {sections[0].section.subtitle && (
@@ -1446,8 +1478,8 @@ export function CatalogPreview({ onAdminLogin }: CatalogPreviewProps) {
                     <img
                       src={resolveDirectImageUrl(coverUrl, 800)}
                       alt={title}
-                      width={300}
-                      height={400}
+                      width={400}
+                      height={300}
                       loading="lazy"
                       decoding="async"
                       className="product-card-img"
@@ -1615,7 +1647,7 @@ export function CatalogPreview({ onAdminLogin }: CatalogPreviewProps) {
             <div style={{ width: 80, height: 80, margin: '0 auto 20px', borderRadius: 16, display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: `${primaryColor}15` }}>
               <ShoppingBag style={{ width: 36, height: 36, color: primaryColor, opacity: 0.5 }} />
             </div>
-            <p style={{ fontSize: 18, fontWeight: 600, color: secondaryColor, fontFamily: "'Playfair Display', serif" }}>{t('catalog.noProducts')}</p>
+            <p className="font-display" style={{ fontSize: 18, fontWeight: 600, color: secondaryColor }}>{t('catalog.noProducts')}</p>
             {searchQuery ? (
               <p style={{ fontSize: 14, marginTop: 6, color: '#777' }}>{t('catalog.tryAnotherSearch')}</p>
             ) : isAdmin ? (
@@ -1666,7 +1698,7 @@ export function CatalogPreview({ onAdminLogin }: CatalogPreviewProps) {
                     <div className="w-6 h-6 rounded-md flex items-center justify-center" style={{ background: 'linear-gradient(135deg, #C9A84C, #E8D48B)' }}>
                       <span className="text-[10px] font-bold" style={{ color: 'var(--pivot-text)' }}>A</span>
                     </div>
-                    <span className="font-semibold text-xs sm:text-sm text-white" style={{ fontFamily: "'Playfair Display', serif" }}>
+                    <span className="font-display font-semibold text-xs sm:text-sm text-white">
                       {catalogName}
                     </span>
                   </>
@@ -1763,7 +1795,7 @@ export function CatalogPreview({ onAdminLogin }: CatalogPreviewProps) {
 
             {/* ── Col 2: Pages Réglementaires ── */}
             <div className="flex flex-col items-start text-start gap-2">
-              <h3 className="text-[10px] font-semibold uppercase tracking-wider text-white/50 mb-1" style={{ fontFamily: "'Playfair Display', serif" }}>
+              <h3 className="font-display text-[10px] font-semibold uppercase tracking-wider text-white/50 mb-1">
                 {t('footer.regulatoryPages')}
               </h3>
               <a href="/conditions-generales" className="text-xs text-white/70 hover:text-white transition-colors">{t('footer.cgv')}</a>
@@ -1773,7 +1805,7 @@ export function CatalogPreview({ onAdminLogin }: CatalogPreviewProps) {
 
             {/* ── Col 3: Catalog Navigation (quick access to categories) ── */}
             <div className="flex flex-col items-start text-start gap-2">
-              <h3 className="text-[10px] font-semibold uppercase tracking-wider text-white/50 mb-1" style={{ fontFamily: "'Playfair Display', serif" }}>
+              <h3 className="font-display text-[10px] font-semibold uppercase tracking-wider text-white/50 mb-1">
                 {t('footer.quickNav')}
               </h3>
               <button

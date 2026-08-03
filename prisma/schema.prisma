@@ -163,6 +163,7 @@ model CatalogSettings {
   customCSS         String   @default("") @map("custom_css")
   clientOverrides   Json?    @map("client_overrides")
   trustGuarantees   Json?    @map("trust_guarantees")
+  savTexts          Json?    @map("sav_texts")  // VG36.3 Chantier 3: { delivery: { fr:{title,desc}, en:..., ar:... }, aftersales: {...} }
   favicon           String?
   logo              String?
   logoHeight        Int?

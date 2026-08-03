@@ -30,6 +30,7 @@ import { toast } from 'sonner';
 import { computeDiscount, getCompareAtPrice } from '@/lib/discount-utils';
 import { useAutoTranslatedText } from '@/lib/useAutoTranslatedText';
 import { useCartStore } from '@/lib/cart-store';
+import { useAppStore } from '@/lib/store';
 import { CodForm } from './CodForm';
 import { WhatsappOrderForm } from './WhatsappOrderForm';
 import { TrustGuaranteesSection } from '@/components/TrustGuaranteesSection';
@@ -207,6 +208,13 @@ export function ProductPage({
   const config = section.config as SectionConfig;
   const rawData = row.data as Record<string, unknown>;
   const { t, locale, formatPrice, rtl } = useClientTranslation();
+  // VG36.3 Chantier 3: SAV texts — admin override with dictionary fallback
+  const { settings: adminSettings } = useAppStore();
+  const savTexts = adminSettings?.savTexts;
+  const savDeliveryTitle = savTexts?.delivery?.[locale]?.title?.trim() || t('sav.delivery.title');
+  const savDeliveryDesc = savTexts?.delivery?.[locale]?.description?.trim() || t('sav.delivery.desc');
+  const savAftersalesTitle = savTexts?.aftersales?.[locale]?.title?.trim() || t('sav.aftersales.title');
+  const savAftersalesDesc = savTexts?.aftersales?.[locale]?.description?.trim() || t('sav.aftersales.desc');
   const stockState = computeStockState(rawData);
   const stock = typeof rawData.__stock__ === 'number'
     ? rawData.__stock__
@@ -1089,12 +1097,12 @@ export function ProductPage({
       {/* ═══════ BOTTOM: SAV Blocks ═══════ */}
       <div className="pdp-conversion-texts-container" style={{ marginTop: '25px' }}>
         <div className="pdp-sav-block">
-          <h4 className="pdp-sav-title">{t('sav.delivery.title')}</h4>
-          <p className="pdp-sav-description">{t('sav.delivery.desc')}</p>
+          <h4 className="pdp-sav-title">{savDeliveryTitle}</h4>
+          <p className="pdp-sav-description">{savDeliveryDesc}</p>
         </div>
         <div className="pdp-sav-block">
-          <h4 className="pdp-sav-title">{t('sav.aftersales.title')}</h4>
-          <p className="pdp-sav-description">{t('sav.aftersales.desc')}</p>
+          <h4 className="pdp-sav-title">{savAftersalesTitle}</h4>
+          <p className="pdp-sav-description">{savAftersalesDesc}</p>
         </div>
       </div>
 
@@ -1166,8 +1174,7 @@ export function ProductPage({
         >
           <SheetHeader className="p-0 pr-8">
             <SheetTitle
-              className="text-xl"
-              style={{ fontFamily: "'Playfair Display', serif" }}
+              className="font-display text-xl"
             >
               {t('product.productDetails')}
             </SheetTitle>
@@ -1192,8 +1199,7 @@ export function ProductPage({
         >
           <SheetHeader className="p-0 pr-8">
             <SheetTitle
-              className="text-xl"
-              style={{ fontFamily: "'Playfair Display', serif" }}
+              className="font-display text-xl"
             >
               {t('product.allColors')}
             </SheetTitle>

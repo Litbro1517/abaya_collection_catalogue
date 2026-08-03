@@ -70,7 +70,7 @@ export async function PUT(req: NextRequest) {
       'fontFamily', 'enableZoom', 'enableSearch', 'enableSharing', 'conversionChannel',
       'conversionMessage', 'conversionMessages', 'defaultCatalogLanguage',
       'brandGreenColor', 'destructiveColor', 'borderColor',
-      'customCSS', 'clientOverrides', 'favicon', 'logo', 'logoHeight', 'trustGuarantees',
+      'customCSS', 'clientOverrides', 'favicon', 'logo', 'logoHeight', 'trustGuarantees', 'savTexts',
     ];
 
     for (const field of allowedFields) {

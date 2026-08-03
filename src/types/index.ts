@@ -196,6 +196,23 @@ export interface TrustGuaranteesConfig {
   }>;
 }
 
+// VG36.3 Chantier 3: SAV texts (delivery + after-sales) — admin-editable, multilingual
+export type SavSection = 'delivery' | 'aftersales';
+export type SavLang = 'fr' | 'en' | 'ar';
+
+export interface SavTextsConfig {
+  delivery: {
+    fr: TrustGuaranteeItem;
+    en: TrustGuaranteeItem;
+    ar: TrustGuaranteeItem;
+  };
+  aftersales: {
+    fr: TrustGuaranteeItem;
+    en: TrustGuaranteeItem;
+    ar: TrustGuaranteeItem;
+  };
+}
+
 export interface CatalogSettings {
   id: string;
   catalogId: string;
@@ -225,6 +242,7 @@ export interface CatalogSettings {
   customCSS: string;
   clientOverrides: Record<string, string> | null;
   trustGuarantees: TrustGuaranteesConfig | null;
+  savTexts: SavTextsConfig | null; // VG36.3 Chantier 3
   favicon: string | null;
   logo: string | null;
   logoHeight: number | null;
@@ -271,7 +289,7 @@ export type SyncStatus = 'idle' | 'syncing' | 'success' | 'error';
 
 export type AppView = 'preview' | 'builder' | 'dashboard';
 export type Pillar = 'data' | 'layout' | 'settings' | 'orders';
-export type SettingsTab = 'general' | 'appearance' | 'conversion' | 'display' | 'admin' | 'catalogue' | 'couleurs' | 'trust';
+export type SettingsTab = 'general' | 'appearance' | 'conversion' | 'display' | 'admin' | 'catalogue' | 'couleurs' | 'trust' | 'sav';
 
 export interface ImportResult {
   success: boolean;

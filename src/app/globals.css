@@ -1,10 +1,19 @@
 /* ── Brand Fonts (Charte Graphique Abaya Chic) ── */
-@import url('https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,500;0,600;0,700;0,800;1,400;1,500&family=Inter:wght@300;400;500;600;700&display=swap');
+/* VG36.3 Chantier 4: Removed redundant @import — Playfair/Inter are loaded
+   via next/font/google in layout.tsx (CSS variables --font-playfair, --font-inter).
+   The @import here caused double-fetch and render-blocking. */
 
 @import "tailwindcss";
 @import "tw-animate-css";
 
 @custom-variant dark (&:is(.dark *));
+
+/* VG36.3 Chantier 4: Utility class for display headings — replaces 9 inline
+   fontFamily: "'Playfair Display', serif" styles. In RTL, this is overridden
+   by the Tajawal rule above for Arabic headings. */
+.font-display {
+  font-family: var(--font-playfair), 'Playfair Display', serif;
+}
 
 @theme inline {
   --color-background: var(--background);
@@ -1242,13 +1251,23 @@ html.rtl input[type="tel"] {
 
 @media (max-width: 900px) {
   .glide-carousel {
-    aspect-ratio: 3 / 4 !important;
+    /* VG36.3 Chantier 2: relaxed !important — allow flex-based height overrides */
+    aspect-ratio: 3 / 4;
   }
 }
 
 @media (max-width: 640px) {
   .glide-carousel {
-    aspect-ratio: 3 / 4 !important;
+    /* VG36.3 Chantier 2: relaxed !important for smoother mobile rendering */
+    aspect-ratio: 3 / 4;
+  }
+}
+
+/* VG36.3 Chantier 2: Very small screens (<360px) — reduce PDP min-height
+   to prevent excessive vertical stretch on compact devices. */
+@media (max-width: 360px) {
+  .pdp-main-image-frame {
+    min-height: 320px;
   }
 }
 
@@ -3537,7 +3556,9 @@ html.rtl .product-page-quantity-control {
   font-weight: 400;
 }
 
-/* ── VG34.1: Arabic Typography — Beiruti (titres) + Tajawal (corps) ── */
+/* ── VG36.3 Chantier 4: Arabic Typography — INVERTED roles ──
+   Tajawal (Bold/ExtraBold) → titles (product, category, headers) for impact
+   Beiruti → body text (descriptions, labels, paragraphs) */
 html[lang="ar"] body,
 html[lang="ar"] .product-card-title,
 html[lang="ar"] .product-page-title,
@@ -3547,7 +3568,8 @@ html[lang="ar"] .mobile-cta-price,
 html[lang="ar"] .catalog-header-title,
 html[lang="ar"] h1, html[lang="ar"] h2, html[lang="ar"] h3,
 html[lang="ar"] h4, html[lang="ar"] h5, html[lang="ar"] h6 {
-  font-family: var(--font-beiruti), 'Beiruti', sans-serif !important;
+  font-family: var(--font-tajawal), 'Tajawal', sans-serif !important;
+  font-weight: 700;
 }
 
 html[lang="ar"] p,
@@ -3558,7 +3580,7 @@ html[lang="ar"] textarea,
 html[lang="ar"] button,
 html[lang="ar"] a,
 html[lang="ar"] div {
-  font-family: var(--font-tajawal), 'Tajawal', sans-serif;
+  font-family: var(--font-beiruti), 'Beiruti', sans-serif;
 }
 
 /* ═══════════════════════════════════════════════════════════════
@@ -4082,15 +4104,16 @@ html.rtl .pdp-social-icons-group {
   text-align: justify;
 }
 
-/* ── RTL adjustments for PDP scoped classes ── */
+/* ── RTL adjustments for PDP scoped classes (VG36.3: inverted) ── */
 html[lang="ar"] .pdp-product-title,
 html[lang="ar"] .pdp-sav-title {
-  font-family: var(--font-beiruti), 'Beiruti', sans-serif !important;
+  font-family: var(--font-tajawal), 'Tajawal', sans-serif !important;
+  font-weight: 700;
 }
 
 html[lang="ar"] .pdp-sav-description,
 html[lang="ar"] .pdp-form-label,
 html[lang="ar"] .pdp-input-field,
 html[lang="ar"] .pdp-guarantee-label {
-  font-family: var(--font-tajawal), 'Tajawal', sans-serif;
+  font-family: var(--font-beiruti), 'Beiruti', sans-serif;
 }

@@ -1702,3 +1702,55 @@ CodForm.tsx, CartDrawer.tsx, cart-store.ts, CheckoutPage.tsx, whatsapp.ts, api/o
 
 ---
 Date de mise a jour : 27/07/2026
+
+## [VG36.3 — WHATSAPP DEEPLINK, SAV TEXTS, FONTS, MOBILE]
+
+### Mandat
+4 chantiers d'amelioration sur branche isolee `fix/whatsapp-deeplink-sav-fonts-vg36.3` (creee depuis `main@7b11396`).
+
+### Chantier 1 — Deep Linking (?product=slug)
+- **CatalogPreview.tsx** : useEffect + ref guard `deepLinkDone` intercepte `?product=slug` quand `sectionsLoaded` devient true, cherche la ligne correspondante et ouvre la PDP automatiquement.
+- **SEO URL effect** : preserve le parametre `?product=` jusqu'a ce que le deep link soit traite (empeche le strip premature).
+
+### Chantier 2 — Stabilisation Responsive & Images Mobile
+- **CatalogPreview.tsx** : attributs img `width={300} height={400}` → `width={400} height={300}` (ratio 4:3 coherent avec CSS).
+- **globals.css** : relaxation du `!important` sur `.glide-carousel` mobile (900px/640px).
+- **globals.css** : `@media (max-width: 360px) { .pdp-main-image-frame { min-height: 320px; } }`.
+
+### Chantier 3 — Gestion Dynamique des Textes SAV
+- **prisma/schema.prisma** : champ `savTexts Json?` ajoute au modele `CatalogSettings`.
+- **API route** (`/api/catalog/settings`) : `savTexts` ajoute aux `allowedFields`.
+- **types/index.ts** : `SavTextsConfig`, `SavSection`, `SavLang` types + `SettingsTab` etendu avec `'sav'`.
+- **SavTextsPillar.tsx** (nouveau) : composant admin multilingue (FR/EN/AR) pour editer les textes delivery + aftersales.
+- **SettingsPillar.tsx** : onglet SAV ajoute (grid-cols-9), import Headphones + SavTextsPillar.
+- **ProductPage.tsx** : `savTexts` consomme depuis `useAppStore` avec fallback dictionnaire.
+
+### Chantier 4 — Typographie Arabe & Formatage Monetaire
+- **globals.css** : `@import` redondant Playfair/Inter supprime (deja charge via next/font).
+- **globals.css** : classe utilitaire `.font-display` ajoutee.
+- **globals.css** : roles Beiruti/Tajawal INVERSES en RTL — Tajawal (Bold) pour les titres, Beiruti pour le corps.
+- **CatalogPreview.tsx** : 7 styles inline `Playfair Display` → classe `.font-display`.
+- **ProductPage.tsx** : 2 styles inline `Playfair Display` → classe `.font-display`.
+- **dictionaries.ts** : `formatPriceWithCurrency` utilise `Intl.NumberFormat` au lieu de `toFixed`.
+
+### Fichiers modifies (9)
+| # | Fichier | Chantiers |
+|---|---------|-----------|
+| 1 | `prisma/schema.prisma` | 3 (savTexts field) |
+| 2 | `src/app/api/catalog/settings/route.ts` | 3 (savTexts in allowedFields) |
+| 3 | `src/types/index.ts` | 3 (SavTextsConfig + SettingsTab) |
+| 4 | `src/components/settings/SavTextsPillar.tsx` | 3 (nouveau composant admin) |
+| 5 | `src/components/settings/SettingsPillar.tsx` | 3 (SAV tab) |
+| 6 | `src/components/preview/CatalogPreview.tsx` | 1+2+4 (deep link + img ratio + font-display) |
+| 7 | `src/components/preview/ProductPage.tsx` | 3+4 (savTexts consumption + font-display) |
+| 8 | `src/app/globals.css` | 2+4 (mobile relax + font swap + .font-display) |
+| 9 | `src/lib/i18n/dictionaries.ts` | 4 (Intl.NumberFormat) |
+
+### Fichiers NON modifies (etancheite tunnel Landing)
+CodForm.tsx, CartDrawer.tsx, cart-store.ts, CheckoutPage.tsx, whatsapp.ts, api/orders/* — TOUS NON MODIFIES.
+
+### Branche
+`fix/whatsapp-deeplink-sav-fonts-vg36.3` (creee depuis `main@7b11396`) — commit `938bc77`. **En attente du Feu Vert**.
+
+---
+Date de mise a jour : 27/07/2026

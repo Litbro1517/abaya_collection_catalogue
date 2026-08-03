@@ -2394,7 +2394,12 @@ export function formatPriceWithCurrency(
   if (isNaN(num)) return String(price);
 
   const config = CURRENCY_CONFIG[currencyCode] || CURRENCY_CONFIG.MAD;
-  const formatted = num.toFixed(config.decimalDigits);
+
+  // VG36.3 Chantier 4: Use Intl.NumberFormat for clean, locale-aware formatting
+  const formatted = new Intl.NumberFormat('en-US', {
+    minimumFractionDigits: config.decimalDigits,
+    maximumFractionDigits: config.decimalDigits,
+  }).format(num);
 
   // Pour l'affichage UI visiteur, substituer le symbole système (MAD) par le symbole UI (Dhs)
   const symbol = displayMode === 'ui'

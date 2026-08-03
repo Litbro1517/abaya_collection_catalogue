@@ -19,12 +19,13 @@ import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip
 import { AdminUserManager } from '@/components/settings/AdminUserManager';
 import { ColorMapManager } from '@/components/settings/ColorMapManager';
 import { TrustGuaranteesPillar } from '@/components/settings/TrustGuaranteesPillar';
+import { SavTextsPillar } from '@/components/settings/SavTextsPillar';
 import { ClientStylePanel } from '@/components/settings/ClientStylePanel';
 import { cn } from '@/lib/utils';
 import {
   Globe, Palette, Share2, Monitor, Shield, ShieldCheck, Save, Loader2,
   MessageCircle, ExternalLink, Mail, Instagram, Copy, Check, Key,
-  BookOpen, Trash2, Plus, RotateCcw
+  BookOpen, Trash2, Plus, RotateCcw, Headphones
 } from 'lucide-react';
 import { toast } from 'sonner';
 import {
@@ -567,7 +568,7 @@ export function SettingsPillar() {
         </div>
 
         <Tabs value={settingsTab} onValueChange={(v) => setSettingsTab(v as SettingsTab)} className="space-y-4">
-          <TabsList className="grid w-full grid-cols-8">
+          <TabsList className="grid w-full grid-cols-9">
             <TabsTrigger value="general" className="text-xs gap-1"><Globe className="w-3 h-3" /> {t('settings.general')}</TabsTrigger>
             <TabsTrigger value="appearance" className="text-xs gap-1"><Palette className="w-3 h-3" /> {t('settings.appearance')}</TabsTrigger>
             <TabsTrigger value="conversion" className="text-xs gap-1"><Share2 className="w-3 h-3" /> {t('settings.conversion')}</TabsTrigger>
@@ -576,6 +577,7 @@ export function SettingsPillar() {
             <TabsTrigger value="catalogue" className="text-xs gap-1"><BookOpen className="w-3 h-3" /> {t('settings.catalogue')}</TabsTrigger>
             <TabsTrigger value="couleurs" className="text-xs gap-1"><Palette className="w-3 h-3" /> {t('settings.colors')}</TabsTrigger>
             <TabsTrigger value="trust" className="text-xs gap-1"><ShieldCheck className="w-3 h-3" /> Confiance</TabsTrigger>
+            <TabsTrigger value="sav" className="text-xs gap-1"><Headphones className="w-3 h-3" /> SAV</TabsTrigger>
           </TabsList>
 
           {/* Général */}
@@ -1526,6 +1528,18 @@ export function SettingsPillar() {
           <TabsContent value="trust">
             {local && (
               <TrustGuaranteesPillar
+                local={local}
+                updateField={updateField}
+                handleSave={handleSave}
+                saving={saving}
+              />
+            )}
+          </TabsContent>
+
+          {/* SAV — VG36.3 Chantier 3: SAV & Livraison texts */}
+          <TabsContent value="sav">
+            {local && (
+              <SavTextsPillar
                 local={local}
                 updateField={updateField}
                 handleSave={handleSave}
