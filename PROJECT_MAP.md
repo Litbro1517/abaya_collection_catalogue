@@ -1906,3 +1906,47 @@ CodForm.tsx, CartDrawer.tsx, cart-store.ts, CheckoutPage.tsx, whatsapp.ts, api/o
 
 ---
 Date de mise a jour : 03/08/2026
+
+## [VG36.6 — PDP LAYOUT RESPONSIVE & TYPO RTL]
+
+### Mandat
+Rectification de la hierarchie typographique RTL et resolution definitive de la regression d'affichage/debordement mobile sur la PDP. Branche isolee `fix/vg36.6-pdp-layout-typo` (creee depuis `main@0971a2c`).
+
+### Diagnostic verifie
+1. **Typo RTL** : `.product-page-section-title` (4 occurrences JSX) avait `font-weight: 500` (Beiruti Medium) et aucune exception arabe. Retombait sur la regle globale `html[lang="ar"] div` (Beiruti) au lieu de Tajawal Bold 700.
+2. **Debordement mobile** : `.pdp-grid` utilisait `grid-template-columns: 1fr` (= `minmax(auto, 1fr)`) qui refuse de se comprimer sous la taille intrinseque des images. `.product-page` et `.pdp-gallery-section` (flex items) n'avaient pas de `min-width: 0`, bloquant leur plancher de largeur.
+3. **Logique carrousel** : `translateX()` L.662 verifiee et confirmee saine — non modifiee.
+
+### Corrections appliquees (3 axes)
+
+#### Fix 1 — Deblocage de la Grille PDP
+- **globals.css `.pdp-grid`** : `grid-template-columns: 1fr` → `minmax(0, 1fr)`. Desktop : `1.1fr 1fr` → `minmax(0, 1.1fr) minmax(0, 1fr)`. Permet la compression sous la taille intrinseque des images.
+
+#### Fix 2 — Deblocage du plancher Flexbox
+- **globals.css `.product-page`** : ajout `min-width: 0` (flex item avec `flex: 1`).
+- **globals.css `.pdp-gallery-section`** : ajout `min-width: 0` (flex item enfant).
+
+#### Fix 3 — Hierarchie Typographique Arabe PDP
+- **globals.css** : ajout regle `html[lang="ar"] .product-page-section-title, .pdp-form-title, .detail-label` → `font-family: Tajawal !important; font-weight: 700 !important; color: var(--pivot-text)`. Couvre les 4 labels de section (Couleur, Taille, Description, Details).
+
+### Justification technique
+Les solutions proposees par l'audit ont ete acceptees car techniquement exactes :
+- `minmax(0, 1fr)` est la methode standard W3C pour debloquer les grilles CSS (1fr = minmax(auto, 1fr) floor a min-content).
+- `min-width: 0` est la correction classique pour les flex items (defaut `min-width: auto` bloquant la compression).
+- L'exception arabe Tajawal Bold 700 aligne les labels de section PDP sur le design system (deja applique a `.pdp-product-title` et `.pdp-sav-title`).
+- **Pas de `!important` sur minmax/min-width** : ce sont de nouvelles declarations, pas des overrides. `!important` reserve a la regle typo arabe (necessaire pour overrider la regle globale `html[lang="ar"] div`).
+
+### Fichiers modifies (2)
+| # | Fichier | Fixes |
+|---|---------|-------|
+| 1 | `src/app/globals.css` | Fix 1 (grid minmax) + Fix 2 (flex min-width) + Fix 3 (Arabic section-title Tajawal 700) |
+| 2 | `PROJECT_MAP.md` | Documentation |
+
+### Fichiers NON modifies (etancheite tunnel Landing)
+CodForm.tsx, CartDrawer.tsx, cart-store.ts, CheckoutPage.tsx, whatsapp.ts, api/orders/* — TOUS NON MODIFIES. ProductPage.tsx NON modifie (logique translateX preservee).
+
+### Branche
+`fix/vg36.6-pdp-layout-typo` (creee depuis `main@0971a2c`). **EN ATTENTE DU FEU VERT EXPLICITE**.
+
+---
+Date de mise a jour : 27/07/2026

@@ -1587,6 +1587,9 @@ img {
   margin: 0 auto;
   padding: 0 32px 100px;
   flex: 1;
+  /* VG36.6 Fix 2: unblock flex item min-width:auto floor — allows the PDP
+     grid to compress below intrinsic image size on mobile. */
+  min-width: 0;
 }
 
 @media (max-width: 640px) {
@@ -3635,16 +3638,20 @@ html[lang="ar"] div {
 }
 
 /* ── PDP Grid: responsive 2-column layout ── */
+/* VG36.6 Fix 1: minmax(0, 1fr) instead of 1fr — unblocks the grid from
+   refusing to compress below intrinsic image min-content size on mobile.
+   1fr = minmax(auto, 1fr) which floors at min-content (image width).
+   minmax(0, 1fr) allows true compression to 0 if needed. */
 .pdp-grid {
   display: grid;
-  grid-template-columns: 1fr;
+  grid-template-columns: minmax(0, 1fr);
   gap: 30px;
   align-items: flex-start; /* VG35.0 Fix C: Title aligned with top of image frame */
 }
 
 @media (min-width: 850px) {
   .pdp-grid {
-    grid-template-columns: 1.1fr 1fr;
+    grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr);
   }
 }
 
@@ -3654,6 +3661,10 @@ html[lang="ar"] div {
   flex-direction: column;
   gap: 15px;
   max-width: 480px; /* FIX A: Block gallery column from over-widening */
+  /* VG36.6 Fix 2: unblock flex item min-width:auto floor — critical for
+     mobile grid compression (gallery column was refusing to shrink below
+     intrinsic image width, causing horizontal overflow + layout crush). */
+  min-width: 0;
 }
 
 .pdp-main-image-frame {
@@ -4145,6 +4156,20 @@ html[lang="ar"] .pdp-product-title,
 html[lang="ar"] .pdp-sav-title {
   font-family: var(--font-tajawal), 'Tajawal', sans-serif !important;
   font-weight: 700;
+}
+
+/* VG36.6 Fix 3: PDP section labels (Couleur, Taille, Description, Détails)
+   were falling through to the generic html[lang="ar"] div rule (Beiruti)
+   because .product-page-section-title had no Arabic exception. The base
+   rule uses font-weight: 500 (Beiruti Medium) which is visually weak.
+   Forcing Tajawal Bold 700 matches the design system standard for Arabic
+   section headings. Also covers .pdp-form-title and .detail-label. */
+html[lang="ar"] .product-page-section-title,
+html[lang="ar"] .pdp-form-title,
+html[lang="ar"] .detail-label {
+  font-family: var(--font-tajawal), 'Tajawal', sans-serif !important;
+  font-weight: 700 !important;
+  color: var(--pivot-text, #1A1A1A);
 }
 
 html[lang="ar"] .pdp-sav-description,
