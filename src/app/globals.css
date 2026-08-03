@@ -735,6 +735,9 @@ html.rtl input[type="tel"] {
   grid-template-columns: repeat(4, minmax(0, 1fr));
   column-gap: 20px;
   row-gap: 36px;
+  /* VG36.4 Fix 3: prevent horizontal scroll on mobile */
+  overflow-x: hidden;
+  max-width: 100%;
 }
 
 @media (max-width: 900px) {
@@ -759,6 +762,9 @@ html.rtl input[type="tel"] {
 .product-card {
   position: relative;
   background: transparent;
+  /* VG36.4 Fix 3: Rigorous mobile overflow containment */
+  max-width: 100%;
+  overflow: hidden;
 }
 
 .product-card-action {
@@ -773,6 +779,7 @@ html.rtl input[type="tel"] {
 .product-card-image-wrap {
   position: relative;
   width: 100%;
+  max-width: 100%; /* VG36.4 Fix 3: prevent mobile overflow */
   aspect-ratio: 4 / 3;
   overflow: hidden;
   border-radius: var(--radius-glide);
@@ -781,6 +788,7 @@ html.rtl input[type="tel"] {
 
 .product-card-img {
   width: 100%;
+  max-width: 100%; /* VG36.4 Fix 3: clamp image to container */
   height: 100%;
   object-fit: cover;
   display: block;

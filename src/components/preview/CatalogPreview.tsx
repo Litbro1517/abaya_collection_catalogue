@@ -1132,7 +1132,7 @@ export function CatalogPreview({ onAdminLogin }: CatalogPreviewProps) {
           <div className="mx-auto max-w-[1270px] px-4 py-2.5">
             <button
               onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-              className="flex items-center gap-2 px-4 py-2 rounded-full bg-white text-sm font-medium shadow-sm transition-all duration-200"
+              className="flex items-center gap-2 px-4 py-2 rounded-full bg-white text-sm font-semibold shadow-sm transition-all duration-200"
               style={{ border: '1px solid #e7e5e4', color: 'var(--client-text, #1B1713)' }}
               aria-expanded={mobileMenuOpen}
               aria-label={t('catalog.categories')}
@@ -1300,7 +1300,7 @@ export function CatalogPreview({ onAdminLogin }: CatalogPreviewProps) {
           <div className="catalog-filter-bar no-scrollbar">
             <button
               className={cn(
-                'px-5 py-1.5 rounded-[999px] text-xs sm:text-sm font-medium whitespace-nowrap transition-all duration-200',
+                'px-5 py-1.5 rounded-[999px] text-xs sm:text-sm font-semibold whitespace-nowrap transition-all duration-200',
                 activeMacroFilter === 'all' ? 'btn-filter-active' : 'btn-filter-default'
               )}
               onClick={() => { setActiveMacroFilter('all'); setActiveMicroFilter('all'); setCurrentPage(1); window.scrollTo({ top: 0, behavior: 'instant' }); }}
@@ -1316,7 +1316,7 @@ export function CatalogPreview({ onAdminLogin }: CatalogPreviewProps) {
                     <button
                       key={cat.slug}
                       className={cn(
-                        'px-5 py-1.5 rounded-[999px] text-xs sm:text-sm font-medium whitespace-nowrap transition-all duration-200',
+                        'px-5 py-1.5 rounded-[999px] text-xs sm:text-sm font-semibold whitespace-nowrap transition-all duration-200',
                         activeMacroFilter === cat.slug ? 'btn-filter-active' : 'btn-filter-default'
                       )}
                       onClick={() => {
@@ -1349,7 +1349,7 @@ export function CatalogPreview({ onAdminLogin }: CatalogPreviewProps) {
                   {/* "Tous" sub-pill */}
                   <button
                     className={cn(
-                      'px-3.5 py-1.5 rounded-full text-xs sm:text-[13px] font-medium whitespace-nowrap transition-all duration-200',
+                      'px-3.5 py-1.5 rounded-full text-xs sm:text-[13px] font-semibold whitespace-nowrap transition-all duration-200',
                       activeMicroFilter === 'all' ? 'btn-filter-sub-active shadow-sm' : 'btn-filter-sub-inactive hover:opacity-80'
                     )}
                     onClick={() => { setActiveMicroFilter('all'); setCurrentPage(1); }}
@@ -1362,7 +1362,7 @@ export function CatalogPreview({ onAdminLogin }: CatalogPreviewProps) {
                       <button
                         key={sub.slug}
                         className={cn(
-                          'px-3.5 py-1.5 rounded-full text-xs sm:text-[13px] font-medium whitespace-nowrap transition-all duration-200',
+                          'px-3.5 py-1.5 rounded-full text-xs sm:text-[13px] font-semibold whitespace-nowrap transition-all duration-200',
                           activeMicroFilter === sub.slug ? 'btn-filter-sub-active shadow-sm' : 'btn-filter-sub-inactive hover:opacity-80'
                         )}
                         onClick={() => { setActiveMicroFilter(sub.slug); setCurrentPage(1); }}
@@ -1383,7 +1383,7 @@ export function CatalogPreview({ onAdminLogin }: CatalogPreviewProps) {
               <button
                 key={opt.value}
                 className={cn(
-                  'px-5 py-1.5 rounded-[999px] text-xs sm:text-sm font-medium whitespace-nowrap transition-all duration-200',
+                  'px-5 py-1.5 rounded-[999px] text-xs sm:text-sm font-semibold whitespace-nowrap transition-all duration-200',
                   activeFilter === opt.value ? 'btn-filter-active' : 'btn-filter-default'
                 )}
                 onClick={() => { setActiveFilter(opt.value); setCurrentPage(1); window.scrollTo({ top: 0, behavior: 'instant' }); }}

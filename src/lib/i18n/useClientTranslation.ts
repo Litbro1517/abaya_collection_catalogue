@@ -26,9 +26,10 @@ export function useClientTranslation() {
 
   // DEBT-8 : formatPrice visiteur utilise displayMode 'ui' → MAD affiché comme "Dhs"
   // (le code BDD reste "MAD" pour SEO/analytics ; seul l'affichage visiteur change)
+  // VG36.4 Fix 1: pass locale to formatPriceWithCurrency → Arabic gets درهم left of amount
   const formatPrice = useMemo(() => {
-    return (price: number | string): string => formatPriceWithCurrency(price, currency, 'ui');
-  }, [currency]);
+    return (price: number | string): string => formatPriceWithCurrency(price, currency, 'ui', locale);
+  }, [currency, locale]);
 
   return {
     t: translate,

@@ -2384,11 +2384,15 @@ const UI_CURRENCY_SYMBOL_OVERRIDE: Record<string, string> = {
  *
  * @param displayMode - 'system' (default) garde le symbole ISO (MAD pour analytics/SEO/admin)
  *                      'ui' applique l'override visiteur (MAD → Dhs)
+ * @param locale - VG36.4: visitor locale. When 'ar', the currency symbol is
+ *                 rendered in Arabic letters (درهم for MAD) and placed BEFORE
+ *                 the amount (left of the number in the isolated LTR container).
  */
 export function formatPriceWithCurrency(
   price: number | string,
   currencyCode: string = 'MAD',
   displayMode: 'system' | 'ui' = 'system',
+  locale?: string,
 ): string {
   const num = typeof price === 'string' ? parseFloat(price) : price;
   if (isNaN(num)) return String(price);
@@ -2400,6 +2404,18 @@ export function formatPriceWithCurrency(
     minimumFractionDigits: config.decimalDigits,
     maximumFractionDigits: config.decimalDigits,
   }).format(num);
+
+  // VG36.4 Fix 1: Arabic locale → currency in Arabic letters, positioned LEFT (before amount)
+  // Requirement LOCKED: درهم must be strictly to the LEFT of the number in Arabic.
+  if (locale === 'ar') {
+    const arSymbol = currencyCode === 'MAD' ? 'درهم'
+      : currencyCode === 'AED' ? 'د.إ'
+      : currencyCode === 'DZD' ? 'د.ج'
+      : currencyCode === 'TND' ? 'د.ت'
+      : currencyCode === 'SAR' ? 'ر.س'
+      : (UI_CURRENCY_SYMBOL_OVERRIDE[currencyCode] || config.symbol);
+    return `${arSymbol} ${formatted}`;
+  }
 
   // Pour l'affichage UI visiteur, substituer le symbole système (MAD) par le symbole UI (Dhs)
   const symbol = displayMode === 'ui'

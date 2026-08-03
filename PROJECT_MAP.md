@@ -1776,3 +1776,48 @@ CodForm.tsx, CartDrawer.tsx, cart-store.ts, CheckoutPage.tsx, whatsapp.ts, api/o
 
 ---
 Date de mise a jour : 03/08/2026
+
+## [VG36.4 — CURRENCY, CATEGORIES, MOBILE IMAGES RECTIFICATION]
+
+### Mandat
+Investigation post-deploiement + 3 corrections visuelles critiques sur branche isolee `fix/currency-categories-mobile-images-vg36.4` (creee depuis `main@c2df3a0`).
+
+### Investigation (Autopsie Technique)
+**Constat** : VG36.3 a bien ete fusionne sur main (`c2df3a0`) et deploye en production. Les changements sont presents sur main (deepLinkDone, savTexts, font-display, Intl.NumberFormat tous verifies). Les 3 problemes persistants ne sont pas dus a un oubli de push ou un echec Vercel — ils sont dus a des lacunes fonctionnelles dans le code VG36.3 lui-meme :
+1. **Devise arabe** : `formatPriceWithCurrency` utilisait `UI_CURRENCY_SYMBOL_OVERRIDE[MAD] = 'Dhs'` pour TOUTES les locales (FR/EN/AR). Aucune branche specifique `locale === 'ar'` n'existait pour injecter le symbole arabe درهم.
+2. **Categories non gras** : les boutons utilisaient `font-medium` (poids 500) — correct technique mais visuellement insuffisant. Aucun changements n'avait ete demande pour le gras dans VG36.3.
+3. **Overflow mobile** : `.product-card` n'avait pas de `max-width: 100%` ni `overflow: hidden`. L'image avait `width: 100%` mais pas de `max-width: 100%` de secours.
+
+### Corrections appliquees (3 axes)
+
+#### 1. Devise Arabe درهم a GAUCHE du montant (VERROUILLE)
+- **dictionaries.ts** : `formatPriceWithCurrency` accepte un nouveau parametre `locale?`. Quand `locale === 'ar'`, le symbole est rendu en lettres arabes (درهم pour MAD, د.إ pour AED, etc.) et place AVANT le montant (position before). Exemple : `درهم 299`.
+- **useClientTranslation.ts** : `formatPrice` passe desormais `locale` a `formatPriceWithCurrency`.
+- **PriceText.tsx** : inchange — son `dir="ltr"` + `unicodeBidi: isolate` garantit que "درهم 299" affiche درهم a gauche et 299 a droite.
+- FR/EN : format standard conserve (`299 Dhs`).
+
+#### 2. Texte Categories en Gras
+- **CatalogPreview.tsx** : `font-medium` → `font-semibold` sur tous les boutons de filtre (macro categories desktop, micro filters, mobile burger menu). Aucune autre modification (pas de shadow, pas de padding, pas de border change).
+
+#### 3. Contention des Images Mobiles
+- **globals.css** : `.product-card` → ajout `max-width: 100%; overflow: hidden`.
+- **globals.css** : `.product-card-image-wrap` → ajout `max-width: 100%`.
+- **globals.css** : `.product-card-img` → ajout `max-width: 100%`.
+- **globals.css** : `.catalog-grid` → ajout `overflow-x: hidden; max-width: 100%`.
+
+### Fichiers modifies (4)
+| # | Fichier | Fixes |
+|---|---------|-------|
+| 1 | `src/lib/i18n/dictionaries.ts` | Fix 1 (locale param, Arabic درهم before amount) |
+| 2 | `src/lib/i18n/useClientTranslation.ts` | Fix 1 (pass locale to formatPriceWithCurrency) |
+| 3 | `src/components/preview/CatalogPreview.tsx` | Fix 2 (font-medium → font-semibold) |
+| 4 | `src/app/globals.css` | Fix 3 (overflow-hidden, max-width: 100% on card/img/grid) |
+
+### Fichiers NON modifies (etancheite tunnel Landing)
+CodForm.tsx, CartDrawer.tsx, cart-store.ts, CheckoutPage.tsx, whatsapp.ts, api/orders/* — TOUS NON MODIFIES.
+
+### Branche
+`fix/currency-categories-mobile-images-vg36.4` (creee depuis `main@c2df3a0`). **En attente du Feu Vert**.
+
+---
+Date de mise a jour : 27/07/2026
