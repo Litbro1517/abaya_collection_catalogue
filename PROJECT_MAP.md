@@ -1840,3 +1840,48 @@ CodForm.tsx, CartDrawer.tsx, cart-store.ts, CheckoutPage.tsx, whatsapp.ts, api/o
 
 ---
 Date de mise a jour : 03/08/2026
+
+## [VG36.5 — DEV CLEAN RTL CAROUSEL (3 FIXES + STRIKETHROUGH FIX — CLEAN REBASE)]
+
+### Mandat
+Rectification chirurgicale VG36.5 sur branche `fix/dev-clean-rtl-carousel-vg36.5` (rebasee sur `main@0a21584`). Code ecrit proprement, inspire de l'audit de la branche auditeur (supprimee).
+
+### Corrections appliquees (3 axes + 1 fix additionnel)
+
+#### Fix 1 — Sens de lecture naturel de la devise en Arabe (RTL)
+- **dictionaries.ts** : `formatPriceWithCurrency` retourne `{amount} {currency}` en arabe (ex: `280 درهم`). L'algorithme BiDi place naturellement le nombre a droite et درهم a gauche.
+- **PriceText.tsx** : composant direction-aware. Accepte prop `locale`. En arabe : `dir="rtl"`. FR/EN : `dir="ltr"` preserve.
+- **ProductPage.tsx + CatalogPreview.tsx** : `locale={locale}` passe aux **7 instances** `<PriceText>` (3 PDP current + 2 strikethrough + 2 catalog card).
+- **Fix additionnel** : les 2 instances `<PriceText strikethrough>` (Prix barres) avaient ete oubliees — desormais `locale={locale}` ajoute.
+
+#### Fix 2 — Contention absolue du Carrousel et des elements absolus
+- **globals.css `.pdp-thumb-arrow-left/right`** : `left:0/right:0` → `left:4px/right:4px` (+ regles RTL `html[dir="rtl"]` egalement mises a jour).
+- **globals.css `.pdp-thumb-slider-wrapper`** : ajout `overflow: hidden` + `max-width: 100%`.
+- **globals.css `.product-card`** : ajout `contain: layout`.
+
+#### Fix 3 — Typographie des Categories en Arabe (font-weight 700)
+- **globals.css** : `html[lang="ar"]` force `font-weight: 700 !important` sur `.btn-filter-default`, `.btn-filter-active`, `.btn-filter-sub-active`, `.btn-filter-sub-inactive`.
+- Utilise le veritable Tajawal Bold charge (weight 700), pas le faux gras synthetique du weight 600.
+
+### Rebase Git
+- Branche rebasee sur `main@0a21584` (origin/main HEAD).
+- merge-base = `0a21584` → fast-forward clean, aucun conflit.
+- Commit unique propre (squash du commit intermediaire + fix strikethrough).
+
+### Fichiers modifies (5)
+| # | Fichier | Fixes |
+|---|---------|-------|
+| 1 | `src/lib/i18n/dictionaries.ts` | Fix 1 (Arabic amount-first format) |
+| 2 | `src/components/PriceText.tsx` | Fix 1 (direction-aware, locale prop) |
+| 3 | `src/components/preview/ProductPage.tsx` | Fix 1 (locale to 4 PriceText: 3 current + 1 strikethrough) |
+| 4 | `src/components/preview/CatalogPreview.tsx` | Fix 1 (locale to 3 PriceText: 2 current + 1 strikethrough) |
+| 5 | `src/app/globals.css` | Fix 2 (arrows 4px + wrapper overflow + card contain:layout) + Fix 3 (ar font-weight 700) |
+
+### Fichiers NON modifies (etancheite tunnel Landing)
+CodForm.tsx, CartDrawer.tsx, cart-store.ts, CheckoutPage.tsx, whatsapp.ts, api/orders/* — TOUS NON MODIFIES.
+
+### Branche
+`fix/dev-clean-rtl-carousel-vg36.5` (rebasee sur `main@0a21584`). **EN ATTENTE DU FEU VERT EXPLICITE**.
+
+---
+Date de mise a jour : 27/07/2026

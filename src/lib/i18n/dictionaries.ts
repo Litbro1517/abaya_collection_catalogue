@@ -2405,8 +2405,13 @@ export function formatPriceWithCurrency(
     maximumFractionDigits: config.decimalDigits,
   }).format(num);
 
-  // VG36.4 Fix 1: Arabic locale → currency in Arabic letters, positioned LEFT (before amount)
-  // Requirement LOCKED: درهم must be strictly to the LEFT of the number in Arabic.
+  // VG36.5 Fix 1: Arabic locale → amount FIRST, then currency in Arabic letters.
+  // In a RTL paragraph, the BiDi algorithm naturally places:
+  //   - the number (weak directional) on the RIGHT
+  //   - the Arabic currency word (strong RTL) on the LEFT
+  // Visual result:  درهم 280   (درهم left, 280 right) → Arabic eye reads "280 Dirham".
+  // The PriceText component no longer forces dir="ltr" in Arabic, letting the
+  // parent RTL direction drive the natural BiDi reordering.
   if (locale === 'ar') {
     const arSymbol = currencyCode === 'MAD' ? 'درهم'
       : currencyCode === 'AED' ? 'د.إ'
@@ -2414,7 +2419,7 @@ export function formatPriceWithCurrency(
       : currencyCode === 'TND' ? 'د.ت'
       : currencyCode === 'SAR' ? 'ر.س'
       : (UI_CURRENCY_SYMBOL_OVERRIDE[currencyCode] || config.symbol);
-    return `${arSymbol} ${formatted}`;
+    return `${formatted} ${arSymbol}`;
   }
 
   // Pour l'affichage UI visiteur, substituer le symbole système (MAD) par le symbole UI (Dhs)

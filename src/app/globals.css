@@ -701,6 +701,23 @@ html.rtl input[type="tel"] {
 }
 
 /* ── Catalog Toolbar (section title) ── */
+/* VG36.5 Fix 3: In Arabic (RTL), force font-weight: 700 on category filter buttons.
+   Tajawal is loaded with weights [400, 500, 700] — weight 600 (font-semibold)
+   does NOT exist, so font-synthesis produces an imperceptible fake bold.
+   Forcing 700 in Arabic uses the real Tajawal Bold weight, giving the expected
+   visual boldness on Arabic category labels (عباية, طقم, فستان, etc.).
+   Structure preserved: 0 shadow, 0 padding, 0 border change. */
+html[lang="ar"] .btn-filter-default,
+html[lang="ar"] .btn-filter-active,
+html[lang="ar"] .btn-filter-sub-active,
+html[lang="ar"] .btn-filter-sub-inactive,
+html[lang="ar"] .catalog-toolbar .btn-filter-default,
+html[lang="ar"] .catalog-toolbar .btn-filter-active,
+html[lang="ar"] .catalog-toolbar .btn-filter-sub-active,
+html[lang="ar"] .catalog-toolbar .btn-filter-sub-inactive {
+  font-weight: 700 !important;
+}
+
 .catalog-toolbar {
   display: flex;
   align-items: center;
@@ -763,8 +780,12 @@ html.rtl input[type="tel"] {
   position: relative;
   background: transparent;
   /* VG36.4 Fix 3: Rigorous mobile overflow containment */
+  /* VG36.5 Fix 2: add contain:layout to prevent transformed children
+     (product-card-hover-cta with translate(-50%,-50%)) from causing
+     visual overflow despite parent overflow:hidden. */
   max-width: 100%;
   overflow: hidden;
+  contain: layout;
 }
 
 .product-card-action {
@@ -1372,13 +1393,13 @@ html.rtl .carousel-arrow.right {
 }
 html[dir="rtl"] .pdp-thumb-arrow-left,
 html.rtl .pdp-thumb-arrow-left {
-  left: 0;
+  left: 4px;
   right: auto;
   transform: translateY(-50%) scaleX(1);
 }
 html[dir="rtl"] .pdp-thumb-arrow-right,
 html.rtl .pdp-thumb-arrow-right {
-  right: 0;
+  right: 4px;
   left: auto;
   transform: translateY(-50%) scaleX(1);
 }
@@ -3689,6 +3710,10 @@ html[lang="ar"] div {
   position: relative;
   display: flex;
   align-items: center;
+  /* VG36.5 Fix 2: strict overflow containment so thumbnail arrows and
+     thumbnails never escape the gallery column on mobile (≤390px). */
+  overflow: hidden;
+  max-width: 100%;
 }
 
 .pdp-thumb-arrow {
@@ -3716,8 +3741,11 @@ html[lang="ar"] div {
   border-color: var(--gold-accent, #C5A059);
 }
 
-.pdp-thumb-arrow-left { left: 0; }
-.pdp-thumb-arrow-right { right: 0; }
+/* VG36.5 Fix 2: inset arrows 4px from edges (was left:0/right:0) to prevent
+   visual cropping on mobile screens ≤390px where the 24px circular arrows
+   touched the extreme frame boundaries. */
+.pdp-thumb-arrow-left { left: 4px; }
+.pdp-thumb-arrow-right { right: 4px; }
 
 .pdp-thumb-box {
   width: 70px;

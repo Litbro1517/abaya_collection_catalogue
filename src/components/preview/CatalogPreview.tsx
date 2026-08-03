@@ -1602,7 +1602,7 @@ export function CatalogPreview({ onAdminLogin }: CatalogPreviewProps) {
                     {price && config.showPrice !== false && (
                       <>
                         <span className="product-card-price">
-                          <PriceText>{formatPrice(price)}</PriceText>
+                          <PriceText locale={locale}>{formatPrice(price)}</PriceText>
                         </span>
                         {/* DEBT-9 : prix barré si compareAtPrice > price */}
                         {discount.hasDiscount && (
@@ -1615,7 +1615,7 @@ export function CatalogPreview({ onAdminLogin }: CatalogPreviewProps) {
                             }}
                             aria-label={t('product.originalPrice')}
                           >
-                            <PriceText strikethrough>{formatPrice(discount.compareAtPrice!)}</PriceText>
+                            <PriceText strikethrough locale={locale}>{formatPrice(discount.compareAtPrice!)}</PriceText>
                           </span>
                         )}
                       </>

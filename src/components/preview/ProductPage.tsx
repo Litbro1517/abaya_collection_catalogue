@@ -878,12 +878,12 @@ export function ProductPage({
           {price && (
             <div className="pdp-price-row">
               <span className="pdp-current-price">
-                <PriceText>{formatPrice(price)}</PriceText>
+                <PriceText locale={locale}>{formatPrice(price)}</PriceText>
               </span>
               {discount.hasDiscount && (
                 <>
                   <span className="pdp-old-price">
-                    <PriceText strikethrough>{formatPrice(discount.compareAtPrice!)}</PriceText>
+                    <PriceText strikethrough locale={locale}>{formatPrice(discount.compareAtPrice!)}</PriceText>
                   </span>
                   <span className="pdp-discount-badge">
                     -{discount.percentage}% SOLDE
@@ -1112,7 +1112,7 @@ export function ProductPage({
           {price && (
             <>
               <span className="mobile-cta-price">
-                <PriceText>{formatPrice(price)}</PriceText>
+                <PriceText locale={locale}>{formatPrice(price)}</PriceText>
               </span>
               {/* DEBT-9 : badge discount compact pour mobile */}
               {discount.hasDiscount && (
