@@ -2073,11 +2073,29 @@ Ajout d'une couche de post-traitement `applyArabicOverrides()` qui s'execute sur
 | 2 | `PROJECT_MAP.md` | Documentation |
 
 ### Fichiers NON modifies (etancheite tunnel Landing)
-CodForm.tsx, CartDrawer.tsx, cart-store.ts, CheckoutPage.tsx, whatsapp.ts, api/orders/* — TOUS NON MODIFIES.
+CodForm.tsx, CartDrawer.tsx, cart-store.ts, CheckoutPage.tsx, whatsapp.ts, api/orders/*, WhatsappOrderForm.tsx, OrderConfirmation.tsx — TOUS NON MODIFIES (0 ligne modifiee verifiee par git diff, 8 fichiers sanctuarises).
 ProductPage.tsx, CatalogPreview.tsx — NON MODIFIES (solution centralisee dans le module i18n).
 
+### Verifications finales (audit pre-fusion)
+- `bun run lint` : 0 erreur, 0 warning ✅
+- `bun run build` : exit code 0, 0 erreur de compilation ✅ (11.4s compile, 57/57 pages)
+- 0 log parasite de debogage (console.log/debug/debugger) ✅
+- Alignement de branche : parent de `fbf9ddd` = `c14ec7c` (main HEAD) — fast-forward direct sans conflit ✅
+- Etancheite COD : 0 ligne modifiee sur les 8 fichiers sanctuarises ✅
+- 3 overrides valides (caractere par caractere) :
+  - `طقم` (U+0637 U+0642 U+0645) → `أنصومبل` ✅
+  - `فستان` (U+0641 U+0633 U+062A U+0627 U+0646) → `كسوة` ✅
+  - `إكسسوارات` (U+0625 Alif+hamza) → `اكسسوارات` (U+0627 Alif simple, hamza supprimee) ✅
+
+### Audit & Deploiement (Session unique — 100% VERT)
+- **Audit Green Light prealable** : 3 overrides valides en base de donnees et affichage, qualite du code lint OK, build OK, zero regression COD ✅
+- **Fusion** : `git merge --ff-only fix/vg36.8-targeted-category-overrides` (fast-forward, `c14ec7c -> fbf9ddd`) ✅
+- **Poussee GitHub** : `git push origin main` (`c14ec7c..fbf9ddd`) le 2026-08-03T21:47:36Z — declenchement pipeline Vercel Production ✅
+- **Nettoyage branches** : locale `fix/vg36.8-targeted-category-overrides` supprimee + distante `origin/fix/vg36.8-targeted-category-overrides` supprimee ✅
+- **Statut** : OK **MERGED & DEPLOYED ON MAIN** (Vercel auto-deploy via GitHub main push)
+
 ### Branche
-`fix/vg36.8-targeted-category-overrides` (creee depuis `main@c14ec7c`). **EN ATTENTE DU FEU VERT EXPLICITE**.
+`fix/vg36.8-targeted-category-overrides` (creee depuis `main@c14ec7c`) — **FUSIONNEE & SUPPRIMEE** (main desormais a `fbf9ddd`).
 
 ---
-Date de mise a jour : 27/07/2026
+Date de mise a jour : 03/08/2026
