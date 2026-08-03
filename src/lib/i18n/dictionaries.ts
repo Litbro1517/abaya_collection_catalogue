@@ -2349,7 +2349,7 @@ const LOCALE_CODES = new Set(['fr', 'en', 'ar']);
  *   - Burkini → بوركيني (direct transliteration)
  *   - Abaya → عباية (kept as-is, already Arabic)
  *   - Kimono → كميون (Darija phonetic)
- *   - Accessoires → إكسسوارات (Darija term)
+ *   - Accessoires → اكسسوارات (Darija term, simple Alif — VG36.8: NO hamza)
  */
 const CATEGORY_DARIJA_DICTIONARY: Record<string, string> = {
   // Ensemble → أنصومبل (Darija phonetic, NOT طقم literary)
@@ -2365,10 +2365,57 @@ const CATEGORY_DARIJA_DICTIONARY: Record<string, string> = {
   'abayas': 'عبايات',
   // Kimono → كميون (Darija phonetic)
   'kimono': 'كميون',
-  // Accessoires → إكسسوارات (Darija term)
-  'accessoires': 'إكسسوارات',
-  'accessoire': 'إكسسوار',
+  // Accessoires → اكسسوارات (VG36.8: simple Alif, NO hamza)
+  'accessoires': 'اكسسوارات',
+  'accessoire': 'اكسسوار',
 };
+
+/**
+ * VG36.8: Arabic override map — intercepts legacy literary Arabic terms that
+ * may be stored in the DB translations JSONB and replaces them with the
+ * authentic Darija equivalents. This runs as a POST-PROCESSING step on the
+ * final resolved value, AFTER the DB translations and dictionary fallback
+ * have been consulted.
+ *
+ * This is necessary because the admin may have previously stored طقم or
+ * فستان in the translations.ar field. The VG36.7 dictionary fallback only
+ * triggered when NO translation was stored — but these legacy values ARE
+ * stored, so they bypassed the dictionary entirely.
+ *
+ * Also fixes the accessoires hamza: إكسسوارات (with hamza) → اكسسوارات (simple Alif).
+ */
+const AR_OVERRIDE_MAP: Record<string, string> = {
+  // طقم (literary) → أنصومبل (Darija phonetic)
+  'طقم': 'أنصومبل',
+  // فستان (literary) → كسوة (Darija authentic)
+  'فستان': 'كسوة',
+  // إكسسوارات (with hamza) → اكسسوارات (simple Alif, NO hamza)
+  'إكسسوارات': 'اكسسوارات',
+  // إكسسوار (with hamza, singular) → اكسسوار (simple Alif)
+  'إكسسوار': 'اكسسوار',
+};
+
+/**
+ * VG36.8: Apply Arabic overrides to a resolved string.
+ * Intercepts legacy literary terms (طقم, فستان) and hamza spellings (إكسسوارات)
+ * and replaces them with the authentic Darija equivalents.
+ * Runs ONLY when locale is Arabic.
+ */
+function applyArabicOverrides(value: string): string {
+  if (!value) return value;
+  // Exact match override (most common case — the value IS the legacy term)
+  if (AR_OVERRIDE_MAP[value]) {
+    return AR_OVERRIDE_MAP[value];
+  }
+  // Substring replacement (in case the term is part of a longer string)
+  let result = value;
+  for (const [from, to] of Object.entries(AR_OVERRIDE_MAP)) {
+    if (result.includes(from)) {
+      result = result.split(from).join(to);
+    }
+  }
+  return result;
+}
 
 /**
  * VG36.7: Case-insensitive category label lookup in the Darija dictionary.
@@ -2386,22 +2433,38 @@ export function resolveTranslation(
   locale: Locale,
   fallback?: string,
 ): string {
+  let resolved: string;
+
   if (translations && typeof translations === 'object' && !Array.isArray(translations)) {
     const value = translations[locale] || translations.fr || translations.en;
     // Guard: if the stored value is literally a locale code (e.g. "fr", "en", "ar"),
     // it means the translations JSONB was corrupted — skip it and use fallback.
     if (value && !LOCALE_CODES.has(value)) {
-      return value;
+      resolved = value;
+    } else {
+      resolved = fallback || '';
+    }
+  } else {
+    // VG36.7: Final fallback — case-insensitive Darija dictionary lookup.
+    // If the locale is Arabic and the fallback label matches a known category,
+    // return the Darija translation instead of the raw French label.
+    if (locale === 'ar' && fallback) {
+      const darija = lookupCategoryDarija(fallback);
+      resolved = darija || fallback || '';
+    } else {
+      resolved = fallback || '';
     }
   }
-  // VG36.7: Final fallback — case-insensitive Darija dictionary lookup.
-  // If the locale is Arabic and the fallback label matches a known category,
-  // return the Darija translation instead of the raw French label.
-  if (locale === 'ar' && fallback) {
-    const darija = lookupCategoryDarija(fallback);
-    if (darija) return darija;
+
+  // VG36.8: Post-processing override — intercept legacy literary Arabic terms
+  // (طقم, فستان) that may be stored in DB translations.ar, and fix the hamza
+  // on accessoires (إكسسوارات → اكسسوارات). Runs ONLY in Arabic locale,
+  // AFTER the value has been resolved from DB or dictionary fallback.
+  if (locale === 'ar') {
+    resolved = applyArabicOverrides(resolved);
   }
-  return fallback || '';
+
+  return resolved;
 }
 
 /**

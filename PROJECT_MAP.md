@@ -2039,3 +2039,45 @@ ProductPage.tsx, CatalogPreview.tsx — NON MODIFIES (la solution est centralise
 
 ---
 Date de mise a jour : 03/08/2026
+
+## [VG36.8 — TARGETED CATEGORY OVERRIDES]
+
+### Mandat
+Correction ciblee de 3 points : override des termes de base de donnees (طقم → أنصومبل, فستان → كسوة) et correction orthographique du mot accessoires sans hamza (إكسسوارات → اكسسوارات). Branche isolee `fix/vg36.8-targeted-category-overrides` (creee depuis `main@c14ec7c`).
+
+### Diagnostic
+Malgre le dictionnaire Darija VG36.7, l'interface affichait encore طقم et فستان en arabe car :
+1. Ces valeurs etaient stockees litteralement dans le champ `translations.ar` de la base de donnees (saisies par l'admin avant VG36.7).
+2. `resolveTranslation` priorisait la valeur stockee en DB AVANT d'evaluer le fallback dictionnaire — donc le dictionnaire n'etait jamais consulte pour ces mots.
+3. Le mot accessoires s'affichait avec hamza (إكسسوارات) au lieu de l'Alif simple exige (اكسسوارات).
+
+### Solution technique : post-processing override
+Ajout d'une couche de post-traitement `applyArabicOverrides()` qui s'execute sur la valeur finale resolue, APRES que la DB et le dictionnaire aient ete consultes. Cette approche :
+- **Intercepte les valeurs stockees en DB** (طقم, فستان) qui bypassaient le dictionnaire VG36.7.
+- **Corrige la hamza** sur accessoires (إ→ا) meme si la valeur vient de la DB.
+- **Non-invasive** : aucun composant JSX modifie, logique centralisee dans `resolveTranslation`.
+- **Execution conditionnelle** : s'applique uniquement quand `locale === 'ar'`.
+
+### 3 regles d'override implementees
+| # | Terme source (DB/litteraire) | Terme cible (Darija) | Contexte |
+|---|---|---|---|
+| 1 | طقم | أنصومبل | Override litteraire → Darija phonetique |
+| 2 | فستان | كسوة | Override litteraire → Darija authentique |
+| 3a | إكسسوارات | اكسسوارات | Correction hamza → Alif simple (pluriel) |
+| 3b | إكسسوار | اكسسوار | Correction hamza → Alif simple (singulier) |
+
+### Fichiers modifies (2)
+| # | Fichier | Modification |
+|---|---------|-------------|
+| 1 | `src/lib/i18n/dictionaries.ts` | Ajout `AR_OVERRIDE_MAP` + `applyArabicOverrides()` + integration dans `resolveTranslation` (post-processing). Correction dictionnaire VG36.7 (accessoires sans hamza). |
+| 2 | `PROJECT_MAP.md` | Documentation |
+
+### Fichiers NON modifies (etancheite tunnel Landing)
+CodForm.tsx, CartDrawer.tsx, cart-store.ts, CheckoutPage.tsx, whatsapp.ts, api/orders/* — TOUS NON MODIFIES.
+ProductPage.tsx, CatalogPreview.tsx — NON MODIFIES (solution centralisee dans le module i18n).
+
+### Branche
+`fix/vg36.8-targeted-category-overrides` (creee depuis `main@c14ec7c`). **EN ATTENTE DU FEU VERT EXPLICITE**.
+
+---
+Date de mise a jour : 27/07/2026
