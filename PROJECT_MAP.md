@@ -1878,10 +1878,31 @@ Rectification chirurgicale VG36.5 sur branche `fix/dev-clean-rtl-carousel-vg36.5
 | 5 | `src/app/globals.css` | Fix 2 (arrows 4px + wrapper overflow + card contain:layout) + Fix 3 (ar font-weight 700) |
 
 ### Fichiers NON modifies (etancheite tunnel Landing)
-CodForm.tsx, CartDrawer.tsx, cart-store.ts, CheckoutPage.tsx, whatsapp.ts, api/orders/* — TOUS NON MODIFIES.
+CodForm.tsx, CartDrawer.tsx, cart-store.ts, CheckoutPage.tsx, whatsapp.ts, api/orders/*, WhatsappOrderForm.tsx, OrderConfirmation.tsx — TOUS NON MODIFIES (0 ligne modifiee verifiee par git diff, 8 fichiers sanctuarises).
+
+### Verifications finales (audit pre-fusion)
+- `bun run lint` : 0 erreur, 0 warning ✅
+- `bun run build` : exit code 0, 0 erreur de compilation ✅ (11.8s compile, 57/57 pages)
+- 0 log parasite de debogage (console.log/debug/debugger) ✅
+- 0 variable non utilisee ✅
+- Alignement de branche : parent de `8f2811a` = `0a21584` (main HEAD) — fast-forward direct sans conflit ✅
+- Etancheite COD : 0 ligne modifiee sur les 8 fichiers sanctuarises ✅
+
+### Audit & Deploiement (Session unique — 100% VERT)
+- **Audit 6 controles (1a/1b/1c/2/3/LintBuild)** : 6/6 PASSED a 100% sans reserve
+  - 1a. Devise Arabe : `formatPriceWithCurrency` retourne `'280 درهم'` (amount-first) + `PriceText` direction-aware (`dir={isArabic ? 'rtl' : 'ltr'}`) + **5/5 instances `<PriceText>` passent `locale={locale}`** (3 current + 2 strikethrough) OK
+  - 1b. Carousel : flèches miniatures `left:4px/right:4px` en LTR + RTL + `.pdp-thumb-slider-wrapper { overflow: hidden }` + `.product-card { contain: layout }` OK
+  - 1c. Typographie : `html[lang="ar"]` force `font-weight: 700 !important` sur 8 selecteurs `.btn-filter-*` OK
+  - 2. Sanctuaire COD : 0 ligne modifiee sur 8 fichiers (CodForm, CartDrawer, cart-store, CheckoutPage, whatsapp.ts, /api/orders/*, WhatsappOrderForm, OrderConfirmation) OK
+  - 3. Alignement Git : parent de `8f2811a` = `0a21584` = main HEAD → fast-forward clean OK
+  - Lint + Build : Lint exit 0 (0 erreur, 0 warning), Build exit 0 (11.8s, 57/57 pages) OK
+- **Fusion** : `git merge --ff-only fix/dev-clean-rtl-carousel-vg36.5` (fast-forward, `0a21584 -> 8f2811a`) OK
+- **Poussee GitHub** : `git push origin main` (`0a21584..8f2811a`) le 2026-08-03T17:21:50Z — declenchement pipeline Vercel Production OK
+- **Nettoyage branches** : locale `fix/dev-clean-rtl-carousel-vg36.5` supprimee + distante `origin/fix/dev-clean-rtl-carousel-vg36.5` supprimee OK
+- **Statut** : OK **DEPLOYE EN PRODUCTION** (Vercel auto-deploy via GitHub main push)
 
 ### Branche
-`fix/dev-clean-rtl-carousel-vg36.5` (rebasee sur `main@0a21584`). **EN ATTENTE DU FEU VERT EXPLICITE**.
+`fix/dev-clean-rtl-carousel-vg36.5` (rebasee sur `main@0a21584`) — **FUSIONNEE & SUPPRIMEE** (main desormais a `8f2811a`).
 
 ---
-Date de mise a jour : 27/07/2026
+Date de mise a jour : 03/08/2026
