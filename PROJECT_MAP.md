@@ -1814,10 +1814,29 @@ Investigation post-deploiement + 3 corrections visuelles critiques sur branche i
 | 4 | `src/app/globals.css` | Fix 3 (overflow-hidden, max-width: 100% on card/img/grid) |
 
 ### Fichiers NON modifies (etancheite tunnel Landing)
-CodForm.tsx, CartDrawer.tsx, cart-store.ts, CheckoutPage.tsx, whatsapp.ts, api/orders/* — TOUS NON MODIFIES.
+CodForm.tsx, CartDrawer.tsx, cart-store.ts, CheckoutPage.tsx, whatsapp.ts, api/orders/*, WhatsappOrderForm.tsx, OrderConfirmation.tsx — TOUS NON MODIFIES (0 ligne modifiee verifiee par git diff).
+
+### Verifications finales (audit pre-fusion)
+- `bun run lint` : 0 erreur, 0 warning ✅
+- `bun run build` : exit code 0, 0 erreur de compilation ✅ (11.3s compile, 57/57 pages)
+- 0 log parasite de debogage (console.log/debug/debugger) ✅
+- 0 variable non utilisee ✅
+- Alignement de branche : parent de `08974a5` = `c2df3a0` (main HEAD) — fast-forward direct sans conflit ✅
+- Etancheite COD : 0 ligne modifiee sur les 6 fichiers sanctuarises + WhatsappOrderForm + OrderConfirmation ✅
+
+### Audit & Deploiement (Session unique — 100% VERT)
+- **Audit 4 controles (C1/C2/C3/C4)** : 4/4 PASSED a 100% sans reserve
+  - C1. Devise Arabe : `formatPriceWithCurrency` param `locale` → `locale === 'ar'` retourne `درهم ${formatted}` (ex: `درهم 299`) avec mapping MAD/AED/DZD/TND/SAR. FR/EN conservent format standard `299 Dhs` via UI_CURRENCY_SYMBOL_OVERRIDE. `useClientTranslation` passe `locale` OK
+  - C2. Categories : 6 occurrences `font-medium → font-semibold` dans CatalogPreview.tsx (mobile macro, desktop Tous, macros, sub-Tous, sub-categories, options filtre). 0 shadow ajoutee, 0 padding modifie, 0 border change. `transition-all duration-200` preserve — pas de layout shift au clic OK
+  - C3. Responsive : `.catalog-grid { overflow-x: hidden; max-width: 100% }`, `.product-card { max-width: 100%; overflow: hidden }`, `.product-card-image-wrap { max-width: 100% }`, `.product-card-img { max-width: 100% }`. Contention rigoureuse bloquant tout defilement horizontal sur mobile < 390px OK
+  - C4. Sanctuaire COD : 0 ligne modifiee sur CodForm.tsx, CartDrawer.tsx, cart-store.ts, CheckoutPage.tsx, whatsapp.ts, /api/orders/*, WhatsappOrderForm.tsx, OrderConfirmation.tsx. Lint exit 0 (0 erreur, 0 warning). Build exit 0 OK
+- **Fusion** : `git merge --ff-only fix/currency-categories-mobile-images-vg36.4` (fast-forward, `c2df3a0 -> 08974a5`) OK
+- **Poussee GitHub** : `git push origin main` (`c2df3a0..08974a5`) le 2026-08-03T15:16:15Z — declenchement pipeline Vercel Production OK
+- **Nettoyage branches** : locale `fix/currency-categories-mobile-images-vg36.4` supprimee + distante `origin/fix/currency-categories-mobile-images-vg36.4` supprimee OK
+- **Statut** : OK **DEPLOYE EN PRODUCTION** (Vercel auto-deploy via GitHub main push)
 
 ### Branche
-`fix/currency-categories-mobile-images-vg36.4` (creee depuis `main@c2df3a0`). **En attente du Feu Vert**.
+`fix/currency-categories-mobile-images-vg36.4` (creee depuis `main@c2df3a0`) — **FUSIONNEE & SUPPRIMEE** (main desormais a `08974a5`).
 
 ---
-Date de mise a jour : 27/07/2026
+Date de mise a jour : 03/08/2026
