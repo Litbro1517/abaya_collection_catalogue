@@ -2009,11 +2009,33 @@ Lors du passage en arabe, les categories ajoutees depuis l'admin (Manteau, Burki
 | 2 | `PROJECT_MAP.md` | Documentation |
 
 ### Fichiers NON modifies (etancheite tunnel Landing)
-CodForm.tsx, CartDrawer.tsx, cart-store.ts, CheckoutPage.tsx, whatsapp.ts, api/orders/* — TOUS NON MODIFIES.
+CodForm.tsx, CartDrawer.tsx, cart-store.ts, CheckoutPage.tsx, whatsapp.ts, api/orders/*, WhatsappOrderForm.tsx, OrderConfirmation.tsx — TOUS NON MODIFIES (0 ligne modifiee verifiee par git diff, 8 fichiers sanctuarises).
 ProductPage.tsx, CatalogPreview.tsx — NON MODIFIES (la solution est centralisee dans le module i18n).
 
+### Verifications finales (audit pre-fusion)
+- `bun run lint` : 0 erreur, 0 warning ✅
+- `bun run build` : exit code 0, 0 erreur de compilation ✅ (11.9s compile, 57/57 pages)
+- 0 log parasite de debogage (console.log/debug/debugger) ✅
+- Alignement de branche : parent de `5ba921c` = `3af4bcf` (main HEAD) — fast-forward direct sans conflit ✅
+- Etancheite COD : 0 ligne modifiee sur les 8 fichiers sanctuarises ✅
+- Robustesse i18n : `lookupCategoryDarija` utilise `toLowerCase().trim()` + fallback securise via `LOCALE_CODES` guard ✅
+
+### Audit & Deploiement (Session unique — 100% VERT)
+- **Audit 7 points (Point 1-7)** : 7/7 PASSED a 100% sans reserve
+  - Point 1. Integrite branche : parent de `5ba921c` = `3af4bcf` (main HEAD) → fast-forward possible OK
+  - Point 2. Manteau → `مونطو` (5 caractères : م-و-ن-ط-و, AUCUN Alif ا) OK
+  - Point 3. Robe → `كسوة` (Kiswa, NOT فستان) OK
+  - Point 4. Ensemble → `أنصومبل` (Ansemble phonetique, NOT طقم) OK
+  - Point 5. Burkini → `بوركيني` (translitteration directe) OK
+  - Point 6. Robustesse i18n : `lookupCategoryDarija(label)` utilise `label.toLowerCase().trim()` + fallback `resolveTranslation` securise via `LOCALE_CODES` guard + 0 ligne modifiee sur 8 fichiers COD OK
+  - Point 7. Documentation : section `[VG36.7]` presente dans PROJECT_MAP.md OK
+- **Fusion** : `git merge --ff-only fix/vg36.7-category-translations` (fast-forward, `3af4bcf -> 5ba921c`) OK
+- **Poussee GitHub** : `git push origin main` (`3af4bcf..5ba921c`) le 2026-08-03T21:02:05Z — declenchement pipeline Vercel Production OK
+- **Nettoyage branches** : locale `fix/vg36.7-category-translations` supprimee + distante `origin/fix/vg36.7-category-translations` supprimee OK
+- **Statut** : OK **MERGED & DEPLOYED ON MAIN** (Vercel auto-deploy via GitHub main push)
+
 ### Branche
-`fix/vg36.7-category-translations` (creee depuis `main@3af4bcf`). **EN ATTENTE DU FEU VERT EXPLICITE**.
+`fix/vg36.7-category-translations` (creee depuis `main@3af4bcf`) — **FUSIONNEE & SUPPRIMEE** (main desormais a `5ba921c`).
 
 ---
-Date de mise a jour : 27/07/2026
+Date de mise a jour : 03/08/2026
