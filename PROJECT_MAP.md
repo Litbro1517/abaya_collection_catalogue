@@ -2285,13 +2285,27 @@ Securisation de la base de donnees (Axe 1) et stabilisation de l'architecture de
 | 2 | `next.config.ts` | 2 | `unoptimized: true` → `false` |
 | 3 | `PROJECT_MAP.md` | - | Documentation |
 
-### Validations locales
+### Validations finales (audit pre-fusion)
 - `bun run lint` : 0 erreur, 0 warning OK
-- `bun run build` : exit code 0, 57/57 pages OK
-- `--accept-data-loss` totalement absent du package.json (grep count = 0)
+- `bun run build` : exit code 0, 14.3s compile, 57/57 pages, 276ms static generation OK
+- `--accept-data-loss` totalement absent du package.json ET de tous les scripts (grep count = 0 sur package.json + scripts/) OK
+- Étanchéité tunnel COD : 0 ligne modifiée sur 8 fichiers sanctuarisés (CodForm, CartDrawer, cart-store, CheckoutPage, whatsapp.ts, /api/orders/*, WhatsappOrderForm, OrderConfirmation) OK
+- Alignement de branche : parent de `2c1a976` = `829aaa6` (main HEAD) — fast-forward direct sans conflit OK
+
+### Audit & Deploiement (Session unique — 100% VERT)
+- **Audit 5 controles (Axe1/Axe2/Lint/Build/COD)** : 5/5 PASSED a 100% sans reserve
+  - Axe 1. Sécurité Build : `package.json` build script = `node scripts/switch-provider.js && prisma generate && next build` (uniquement prisma generate + next build, PAS de `--accept-data-loss`) ✅ + `db:reset` = `prisma migrate reset` (sans `--force` ni `--accept-data-loss`) ✅ + ajout `db:migrate:deploy` pour migrations production ✅ + grep `--accept-data-loss` count = 0 sur package.json ET scripts/ ✅
+  - Axe 2. Médias : `next.config.ts` `images.unoptimized: false` (était `true`) ✅ + `remotePatterns` propre et complet (drive.google.com, lh3.googleusercontent.com, **.googleusercontent.com, **.supabase.co) ✅
+  - Lint : Lint exit 0 (0 erreur, 0 warning) ✅
+  - Build : Build exit 0 (14.3s compile, 57/57 pages, 276ms static generation) — stable et reproductible après clean rebuild ✅
+  - Étanchéité COD : 0 ligne modifiée sur 8 fichiers sanctuarisés ✅
+- **Fusion** : `git merge --ff-only feature/fix-build-and-media` (fast-forward, `829aaa6 -> 2c1a976`) OK
+- **Poussee GitHub** : `git push origin main` (`829aaa6..2c1a976`) le 2026-08-06T22:10:44Z — declenchement pipeline Vercel Production OK
+- **Nettoyage branches** : locale `feature/fix-build-and-media` supprimee + distante `origin/feature/fix-build-and-media` supprimee OK
+- **Statut** : OK **MERGED & DEPLOYED ON MAIN** (Vercel auto-deploy via GitHub main push)
 
 ### Branche
-`feature/fix-build-and-media` (creee depuis `main@829aaa6`). **EN ATTENTE DU FEU VERT EXPLICITE**.
+`feature/fix-build-and-media` (creee depuis `main@829aaa6`) — **FUSIONNEE & SUPPRIMEE** (main desormais a `2c1a976`).
 
 ---
-Date de mise a jour : 27/07/2026
+Date de mise a jour : 06/08/2026
