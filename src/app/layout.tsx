@@ -22,11 +22,13 @@ const inter = Inter({
 
 // VG37 Axe 2: Zain replaces Beiruti — unified Arabic typography ecosystem
 // Zain (display/headings) + Tajawal (body text) + Roboto (already in admin)
+// VG37 Fix: Zain on Google Fonts only supports weights 300, 400, 700 — NOT 500/600.
+// Using unsupported weights causes critical build failure (Unknown weight 500).
 const zain = Zain({
   variable: "--font-zain",
   subsets: ["arabic", "latin"],
   display: "swap",
-  weight: ["300", "400", "500", "600", "700"],
+  weight: ["300", "400", "700"],
 });
 
 const tajawal = Tajawal({

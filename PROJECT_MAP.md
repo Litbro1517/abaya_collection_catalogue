@@ -2148,3 +2148,33 @@ CodForm.tsx, CartDrawer.tsx, cart-store.ts, CheckoutPage.tsx, whatsapp.ts, api/o
 
 ---
 Date de mise a jour : 27/07/2026
+
+## [VG37 FIX — ZAIN FONT WEIGHT BUILD FIX]
+
+### Mandat
+Correction d'urgence : erreur critique de build "Unknown weight 500 for font Zain". La police Zain sur Google Fonts ne supporte pas les graisses 500 et 600.
+
+### Diagnostic
+- **Cause** : Le commit `cc0e0ad` (VG37 initial) declarait `weight: ["300", "400", "500", "600", "700"]` pour la police Zain dans `src/app/layout.tsx`.
+- **Impact** : Le moteur de build (Turbopack/Vercel)echouait avec "Unknown weight 500 for font Zain" — build production bloque.
+- **Verification Google Fonts** : Zain supporte uniquement les weights 300, 400, 700 (pas 500/600).
+
+### Correction appliquee
+- **layout.tsx** : `weight: ["300", "400", "500", "600", "700"]` → `weight: ["300", "400", "700"]`
+- Ajout commentaire documentant la restriction Google Fonts.
+
+### Validations locales
+- `bun run lint` : 0 erreur, 0 warning OK
+- `bun run build` : exit code 0, 0 erreur de compilation OK (build complet reussi, 57/57 pages)
+
+### Fichiers modifies (2)
+| # | Fichier | Modification |
+|---|---------|-------------|
+| 1 | `src/app/layout.tsx` | Zain weight array corrige + commentaire |
+| 2 | `PROJECT_MAP.md` | Documentation VG37 Fix |
+
+### Branche
+`fix/vg37-cart-typo-badges-ux` (commit de fix sur branche existante). **EN ATTENTE DU FEU VERT EXPLICITE**.
+
+---
+Date de mise a jour : 27/07/2026
