@@ -22,6 +22,10 @@ export interface CartItem {
 interface CartState {
   items: CartItem[];
   isDrawerOpen: boolean;
+  /** VG37.1 Axe 1: checkout trigger flag — set to true when the user clicks
+   * "إتمام الطلب" from the GlobalCart drawer. CatalogPreview watches this
+   * flag via useEffect to open its checkout view. */
+  checkoutTrigger: number;
   addItem: (item: Omit<CartItem, 'id' | 'quantity'> & { quantity?: number }) => void;
   removeItem: (id: string) => void;
   updateQuantity: (id: string, quantity: number) => void;
@@ -29,6 +33,8 @@ interface CartState {
   openDrawer: () => void;
   closeDrawer: () => void;
   toggleDrawer: () => void;
+  /** VG37.1 Axe 1: triggers checkout — increments a counter to signal CatalogPreview */
+  triggerCheckout: () => void;
   getTotalItems: () => number;
   getTotalPrice: () => number;
 }
@@ -42,6 +48,7 @@ export const useCartStore = create<CartState>()(
     (set, get) => ({
       items: [],
       isDrawerOpen: false,
+      checkoutTrigger: 0,
 
       addItem: (item) => {
         const id = makeCartItemId(item.productId, item.color, item.size);
@@ -79,6 +86,9 @@ export const useCartStore = create<CartState>()(
       openDrawer: () => set({ isDrawerOpen: true }),
       closeDrawer: () => set({ isDrawerOpen: false }),
       toggleDrawer: () => set((state) => ({ isDrawerOpen: !state.isDrawerOpen })),
+
+      // VG37.1 Axe 1: triggerCheckout — increments counter to signal CatalogPreview
+      triggerCheckout: () => set((state) => ({ checkoutTrigger: state.checkoutTrigger + 1 })),
 
       getTotalItems: () => get().items.reduce((sum, i) => sum + i.quantity, 0),
 

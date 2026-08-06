@@ -2193,3 +2193,45 @@ Correction d'urgence : erreur critique de build "Unknown weight 500 for font Zai
 
 ---
 Date de mise a jour : 06/08/2026
+
+## [VG37.1 — POST REGRESSION FIXES]
+
+### Mandat
+Correction de 3 regressions post-VG37 : cablage du bouton checkout, gate de visibilite du panier, ajustement visuel du bandeau promo. Branche isolee `fix/vg37.1-post-regression-fixes` (creee depuis `main@2438d92`).
+
+### Corrections appliquees (3 axes)
+
+#### Axe 1 — Cablage du bouton Checkout (GlobalCart)
+- **cart-store.ts** : ajout `checkoutTrigger: number` (counter) + `triggerCheckout()` dans l'interface et l'implementation Zustand.
+- **GlobalCart.tsx** : `onCheckout` remplace le stub `window.location.href='/'` par `triggerCheckout()`. Si sur une route non-catalog, declenche le trigger puis navigue vers `/`.
+- **CatalogPreview.tsx** : `useEffect` surveille `checkoutTrigger` — quand il change, ouvre le checkout view avec les items du panier. Suppression du `CartDrawer` local (GlobalCart le gere globalement).
+
+#### Axe 2 — Gate de visibilite du panier
+- **GlobalCart.tsx** : suppression du gate `{count > 0 && (<button>)}` autour du bouton. Le bouton est desormais TOUJOURS visible. Le badge numerique `{count > 0 && <span>}` conserve son affichage conditionnel.
+- **CatalogPreview.tsx** : suppression du `CartHeaderButton` local (fonction + usage) pour eviter le double-rendu avec GlobalCart.
+
+#### Axe 3 — Reajustement visuel du bandeau promotionnel
+- **globals.css `.product-card-status-band`** : `padding: 1.5px 12px` → `4px 12px` (prevention clipping ascenders/descenders).
+- **globals.css `.product-card-status-band-text`** : `line-height: 1.25` → `1.4`, ajout `text-align: center`.
+
+### Fichiers modifies (5)
+| # | Fichier | Axes |
+|---|---------|------|
+| 1 | `src/lib/cart-store.ts` | 1 (checkoutTrigger + triggerCheckout) |
+| 2 | `src/components/GlobalCart.tsx` | 1+2 (triggerCheckout + always-visible button) |
+| 3 | `src/components/preview/CatalogPreview.tsx` | 1+2 (useEffect watcher + remove CartDrawer/CartHeaderButton) |
+| 4 | `src/app/globals.css` | 3 (padding + line-height + text-align) |
+| 5 | `PROJECT_MAP.md` | Documentation |
+
+### Fichiers NON modifies (etancheite tunnel Landing)
+CodForm.tsx, CheckoutPage.tsx, whatsapp.ts, api/orders/* — TOUS NON MODIFIES.
+
+### Validations locales
+- `bun run lint` : 0 erreur, 0 warning OK
+- `bun run build` : exit code 0, 57/57 pages OK
+
+### Branche
+`fix/vg37.1-post-regression-fixes` (creee depuis `main@2438d92`). **EN ATTENTE DU FEU VERT EXPLICITE**.
+
+---
+Date de mise a jour : 27/07/2026

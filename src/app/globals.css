@@ -996,11 +996,13 @@ html[lang="ar"] .catalog-toolbar .btn-filter-sub-inactive {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  min-width: 88px; /* VG31: elongate single-word labels to match two-word gabarit */
-  max-width: 55%; /* VG31: more contained (was 60%) — prevents image overflow */
-  padding: 1.5px 12px;
+  min-width: 88px;
+  max-width: 55%;
+  /* VG37.1 Axe 3: increased vertical padding (was 1.5px) to prevent clipping
+     of ascenders/descenders on the black text. */
+  padding: 4px 12px;
   border-radius: 0;
-  border-top-right-radius: 6px; /* rounded-tr-md — seul coin arrondi */
+  border-top-right-radius: 6px;
   overflow: hidden;
 }
 
@@ -1013,7 +1015,10 @@ html[lang="ar"] .catalog-toolbar .btn-filter-sub-inactive {
   font-style: italic;
   text-transform: none; /* Sentence case — PAS d'UPPERCASE */
   letter-spacing: 0.01em;
-  line-height: 1.25; /* leading-tight */
+  /* VG37.1 Axe 3: increased line-height (was 1.25) + text-align center for
+     proper vertical breathing room. */
+  line-height: 1.4;
+  text-align: center;
   white-space: nowrap;
   text-shadow: 0 1px 2px rgba(255, 255, 255, 0.3); /* light shadow for dark bg contrast */
 }

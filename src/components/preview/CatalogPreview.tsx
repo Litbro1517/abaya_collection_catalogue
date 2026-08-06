@@ -18,7 +18,6 @@ import type { CachedSectionData } from '@/lib/cache';
 import { ProductPage } from './ProductPage';
 import { SocialStickyTickets } from './SocialStickyTickets';
 import { TrustGuaranteesSection } from '@/components/TrustGuaranteesSection';
-import { CartDrawer } from './CartDrawer';
 import { useCartStore } from '@/lib/cart-store';
 import { CheckoutPage, type CheckoutPayload } from './CheckoutPage';
 import { useClientTranslation } from '@/lib/i18n';
@@ -225,44 +224,9 @@ function ProductCardTitle({ title, locale }: { title: string; locale: string }) 
 }
 
 // ── VG34.3: Cart Header Button — clean, no dark bg/shadow ──
-function CartHeaderButton() {
-  const { toggleDrawer, getTotalItems } = useCartStore();
-  const count = getTotalItems();
-  if (count === 0) return null;
-  return (
-    <button
-      onClick={toggleDrawer}
-      className="cart-header-button fixed top-4 z-50 flex items-center justify-center transition-all hover:scale-105"
-      style={{
-        right: '1rem',
-        background: 'transparent',
-        border: 'none',
-        boxShadow: 'none',
-      }}
-      aria-label="Open cart"
-    >
-      <ShoppingBag className="w-6 h-6" style={{ color: '#1A1A1A' }} />
-      {count > 0 && (
-        <span
-          className="absolute -top-1 -right-1 flex items-center justify-center font-bold"
-          style={{
-            width: '16px',
-            height: '16px',
-            minWidth: '16px',
-            borderRadius: '50%',
-            fontSize: '9px',
-            backgroundColor: 'var(--gold-accent, #C5A059)',
-            color: '#fff',
-            border: '1.5px solid #FFFFFF',
-            boxShadow: '0 1px 3px rgba(0,0,0,0.2)',
-          }}
-        >
-          {count}
-        </span>
-      )}
-    </button>
-  );
-}
+// VG37.1 Axe 2: CartHeaderButton removed — GlobalCart (mounted in root layout)
+// now handles the cart button globally on ALL routes. This prevents double-render
+// conflict and ensures the cart is always visible.
 
 export function CatalogPreview({ onAdminLogin }: CatalogPreviewProps) {
   const { catalog, settings, isAdmin, adminUser, setView } = useAppStore();
@@ -280,6 +244,27 @@ export function CatalogPreview({ onAdminLogin }: CatalogPreviewProps) {
   const searchInputRef = useRef<HTMLInputElement | null>(null);  // autofocus on expand
   // ━━ Checkout tunnel: when set, the dedicated CheckoutPage replaces the product detail ━━
   const [checkoutData, setCheckoutData] = useState<CheckoutPayload | null>(null);
+
+  // VG37.1 Axe 1: Watch checkoutTrigger from cart store — GlobalCart sets this
+  // when the user clicks "إتمام الطلب" from the drawer. Opens the checkout view.
+  const checkoutTrigger = useCartStore((s) => s.checkoutTrigger);
+  useEffect(() => {
+    if (checkoutTrigger === 0) return; // skip initial state
+    const items = useCartStore.getState().items;
+    if (items.length === 0) return;
+    const first = items[0];
+    setCheckoutData({
+      productId: first.productId,
+      productTitle: first.title,
+      productPrice: first.price,
+      productImage: first.image,
+      selectedColor: first.color || null,
+      selectedColorHex: null,
+      selectedSize: first.size || null,
+      quantity: items.reduce((sum, i) => sum + i.quantity, 0),
+    });
+    useCartStore.getState().closeDrawer();
+  }, [checkoutTrigger]);
   const [currentPage, setCurrentPage] = useState(1);
   const [likedProducts, setLikedProducts] = useState<Set<string>>(new Set);
   const [activeFilter, setActiveFilter] = useState<string>('all');
@@ -1849,27 +1834,10 @@ export function CatalogPreview({ onAdminLogin }: CatalogPreviewProps) {
         </div>
       </footer>
 
-      {/* VG34: Cart Drawer — slide-over for multi-product cart */}
-      <CartDrawer onCheckout={() => {
-        // FIX VG34.2: trigger checkout view WITHOUT page reload
-        const items = useCartStore.getState().items;
-        if (items.length === 0) return;
-        const first = items[0];
-        setCheckoutData({
-          productId: first.productId,
-          productTitle: first.title,
-          productPrice: first.price,
-          productImage: first.image,
-          selectedColor: first.color || null,
-          selectedColorHex: null,
-          selectedSize: first.size || null,
-          quantity: items.reduce((sum, i) => sum + i.quantity, 0),
-        });
-        useCartStore.getState().closeDrawer();
-      }} />
-
-      {/* VG34: Cart badge in header — floating button */}
-      <CartHeaderButton />
+      {/* VG37.1 Axe 1+2: CartDrawer and CartHeaderButton removed from CatalogPreview.
+          GlobalCart (mounted in root layout) now handles both globally.
+          The checkout flow is triggered via the checkoutTrigger counter in the
+          cart store — watched by the useEffect below. */}
     </>
   );
 
