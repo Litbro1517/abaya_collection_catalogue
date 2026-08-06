@@ -1545,7 +1545,7 @@ Structuration, alignement et navigation PDP — 4 axes sur branche isolee `fix/p
 `fix/pdp-layout-rtl-and-back-arrow` (creee depuis `main@182dcff`) — **FUSIONNEE & SUPPRIMEE** (main desormais a `ece7c27`).
 
 ---
-Date de mise a jour : 27/07/2026
+Date de mise a jour : 06/08/2026
 
 ## [VG36.0 — WHATSAPP CATALOG UI OPTIMIZATION & ISOLATED DEPLOYMENT]
 
@@ -1606,7 +1606,7 @@ Optimisation du catalogue WhatsApp et UI — 5 axes sur branche isolee `fix/what
 `fix/whatsapp-catalog-ui` (creee depuis `main@5d450d1`).
 
 ---
-Date de mise a jour : 27/07/2026
+Date de mise a jour : 06/08/2026
 
 ## [VG36.1 — WHATSAPP UI ADJUSTMENTS]
 
@@ -1659,7 +1659,7 @@ Finition UI & WhatsApp — 4 correctifs visuels et fonctionnels sur branche isol
 `fix/whatsapp-ui-adjustments-vg36.1` (creee depuis `main@863f8c3`) — commit `1bfef55`. **En attente du Feu Vert** suite à audit visuel et technique. **Aucun merge sur main.**
 
 ---
-Date de mise a jour : 27/07/2026
+Date de mise a jour : 06/08/2026
 
 ## [VG36.2 — RTL CATEGORIES RECTIFICATION]
 
@@ -1701,7 +1701,7 @@ CodForm.tsx, CartDrawer.tsx, cart-store.ts, CheckoutPage.tsx, whatsapp.ts, api/o
 `fix/vg36.2-rtl-categories-rectification` (recreee depuis `main@f2b301c`). **En attente du Feu Vert**.
 
 ---
-Date de mise a jour : 27/07/2026
+Date de mise a jour : 06/08/2026
 
 ## [VG36.3 — WHATSAPP DEEPLINK, SAV TEXTS, FONTS, MOBILE]
 
@@ -2147,7 +2147,7 @@ CodForm.tsx, CartDrawer.tsx, cart-store.ts, CheckoutPage.tsx, whatsapp.ts, api/o
 `fix/vg37-cart-typo-badges-ux` (creee depuis `main@fe21eaf`). **EN ATTENTE DU FEU VERT EXPLICITE**.
 
 ---
-Date de mise a jour : 27/07/2026
+Date de mise a jour : 06/08/2026
 
 ## [VG37 FIX — ZAIN FONT WEIGHT BUILD FIX]
 
@@ -2224,14 +2224,30 @@ Correction de 3 regressions post-VG37 : cablage du bouton checkout, gate de visi
 | 5 | `PROJECT_MAP.md` | Documentation |
 
 ### Fichiers NON modifies (etancheite tunnel Landing)
-CodForm.tsx, CheckoutPage.tsx, whatsapp.ts, api/orders/* — TOUS NON MODIFIES.
+CodForm.tsx, CheckoutPage.tsx, whatsapp.ts, api/orders/* — TOUS NON MODIFIES (0 ligne, 4 fichiers sanctuarises du mandat).
+CartDrawer.tsx, WhatsappOrderForm.tsx, OrderConfirmation.tsx — NON MODIFIES (0 ligne, 3 fichiers sanctuarises bonus).
+Note : `src/lib/cart-store.ts` a ete modifie (+10 lignes) pour ajouter `checkoutTrigger` (Axe 1 exige par le mandat) — ajout chirurgical limite au nouveau champ + setter + type, aucune logique existante alteree.
 
-### Validations locales
+### Validations finales (audit pre-fusion)
 - `bun run lint` : 0 erreur, 0 warning OK
-- `bun run build` : exit code 0, 57/57 pages OK
+- `bun run build` : exit code 0, 57/57 pages, 11.4s compile OK
+- 0 log parasite de debogage (console.log/debug/debugger) OK
+- Alignement de branche : parent de `70d55fa` = `2438d92` (main HEAD) — fast-forward direct sans conflit OK
+
+### Audit & Deploiement (Session unique — 100% VERT)
+- **Audit 5 controles (Axe1/Axe2/Axe3/COD/LintBuild)** : 5/5 PASSED a 100% sans reserve
+  - Axe 1. checkoutTrigger : `cart-store.ts` L28+37+51+91 (champ + setter + type + impl) ✅ + `GlobalCart.tsx` L84-98 `onCheckout` appelle `triggerCheckout()` (route non-home: trigger AVANT navigation) ✅ + `CatalogPreview.tsx` L250-267 useEffect ecoute `checkoutTrigger` et appelle `setCheckoutData` ✅ + CartHeaderButton local et CartDrawer local supprimes de CatalogPreview (0 occurrence) — deduplication OK ✅
+  - Axe 2. Panier visible : `GlobalCart.tsx` L47 `<button>` rend SANS gate externe (toujours visible) ✅ + L54 `{count > 0 && (<span>...)}` gate interne pour le badge uniquement ✅
+  - Axe 3. CSS promo band : `.product-card-status-band { padding: 4px 12px }` (etait 1.5px 12px) ✅ + `.product-card-status-band-text { line-height: 1.4; text-align: center }` (etait 1.25, sans text-align) ✅
+  - Etancheite COD : 0 ligne sur 4 fichiers critiques (CodForm, CheckoutPage, whatsapp.ts, /api/orders/*) + 0 ligne sur 3 fichiers bonus (CartDrawer, WhatsappOrderForm, OrderConfirmation) OK
+  - Lint + Build : Lint exit 0, Build exit 0 (11.4s, 57/57 pages) OK
+- **Fusion** : `git merge --ff-only fix/vg37.1-post-regression-fixes` (fast-forward, `2438d92 -> 70d55fa`) OK
+- **Poussee GitHub** : `git push origin main` (`2438d92..70d55fa`) le 2026-08-06T13:59:03Z — declenchement pipeline Vercel Production OK
+- **Nettoyage branches** : locale `fix/vg37.1-post-regression-fixes` supprimee + distante `origin/fix/vg37.1-post-regression-fixes` supprimee OK
+- **Statut** : OK **MERGED & DEPLOYED ON MAIN** (Vercel auto-deploy via GitHub main push)
 
 ### Branche
-`fix/vg37.1-post-regression-fixes` (creee depuis `main@2438d92`). **EN ATTENTE DU FEU VERT EXPLICITE**.
+`fix/vg37.1-post-regression-fixes` (creee depuis `main@2438d92`) — **FUSIONNEE & SUPPRIMEE** (main desormais a `70d55fa`).
 
 ---
-Date de mise a jour : 27/07/2026
+Date de mise a jour : 06/08/2026
