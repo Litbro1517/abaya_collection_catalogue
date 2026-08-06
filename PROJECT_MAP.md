@@ -2251,3 +2251,47 @@ Note : `src/lib/cart-store.ts` a ete modifie (+10 lignes) pour ajouter `checkout
 
 ---
 Date de mise a jour : 06/08/2026
+
+## [VG37.2 — BUILD SECURITY & MEDIA STABILIZATION]
+
+### Mandat
+Securisation de la base de donnees (Axe 1) et stabilisation de l'architecture des medias (Axe 2). Branche isolee `feature/fix-build-and-media` (creee depuis `main@829aaa6`).
+
+### Axe 1 — Securisation du script de build (CRITIQUE)
+**Diagnostic** : Le script `build` dans `package.json` contenait `prisma db push --accept-data-loss` — un flag destructeur qui pouvait purger des tables en production si le schema changeait structurellement entre deux commits.
+
+**Correction appliquee** :
+- `package.json` script `build` : `... prisma db push --accept-data-loss && next build` → `... next build`
+- Le build ne fait desormais que `prisma generate` (generation du client) + `next build` (compilation).
+- Les changements de schema doivent etre appliques manuellement via `db:push` (sans le flag) ou `db:migrate`.
+- Ajout du script `db:migrate:deploy` pour les deploiements production avec migrations propres.
+
+**Justification technique** : Le flag `--accept-data-loss` etait une epee de Damocles. En production Vercel, le build s'execute automatiquement a chaque push — si le schema Prisma changeait, la commande aurait pu purger des donnees clients sans confirmation. La strategy safe : `prisma generate` dans le build (juste la generation du client), `db:push` ou `migrate deploy` en manuel.
+
+### Axe 2 — Stabilisation des medias et images
+**Diagnostic** : `images.unoptimized: true` dans `next.config.ts` desactivait toute l'optimisation Next.js. C'etait un contournement temporaire pour eviter des erreurs de domaines distants non configures.
+
+**Correction appliquee** :
+- `next.config.ts` : `unoptimized: true` → `unoptimized: false`.
+- Les `remotePatterns` etaient deja configures pour toutes les sources (Google Drive, Googleusercontent, Supabase) — aucune configuration supplementaire necessaire.
+- L'optimisation Next.js est reactive pour tout usage futur du composant `next/image`.
+
+**Justification technique** : Les `remotePatterns` couvrent deja tous les domaines utilises par l'application. Le contournement `unoptimized: true` n'etait plus necessaire et penaliseait les performances mobiles.
+
+### Fichiers modifies (3)
+| # | Fichier | Axe | Modification |
+|---|---------|-----|-------------|
+| 1 | `package.json` | 1 | Suppression `--accept-data-loss` du build + ajout `db:migrate:deploy` |
+| 2 | `next.config.ts` | 2 | `unoptimized: true` → `false` |
+| 3 | `PROJECT_MAP.md` | - | Documentation |
+
+### Validations locales
+- `bun run lint` : 0 erreur, 0 warning OK
+- `bun run build` : exit code 0, 57/57 pages OK
+- `--accept-data-loss` totalement absent du package.json (grep count = 0)
+
+### Branche
+`feature/fix-build-and-media` (creee depuis `main@829aaa6`). **EN ATTENTE DU FEU VERT EXPLICITE**.
+
+---
+Date de mise a jour : 27/07/2026

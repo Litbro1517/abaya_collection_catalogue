@@ -6,7 +6,11 @@ const nextConfig: NextConfig = {
   },
   reactStrictMode: false,
   images: {
-    unoptimized: true,
+    // VG37.2 Axe 2: Re-enabled Next.js image optimization (was unoptimized: true).
+    // The remotePatterns below are already configured for all image sources
+    // (Google Drive, Googleusercontent, Supabase). The previous unoptimized:true
+    // was a temporary workaround for unconfigured remote domains — no longer needed.
+    unoptimized: false,
     remotePatterns: [
       {
         protocol: "https",
