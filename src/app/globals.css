@@ -1005,15 +1005,17 @@ html[lang="ar"] .catalog-toolbar .btn-filter-sub-inactive {
 }
 
 .product-card-status-band-text {
-  color: #FFFFFF;
+  /* VG37 Axe 3: black text for maximum contrast on all ribbon colors
+     (especially yellow #EAB308 for "الأكثر مبيعاً" / Top Vente). */
+  color: #000000;
   font-size: 12px; /* text-xs */
-  font-weight: 600; /* font-semibold */
+  font-weight: 700; /* font-bold — stronger for black text legibility */
   font-style: italic;
   text-transform: none; /* Sentence case — PAS d'UPPERCASE */
   letter-spacing: 0.01em;
   line-height: 1.25; /* leading-tight */
   white-space: nowrap;
-  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+  text-shadow: 0 1px 2px rgba(255, 255, 255, 0.3); /* light shadow for dark bg contrast */
 }
 
 @keyframes epuise-pulse {
@@ -3590,7 +3592,7 @@ html.rtl .product-page-quantity-control {
 
 /* ── VG36.3 Chantier 4: Arabic Typography — INVERTED roles ──
    Tajawal (Bold/ExtraBold) → titles (product, category, headers) for impact
-   Beiruti → body text (descriptions, labels, paragraphs) */
+   Zain → body text (descriptions, labels, paragraphs) */
 html[lang="ar"] body,
 html[lang="ar"] .product-card-title,
 html[lang="ar"] .product-page-title,
@@ -3612,7 +3614,7 @@ html[lang="ar"] textarea,
 html[lang="ar"] button,
 html[lang="ar"] a,
 html[lang="ar"] div {
-  font-family: var(--font-beiruti), 'Beiruti', sans-serif;
+  font-family: var(--font-zain), 'Zain', sans-serif;
 }
 
 /* ═══════════════════════════════════════════════════════════════
@@ -4159,9 +4161,9 @@ html[lang="ar"] .pdp-sav-title {
 }
 
 /* VG36.6 Fix 3: PDP section labels (Couleur, Taille, Description, Détails)
-   were falling through to the generic html[lang="ar"] div rule (Beiruti)
+   were falling through to the generic html[lang="ar"] div rule (Zain)
    because .product-page-section-title had no Arabic exception. The base
-   rule uses font-weight: 500 (Beiruti Medium) which is visually weak.
+   rule uses font-weight: 500 (Zain Medium) which is visually weak.
    Forcing Tajawal Bold 700 matches the design system standard for Arabic
    section headings. Also covers .pdp-form-title and .detail-label. */
 html[lang="ar"] .product-page-section-title,
@@ -4176,5 +4178,5 @@ html[lang="ar"] .pdp-sav-description,
 html[lang="ar"] .pdp-form-label,
 html[lang="ar"] .pdp-input-field,
 html[lang="ar"] .pdp-guarantee-label {
-  font-family: var(--font-beiruti), 'Beiruti', sans-serif;
+  font-family: var(--font-zain), 'Zain', sans-serif;
 }

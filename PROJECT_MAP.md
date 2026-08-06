@@ -2099,3 +2099,52 @@ ProductPage.tsx, CatalogPreview.tsx — NON MODIFIES (solution centralisee dans 
 
 ---
 Date de mise a jour : 03/08/2026
+
+## [VG37 — CART TYPO BADGES UX]
+
+### Mandat
+UI/UX & architecture : persistance globale du panier, eviction de Beiruti au profit de Zain, optimisation du bandeau promo et du badge compteur panier. Branche isolee `fix/vg37-cart-typo-badges-ux` (creee depuis `main@fe21eaf`).
+
+### Audit prealable
+Exploration complete de l'architecture existante avant modification :
+- **Panier** : CartHeaderButton + CartDrawer montes uniquement dans CatalogPreview — invisibles sur /merci, pages legales. clearCart existe dans le store mais n'est jamais appele post-commande.
+- **Typographie** : Beiruti importe dans layout.tsx + utilise dans globals.css (3 references). Aucune police Zain presente.
+- **Badge promo** : top_vente (الأكثر مبيعاً) utilise couleur #EAB308 (jaune) avec texte blanc — faible contraste.
+- **Badge panier** : w-5 h-5 (20px), pas de bordure, fusionne avec l'icone sombre.
+
+### Corrections appliquees (4 axes)
+
+#### Axe 1 — Persistance globale du panier
+- **GlobalCart.tsx** (nouveau composant) : monte dans le layout racine (src/app/layout.tsx), rend le panier visible sur TOUTES les routes (catalog, /merci, pages legales).
+- **clearCart auto sur /merci** : useEffect detecte le pathname /merci et purge le panier apres 500ms (prevention ghost carts).
+- **CartHeaderButton global** : bouton flottant avec badge compteur, visible sur toutes les pages (sauf /admin).
+- **CartDrawer global** : drawer slide-over accessible depuis toutes les pages.
+
+#### Axe 2 — Strategie typographique (Zain + Tajawal + Roboto)
+- **layout.tsx** : import Beiruti remplace par Zain (weights 300-700). Variable CSS `--font-zain` remplace `--font-beiruti`.
+- **globals.css** : toutes les references `var(--font-beiruti)` → `var(--font-zain)`, `'Beiruti'` → `'Zain'` (3 occurrences CSS + commentaires).
+- **Beiruti totalement evince** : 0 import, 0 reference fonctionnelle (seul un commentaire historique documente le changement).
+
+#### Axe 3 — Optimisation du bandeau promotionnel
+- **globals.css `.product-card-status-band-text`** : `color: #FFFFFF` → `#000000` (texte noir pour contraste maximal, surtout sur fond jaune #EAB308 d'الأكثر مبيعاً). `font-weight: 600` → `700` (plus lisible). `text-shadow` inverse (blanc au lieu de noir) pour les fonds sombres.
+
+#### Axe 4 — Ajustement du badge compteur panier
+- **CatalogPreview.tsx + GlobalCart.tsx** : badge `w-5 h-5` (20px) → `16px` (compact). Ajout `border: 1.5px solid #FFFFFF` (separation nette d'avec l'icone). Ajout `boxShadow` pour profondeur. `font-size: 10px` → `9px` (proportionnel au nouveau format). `minWidth: 16px` pour les nombres a 2+ chiffres.
+
+### Fichiers modifies (5)
+| # | Fichier | Axes | Type |
+|---|---------|------|------|
+| 1 | `src/components/GlobalCart.tsx` | 1+4 | Nouveau composant |
+| 2 | `src/app/layout.tsx` | 1+2 | Import Zain + GlobalCart mount |
+| 3 | `src/app/globals.css` | 2+3 | Beiruti→Zain + badge promo texte noir |
+| 4 | `src/components/preview/CatalogPreview.tsx` | 4 | Badge panier 16px + bordure |
+| 5 | `PROJECT_MAP.md` | - | Documentation |
+
+### Fichiers NON modifies (etancheite tunnel Landing)
+CodForm.tsx, CartDrawer.tsx, cart-store.ts, CheckoutPage.tsx, whatsapp.ts, api/orders/* — TOUS NON MODIFIES.
+
+### Branche
+`fix/vg37-cart-typo-badges-ux` (creee depuis `main@fe21eaf`). **EN ATTENTE DU FEU VERT EXPLICITE**.
+
+---
+Date de mise a jour : 27/07/2026

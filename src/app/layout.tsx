@@ -1,10 +1,11 @@
 import type { Metadata } from "next";
-import { Playfair_Display, Inter, Beiruti, Tajawal } from "next/font/google";
+import { Playfair_Display, Inter, Zain, Tajawal } from "next/font/google";
 import { cookies } from "next/headers";
 import "./globals.css";
 import { Toaster } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { ThemeInjector } from "@/components/ThemeInjector";
+import { GlobalCart } from "@/components/GlobalCart";
 import { db } from '@/lib/db';
 
 const playfair = Playfair_Display({
@@ -19,12 +20,13 @@ const inter = Inter({
   display: "swap",
 });
 
-// VG34.1: Arabic fonts — Beiruti (titres) + Tajawal (corps de texte)
-const beiruti = Beiruti({
-  variable: "--font-beiruti",
+// VG37 Axe 2: Zain replaces Beiruti — unified Arabic typography ecosystem
+// Zain (display/headings) + Tajawal (body text) + Roboto (already in admin)
+const zain = Zain({
+  variable: "--font-zain",
   subsets: ["arabic", "latin"],
   display: "swap",
-  weight: ["400", "500", "600", "700"],
+  weight: ["300", "400", "500", "600", "700"],
 });
 
 const tajawal = Tajawal({
@@ -106,12 +108,13 @@ export default async function RootLayout({
   return (
     <html lang={ssrLocale} dir={ssrDir} suppressHydrationWarning>
       <body
-        className={`${playfair.variable} ${inter.variable} ${beiruti.variable} ${tajawal.variable} antialiased bg-background text-foreground`}
+        className={`${playfair.variable} ${inter.variable} ${zain.variable} ${tajawal.variable} antialiased bg-background text-foreground`}
       >
         {/* ── GTM removed: migrated to Cloudflare Zaraz ── */}
         <ThemeInjector />
         <TooltipProvider>
           {children}
+          <GlobalCart />
         </TooltipProvider>
         <Toaster position="bottom-right" richColors />
       </body>

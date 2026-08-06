@@ -244,8 +244,18 @@ function CartHeaderButton() {
       <ShoppingBag className="w-6 h-6" style={{ color: '#1A1A1A' }} />
       {count > 0 && (
         <span
-          className="absolute -top-1 -right-1 w-5 h-5 rounded-full text-[10px] font-bold flex items-center justify-center"
-          style={{ backgroundColor: 'var(--gold-accent, #C5A059)', color: '#fff' }}
+          className="absolute -top-1 -right-1 flex items-center justify-center font-bold"
+          style={{
+            width: '16px',
+            height: '16px',
+            minWidth: '16px',
+            borderRadius: '50%',
+            fontSize: '9px',
+            backgroundColor: 'var(--gold-accent, #C5A059)',
+            color: '#fff',
+            border: '1.5px solid #FFFFFF',
+            boxShadow: '0 1px 3px rgba(0,0,0,0.2)',
+          }}
         >
           {count}
         </span>
