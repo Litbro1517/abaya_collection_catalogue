@@ -2165,7 +2165,9 @@ Correction d'urgence : erreur critique de build "Unknown weight 500 for font Zai
 
 ### Validations locales
 - `bun run lint` : 0 erreur, 0 warning OK
-- `bun run build` : exit code 0, 0 erreur de compilation OK (build complet reussi, 57/57 pages)
+- `bun run build` : exit code 0, 0 erreur de compilation OK (build complet reussi, 12.3s compile, 57/57 pages)
+- Erreur `Unknown weight 500 for font Zain` DISPARUE OK
+- Aucun effet de bord introduit par la rectification OK
 
 ### Fichiers modifies (2)
 | # | Fichier | Modification |
@@ -2173,8 +2175,21 @@ Correction d'urgence : erreur critique de build "Unknown weight 500 for font Zai
 | 1 | `src/app/layout.tsx` | Zain weight array corrige + commentaire |
 | 2 | `PROJECT_MAP.md` | Documentation VG37 Fix |
 
+### Audit & Deploiement (Session unique — 100% VERT)
+- **Audit 5 controles (Typo/Cart/Badges/COD/LintBuild)** : 5/5 PASSED a 100% sans reserve
+  - 1. Typographie: Zain weights = `["300", "400", "700"]` (uniquement les 3 weights valides Google Fonts) ✅ + Beiruti totalement evicte (0 reference active) ✅ + var(--font-beiruti) absent de globals.css ✅
+  - 2. Architecture Panier: GlobalCart.tsx (96 lignes) ✅ + monte dans layout.tsx L119 (layout racine) ✅ + clearCart() sur /merci via useEffect + setTimeout 500ms ✅
+  - 3a. Badge promo: .product-card-status-band-text color #000000 + font-weight 700 ✅
+  - 3b. Badge compteur: 16px (width/height/minWidth) + border 1.5px solid #FFFFFF + boxShadow ✅ — applique aux deux CatalogPreview + GlobalCart
+  - 4. Sanctuaire COD: 0 ligne modifiee sur 8 fichiers (CodForm, CartDrawer, cart-store, CheckoutPage, whatsapp.ts, /api/orders/*, WhatsappOrderForm, OrderConfirmation) ✅
+  - 5. Lint + Build: Lint exit 0 (0 erreur, 0 warning), Build exit 0 (12.3s, 57/57 pages, erreur Zain disparue) ✅
+- **Fusion** : `git merge --ff-only fix/vg37-cart-typo-badges-ux` (fast-forward, `fe21eaf -> 14c737d`) — 2 commits fusionnes (cc0e0ad + 14c737d) ✅
+- **Poussee GitHub** : `git push origin main` (`fe21eaf..14c737d`) le 2026-08-06T12:23:52Z — declenchement pipeline Vercel Production ✅
+- **Nettoyage branches** : locale `fix/vg37-cart-typo-badges-ux` supprimee + distante `origin/fix/vg37-cart-typo-badges-ux` supprimee ✅
+- **Statut** : OK **MERGED & DEPLOYED ON MAIN** (Vercel auto-deploy via GitHub main push)
+
 ### Branche
-`fix/vg37-cart-typo-badges-ux` (commit de fix sur branche existante). **EN ATTENTE DU FEU VERT EXPLICITE**.
+`fix/vg37-cart-typo-badges-ux` (creee depuis `main@fe21eaf`) — **FUSIONNEE & SUPPRIMEE** (main desormais a `14c737d`, incluant les 2 commits `cc0e0ad` VG37 initial + `14c737d` Zain fix).
 
 ---
-Date de mise a jour : 27/07/2026
+Date de mise a jour : 06/08/2026
