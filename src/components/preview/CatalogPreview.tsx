@@ -1523,6 +1523,7 @@ export function CatalogPreview({ onAdminLogin }: CatalogPreviewProps) {
                       'product-card-hover-cta',
                       isEpuise && 'product-card-hover-cta--disabled'
                     )}
+                    data-cta="product-card-view"
                     onClick={(e) => {
                       e.stopPropagation();
                       if (!isEpuise) {

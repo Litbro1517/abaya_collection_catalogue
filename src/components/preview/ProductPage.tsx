@@ -1040,6 +1040,7 @@ export function ProductPage({
                 <button
                   type="button"
                   className="pdp-btn-buy-now"
+                  data-cta="pdp-commander"
                   disabled={isEpuise}
                   onClick={isEpuise ? undefined : handleCtaClick}
                 >
@@ -1137,6 +1138,7 @@ export function ProductPage({
         {isLandingMode ? (
           <button
             className={cn('mobile-cta-button', isEpuise && 'cta-disabled')}
+            data-cta="pdp-commander-mobile"
             disabled={isEpuise}
             onClick={isEpuise ? undefined : handleCtaClick}
             style={{
@@ -1233,6 +1235,28 @@ export function ProductPage({
           </div>
         </SheetContent>
       </Sheet>
+
+      {/* VG37.3 B1: JSON-LD structured data for Google Rich Snippets (client-side) */}
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{
+          __html: JSON.stringify({
+            "@context": "https://schema.org",
+            "@type": "Product",
+            "name": title,
+            "description": description || title,
+            "image": carouselImages.length > 0 ? [resolveDirectImageUrl(carouselImages[0], 800)] : [],
+            "brand": { "@type": "Brand", "name": catalogName },
+            "offers": {
+              "@type": "Offer",
+              "price": price ? String(price).replace(/[^\d.]/g, '') : "0",
+              "priceCurrency": "MAD",
+              "availability": stockState === 'en_stock' ? "https://schema.org/InStock" : "https://schema.org/OutOfStock",
+              "url": typeof window !== 'undefined' ? window.location.href : '',
+            },
+          }),
+        }}
+      />
     </main>
   );
 }

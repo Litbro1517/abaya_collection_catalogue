@@ -73,6 +73,7 @@ export default async function ProductMetaPage({
 }) {
   const { slug } = await params;
   const product = await resolveProduct(slug);
+  const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'https://abaya-collection-catalogue-9dum.vercel.app';
 
   if (!product) {
     return (
@@ -85,6 +86,30 @@ export default async function ProductMetaPage({
 
   return (
     <div style={{ padding: '2rem', fontFamily: 'system-ui, sans-serif' }}>
+      {/* VG37.3 B1: JSON-LD structured data for Google Rich Snippets & Google Shopping */}
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{
+          __html: JSON.stringify({
+            "@context": "https://schema.org",
+            "@type": "Product",
+            "name": product.title,
+            "description": product.description || `${product.title} — ${product.catalogName}`,
+            "image": product.coverUrl ? [product.coverUrl] : [],
+            "brand": {
+              "@type": "Brand",
+              "name": product.catalogName,
+            },
+            "offers": {
+              "@type": "Offer",
+              "price": product.price ? product.price.replace(/[^\d.]/g, '') : "0",
+              "priceCurrency": "MAD",
+              "availability": "https://schema.org/InStock",
+              "url": `${baseUrl}/?product=${slug}`,
+            },
+          }),
+        }}
+      />
       <h1>{product.title}</h1>
       {product.price && <p style={{ fontSize: '1.25rem', fontWeight: 600 }}>{product.price}</p>}
       <p>{product.catalogName}</p>
