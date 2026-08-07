@@ -3,22 +3,28 @@ import { db } from '@/lib/db';
 import { Prisma } from '@prisma/client';
 import { getCurrentAdmin } from '@/lib/auth';
 
-// ── POST /api/orders — Create a new order ──
+// ── POST /api/orders — Create a new order (multi-product support) ──
+// VG37.4 Phase 2: Accepts multi-product payload with items[] array.
+// Creates one Order record per cart item (same customer info).
+// Backward compatible: if items[] is absent, falls back to single-product format.
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
     const {
-      productId, customerName, customerPhone, customerCity, customerAddress,
-      productName, productPrice, productColor, productSize, productQuantity, productImage,
+      // Multi-product fields (VG37.4)
+      items,
+      // Single-product fields (backward compatibility)
+      productId, productName, productPrice, productColor, productSize, productQuantity, productImage,
+      // Common customer fields
+      customerName, customerPhone, customerCity, customerAddress, totalPrice,
     } = body;
 
-    if (!productId || !customerName || !customerPhone || !customerCity || !customerAddress) {
-      return NextResponse.json({ data: null, error: 'Tous les champs sont obligatoires.' }, { status: 400 });
+    if (!customerName || !customerPhone || !customerCity || !customerAddress) {
+      return NextResponse.json({ data: null, error: 'Tous les champs client sont obligatoires.' }, { status: 400 });
     }
 
     // VG37.3 A4: Strict Morocco phone validation (10 digits local or +212 international)
     const cleanPhone = customerPhone.replace(/[^\d+]/g, '');
-    // Accept: 06XXXXXXXX / 07XXXXXXXX (10 digits local) OR +2126XXXXXXXX / +2127XXXXXXXX (international)
     const isLocalFormat = /^0[67]\d{8}$/.test(cleanPhone);
     const isIntlFormat = /^\+212[67]\d{8}$/.test(cleanPhone);
     if (!isLocalFormat && !isIntlFormat) {
@@ -26,6 +32,50 @@ export async function POST(req: NextRequest) {
         { data: null, error: 'Numéro de téléphone invalide (10 chiffres requis, format 06XXXXXXXX ou 07XXXXXXXX).' },
         { status: 400 },
       );
+    }
+
+    // VG37.4 Phase 2: Multi-product path — create one Order per item
+    if (Array.isArray(items) && items.length > 0) {
+      if (items.length === 0) {
+        return NextResponse.json({ data: null, error: 'Le panier est vide.' }, { status: 400 });
+      }
+
+      const orders = await db.$transaction(
+        items.map((item: {
+          productId: string;
+          productName?: string;
+          productPrice?: string;
+          productColor?: string | null;
+          productSize?: string | null;
+          productQuantity?: number;
+          productImage?: string | null;
+        }) => {
+          const qty = Math.max(1, parseInt(String(item.productQuantity)) || 1);
+          return db.order.create({
+            data: {
+              productId: String(item.productId),
+              customerName: customerName.trim(),
+              customerPhone: cleanPhone,
+              customerCity: customerCity.trim(),
+              customerAddress: customerAddress.trim(),
+              productName: item.productName || null,
+              productPrice: item.productPrice || null,
+              productColor: item.productColor ? String(item.productColor) : null,
+              productSize: item.productSize ? String(item.productSize) : null,
+              productQuantity: qty,
+              productImage: item.productImage || null,
+              status: 'pending',
+            },
+          });
+        }),
+      );
+
+      return NextResponse.json({ data: { id: orders[0]?.id, count: orders.length, orders }, error: null }, { status: 201 });
+    }
+
+    // Backward compatibility: single-product path (legacy callers)
+    if (!productId) {
+      return NextResponse.json({ data: null, error: 'Aucun article dans la commande.' }, { status: 400 });
     }
 
     const qty = Math.max(1, parseInt(String(productQuantity)) || 1);
