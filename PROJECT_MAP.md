@@ -2529,11 +2529,23 @@ Module d'administration de Landing Pages avec imports Canva (double envoi deskto
 
 ### Validations locales
 - `bun run lint` : 0 erreur, 0 warning OK
-- `bun run build` : exit code 0, 57/57 pages OK (route /lp/[slug] compilee)
-- `bun run db:push` : schema LandingPage synchronise
+- `bun run build` : exit code 0, **58/58 pages** (route /lp/[slug] compilee — +1 page vs 57 precedent) OK
+- `bun run db:push` : schema LandingPage synchronise OK
+
+### Audit & Deploiement (Session unique — 100% VERT)
+- **Audit 5 controles (LintBuild/Perimetre/COD/PROJECT_MAP/GIT)** : 5/5 PASSED a 100% sans reserve
+  - Lint + Build : Lint exit 0 (0 erreur, 0 warning), Build exit 0 (14.2s, 58/58 pages, 308ms static gen) — route /lp/[slug] compilee ✅
+  - Périmètre 15 fichiers : tous présents et conformes (Prisma LandingPage model + 2 API CRUD + /lp/[slug]/page.tsx + 7 composants landing + BuilderShell 5e pilier + 14 classes CSS .lp- + types + PROJECT_MAP.md) ✅
+  - Non-régression COD : 8 fichiers sanctuarisés intacts (CodForm, CartDrawer, cart-store, CheckoutPage, whatsapp.ts, /api/orders/*, WhatsappOrderForm, OrderConfirmation — 0 ligne) + ancrage #formulaire-cod confirmé dans LandingCTAButton.tsx ✅
+  - PROJECT_MAP.md : section VG38 (80 lignes) reflète fidèlement la version ✅
+  - GIT : parent de 356cc3c = 7677bea (main HEAD) — main intacte avant fusion ✅
+- **Fusion** : `git merge feature/landing-pages-module --no-ff -m "feat(landing-pages): integrate VG38 Canva & IA Landing Pages module"` (merge commit `a6a9fc7`) OK
+- **Poussee GitHub** : `git push origin main` (`7677bea..a6a9fc7`) le 2026-08-07T18:53:08Z — declenchement pipeline Vercel Production OK
+- **Nettoyage branches** : locale `feature/landing-pages-module` supprimee + distante `origin/feature/landing-pages-module` supprimee OK
+- **Statut** : OK **MERGED & DEPLOYED ON MAIN — VG38 Landing Pages Module Deployed** (Vercel auto-deploy via GitHub main push)
 
 ### Branche
-`feature/landing-pages-module` (creee depuis `main@7677bea`). **EN ATTENTE DU FEU VERT EXPLICITE**.
+`feature/landing-pages-module` (creee depuis `main@7677bea`) — **FUSIONNEE & SUPPRIMEE** (main desormais a `a6a9fc7` via merge --no-ff).
 
 ---
-Date de mise a jour : 27/07/2026
+Date de mise a jour : 07/08/2026
