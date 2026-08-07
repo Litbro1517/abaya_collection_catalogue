@@ -2,7 +2,8 @@
 
 export function LandingCTAButton({ text }: { text: string }) {
   const handleClick = () => {
-    document.getElementById('formulaire-cod')?.scrollIntoView({
+    // VG40: scroll to #order-form (was #formulaire-cod)
+    document.getElementById('order-form')?.scrollIntoView({
       behavior: 'smooth',
       block: 'center',
     });

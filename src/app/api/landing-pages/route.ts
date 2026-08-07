@@ -28,8 +28,8 @@ export async function POST(req: NextRequest) {
             showCtaTop, ctaTopText, showCtaMiddle, ctaMiddleText,
             showCtaBottom, ctaBottomText, htmlContent, active } = body;
 
-    if (!title || !slug || !type || !productId) {
-      return NextResponse.json({ data: null, error: 'Titre, slug, type et produit sont obligatoires.' }, { status: 400 });
+    if (!title || !slug || !type) {
+      return NextResponse.json({ data: null, error: 'Titre, slug et type sont obligatoires.' }, { status: 400 });
     }
 
     const existing = await db.landingPage.findUnique({ where: { slug } });
