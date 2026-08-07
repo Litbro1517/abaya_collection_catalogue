@@ -61,6 +61,7 @@ export function SocialStickyTickets({ whatsappNumber, conversionChannel }: Socia
           'social-sticky-ticket--whatsapp',
           expanded && 'ticket-expanded',
         )}
+        data-cta="whatsapp-floating"
         href={href}
         target="_blank"
         rel="noopener noreferrer"

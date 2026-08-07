@@ -46,6 +46,7 @@ export function GlobalCart() {
           The badge numeric span keeps its own conditional rendering below. */}
       <button
         onClick={toggleDrawer}
+        data-cta="cart-open"
         className="cart-header-button fixed top-4 z-50 flex items-center justify-center transition-all hover:scale-105"
         style={{
           right: '1rem',

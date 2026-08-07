@@ -2309,3 +2309,62 @@ Securisation de la base de donnees (Axe 1) et stabilisation de l'architecture de
 
 ---
 Date de mise a jour : 06/08/2026
+
+## [VG37.3 — PHASE 1: TRACKING GTM, SEO JSON-LD, BACKEND VALIDATION]
+
+### Mandat
+Phase 1 : Tracking natif GTM, SEO technique JSON-LD, securisation backend (telephone 10 chiffres Maroc), marquage CTA. Branche isolee `feature/phase1-tracking-seo-validation` (creee depuis `main@6a96529`).
+
+### Corrections appliquees (4 axes)
+
+#### A4 — Validation telephone strict Maroc (Backend)
+- **Fichier** : `src/app/api/orders/route.ts` L.19-29
+- Nettoyage : `customerPhone.replace(/[^\d+]/g, '')`
+- Validation : regex `^0[67]\d{8}$` (local 10 chiffres) OU `^\+212[67]\d{8}$` (international)
+- Erreur 400 si non-conforme : "Numero de telephone invalide (10 chiffres requis)"
+- `customerPhone` stocke desormais `cleanPhone` (numero nettoye)
+
+#### D1 — Script conteneur GTM natif
+- **Fichier** : `src/app/layout.tsx`
+- **Placeholder GTM** : `GTM-XXXXXXX` a la **ligne 15** (`const GTM_CONTAINER_ID = 'GTM-XXXXXXX'`)
+- `<Script id="gtm-init" strategy="afterInteractive">` dans `<head>` (L.121-131)
+- `<noscript><iframe>` juste apres `<body>` (L.137-144)
+- Structure complete dataLayer + chargement asynchrone — operationnel des que le placeholder est remplace
+
+#### D3 — Ancrage des CTA (data-cta)
+Attributs `data-cta` ajoutes sur 6 elements interactifs majeurs :
+| CTA | Fichier | Attribut |
+|-----|---------|----------|
+| WhatsApp flottant | SocialStickyTickets.tsx L.64 | `data-cta="whatsapp-floating"` |
+| Commander (PDP desktop) | ProductPage.tsx L.1043 | `data-cta="pdp-commander"` |
+| Commander (PDP mobile) | ProductPage.tsx L.1141 | `data-cta="pdp-commander-mobile"` |
+| Submit formulaire WA | WhatsappOrderForm.tsx L.260 | `data-cta="whatsapp-order-submit"` |
+| Voir produit (carte) | CatalogPreview.tsx L.1526 | `data-cta="product-card-view"` |
+| Ouvrir panier | GlobalCart.tsx L.49 | `data-cta="cart-open"` |
+
+#### B1 — Donnees structurees JSON-LD (schema.org/Product)
+- **Fichier SSR** : `src/app/product-meta/[slug]/page.tsx` L.88-111 — injection `<script type="application/ld+json">` cote serveur pour les crawlers (Google, WhatsApp, Facebook)
+- **Fichier client** : `src/components/preview/ProductPage.tsx` L.1239-1259 — injection cote client pour les visiteurs humains
+- Structure : `@type: Product`, `name`, `description`, `image`, `brand`, `offers` (price, priceCurrency: MAD, availability, url)
+
+### Fichiers modifies (8)
+| # | Fichier | Axes |
+|---|---------|------|
+| 1 | `src/app/api/orders/route.ts` | A4 |
+| 2 | `src/app/layout.tsx` | D1 |
+| 3 | `src/components/preview/SocialStickyTickets.tsx` | D3 |
+| 4 | `src/components/preview/ProductPage.tsx` | D3 + B1 |
+| 5 | `src/components/preview/WhatsappOrderForm.tsx` | D3 |
+| 6 | `src/components/preview/CatalogPreview.tsx` | D3 |
+| 7 | `src/components/GlobalCart.tsx` | D3 |
+| 8 | `src/app/product-meta/[slug]/page.tsx` | B1 |
+
+### Validations locales
+- `bun run lint` : 0 erreur, 0 warning OK
+- `bun run build` : exit code 0, 57/57 pages OK
+
+### Branche
+`feature/phase1-tracking-seo-validation` (creee depuis `main@6a96529`). **EN ATTENTE DU FEU VERT EXPLICITE**.
+
+---
+Date de mise a jour : 27/07/2026

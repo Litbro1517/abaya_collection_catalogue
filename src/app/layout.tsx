@@ -1,12 +1,18 @@
 import type { Metadata } from "next";
 import { Playfair_Display, Inter, Zain, Tajawal } from "next/font/google";
 import { cookies } from "next/headers";
+import Script from "next/script";
 import "./globals.css";
 import { Toaster } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { ThemeInjector } from "@/components/ThemeInjector";
 import { GlobalCart } from "@/components/GlobalCart";
 import { db } from '@/lib/db';
+
+// VG37.3 D1: Google Tag Manager container ID
+// ⚠️ PLACEHOLDER — Replace GTM-XXXXXXX with the real GTM container ID before production.
+// Location: src/app/layout.tsx, this line + the <Script> and <noscript> tags below.
+const GTM_CONTAINER_ID = 'GTM-XXXXXXX';
 
 const playfair = Playfair_Display({
   variable: "--font-playfair",
@@ -109,10 +115,33 @@ export default async function RootLayout({
 
   return (
     <html lang={ssrLocale} dir={ssrDir} suppressHydrationWarning>
+      <head>
+        {/* VG37.3 D1: Google Tag Manager — container script (head, afterInteractive).
+            ⚠️ PLACEHOLDER GTM-XXXXXXX at layout.tsx L.15 — replace with real GTM ID. */}
+        <Script
+          id="gtm-init"
+          strategy="afterInteractive"
+          dangerouslySetInnerHTML={{
+            __html: `(function(w,d,s,l,i){w[l]=w[l]||[];w[l].push({'gtm.start':
+new Date().getTime(),event:'gtm.js'});var f=d.getElementsByTagName(s)[0],
+j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
+'https://www.googletagmanager.com/gtm.js?id='+i+dl;f.parentNode.insertBefore(j,f);
+})(window,document,'script','dataLayer','${GTM_CONTAINER_ID}');`,
+          }}
+        />
+      </head>
       <body
         className={`${playfair.variable} ${inter.variable} ${zain.variable} ${tajawal.variable} antialiased bg-background text-foreground`}
       >
-        {/* ── GTM removed: migrated to Cloudflare Zaraz ── */}
+        {/* VG37.3 D1: Google Tag Manager — noscript fallback (immediately after <body>) */}
+        <noscript>
+          <iframe
+            src={`https://www.googletagmanager.com/ns.html?id=${GTM_CONTAINER_ID}`}
+            height="0"
+            width="0"
+            style={{ display: 'none', visibility: 'hidden' }}
+          />
+        </noscript>
         <ThemeInjector />
         <TooltipProvider>
           {children}

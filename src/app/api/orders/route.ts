@@ -16,13 +16,25 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ data: null, error: 'Tous les champs sont obligatoires.' }, { status: 400 });
     }
 
+    // VG37.3 A4: Strict Morocco phone validation (10 digits local or +212 international)
+    const cleanPhone = customerPhone.replace(/[^\d+]/g, '');
+    // Accept: 06XXXXXXXX / 07XXXXXXXX (10 digits local) OR +2126XXXXXXXX / +2127XXXXXXXX (international)
+    const isLocalFormat = /^0[67]\d{8}$/.test(cleanPhone);
+    const isIntlFormat = /^\+212[67]\d{8}$/.test(cleanPhone);
+    if (!isLocalFormat && !isIntlFormat) {
+      return NextResponse.json(
+        { data: null, error: 'Numéro de téléphone invalide (10 chiffres requis, format 06XXXXXXXX ou 07XXXXXXXX).' },
+        { status: 400 },
+      );
+    }
+
     const qty = Math.max(1, parseInt(String(productQuantity)) || 1);
 
     const order = await db.order.create({
       data: {
         productId: String(productId),
         customerName: customerName.trim(),
-        customerPhone: customerPhone.trim(),
+        customerPhone: cleanPhone,
         customerCity: customerCity.trim(),
         customerAddress: customerAddress.trim(),
         productName: productName || null,

@@ -257,6 +257,7 @@ export function WhatsappOrderForm({
         {/* WhatsApp green button: إرسال الطلب عبر واتساب */}
         <button
           type="submit"
+          data-cta="whatsapp-order-submit"
           disabled={isSending}
           style={{
             width: '100%',
