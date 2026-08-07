@@ -2549,3 +2549,47 @@ Module d'administration de Landing Pages avec imports Canva (double envoi deskto
 
 ---
 Date de mise a jour : 07/08/2026
+
+## [VG38.1 — ADMIN SCROLL + CATEGORY BUTTONS + VERCEL DB SYNC]
+
+### Mandat
+Correction chirurgicale: defilement admin, style boutons categories, synchronisation Vercel. Branche isolee `fix/admin-scroll-categories-vercel` (creee depuis `main@15e4b27`).
+
+### Corrections appliquees (3 volets)
+
+#### Volet 1 — Defilement Administration (BuilderShell.tsx)
+- **Fichier** : `src/components/BuilderShell.tsx` L.474
+- **Avant** : `<main className="flex-1 overflow-hidden">` — bloquait le defilement vertical
+- **Apres** : `<main className="flex-1 overflow-y-auto overflow-x-hidden min-h-0 p-4">` — defilement fluide, min-h-0 pour Flexbox, padding 16px
+
+#### Volet 2 — Style Boutons Categories (globals.css)
+- **Fichier** : `src/app/globals.css` L.672-682
+- **Avant** : `.btn-filter-default { background-color: #F0EAE0 }` (fond beige/creme)
+- **Apres** : `.btn-filter-default { background-color: transparent }` — fond transparent, hover leger
+- `.btn-filter-active` conserve `background-color: #1B1713` (noir) + `color: #FFFFFF`
+
+#### Volet 3 — Synchronisation Base de Donnees Vercel (Production)
+- Recuperation `DATABASE_URL` + `DIRECT_URL` via API Vercel (decrypt=true)
+- Execution `node scripts/switch-provider.js` (SQLite → PostgreSQL)
+- Execution `npx prisma db push` sur la base PostgreSQL Supabase de production
+- **Resultat** : `🚀 Your database is now in sync with your Prisma schema. Done in 8.32s`
+- Table `landing_pages` creee en production
+- Schema local restaure sur SQLite apres synchronisation
+
+### Fichiers modifies (3)
+| # | Fichier | Volet |
+|---|---------|-------|
+| 1 | `src/components/BuilderShell.tsx` | 1 (overflow-y-auto) |
+| 2 | `src/app/globals.css` | 2 (btn-filter-default transparent) |
+| 3 | `PROJECT_MAP.md` | Documentation |
+
+### Validations locales
+- `bun run lint` : 0 erreur, 0 warning OK
+- `bun run build` : exit code 0, 57/57 pages OK
+- Vercel db:push : ✅ schema synchronise en production (8.32s)
+
+### Branche
+`fix/admin-scroll-categories-vercel` (creee depuis `main@15e4b27`). **EN ATTENTE DU FEU VERT EXPLICITE**.
+
+---
+Date de mise a jour : 27/07/2026

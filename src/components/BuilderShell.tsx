@@ -471,7 +471,7 @@ export function BuilderShell() {
         </aside>
 
         {/* Pillar content */}
-        <main className="flex-1 overflow-hidden">
+        <main className="flex-1 overflow-y-auto overflow-x-hidden min-h-0 p-4">
           {pillar === 'data' && <DataPillar />}
           {pillar === 'layout' && <LayoutPillar />}
           {pillar === 'settings' && <SettingsPillar />}

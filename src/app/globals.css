@@ -669,15 +669,16 @@ html.rtl input[type="tel"] {
   box-shadow: none;
 }
 
-/* Level 1 — Macro: Default capsule state (warm cream) */
+/* Level 1 — Macro: Default capsule state — VG38.1: transparent (was beige #F0EAE0) */
 .btn-filter-default {
-  background-color: #F0EAE0;
+  background-color: transparent;
   color: #403C37;
   border: none;
+  transition: background-color 0.2s ease;
 }
 
 .btn-filter-default:hover {
-  background-color: #E8E0D2;
+  background-color: rgba(240, 234, 224, 0.5);
 }
 
 /* Level 2 — Micro: Doré (active state) */
