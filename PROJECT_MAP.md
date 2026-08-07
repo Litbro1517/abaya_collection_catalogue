@@ -2593,3 +2593,47 @@ Correction chirurgicale: defilement admin, style boutons categories, synchronisa
 
 ---
 Date de mise a jour : 27/07/2026
+
+## [VG39 — LANDING MEDIA PRODUCT PICKER]
+
+### Mandat
+Refonte du selecteur de produits et integration de la Mediatheque CDN pour les Landing Pages. Branche isolee `feat/landing-media-product-picker` (creee depuis `main@33547c7`).
+
+### Corrections appliquees (2 axes)
+
+#### Axe 1 — Refonte du Selecteur de Produit
+- **Probleme** : Le champ d'autocompletion ne declenchait aucune recherche, le produit restait un texte plat non relie a l'ID.
+- **Solution** : Remplace par un `<select>` natif pre-charge avec tous les produits de la base (API `/api/landing-pages/products`).
+- **Nouveau fichier** : `src/app/api/landing-pages/products/route.ts` — liste tous les Row avec titre + prix depuis tous les DataSources.
+- **LandingPagesPillar.tsx** : `fetchProducts()` au chargement de l'editeur, `<select value={editing.productId}>` avec options.
+
+#### Axe 2 — Integration du Modal Mediatheque (ImagePickerModal)
+- **Probleme** : Les zones d'upload (ImageUploader) ne fonctionnaient pas — les images ne se televersaient pas.
+- **Solution** : Remplace les ImageUploader par un `ImagePickerModal` qui ouvre la Mediatheque globale (MediaAssets CDN + images des rows).
+- **Nouveau fichier** : `src/components/landing/ImagePickerModal.tsx` — modal de selection d'image en mode mono-selection.
+- **Nouveau fichier** : `src/app/api/landing-pages/media/route.ts` — liste toutes les images CDN (MediaAssets avec cdnUrl) + images des rows (dedupliquee).
+- **LandingPagesPillar.tsx** : Boutons "Choisir depuis la Mediatheque" pour desktop/mobile + boutons "Remplacer" pour les images detectees dans le Code IA.
+
+### Fichiers crees (3)
+| # | Fichier | Role |
+|---|---------|------|
+| 1 | `src/app/api/landing-pages/products/route.ts` | API: liste tous les produits pour le select |
+| 2 | `src/app/api/landing-pages/media/route.ts` | API: liste toutes les images CDN + rows |
+| 3 | `src/components/landing/ImagePickerModal.tsx` | Modal de selection d'image (mono-selection) |
+
+### Fichiers modifies (3)
+| # | Fichier | Modification |
+|---|---------|-------------|
+| 1 | `src/components/landing/LandingPagesPillar.tsx` | Refonte complete: select produit + ImagePickerModal |
+| 2 | `PROJECT_MAP.md` | Documentation |
+| 3 | (ImageUploader import supprime) | Plus de dependance a l'upload local |
+
+### Validations locales
+- `bun run lint` : 0 erreur, 0 warning OK
+- `bun run build` : exit code 0, 57/57 pages OK
+
+### Branche
+`feat/landing-media-product-picker` (creee depuis `main@33547c7`). **EN ATTENTE DU FEU VERT EXPLICITE**.
+
+---
+Date de mise a jour : 27/07/2026
