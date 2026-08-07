@@ -2637,3 +2637,66 @@ Refonte du selecteur de produits et integration de la Mediatheque CDN pour les L
 
 ---
 Date de mise a jour : 27/07/2026
+
+## [VG40 — LANDING UX ANCHORS MEDIA FIX]
+
+### Mandat
+Diagnostic + 4 corrections: suppression champ produit, ciblage images par index, ancrage CTA #order-form, redirection directe /merci. Branche isolee `feat/landing-ux-anchors-media-fix` (creee depuis `main@629323c`).
+
+### Rapport d'auto-audit préalable
+
+#### 1. Champ Produit associé
+- **Pourquoi présent** : Le champ `<select>` (VG39) etait requis car `LandingPagesPillar.tsx` L.118 validait `!editing.productId`, l'API POST L.31 validait `!productId`, et le schema Prisma avait `productId String` (non-nullable).
+- **Solution** : Schema Prisma `productId String?` (nullable), API validation retirée, `<select>` supprimé du front-end.
+
+#### 2. Ciblage d'images par URL (cause racine)
+- **Cause exacte** : `handleImageSelect` L.183 utilisait `new RegExp("src=['\"]${escaped}['\"]", 'gi')` qui remplace TOUTES les occurrences de cette URL dans le HTML. Si 4 images partagent la même URL, les 4 sont remplacées.
+- **Solution** : Remplacement par index — la fonction `.replace()` avec callback incrémente un compteur et ne remplace que la Nème occurrence.
+
+#### 3. Ancrage CTA #order-form
+- **ID présent** : `id="formulaire-cod"` (pas `order-form`) dans `LandingPageRender.tsx` L.25.
+- **Prompt IA** : Disait `#formulaire-cod` au lieu de `#order-form`.
+- **Solution** : Changé `formulaire-cod` → `order-form` dans LandingPageRender, LandingCTAButton, et promptConstants.
+
+#### 4. Double affichage Thank You Page
+- **Cause** : `CodForm.tsx` L.67 `setSuccess(true)` affichait un écran de confirmation HTML local, puis L.69 `setTimeout(800ms)` redirigeait vers `/merci`. L'utilisateur voyait l'écran local pendant 800ms avant la redirection.
+- **Solution** : Supprimé `setSuccess(true)` + `setTimeout`. Redirection `window.location.href` immédiate.
+
+### Corrections appliquees (4 axes)
+
+#### Axe 1 — Suppression du champ Produit associé
+- `prisma/schema.prisma` : `productId String` → `String?` (nullable) + db:push
+- `src/app/api/landing-pages/route.ts` : validation `!productId` retirée
+- `src/components/landing/LandingPagesPillar.tsx` : `<select>` supprimé, validation `!editing.productId` retirée
+
+#### Axe 2 — Remplacement d'images par index strict
+- `src/components/landing/LandingPagesPillar.tsx` `handleImageSelect` : remplace la regex URL par un callback `.replace()` avec compteur d'index. Seule la Nème balise `<img>` est modifiée.
+
+#### Axe 3 — Ancrage CTA #order-form
+- `src/components/landing/LandingPageRender.tsx` : `id="formulaire-cod"` → `id="order-form"`
+- `src/components/landing/LandingCTAButton.tsx` : `getElementById('formulaire-cod')` → `getElementById('order-form')`
+- `src/components/landing/promptConstants.ts` : `#formulaire-cod` → `#order-form` (2 occurrences)
+
+#### Axe 4 — Redirection directe /merci
+- `src/components/preview/CodForm.tsx` : supprimé `setSuccess(true)` + `setTimeout(800ms)`. Redirection `window.location.href` immédiate après réception HTTP 200.
+
+### Fichiers modifies (7)
+| # | Fichier | Axe(s) |
+|---|---------|--------|
+| 1 | `prisma/schema.prisma` | 1 (productId String?) |
+| 2 | `src/app/api/landing-pages/route.ts` | 1 (validation) |
+| 3 | `src/components/landing/LandingPagesPillar.tsx` | 1+2 (select removed + index replacement) |
+| 4 | `src/components/landing/LandingPageRender.tsx` | 3 (#order-form) |
+| 5 | `src/components/landing/LandingCTAButton.tsx` | 3 (#order-form) |
+| 6 | `src/components/landing/promptConstants.ts` | 3 (#order-form prompt) |
+| 7 | `src/components/preview/CodForm.tsx` | 4 (direct redirect) |
+
+### Validations locales
+- `bun run lint` : 0 erreur, 0 warning OK
+- `bun run build` : exit code 0, 57/57 pages OK
+
+### Branche
+`feat/landing-ux-anchors-media-fix` (creee depuis `main@629323c`). **EN ATTENTE DU FEU VERT EXPLICITE**.
+
+---
+Date de mise a jour : 27/07/2026

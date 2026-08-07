@@ -64,9 +64,9 @@ export function CodForm({ productId, productName, productPrice }: CodFormProps) 
       });
       const data = await res.json();
       if (!res.ok || data.error) { setError(data.error || t('order.errorGeneric')); return; }
-      setSuccess(true);
+      // VG40: Direct redirect — no local success screen, no 800ms delay.
       const orderId = data.data?.id;
-      setTimeout(() => { window.location.href = `/merci${orderId ? `?order_id=${orderId}` : ''}`; }, 800);
+      window.location.href = `/merci${orderId ? `?order_id=${orderId}` : ''}`;
     } catch {
       setError(t('order.errorNetwork'));
     } finally {

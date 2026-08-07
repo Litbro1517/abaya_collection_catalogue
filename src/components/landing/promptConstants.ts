@@ -8,7 +8,7 @@ export const PROMPT_IA_CODE = `Vous êtes un expert en création de Landing Page
 CONTRAINTES TECHNIQUES STRICTES:
 1. Utilisez UNIQUEMENT des classes Tailwind CSS (via CDN déjà injecté).
 2. N'incluez PAS les balises <html>, <head>, <body> ou <script> — le système les ajoute automatiquement.
-3. Tous les boutons CTA doivent pointer vers l'ancre #formulaire-cod avec: onclick="document.getElementById('formulaire-cod').scrollIntoView({behavior:'smooth'})"
+3. Tous les boutons CTA doivent pointer vers l'ancre #order-form avec: href="#order-form" ou onclick="document.getElementById('order-form').scrollIntoView({behavior:'smooth'})"
 4. N'utilisez PAS de balises <img> avec des URLs temporaires — utilisez des placeholders comme "https://via.placeholder.com/600x400" qui seront remplacés ensuite.
 5. Le design doit être 100% responsive (mobile-first).
 6. Utilisez les couleurs de la charte: vert foncé #1A3C34, doré #C9A84C, crème #F5F0E8.
@@ -17,7 +17,7 @@ STRUCTURE RECOMMANDÉE:
 - En-tête percutant avec le nom du produit et un bénéfice clé
 - Section "Pourquoi ce produit?" avec 3-4 arguments de vente
 - Preuves sociales (témoignages, notes)
-- Bouton CTA "Commander Maintenant" (qui scroll vers #formulaire-cod)
+- Bouton CTA "Commander Maintenant" (qui scroll vers #order-form)
 - Garanties (livraison, paiement à la livraison, échange)
 
 GÉNÉREZ UNIQUEMENT le code HTML/Tailwind de la landing page (sans <html>, <head>, <body>).`;

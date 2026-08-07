@@ -21,8 +21,9 @@ export function LandingPageRender({ page, productTitle, productPrice, productId 
         <CodeIAPage page={page} />
       )}
 
-      {/* Formulaire COD natif ancré — commun aux deux modes */}
-      <section id="formulaire-cod" className="lp-cod-section">
+      {/* Formulaire COD natif ancré — commun aux deux modes.
+          VG40: id changed from 'formulaire-cod' to 'order-form' per mandate. */}
+      <section id="order-form" className="lp-cod-section">
         <div className="lp-cod-container">
           <CodForm productId={productId} productName={productTitle} productPrice={productPrice} />
         </div>

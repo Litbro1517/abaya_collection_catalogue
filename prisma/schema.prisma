@@ -401,7 +401,7 @@ model LandingPage {
   title           String
   slug            String   @unique
   type            String   // "IMAGE_CANVA" | "CODE_IA"
-  productId       String   // Row.id du produit associé
+  productId       String?  // VG40: optional (landing page can be standalone)
 
   // Champs spécifiques au Mode Image (Canva)
   desktopImageUrl String?

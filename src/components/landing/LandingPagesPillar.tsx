@@ -25,7 +25,7 @@ interface LandingPageData {
   title: string;
   slug: string;
   type: 'IMAGE_CANVA' | 'CODE_IA';
-  productId: string;
+  productId: string | null;
   desktopImageUrl: string | null;
   mobileImageUrl: string | null;
   showCtaTop: boolean;
@@ -39,7 +39,7 @@ interface LandingPageData {
 }
 
 const EMPTY_PAGE: LandingPageData = {
-  title: '', slug: '', type: 'IMAGE_CANVA', productId: '',
+  title: '', slug: '', type: 'IMAGE_CANVA', productId: null,
   desktopImageUrl: null, mobileImageUrl: null,
   showCtaTop: true, ctaTopText: 'Commander Maintenant',
   showCtaMiddle: true, ctaMiddleText: "Profiter de l'Offre",
@@ -115,8 +115,8 @@ export function LandingPagesPillar() {
 
   const handleSave = async () => {
     if (!editing) return;
-    if (!editing.title || !editing.slug || !editing.productId) {
-      toast.error('Titre, slug et produit sont obligatoires');
+    if (!editing.title || !editing.slug) {
+      toast.error('Titre et slug sont obligatoires');
       return;
     }
     setSaving(true);
@@ -168,7 +168,7 @@ export function LandingPagesPillar() {
     }
   };
 
-  // VG39: Handle image picker selection
+  // VG40: Handle image picker selection — index-based replacement (not URL-based)
   const handleImageSelect = (url: string) => {
     if (!editing) return;
     if (imagePickerTarget === 'desktop') {
@@ -176,17 +176,21 @@ export function LandingPagesPillar() {
     } else if (imagePickerTarget === 'mobile') {
       setEditing({ ...editing, mobileImageUrl: url });
     } else if (imagePickerTarget === 'asset' && assetReplacementIndex >= 0 && editing.htmlContent) {
-      // Replace the src in the HTML for the detected asset
-      const detectedImages = extractImgTags(editing.htmlContent);
-      const targetImg = detectedImages[assetReplacementIndex];
-      if (targetImg) {
-        const escaped = targetImg.src.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-        const updated = editing.htmlContent.replace(
-          new RegExp(`src=["']${escaped}["']`, 'gi'),
-          `src="${url}"`
-        );
-        setEditing({ ...editing, htmlContent: updated });
-      }
+      // VG40: Replace ONLY the Nth <img> tag's src by index, not by URL string.
+      // This prevents all images sharing the same URL from being replaced simultaneously.
+      let replaceCount = 0;
+      const updated = editing.htmlContent.replace(
+        /(<img\s+[^>]*src=["'])([^"']*)(["'][^>]*>)/gi,
+        (fullMatch, prefix, oldSrc, suffix) => {
+          if (replaceCount === assetReplacementIndex) {
+            replaceCount++;
+            return `${prefix}${url}${suffix}`;
+          }
+          replaceCount++;
+          return fullMatch;
+        }
+      );
+      setEditing({ ...editing, htmlContent: updated });
     }
     setImagePickerTarget(null);
     setAssetReplacementIndex(-1);
@@ -220,32 +224,7 @@ export function LandingPagesPillar() {
               </div>
             </div>
 
-            {/* VG39: Product selector — <select> dropdown replacing broken autocomplete */}
-            <div>
-              <Label>Produit associé *</Label>
-              {productsLoading ? (
-                <div className="flex items-center gap-2 py-2">
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                  <span className="text-sm text-muted-foreground">Chargement des produits...</span>
-                </div>
-              ) : (
-                <select
-                  value={editing.productId}
-                  onChange={e => setEditing({ ...editing, productId: e.target.value })}
-                  className="w-full px-3 py-2 border rounded-md bg-white text-sm"
-                >
-                  <option value="">— Sélectionner un produit —</option>
-                  {products.map(p => (
-                    <option key={p.id} value={p.id}>
-                      {p.title}{p.price ? ` (${p.price})` : ''} — {p.dataSourceName}
-                    </option>
-                  ))}
-                </select>
-              )}
-              {editing.productId && (
-                <p className="text-xs text-green-600 mt-1">✓ Produit sélectionné</p>
-              )}
-            </div>
+            {/* VG40: Product field removed — landing pages are standalone, no product association required */}
 
             {/* Type selector */}
             <div>
