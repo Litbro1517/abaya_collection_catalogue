@@ -2457,3 +2457,83 @@ Le checkout n'extrayait que `items[0]` (CatalogPreview L.255), ignorant les autr
 
 ---
 Date de mise a jour : 07/08/2026
+
+## [VG38 — LANDING PAGES MODULE (CANVA + IA CODE)]
+
+### Mandat
+Module d'administration de Landing Pages avec imports Canva (double envoi desktop/mobile) et Code IA (HTML/Tailwind isole en iframe), formulaire COD natif ancre. Branche isolee `feature/landing-pages-module` (creee depuis `main@7677bea`).
+
+### Architecture technique
+
+#### Modele Prisma
+- **prisma/schema.prisma** : nouveau modele `LandingPage` (@@map("landing_pages"))
+  - Champs: id, title, slug (unique), type ("IMAGE_CANVA"|"CODE_IA"), productId
+  - Mode Image: desktopImageUrl, mobileImageUrl, 3 CTA (showCtaTop/Middle/Bottom + textes)
+  - Mode Code: htmlContent (String?, compatible SQLite)
+  - active (Boolean), createdAt, updatedAt
+
+#### API CRUD
+- `src/app/api/landing-pages/route.ts` : GET (list) + POST (create)
+- `src/app/api/landing-pages/[id]/route.ts` : GET (single) + PUT (update) + DELETE
+
+#### Route Storefront
+- `src/app/lp/[slug]/page.tsx` : Server Component — generateMetadata + resolution produit + rendu
+
+#### Composants de Rendu (src/components/landing/)
+| # | Composant | Role |
+|---|-----------|------|
+| 1 | `LandingPageRender.tsx` | Orchestrateur — switch type + injection CodForm ancre |
+| 2 | `CanvaImagePage.tsx` | Mode Image: <picture> responsive + 3 CTA overlay |
+| 3 | `CodeIAPage.tsx` | Mode Code: iframe srcdoc + Tailwind CDN + auto-resize postMessage |
+| 4 | `LandingCTAButton.tsx` | Bouton CTA smooth scroll vers #formulaire-cod |
+
+#### Composants Admin (src/components/landing/)
+| # | Composant | Role |
+|---|-----------|------|
+| 5 | `LandingPagesPillar.tsx` | Pilier admin: liste CRUD + editeur integre |
+| 6 | `PromptCopyBlock.tsx` | Blocs texte copiables (navigator.clipboard) |
+| 7 | `promptConstants.ts` | Constantes: Prompt IA, Guide Admin, Directives Canva |
+
+#### Integration Admin
+- `src/components/BuilderShell.tsx` : 5eme pilier ajoute `{ id: 'landing-pages', icon: FileText }`
+- `src/types/index.ts` : type `Pillar` etendu avec `'landing-pages'`
+
+#### CSS (src/app/globals.css)
+- Styles scopes avec prefix `.lp-` : wrapper, canva-wrapper, cta-overlay, cta-button, code-iframe, cod-section
+
+### Solutions techniques retenuess
+1. **Isolation Code IA** : Iframe `srcdoc` + CDN Tailwind injecte + auto-resize via `postMessage`
+2. **Parsing <img>** : Regex `/<img\s+[^>]*src=["']([^"']+)["'][^>]*>/gi` (pas de cheerio)
+3. **Images Canva responsive** : `<picture>` + `<source media>` (max-width:768px vs min-width:769px)
+4. **Formulaire COD** : `<section id="formulaire-cod">` + `CodForm` natif + smooth scroll `scrollIntoView`
+5. **PromptCopyBlock** : `navigator.clipboard.writeText` + fallback `execCommand('copy')`
+
+### Fichiers crees (11)
+| # | Fichier | Type |
+|---|---------|------|
+| 1 | `prisma/schema.prisma` (modifie) | Modele LandingPage |
+| 2 | `src/types/index.ts` (modifie) | Type LandingPage + Pillar etendu |
+| 3 | `src/app/api/landing-pages/route.ts` | API CRUD |
+| 4 | `src/app/api/landing-pages/[id]/route.ts` | API CRUD |
+| 5 | `src/app/lp/[slug]/page.tsx` | Route storefront |
+| 6 | `src/components/landing/LandingPageRender.tsx` | Orchestrateur |
+| 7 | `src/components/landing/CanvaImagePage.tsx` | Mode Image |
+| 8 | `src/components/landing/CodeIAPage.tsx` | Mode Code IA |
+| 9 | `src/components/landing/LandingCTAButton.tsx` | Bouton CTA |
+| 10 | `src/components/landing/LandingPagesPillar.tsx` | Admin pillar |
+| 11 | `src/components/landing/PromptCopyBlock.tsx` | Blocs copiables |
+| 12 | `src/components/landing/promptConstants.ts` | Constantes prompts |
+| 13 | `src/components/BuilderShell.tsx` (modifie) | 5eme pilier |
+| 14 | `src/app/globals.css` (modifie) | CSS landing pages |
+| 15 | `PROJECT_MAP.md` (modifie) | Documentation |
+
+### Validations locales
+- `bun run lint` : 0 erreur, 0 warning OK
+- `bun run build` : exit code 0, 57/57 pages OK (route /lp/[slug] compilee)
+- `bun run db:push` : schema LandingPage synchronise
+
+### Branche
+`feature/landing-pages-module` (creee depuis `main@7677bea`). **EN ATTENTE DU FEU VERT EXPLICITE**.
+
+---
+Date de mise a jour : 27/07/2026

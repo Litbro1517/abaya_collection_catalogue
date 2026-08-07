@@ -7,6 +7,7 @@ import { DataPillar } from '@/components/data/DataPillar';
 import { LayoutPillar } from '@/components/layout/LayoutPillar';
 import { SettingsPillar } from '@/components/settings/SettingsPillar';
 import { OrdersPillar } from '@/components/orders/OrdersPillar';
+import { LandingPagesPillar } from '@/components/landing/LandingPagesPillar';
 import {
   Database,
   Layout,
@@ -25,6 +26,7 @@ import {
   ChevronsLeft,
   ChevronsRight,
   ShoppingBag,
+  FileText,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
@@ -133,6 +135,7 @@ export function BuilderShell() {
     { id: 'layout' as const, icon: Layout, label: t('builder.layout') },
     { id: 'settings' as const, icon: Settings, label: t('builder.settings') },
     { id: 'orders' as const, icon: ShoppingBag, label: t('builder.orders') },
+    { id: 'landing-pages' as const, icon: FileText, label: 'Landing Pages' },
   ];
 
   // Get display name and picture for user menu (prefer adminUser, fallback to googleSession)
@@ -473,6 +476,7 @@ export function BuilderShell() {
           {pillar === 'layout' && <LayoutPillar />}
           {pillar === 'settings' && <SettingsPillar />}
           {pillar === 'orders' && <OrdersPillar />}
+          {pillar === 'landing-pages' && <LandingPagesPillar />}
         </main>
       </div>
 

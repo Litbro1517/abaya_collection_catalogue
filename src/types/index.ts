@@ -288,7 +288,7 @@ export type SyncStatus = 'idle' | 'syncing' | 'success' | 'error';
 // ─── App State ────────────────────────────────────────────────────────────
 
 export type AppView = 'preview' | 'builder' | 'dashboard';
-export type Pillar = 'data' | 'layout' | 'settings' | 'orders';
+export type Pillar = 'data' | 'layout' | 'settings' | 'orders' | 'landing-pages';
 export type SettingsTab = 'general' | 'appearance' | 'conversion' | 'display' | 'admin' | 'catalogue' | 'couleurs' | 'trust' | 'sav';
 
 export interface ImportResult {
@@ -347,4 +347,26 @@ export interface OrderHistoryEntry {
   newValue: string | null;
   changedBy: string;
   changedAt: string;
+}
+
+// ─── VG38: Landing Pages Module ───────────────────────────────────────────
+
+export interface LandingPage {
+  id: string;
+  title: string;
+  slug: string;
+  type: 'IMAGE_CANVA' | 'CODE_IA';
+  productId: string;
+  desktopImageUrl: string | null;
+  mobileImageUrl: string | null;
+  showCtaTop: boolean;
+  ctaTopText: string | null;
+  showCtaMiddle: boolean;
+  ctaMiddleText: string | null;
+  showCtaBottom: boolean;
+  ctaBottomText: string | null;
+  htmlContent: string | null;
+  active: boolean;
+  createdAt: string;
+  updatedAt: string;
 }

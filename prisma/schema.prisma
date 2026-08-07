@@ -394,3 +394,33 @@ model MediaAsset {
   @@index([fileId])
   @@map("media_assets")
 }
+
+// ── VG38: Landing Pages Module (Canva + IA Code) ──
+model LandingPage {
+  id              String   @id @default(cuid())
+  title           String
+  slug            String   @unique
+  type            String   // "IMAGE_CANVA" | "CODE_IA"
+  productId       String   // Row.id du produit associé
+
+  // Champs spécifiques au Mode Image (Canva)
+  desktopImageUrl String?
+  mobileImageUrl  String?
+
+  // Configuration des 3 Boutons CTA (Mode Image)
+  showCtaTop      Boolean  @default(true)
+  ctaTopText      String?  @default("Commander Maintenant")
+  showCtaMiddle   Boolean  @default(true)
+  ctaMiddleText   String?  @default("Profiter de l'Offre")
+  showCtaBottom   Boolean  @default(true)
+  ctaBottomText   String?  @default("Valider ma Commande")
+
+  // Champs spécifiques au Mode Code IA
+  htmlContent     String?
+
+  active          Boolean  @default(true)
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+
+  @@map("landing_pages")
+}
