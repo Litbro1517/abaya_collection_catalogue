@@ -31,8 +31,10 @@ const BRAND = {
   bordeaux: '#800020',
 } as const;
 
-// ── Variant payload passed from ProductPage ──
-export interface CheckoutPayload {
+// ── Variant payload passed from ProductPage / CatalogPreview ──
+// VG37.4 Phase 2: Evolved from single-product to multi-product structure.
+// Each cart item becomes a CheckoutItem. The total price is computed dynamically.
+export interface CheckoutItem {
   productId: string;
   productTitle: string;
   productPrice: string; // raw price cell value (e.g. "299")
@@ -41,6 +43,10 @@ export interface CheckoutPayload {
   selectedColorHex: string | null;
   selectedSize: string | null;
   quantity: number;
+}
+
+export interface CheckoutPayload {
+  items: CheckoutItem[]; // multi-product array (was single product fields)
 }
 
 interface CheckoutPageProps {
@@ -81,10 +87,13 @@ export function CheckoutPage({ product, onBack }: CheckoutPageProps) {
   const [success, setSuccess] = useState(false);
   const [apiFailed, setApiFailed] = useState(false);
 
-  const unitPriceNum = parsePriceNumber(product.productPrice);
-  const totalNum = unitPriceNum * product.quantity;
+  // VG37.4 Phase 2: Multi-product calculations
+  const items = product.items;
+  const totalNum = items.reduce((sum, item) => {
+    return sum + parsePriceNumber(item.productPrice) * item.quantity;
+  }, 0);
   const totalFormatted = formatPrice(totalNum);
-  const unitFormatted = unitPriceNum > 0 ? formatPrice(unitPriceNum) : product.productPrice;
+  const totalQuantity = items.reduce((sum, item) => sum + item.quantity, 0);
 
   const handleChange = (field: keyof FormState, value: string) => {
     setForm(prev => ({ ...prev, [field]: value }));
@@ -114,25 +123,27 @@ export function CheckoutPage({ product, onBack }: CheckoutPageProps) {
 
     setIsSubmitting(true);
 
-    // Keep productName as the clean product title (the structured variant data
-    // is now stored in dedicated columns: productColor, productSize, productQuantity, productImage).
+    // VG37.4 Phase 2: Send multi-product payload to API.
+    // The API creates one Order record per cart item (same customer info).
     try {
       const res = await fetch('/api/orders', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          productId: product.productId,
+          items: items.map(item => ({
+            productId: item.productId,
+            productName: item.productTitle,
+            productPrice: item.productPrice,
+            productColor: item.selectedColor || null,
+            productSize: item.selectedSize || null,
+            productQuantity: item.quantity,
+            productImage: item.productImage || null,
+          })),
           customerName: form.customerName.trim(),
           customerPhone: form.customerPhone.trim(),
           customerCity: form.customerCity.trim(),
           customerAddress: form.customerAddress.trim(),
-          productName: product.productTitle,
-          productPrice: totalFormatted,
-          // ━━ Structured variant data for the Merci page recap ━━
-          productColor: product.selectedColor || null,
-          productSize: product.selectedSize || null,
-          productQuantity: product.quantity,
-          productImage: product.productImage || null,
+          totalPrice: totalFormatted,
         }),
       });
 
@@ -161,14 +172,16 @@ export function CheckoutPage({ product, onBack }: CheckoutPageProps) {
   };
 
   // ── WhatsApp fallback link (when API fails) ──
-  const whatsappFallbackLink = whatsappNumber
+  // VG37.4 Phase 2: Use first item for the WhatsApp message (multi-product summary)
+  const firstItem = items[0];
+  const whatsappFallbackLink = whatsappNumber && firstItem
     ? buildWhatsappLink({
         phone: whatsappNumber,
-        title: product.productTitle,
+        title: items.length === 1 ? firstItem.productTitle : `${firstItem.productTitle} (+${items.length - 1} autres)`,
         price: totalFormatted,
-        color: product.selectedColor,
-        size: product.selectedSize,
-        quantity: product.quantity,
+        color: firstItem.selectedColor,
+        size: firstItem.selectedSize,
+        quantity: totalQuantity,
         customMessage: settings?.conversionMessage || undefined,
         conversionMessages: settings?.conversionMessages || null,
         locale: useAppStore.getState().clientLocale,
@@ -199,8 +212,6 @@ export function CheckoutPage({ product, onBack }: CheckoutPageProps) {
     );
   }
 
-  const na = t('checkout.notSelected');
-
   return (
     <main className="checkout-page" dir={rtl ? 'rtl' : 'ltr'}>
       {/* ── Back / breadcrumb ── */}
@@ -227,66 +238,48 @@ export function CheckoutPage({ product, onBack }: CheckoutPageProps) {
             <h2 className="checkout-recap-title">{t('checkout.recapTitle')}</h2>
           </div>
 
-          {/* Product line: thumbnail + title + unit price */}
-          <div className="checkout-recap-product">
-            {product.productImage ? (
-              <div className="checkout-recap-thumb">
-                <img
-                  src={product.productImage}
-                  alt={product.productTitle}
-                  loading="lazy"
-                  decoding="async"
-                />
+          {/* VG37.4 Phase 2: Multi-product recap — iterate over all cart items */}
+          {items.map((item, idx) => {
+            const itemUnitPrice = parsePriceNumber(item.productPrice);
+            const itemTotal = itemUnitPrice * item.quantity;
+            const itemUnitFormatted = itemUnitPrice > 0 ? formatPrice(itemUnitPrice) : item.productPrice;
+            const itemTotalFormatted = formatPrice(itemTotal);
+            return (
+              <div key={idx} className="checkout-recap-product" style={idx > 0 ? { marginTop: '16px', paddingTop: '16px', borderTop: '1px solid var(--border-soft, #EAE4DC)' } : undefined}>
+                {item.productImage ? (
+                  <div className="checkout-recap-thumb">
+                    <img
+                      src={item.productImage}
+                      alt={item.productTitle}
+                      loading="lazy"
+                      decoding="async"
+                    />
+                  </div>
+                ) : (
+                  <div className="checkout-recap-thumb checkout-recap-thumb--empty">
+                    <ShoppingBag className="w-6 h-6" style={{ color: BRAND.grisMoyen }} />
+                  </div>
+                )}
+                <div className="checkout-recap-product-info">
+                  <span className="checkout-recap-product-name">{item.productTitle}</span>
+                  <span className="checkout-recap-product-price">{itemUnitFormatted}</span>
+                  {/* Variant summary for this item */}
+                  <div style={{ fontSize: '12px', color: BRAND.grisMoyen, marginTop: '4px', display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                    {item.selectedColor && <span>{t('checkout.color')}: {item.selectedColor}</span>}
+                    {item.selectedSize && <span>{t('checkout.size')}: {item.selectedSize}</span>}
+                    <span>{t('checkout.quantity')}: {item.quantity}</span>
+                  </div>
+                  <span style={{ fontSize: '13px', fontWeight: 600, color: BRAND.noir, marginTop: '4px', display: 'block' }}>
+                    {itemTotalFormatted}
+                  </span>
+                </div>
               </div>
-            ) : (
-              <div className="checkout-recap-thumb checkout-recap-thumb--empty">
-                <ShoppingBag className="w-6 h-6" style={{ color: BRAND.grisMoyen }} />
-              </div>
-            )}
-            <div className="checkout-recap-product-info">
-              <span className="checkout-recap-product-name">{product.productTitle}</span>
-              <span className="checkout-recap-product-price">{unitFormatted}</span>
-            </div>
-          </div>
-
-          {/* Variant summary list */}
-          <dl className="checkout-recap-list">
-            <div className="checkout-recap-row">
-              <dt className="checkout-recap-key">{t('checkout.color')}</dt>
-              <dd className="checkout-recap-val checkout-recap-val--color">
-                {product.selectedColor ? (
-                  <>
-                    {product.selectedColorHex && (
-                      <span
-                        className="checkout-color-chip"
-                        style={{ backgroundColor: product.selectedColorHex }}
-                        aria-hidden="true"
-                      />
-                    )}
-                    <span>{product.selectedColor}</span>
-                  </>
-                ) : na}
-              </dd>
-            </div>
-
-            <div className="checkout-recap-row">
-              <dt className="checkout-recap-key">{t('checkout.size')}</dt>
-              <dd className="checkout-recap-val">
-                {product.selectedSize ? (
-                  <span className="checkout-size-pill">{product.selectedSize}</span>
-                ) : na}
-              </dd>
-            </div>
-
-            <div className="checkout-recap-row">
-              <dt className="checkout-recap-key">{t('checkout.quantity')}</dt>
-              <dd className="checkout-recap-val">{product.quantity}</dd>
-            </div>
-          </dl>
+            );
+          })}
 
           {/* Total */}
           <div className="checkout-recap-total">
-            <span className="checkout-recap-total-label">{t('checkout.total')}</span>
+            <span className="checkout-recap-total-label">{t('checkout.total')} ({totalQuantity} {totalQuantity > 1 ? 'articles' : 'article'})</span>
             <span className="checkout-recap-total-value">{totalFormatted}</span>
           </div>
 

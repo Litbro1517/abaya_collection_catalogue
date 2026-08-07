@@ -2384,3 +2384,59 @@ Attributs `data-cta` ajoutes sur 6 elements interactifs majeurs :
 
 ---
 Date de mise a jour : 07/08/2026
+
+## [VG37.4 — PHASE 2: MULTI-PRODUCT CART REFACTORING]
+
+### Mandat
+Refactorisation structurelle du panier multi-produits (Anomalie A2). Branche isolee `feature/phase2-multi-product-cart` (creee depuis `main@963f6de`).
+
+### Diagnostic
+Le checkout n'extrayait que `items[0]` (CatalogPreview L.255), ignorant les autres articles du panier. Le type `CheckoutPayload` etait fige en structure mono-produit.
+
+### Corrections appliquees (4 axes)
+
+#### Fix 1 — Evolution du modele CheckoutPayload
+- **Fichier** : `src/components/preview/CheckoutPage.tsx` L.34-50
+- Nouvel interface `CheckoutItem` (ex-CheckoutPayload mono-produit)
+- `CheckoutPayload` devient `{ items: CheckoutItem[] }` (tableau multi-produits)
+
+#### Fix 2 — Mise a jour du dispatcher CatalogPreview
+- **Fichier** : `src/components/preview/CatalogPreview.tsx` L.248-270
+- Remplacement `const first = items[0]` par `items.map(item => ({...}))`
+- Toutes les proprietes du panier sont desormais transmises integralement
+
+#### Fix 3 — Refonte de la vue CheckoutPage
+- **Fichier** : `src/components/preview/CheckoutPage.tsx`
+- Recapitulatif iteratif : `items.map()` affiche chaque article avec thumbnail, titre, prix unitaire, variantes (couleur/taille/quantite), sous-total
+- Total dynamique : somme de tous les sous-totaux + nombre total d'articles
+- API payload : envoie `items[]` au lieu de champs individuels
+- Fallback WhatsApp : utilise le premier article + resume "(+N autres)"
+
+#### Fix 4 — Mise a niveau du backend api/orders
+- **Fichier** : `src/app/api/orders/route.ts` L.6-105
+- Accepte payload multi-produits avec `items[]` array
+- Cree un enregistrement `Order` par article via `db.$transaction()`
+- Backward compatible : si `items[]` absent, fallback vers chemin mono-produit (legacy)
+- Validation telephone 10 chiffres conservee (VG37.3 A4)
+
+### Justification technique : transaction Prisma
+**Choix** : Utilisation de `db.$transaction()` pour creer plusieurs Order en une seule operation atomique.
+**Raison** : Si un article echoue a la creation, toute la transaction est annulee (rollback) — aucun ordre partiel n'est persiste. Cela garantit l'integrite des donnees : le client recoit soit tous ses articles, soit aucun.
+
+### Fichiers modifies (4)
+| # | Fichier | Axe |
+|---|---------|-----|
+| 1 | `src/components/preview/CheckoutPage.tsx` | 1+3 (type evolution + multi-product recap) |
+| 2 | `src/components/preview/CatalogPreview.tsx` | 2 (full cart mapping) |
+| 3 | `src/app/api/orders/route.ts` | 4 (multi-product API + backward compat) |
+| 4 | `PROJECT_MAP.md` | Documentation |
+
+### Validations locales
+- `bun run lint` : 0 erreur, 0 warning OK
+- `bun run build` : exit code 0, 57/57 pages OK
+
+### Branche
+`feature/phase2-multi-product-cart` (creee depuis `main@963f6de`). **EN ATTENTE DU FEU VERT EXPLICITE**.
+
+---
+Date de mise a jour : 27/07/2026

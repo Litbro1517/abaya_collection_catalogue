@@ -247,21 +247,24 @@ export function CatalogPreview({ onAdminLogin }: CatalogPreviewProps) {
 
   // VG37.1 Axe 1: Watch checkoutTrigger from cart store — GlobalCart sets this
   // when the user clicks "إتمام الطلب" from the drawer. Opens the checkout view.
+  // VG37.4 Phase 2: Maps ALL cart items (was items[0] only).
   const checkoutTrigger = useCartStore((s) => s.checkoutTrigger);
   useEffect(() => {
     if (checkoutTrigger === 0) return; // skip initial state
     const items = useCartStore.getState().items;
     if (items.length === 0) return;
-    const first = items[0];
+    // VG37.4: Map the entire cart items array to CheckoutPayload
     setCheckoutData({
-      productId: first.productId,
-      productTitle: first.title,
-      productPrice: first.price,
-      productImage: first.image,
-      selectedColor: first.color || null,
-      selectedColorHex: null,
-      selectedSize: first.size || null,
-      quantity: items.reduce((sum, i) => sum + i.quantity, 0),
+      items: items.map(item => ({
+        productId: item.productId,
+        productTitle: item.title,
+        productPrice: item.price,
+        productImage: item.image,
+        selectedColor: item.color || null,
+        selectedColorHex: null,
+        selectedSize: item.size || null,
+        quantity: item.quantity,
+      })),
     });
     useCartStore.getState().closeDrawer();
   }, [checkoutTrigger]);
