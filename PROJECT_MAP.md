@@ -2431,12 +2431,29 @@ Le checkout n'extrayait que `items[0]` (CatalogPreview L.255), ignorant les autr
 | 3 | `src/app/api/orders/route.ts` | 4 (multi-product API + backward compat) |
 | 4 | `PROJECT_MAP.md` | Documentation |
 
-### Validations locales
+### Validations finales (audit pre-fusion)
 - `bun run lint` : 0 erreur, 0 warning OK
-- `bun run build` : exit code 0, 57/57 pages OK
+- `bun run build` : exit code 0, 13.2s compile, 57/57 pages, 363ms static generation OK
+- 0 log parasite de debogage OK
+- Alignement de branche : parent de `b7aaf40` = `963f6de` (main HEAD) — fast-forward possible OK
+- Étanchéité tunnel COD : 6 fichiers sanctuarisés intacts (CodForm, CartDrawer, cart-store, whatsapp.ts, WhatsappOrderForm, OrderConfirmation — 0 ligne). Modifications légitimes sur CheckoutPage.tsx (149 lignes refactor), CatalogPreview.tsx (21 lignes dispatcher), /api/orders/route.ts (62 lignes transaction multi-ordres) — explicitement attendues par le mandat
+
+### Audit & Deploiement (Session unique — 100% VERT)
+- **Audit 7 controles (Axe1/Axe2/Axe3/Axe4/SANCT/QUAL/GIT)** : 7/7 PASSED a 100% sans reserve
+  - Axe 1. CheckoutPayload evolution : interface `CheckoutItem` extraite + `CheckoutPayload` converti vers `{ items: CheckoutItem[] }` ✅
+  - Axe 2. Dispatcher multi-produits : bride `items[0]` supprimée + `items.map()` complet sur tout le tableau cart ✅
+  - Axe 3. Vue & calculs CheckoutPage : `reduce` pour sous-totaux + quantités + total dynamique + rendu liste `items.map()` avec vignette/titre/variantes/sous-total + résumé WhatsApp sécurisé via `buildWhatsappLink` ✅
+  - Axe 4. API & transaction backend : payload `items[]` reçu + `db.$transaction()` atomique multi-ordres + rétrocompatibilité mono-produit legacy (fallback si `items[]` absent) + validation téléphone préservée ✅
+  - SANCT. Sanctuarisation COD : CodForm.tsx + 5 fichiers annexes (CartDrawer, cart-store, whatsapp.ts, WhatsappOrderForm, OrderConfirmation) — TOUS à 0 ligne modifiée ✅
+  - QUAL. Lint + Build : Lint exit 0 (0 erreur, 0 warning), Build exit 0 (13.2s, 57/57 pages, 363ms static gen) ✅
+  - GIT. Isolation branche main : parent de `b7aaf40` = `963f6de` (main HEAD) — main restée intacte avant fusion ✅
+- **Fusion** : `git merge feature/phase2-multi-product-cart --no-ff -m "chore(release): merge phase 2 multi-product cart refactoring"` (merge commit `316ef33`) OK
+- **Poussee GitHub** : `git push origin main` (`963f6de..316ef33`) le 2026-08-07T16:34:09Z — declenchement pipeline Vercel Production OK
+- **Nettoyage branches** : locale `feature/phase2-multi-product-cart` supprimee + distante `origin/feature/phase2-multi-product-cart` supprimee OK
+- **Statut** : OK **MERGED & DEPLOYED ON MAIN — VG37.4 Phase 2 Deployed** (Vercel auto-deploy via GitHub main push)
 
 ### Branche
-`feature/phase2-multi-product-cart` (creee depuis `main@963f6de`). **EN ATTENTE DU FEU VERT EXPLICITE**.
+`feature/phase2-multi-product-cart` (creee depuis `main@963f6de`) — **FUSIONNEE & SUPPRIMEE** (main desormais a `316ef33` via merge --no-ff).
 
 ---
-Date de mise a jour : 27/07/2026
+Date de mise a jour : 07/08/2026
