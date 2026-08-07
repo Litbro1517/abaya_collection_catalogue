@@ -49,7 +49,7 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
         ...(title !== undefined && { title }),
         ...(slug !== undefined && { slug }),
         ...(type !== undefined && { type }),
-        ...(productId !== undefined && { productId }),
+        ...(productId !== undefined && { productId: productId || null }),
         ...(desktopImageUrl !== undefined && { desktopImageUrl: desktopImageUrl || null }),
         ...(mobileImageUrl !== undefined && { mobileImageUrl: mobileImageUrl || null }),
         ...(showCtaTop !== undefined && { showCtaTop }),

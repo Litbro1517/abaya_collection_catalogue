@@ -39,7 +39,9 @@ export async function POST(req: NextRequest) {
 
     const page = await db.landingPage.create({
       data: {
-        title, slug, type, productId,
+        title, slug, type,
+        // VG40.1: productId is optional — only include if a valid non-empty value is provided
+        ...(productId ? { productId } : {}),
         desktopImageUrl: desktopImageUrl || null,
         mobileImageUrl: mobileImageUrl || null,
         showCtaTop: showCtaTop ?? true,
