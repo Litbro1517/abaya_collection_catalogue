@@ -2759,3 +2759,38 @@ Isolation du tunnel Landing Page : suppression du panier/header global sur /lp/*
 
 ---
 Date de mise a jour : 09/08/2026
+
+## [VG40.4 — DOUBLE FORM ERADICATION + DYNAMIC CTA PLACEHOLDERS]
+
+### Mandat
+Eradication du double formulaire en mode CODE_IA + detection dynamique des CTA via placeholders {{CTA_LINK_N}}. Branche isolee `feature/fix-double-form-and-cta-placeholders` (creee depuis `main@c66c9a2`).
+
+### Corrections appliquees (2 axes)
+
+#### Axe A — Eradication du double formulaire
+1. **CodeIAPage.tsx** (L.10-17) : Sanitization HTML avant injection iframe:
+   - `<form>...</form>` → commentaire HTML (suppression formulaire parasite)
+   - `<input>` → commentaire HTML (suppression champs parasites)
+   - `<button type="submit">` → `type` retire (neutralisation bouton submit)
+   - `{{CTA_LINK_N}}` → `#order-form` (substitution placeholders)
+2. **promptConstants.ts** (L.11) : Ajout regle "INTERDICTION ABSOLUE" sur `<form>`, `<input>`, `<button type="submit">`
+
+#### Axe B — CTA dynamiques par placeholders {{CTA_LINK_N}}
+1. **promptConstants.ts** (L.12-14) : Instruction IA d'utiliser `href="{{CTA_LINK_N}}"` + `data-cta-slot="N"`
+2. **LandingPagesPillar.tsx** (L.68-82) : Nouvelle fonction `extractCtaPlaceholders(html)` — regex `/\{\{CTA_LINK_(\d+)\}\}/g`
+3. **LandingPagesPillar.tsx** (L.357-381) : Panneau admin dynamique "Boutons CTA détectés"
+4. **CodeIAPage.tsx** (L.17) : Substitution `{{CTA_LINK_N}}` → `#order-form` au rendu
+
+### Fichiers modifies (3)
+| # | Fichier | Axe(s) |
+|---|---------|--------|
+| 1 | `src/components/landing/CodeIAPage.tsx` | A (sanitization) + B (substitution) |
+| 2 | `src/components/landing/promptConstants.ts` | A (interdiction) + B (placeholders) |
+| 3 | `src/components/landing/LandingPagesPillar.tsx` | B (parser + admin fields) |
+
+### Validations
+- `bun run lint` : 0 erreur, 0 warning OK
+- `bun run build` : exit code 0, 57/57 pages OK
+
+---
+Date de mise a jour : 27/07/2026
