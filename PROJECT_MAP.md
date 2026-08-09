@@ -2696,7 +2696,66 @@ Diagnostic + 4 corrections: suppression champ produit, ciblage images par index,
 - `bun run build` : exit code 0, 57/57 pages OK
 
 ### Branche
-`feat/landing-ux-anchors-media-fix` (creee depuis `main@629323c`). **EN ATTENTE DU FEU VERT EXPLICITE**.
+`feat/landing-ux-anchors-media-fix` (creee depuis `main@629323c`). **FUSIONNEE & SUPPRIMEE** (main desormais a `d0deada` via merge --no-ff).
 
 ---
-Date de mise a jour : 27/07/2026
+
+## [VG40.1 — PRISMA P2011 PRODUCTID NULL CONSTRAINT FIX]
+
+### Mandat
+Correction d'urgence production : erreur Prisma P2011 sur `product_id` NOT NULL en base PostgreSQL après le changement de schema VG40 (String → String?).
+
+### Corrections appliquees
+- Production Supabase PostgreSQL : `prisma db push` execute (7.43s) — contrainte NOT NULL droppee sur `product_id`
+- API POST `/api/landing-pages` : `productId` utilise spread conditionnel `...(productId ? { productId } : {})` — omis entierement si null/undefined
+- API PUT `/api/landing-pages/[id]` : `productId` utilise `productId || null` pour handling explicite null sur updates
+- Local SQLite : schema restaure
+
+### Branche
+Merge sur main via commit `bdf65b0`. **FUSIONNEE & DEPLOYEE**.
+
+---
+
+## [VG40.2 — SSR NULL GUARD FOR PRODUCTID IN LANDING PAGE RENDER]
+
+### Mandat
+Correction : crash SSR quand `productId` est null sur une landing page standalone (page sans produit associe).
+
+### Corrections appliquees
+- `src/app/lp/[slug]/page.tsx` : null guard avant `db.row.findUnique` — si `page.productId` est null, la requete Prisma est skippee
+- `src/components/landing/LandingPageRender.tsx` : type `productId` mis a jour vers `string | null` + fallback `productId || 'standalone'` passe au composant CodForm
+
+### Branche
+Merge sur main via commit `8ed7a4d`. **FUSIONNEE & DEPLOYEE**.
+
+---
+
+## [VG40.3 — LP TUNNEL ISOLATION (NO CART, NO BOTTOM CTA, NO RETURN BUTTON)]
+
+### Mandat
+Isolation du tunnel Landing Page : suppression du panier/header global sur /lp/*, elimination de la redondance CTA/formulaire, isolation de la Thank You Page.
+
+### Corrections appliquees (5 axes)
+1. **GlobalCart.tsx** L41 : `pathname?.startsWith('/lp/')` ajouté a la condition d'exclusion — panier flottant et drawer neutralises sur toutes les routes /lp/*
+2. **src/app/lp/layout.tsx** (NEW) : layout d'isolation cree (27 lignes) avec documentation du tunnel ferme
+3. **CanvaImagePage.tsx** : `showCtaBottom` supprime (CTA Bottom redondant retire) — seuls CTA Top et Middle subsistent, scrollant vers #order-form
+4. **CodForm.tsx** : detection `window.location.pathname.startsWith('/lp/')` + injection `from=lp` dans l'URL `/merci` lors de la soumission depuis une landing page
+5. **merci/page.tsx** : `fromLandingPage = searchParams.get('from') === 'lp'` + `{!fromLandingPage && (<a href="/">Retour au catalogue</a>)}` — masquage du bouton retour catalogue en tunnel ferme
+
+### Validations finales
+- `bun run lint` : 0 erreur, 0 warning OK
+- `bun run build` : exit code 0, 12.0s compile, 60/60 pages, 287ms static gen OK
+- Etancheite tunnel COD : 5 fichiers sanctuarises a 0 ligne (CartDrawer, cart-store, CheckoutPage, whatsapp.ts, /api/orders/route.ts) OK
+
+### Audit & Deploiement
+- **Audit 5 controles** : 5/5 PASSED a 100% sans reserve
+- **Fusion** : `git merge --no-ff fix/lp-tunnel-isolation-vg40.3` (merge commit `7a4e562`) OK
+- **Poussee GitHub** : `git push origin main` (`8ed7a4d..7a4e562`) le 2026-08-09T16:53:20Z — declenchement pipeline Vercel Production OK
+- **Nettoyage branches** : locale + distante `fix/lp-tunnel-isolation-vg40.3` supprimees OK
+- **Statut** : OK **MERGED & DEPLOYED ON MAIN — VG40.3 Deployed** (Vercel auto-deploy via GitHub main push)
+
+### Branche
+`fix/lp-tunnel-isolation-vg40.3` (creee depuis `main@8ed7a4d`) — **FUSIONNEE & SUPPRIMEE** (main desormais a `7a4e562` via merge --no-ff).
+
+---
+Date de mise a jour : 09/08/2026
