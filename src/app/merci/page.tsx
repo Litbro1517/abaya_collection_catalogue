@@ -27,6 +27,7 @@ function MerciContent() {
   const { t, rtl } = useClientTranslation();
   const searchParams = useSearchParams();
   const orderId = searchParams.get('order_id');
+  const fromLandingPage = searchParams.get('from') === 'lp'; // VG40.3: closed funnel isolation
   const tracked = useRef(false);
 
   const [order, setOrder] = useState<OrderData | null>(null);
@@ -266,16 +267,19 @@ function MerciContent() {
             BEFORE first render, preventing admin session state (localStorage
             `abaya_admin_state` + default Zustand `view: 'builder'`) from
             hijacking the navigation into the admin BuilderShell. */}
-        <a
-          href="/"
-          className="merci-back-btn"
-          onClick={() => {
-            try { sessionStorage.setItem('merci_return', '1'); } catch { /* ignore */ }
-          }}
-        >
-          <ArrowLeft className="w-4 h-4" />
-          {t('thanks.backToCatalog')}
-        </a>
+        {/* VG40.3: Hide "Retour au catalogue" when the order comes from a landing page (closed funnel) */}
+        {!fromLandingPage && (
+          <a
+            href="/"
+            className="merci-back-btn"
+            onClick={() => {
+              try { sessionStorage.setItem('merci_return', '1'); } catch { /* ignore */ }
+            }}
+          >
+            <ArrowLeft className="w-4 h-4" />
+            {t('thanks.backToCatalog')}
+          </a>
+        )}
 
         {/* Tracking notice */}
         <div className="merci-tracking">
