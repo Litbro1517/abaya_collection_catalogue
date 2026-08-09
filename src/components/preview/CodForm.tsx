@@ -65,8 +65,15 @@ export function CodForm({ productId, productName, productPrice }: CodFormProps) 
       const data = await res.json();
       if (!res.ok || data.error) { setError(data.error || t('order.errorGeneric')); return; }
       // VG40: Direct redirect — no local success screen, no 800ms delay.
+      // VG40.3: If on a landing page (/lp/), add from=lp so the Merci page
+      // can hide the "Retour au catalogue" button (closed funnel isolation).
       const orderId = data.data?.id;
-      window.location.href = `/merci${orderId ? `?order_id=${orderId}` : ''}`;
+      const isLandingPage = typeof window !== 'undefined' && window.location.pathname.startsWith('/lp/');
+      const params = new URLSearchParams();
+      if (orderId) params.set('order_id', orderId);
+      if (isLandingPage) params.set('from', 'lp');
+      const queryString = params.toString();
+      window.location.href = `/merci${queryString ? `?${queryString}` : ''}`;
     } catch {
       setError(t('order.errorNetwork'));
     } finally {

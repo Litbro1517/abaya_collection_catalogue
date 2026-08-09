@@ -22,7 +22,10 @@ export function CanvaImagePage({ page }: { page: LandingPage }) {
         />
       </picture>
 
-      {/* CTA Buttons superposés avec extincteurs (ON/OFF) */}
+      {/* CTA Buttons superposés avec extincteurs (ON/OFF).
+          VG40.3: Bottom CTA removed — it was redundant with the CodForm
+          submit button located immediately below in the #order-form section.
+          Only Top and Middle CTAs remain — they scroll to #order-form. */}
       <div className="lp-cta-overlay lp-cta-overlay-top">
         {page.showCtaTop && (
           <LandingCTAButton text={page.ctaTopText || 'Commander Maintenant'} />
@@ -31,11 +34,6 @@ export function CanvaImagePage({ page }: { page: LandingPage }) {
       <div className="lp-cta-overlay lp-cta-overlay-middle">
         {page.showCtaMiddle && (
           <LandingCTAButton text={page.ctaMiddleText || "Profiter de l'Offre"} />
-        )}
-      </div>
-      <div className="lp-cta-overlay lp-cta-overlay-bottom">
-        {page.showCtaBottom && (
-          <LandingCTAButton text={page.ctaBottomText || 'Valider ma Commande'} />
         )}
       </div>
     </div>

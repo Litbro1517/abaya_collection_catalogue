@@ -37,8 +37,8 @@ export function GlobalCart() {
     }
   }, [pathname, clearCart]);
 
-  // Don't render the floating button on admin pages
-  if (pathname?.startsWith('/admin')) return null;
+  // Don't render the floating button on admin pages or landing page funnels (closed funnel)
+  if (pathname?.startsWith('/admin') || pathname?.startsWith('/lp/')) return null;
 
   return (
     <>
