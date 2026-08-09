@@ -31,6 +31,7 @@ function MerciContent() {
   const tracked = useRef(false);
 
   const [order, setOrder] = useState<OrderData | null>(null);
+  const [orderItems, setOrderItems] = useState<OrderData[]>([]); // VG41: multi-product items
   const [loading, setLoading] = useState(!!orderId);
   const [fetchError, setFetchError] = useState<string | null>(null);
   // ── Color hex resolution (harmonized with CheckoutPage) ──
@@ -97,6 +98,8 @@ function MerciContent() {
         if (cancelled) return;
         if (res.ok && json.data) {
           setOrder(json.data as OrderData);
+          // VG41: Store all related items for multi-product display
+          setOrderItems(json.items ? (json.items as OrderData[]) : [json.data as OrderData]);
         } else {
           setFetchError(json.error || 'not_found');
         }
@@ -142,6 +145,10 @@ function MerciContent() {
   const productPrice = order?.productPrice || '';
   const hasRecap = !!order && (!!productName || !!productPrice);
 
+  // VG41: Calculate total from all items (multi-product)
+  const totalItems = orderItems.length || 1;
+  const totalQuantity = orderItems.reduce((sum, item) => sum + (item.productQuantity || 1), 0);
+
   return (
     <div className="merci-page" dir={rtl ? 'rtl' : 'ltr'}>
       <div className="merci-card">
@@ -165,7 +172,7 @@ function MerciContent() {
           </div>
         )}
 
-        {/* ━━ Real order recap (Étape 3) ━━ */}
+        {/* ━━ VG41: Multi-product order recap ━━ */}
         {loading ? (
           <div className="merci-recap merci-recap--loading">
             <span className="merci-recap-loading-text">{t('thanks.loading')}</span>
@@ -174,75 +181,68 @@ function MerciContent() {
           <div className="merci-recap">
             <div className="merci-recap-head">
               <h2 className="merci-recap-title">{t('thanks.recapTitle')}</h2>
-            </div>
-
-            {/* Product line: thumbnail + name */}
-            <div className="merci-recap-product">
-              {order!.productImage ? (
-                <div className="merci-recap-thumb">
-                  <img
-                    src={order!.productImage}
-                    alt={productName}
-                    loading="lazy"
-                    decoding="async"
-                  />
-                </div>
-              ) : (
-                <div className="merci-recap-thumb merci-recap-thumb--empty">
-                  <ShoppingBag className="w-5 h-5" style={{ color: '#808080' }} />
-                </div>
+              {totalItems > 1 && (
+                <span className="text-xs text-muted-foreground">({totalItems} articles)</span>
               )}
-              <div className="merci-recap-product-info">
-                <span className="merci-recap-product-name">{productName}</span>
-              </div>
             </div>
 
-            {/* Variant summary list */}
-            <dl className="merci-recap-list">
-              <div className="merci-recap-row">
-                <dt className="merci-recap-key">{t('checkout.color')}</dt>
-                <dd className="merci-recap-val merci-recap-val--color">
-                  {order!.productColor ? (
-                    <>
-                      {/* Color chip — hex resolved from ColorMap (single source
-                          of truth). If hex is null (color not in map), the chip
-                          is simply not rendered; the name still shows. This
-                          mirrors the CheckoutPage recap exactly. */}
-                      {colorHex && (
-                        <span
-                          className="checkout-color-chip"
-                          style={{ backgroundColor: colorHex }}
-                          aria-hidden="true"
-                        />
-                      )}
-                      <span>{order!.productColor}</span>
-                    </>
-                  ) : na}
-                </dd>
-              </div>
-              <div className="merci-recap-row">
-                <dt className="merci-recap-key">{t('checkout.size')}</dt>
-                <dd className="merci-recap-val">
-                  {order!.productSize ? (
-                    <span className="merci-size-pill">{order!.productSize}</span>
-                  ) : na}
-                </dd>
-              </div>
-              <div className="merci-recap-row">
-                <dt className="merci-recap-key">{t('checkout.quantity')}</dt>
-                <dd className="merci-recap-val">{order!.productQuantity || 1}</dd>
-              </div>
-            </dl>
+            {/* VG41: Iterate over all order items */}
+            {orderItems.map((item, idx) => (
+              <div key={idx} style={idx > 0 ? { marginTop: '12px', paddingTop: '12px', borderTop: '1px solid #EAE4DC' } : undefined}>
+                {/* Product line: thumbnail + name */}
+                <div className="merci-recap-product">
+                  {item.productImage ? (
+                    <div className="merci-recap-thumb">
+                      <img src={item.productImage} alt={item.productName || ''} loading="lazy" decoding="async" />
+                    </div>
+                  ) : (
+                    <div className="merci-recap-thumb merci-recap-thumb--empty">
+                      <ShoppingBag className="w-5 h-5" style={{ color: '#808080' }} />
+                    </div>
+                  )}
+                  <div className="merci-recap-product-info">
+                    <span className="merci-recap-product-name">{item.productName || ''}</span>
+                    {item.productPrice && (
+                      <span className="text-xs text-muted-foreground">{item.productPrice}</span>
+                    )}
+                  </div>
+                </div>
 
-            {/* Total amount to pay */}
+                {/* Variant summary */}
+                <dl className="merci-recap-list">
+                  <div className="merci-recap-row">
+                    <dt className="merci-recap-key">{t('checkout.color')}</dt>
+                    <dd className="merci-recap-val merci-recap-val--color">
+                      {item.productColor ? (
+                        <span>{item.productColor}</span>
+                      ) : na}
+                    </dd>
+                  </div>
+                  <div className="merci-recap-row">
+                    <dt className="merci-recap-key">{t('checkout.size')}</dt>
+                    <dd className="merci-recap-val">
+                      {item.productSize ? (
+                        <span className="merci-size-pill">{item.productSize}</span>
+                      ) : na}
+                    </dd>
+                  </div>
+                  <div className="merci-recap-row">
+                    <dt className="merci-recap-key">{t('checkout.quantity')}</dt>
+                    <dd className="merci-recap-val">{item.productQuantity || 1}</dd>
+                  </div>
+                </dl>
+              </div>
+            ))}
+
+            {/* Total amount to pay — uses primary order price (total from checkout) */}
             {productPrice && (
               <div className="merci-recap-total">
-                <span className="merci-recap-total-label">{t('thanks.amountPaid')}</span>
+                <span className="merci-recap-total-label">{t('thanks.amountPaid')} ({totalQuantity} {totalQuantity > 1 ? 'articles' : 'article'})</span>
                 <span className="merci-recap-total-value">{productPrice}</span>
               </div>
             )}
 
-            {/* Trust mention — single unique line: "Mode de règlement : Paiement à la livraison (COD)" */}
+            {/* Trust mention */}
             <div className="merci-cod-box" role="note">
               <div className="merci-cod-box-icon">
                 <Truck className="w-4 h-4" style={{ color: '#1A3C34' }} />

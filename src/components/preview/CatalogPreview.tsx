@@ -1001,14 +1001,9 @@ export function CatalogPreview({ onAdminLogin }: CatalogPreviewProps) {
             </button>
           </div>
         ) : (
-          <button
-            onClick={onAdminLogin}
-            className="flex items-center justify-center w-9 h-9 rounded-full hover:bg-gray-100 transition-colors shrink-0"
-            title={t('catalog.adminLogin')}
-            aria-label={t('catalog.adminLogin')}
-          >
-            <Lock className="w-4 h-4" style={{ color: 'var(--muted-foreground)' }} />
-          </button>
+          /* VG41: Admin lock button removed from public catalog header.
+             Admin access is now exclusively via the /admin route. */
+          null
         )}
       </div>
     </header>
@@ -1197,11 +1192,6 @@ export function CatalogPreview({ onAdminLogin }: CatalogPreviewProps) {
                               }}
                             >
                               <span>{resolveT(cat.translations, cat.label)}</span>
-                              {count > 0 && (
-                                <span className={cn('text-xs', isActive ? 'text-white/60' : 'text-gray-400')}>
-                                  {count}
-                                </span>
-                              )}
                             </button>
 
                             {/* Sub-categories — shown when this macro is active */}
@@ -1324,7 +1314,7 @@ export function CatalogPreview({ onAdminLogin }: CatalogPreviewProps) {
                         window.scrollTo({ top: 0, behavior: 'instant' });
                       }}
                     >
-                      {resolveT(cat.translations, cat.label)}{count > 0 ? ` (${count})` : ''}
+                      {resolveT(cat.translations, cat.label)}
                     </button>
                   );
                 });
@@ -1365,7 +1355,7 @@ export function CatalogPreview({ onAdminLogin }: CatalogPreviewProps) {
                         )}
                         onClick={() => { setActiveMicroFilter(sub.slug); setCurrentPage(1); }}
                       >
-                        {resolveT(sub.translations, sub.label)}{count > 0 ? ` (${count})` : ''}
+                        {resolveT(sub.translations, sub.label)}
                       </button>
                     );
                   })}
