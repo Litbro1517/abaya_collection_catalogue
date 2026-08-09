@@ -65,6 +65,22 @@ function extractImgTags(html: string): { src: string; fullMatch: string }[] {
   return results;
 }
 
+// VG40.4: Extract {{CTA_LINK_N}} placeholders from HTML for dynamic admin fields
+function extractCtaPlaceholders(html: string): { slot: number; placeholder: string }[] {
+  const regex = /\{\{CTA_LINK_(\d+)\}\}/g;
+  const results: { slot: number; placeholder: string }[] = [];
+  const seen = new Set<number>();
+  let match;
+  while ((match = regex.exec(html)) !== null) {
+    const slot = parseInt(match[1], 10);
+    if (!seen.has(slot)) {
+      seen.add(slot);
+      results.push({ slot, placeholder: match[0] });
+    }
+  }
+  return results.sort((a, b) => a.slot - b.slot);
+}
+
 export function LandingPagesPillar() {
   const { t } = useTranslation();
   const { settings } = useAppStore();
@@ -337,6 +353,32 @@ export function LandingPagesPillar() {
                       ))}
                     </div>
                   )}
+
+                  {/* VG40.4: Dynamic CTA placeholders detection + admin fields */}
+                  {(() => {
+                    const ctaSlots = editing.htmlContent ? extractCtaPlaceholders(editing.htmlContent) : [];
+                    if (ctaSlots.length === 0) return null;
+                    return (
+                      <div className="space-y-2 p-3 border rounded-lg bg-blue-50/50">
+                        <h4 className="text-sm font-semibold flex items-center gap-2">
+                          🎯 Boutons CTA détectés ({ctaSlots.length})
+                        </h4>
+                        <p className="text-xs text-muted-foreground mb-2">
+                          Chaque bouton CTA détecté utilisera un défilement fluide (smooth scroll) vers le formulaire de commande natif en bas de page. Les placeholders seront automatiquement remplacés au rendu.
+                        </p>
+                        {ctaSlots.map(({ slot, placeholder }) => (
+                          <div key={slot} className="flex items-center gap-3 p-2 border rounded bg-white">
+                            <span className="text-xs font-mono font-bold text-blue-600 min-w-fit">
+                              {placeholder}
+                            </span>
+                            <span className="text-xs text-muted-foreground flex-1">
+                              Bouton #{slot} → Cible: <code className="text-green-600">#order-form</code> (défilement automatique)
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    );
+                  })()}
                 </TabsContent>
               </Tabs>
             </div>

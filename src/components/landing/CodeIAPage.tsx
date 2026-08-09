@@ -7,7 +7,16 @@ export function CodeIAPage({ page }: { page: LandingPage }) {
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const [iframeHeight, setIframeHeight] = useState(800);
 
-  // Build the srcdoc content: inject Tailwind CDN + the IA code
+  // VG40.4: Sanitize HTML — strip <form>, <input>, <button type="submit"> to prevent
+  // duplicate forms. The native <CodForm> is the only functional order form.
+  // Also substitute {{CTA_LINK_N}} placeholders with #order-form for smooth scroll.
+  const sanitizedHtml = (page.htmlContent || '<p>Aucun contenu HTML.</p>')
+    .replace(/<form[\s\S]*?<\/form>/gi, '<!-- form removed: native CodForm active -->')
+    .replace(/<input[^>]*>/gi, '<!-- input removed: native CodForm active -->')
+    .replace(/(<button[^>]*?)\s+type=["']submit["']([^>]*?>)/gi, '$1$2')
+    .replace(/\{\{CTA_LINK_\d+\}\}/g, '#order-form');
+
+  // Build the srcdoc content: inject Tailwind CDN + the sanitized IA code
   const srcDoc = `<!DOCTYPE html>
 <html lang="fr">
 <head>
@@ -17,7 +26,7 @@ export function CodeIAPage({ page }: { page: LandingPage }) {
   <style>*{margin:0;padding:0;box-sizing:border-box;}</style>
 </head>
 <body>
-${page.htmlContent || '<p>Aucun contenu HTML.</p>'}
+${sanitizedHtml}
 <script>
   // Auto-resize: send height to parent via postMessage
   function sendHeight() {
