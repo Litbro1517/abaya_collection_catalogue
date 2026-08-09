@@ -44,11 +44,15 @@ export default async function LandingPageRoute({
     );
   }
 
-  // Resolve product info from the catalog
-  const row = await db.row.findUnique({
-    where: { id: page.productId },
-    include: { dataSource: true },
-  });
+  // VG40.2: Null guard — skip Prisma query entirely if productId is null.
+  // Without this guard, prisma.row.findUnique({ where: { id: null } }) throws
+  // PrismaClientValidationError, crashing the SSR render.
+  const row = page.productId
+    ? await db.row.findUnique({
+        where: { id: page.productId },
+        include: { dataSource: true },
+      })
+    : null;
 
   let productTitle = 'Produit';
   let productPrice = '';
