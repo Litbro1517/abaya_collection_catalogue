@@ -29,7 +29,18 @@ export async function GET(
       );
     }
 
-    return NextResponse.json({ data: order, error: null });
+    // VG41: Fetch related orders (same customer + same timestamp = multi-product transaction)
+    const relatedOrders = await db.order.findMany({
+      where: {
+        customerPhone: order.customerPhone,
+        customerName: order.customerName,
+        createdAt: order.createdAt,
+      },
+      orderBy: { createdAt: 'asc' },
+    });
+
+    // Return the primary order + all related items for multi-product display
+    return NextResponse.json({ data: order, items: relatedOrders, error: null });
   } catch (error) {
     console.error('[GET /api/orders/[id]] Error:', error);
     return NextResponse.json(
