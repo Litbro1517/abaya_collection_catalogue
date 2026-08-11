@@ -368,7 +368,9 @@ html.rtl .product-page-img-counter {
   left: 12px;
 }
 
-/* Sprint 3: Cart header button — uses inline style right:'1rem', flip via CSS */
+/* VG36.2 Sprint 3: Cart header button RTL flip — position controlled by
+   Tailwind class right-4 (was inline style right:'1rem' before VG41.4).
+   The !important is still needed to override the Tailwind utility class. */
 html.rtl .cart-header-button,
 html.rtl [class*="cart-header"] {
   right: auto !important;
@@ -4304,9 +4306,12 @@ html[lang="ar"] .pdp-guarantee-label {
   }
 }
 
-/* VG41.2: Move cart button left on mobile to avoid language selector overlap */
+/* VG41.4: Move cart button left on mobile to avoid language selector overlap.
+   The inline style right:'1rem' was removed from GlobalCart.tsx — position
+   is now controlled by the Tailwind class right-4 (desktop) and this CSS
+   rule (mobile). No !important needed since there's no inline style conflict. */
 @media (max-width: 640px) {
   .cart-header-button {
-    right: 60px !important;
+    right: 60px;
   }
 }

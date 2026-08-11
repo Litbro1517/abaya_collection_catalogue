@@ -47,9 +47,8 @@ export function GlobalCart() {
       <button
         onClick={toggleDrawer}
         data-cta="cart-open"
-        className="cart-header-button fixed top-4 z-50 flex items-center justify-center transition-all hover:scale-105"
+        className="cart-header-button fixed top-4 right-4 z-50 flex items-center justify-center transition-all hover:scale-105"
         style={{
-          right: '1rem',
           background: 'transparent',
           border: 'none',
           boxShadow: 'none',
