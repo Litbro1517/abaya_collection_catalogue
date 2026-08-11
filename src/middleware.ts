@@ -73,10 +73,16 @@ export async function middleware(req: NextRequest) {
   }
 
   // ━━━ Guard #1 — Protect /admin route ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  // VG41.4: Allow unauthenticated users through to /admin so the Server
+  // Component (admin/page.tsx) can render <AdminLoginPage />. The role-based
+  // access control is handled by the Server Component itself — if no valid
+  // admin session is found, it shows the login page. API write routes remain
+  // protected by Guard #4 below.
   if (pathname === '/admin' || pathname.startsWith('/admin/')) {
     const token = req.cookies.get(ADMIN_TOKEN)?.value;
     if (!token) {
-      return NextResponse.redirect(new URL('/', req.url));
+      // No token — let the Server Component render the login page
+      return NextResponse.next();
     }
 
     try {
@@ -86,22 +92,26 @@ export async function middleware(req: NextRequest) {
       const authJson = await authRes.json();
 
       if (!authJson.authenticated || !authJson.admin) {
-        return NextResponse.redirect(new URL('/', req.url));
+        // Invalid/expired token — let the Server Component render the login page
+        return NextResponse.next();
       }
 
-      // Only owner, admin and super_admin roles can access /admin
+      // Only owner, admin and super_admin roles can access /admin dashboard.
+      // Other roles (editor) are still allowed through — the Server Component
+      // will show them the login page with an "insufficient role" error.
       const role = authJson.admin.role;
       if (role !== 'owner' && role !== 'admin' && role !== 'super_admin') {
-        return NextResponse.redirect(new URL('/', req.url));
+        return NextResponse.next();
       }
 
-      // Authenticated admin — allow through
+      // Authenticated admin with proper role — allow through with headers
       const res = NextResponse.next();
       res.headers.set('x-admin-id', authJson.admin.id);
       res.headers.set('x-admin-role', authJson.admin.role);
       return res;
     } catch {
-      return NextResponse.redirect(new URL('/', req.url));
+      // Auth check failed (network error) — let the Server Component handle it
+      return NextResponse.next();
     }
   }
 
