@@ -4282,3 +4282,31 @@ html[lang="ar"] .pdp-guarantee-label {
   box-shadow: 0 2px 12px rgba(0, 0, 0, 0.06);
   border: 1px solid #EAE4DC;
 }
+
+/* VG41.2: Logo mobile responsive — cap height on small screens */
+@media (max-width: 640px) {
+  .lp-logo-mobile {
+    max-height: 32px !important;
+    height: 32px !important;
+    max-width: 120px;
+    object-fit: contain;
+  }
+}
+
+/* VG41.2: Header mobile — prevent cart/language overlap */
+@media (max-width: 640px) {
+  .catalog-header-inner {
+    gap: 8px;
+    padding: 8px 12px;
+  }
+  .catalog-header-inner > * {
+    flex-shrink: 0;
+  }
+}
+
+/* VG41.2: Move cart button left on mobile to avoid language selector overlap */
+@media (max-width: 640px) {
+  .cart-header-button {
+    right: 60px !important;
+  }
+}

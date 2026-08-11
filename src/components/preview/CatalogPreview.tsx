@@ -862,7 +862,7 @@ export function CatalogPreview({ onAdminLogin }: CatalogPreviewProps) {
             <img
               src={s.logo}
               alt={catalogName}
-              className="w-auto object-contain shrink-0"
+              className="w-auto object-contain shrink-0 lp-logo-mobile"
               style={{ height: `${s.logoHeight || 40}px`, maxHeight: `${s.logoHeight || 40}px` }}
             />
           ) : (
