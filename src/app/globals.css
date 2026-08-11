@@ -4315,3 +4315,33 @@ html[lang="ar"] .pdp-guarantee-label {
     right: 60px;
   }
 }
+
+/* VG41.5: Mobile header 3-block grid with ghost zone for fixed cart.
+   The GlobalCart is position:fixed in the root layout (NOT a child of <header>).
+   position:absolute inside header was rejected because absolute references
+   the nearest positioned ancestor in the DOM tree — the cart ignores the header.
+
+   Solution (Suggestion A): Keep cart as position:fixed. Give the header a
+   3-column grid: [search+lang LEFT] [logo CENTER] [60px ghost zone RIGHT].
+   The 60px ghost zone is empty space where the fixed cart overlays without
+   covering any interactive element. */
+@media (max-width: 640px) {
+  .catalog-header-inner {
+    display: grid;
+    grid-template-columns: auto 1fr 60px;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 12px;
+  }
+
+  /* Logo (the <Link> with flex-1) goes in the center column */
+  .catalog-header-inner > a[href="/"] {
+    justify-content: center;
+    text-align: center;
+    min-width: 0;
+  }
+
+  /* Search + Language stay in the left column (natural DOM order) */
+  /* The 60px right column is intentionally empty — it's the ghost zone
+     where the fixed cart button overlays without blocking any element */
+}
