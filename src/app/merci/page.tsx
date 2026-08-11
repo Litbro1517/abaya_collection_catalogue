@@ -149,6 +149,24 @@ function MerciContent() {
   const totalItems = orderItems.length || 1;
   const totalQuantity = orderItems.reduce((sum, item) => sum + (item.productQuantity || 1), 0);
 
+  // VG41.2: Calculate the REAL total — sum of (unit price × quantity) for all items.
+  // Previously, the total was just the primary order's productPrice (single article price).
+  function parsePriceNumber(raw: string | null): number {
+    if (!raw) return 0;
+    const match = String(raw).match(/[\d.,]+/);
+    if (!match) return 0;
+    const cleaned = match[0].replace(/\s/g, '').replace(/,(?=\d{2}$)/, '.').replace(/[^\d.]/g, '');
+    const num = parseFloat(cleaned);
+    return isNaN(num) ? 0 : num;
+  }
+  const calculatedTotal = orderItems.reduce((sum, item) => {
+    return sum + parsePriceNumber(item.productPrice) * (item.productQuantity || 1);
+  }, 0);
+  // Format the total using the same currency suffix as the individual prices
+  const totalFormatted = calculatedTotal > 0
+    ? `${calculatedTotal} Dhs`
+    : productPrice; // fallback to stored price if calculation fails
+
   return (
     <div className="merci-page" dir={rtl ? 'rtl' : 'ltr'}>
       <div className="merci-card">
@@ -234,11 +252,11 @@ function MerciContent() {
               </div>
             ))}
 
-            {/* Total amount to pay — uses primary order price (total from checkout) */}
-            {productPrice && (
+            {/* Total amount to pay — VG41.2: calculated from sum of all items × quantity */}
+            {totalFormatted && (
               <div className="merci-recap-total">
                 <span className="merci-recap-total-label">{t('thanks.amountPaid')} ({totalQuantity} {totalQuantity > 1 ? 'articles' : 'article'})</span>
-                <span className="merci-recap-total-value">{productPrice}</span>
+                <span className="merci-recap-total-value">{totalFormatted}</span>
               </div>
             )}
 
