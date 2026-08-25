@@ -4285,63 +4285,96 @@ html[lang="ar"] .pdp-guarantee-label {
   border: 1px solid #EAE4DC;
 }
 
-/* VG41.2: Logo mobile responsive — cap height on small screens */
-@media (max-width: 640px) {
-  .lp-logo-mobile {
-    max-height: 32px !important;
-    height: 32px !important;
-    max-width: 120px;
-    object-fit: contain;
-  }
-}
+/* ═══════════════════════════════════════════════════════════════════════
+   VG43 — MOBILE HEADER ABSOLUTE LOGO CENTERING (LTR/RTL safe)
+   Mandate VG43: The logo must be perfectly centered in the mobile nav bar,
+   with lang+search on one side and the cart on the other, in both LTR & RTL.
 
-/* VG41.2: Header mobile — prevent cart/language overlap */
+   ROOT CAUSE of prior regression (VG41.5):
+   The previous grid approach used `grid-template-columns: auto 1fr 60px`
+   with default auto-placement. Because the Logo <Link> is the FIRST DOM
+   child, auto-placement put it in column 1 (auto = LEFT in LTR, RIGHT in
+   RTL) instead of the center column. The `justify-content: center` rule
+   only centered the logo's CONTENT within its side cell — the cell itself
+   stayed on the side, so the logo was never visually centered.
+
+   FIX (Option A from mandate): Absolute centering.
+   The logo Link is position:absolute at left:50% + translate(-50%,-50%).
+   `left:50%` is physical, so the logo sits at the viewport center in BOTH
+   LTR and RTL — it never "jumps" when toggling language.
+   The left group (back arrow + search + lang) flows naturally from the
+   flex-start edge (LEFT in LTR, RIGHT in RTL). The end side reserves 72px
+   (60px cart zone + 12px padding) for the fixed cart button.
+   ═══════════════════════════════════════════════════════════════════════ */
 @media (max-width: 640px) {
   .catalog-header-inner {
-    gap: 8px;
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: flex-start;
+    gap: 4px;
     padding: 8px 12px;
+    /* Reserve 72px on the inline-end side for the fixed cart button.
+       padding-inline-end is logical: RIGHT in LTR, LEFT in RTL. */
+    padding-inline-end: 72px;
   }
+
+  /* All flex children (back arrow, search, lang, admin) stay in normal flow */
   .catalog-header-inner > * {
     flex-shrink: 0;
   }
-}
 
-/* VG41.4: Move cart button left on mobile to avoid language selector overlap.
-   The inline style right:'1rem' was removed from GlobalCart.tsx — position
-   is now controlled by the Tailwind class right-4 (desktop) and this CSS
-   rule (mobile). No !important needed since there's no inline style conflict. */
-@media (max-width: 640px) {
-  .cart-header-button {
-    right: 60px;
-  }
-}
-
-/* VG41.5: Mobile header 3-block grid with ghost zone for fixed cart.
-   The GlobalCart is position:fixed in the root layout (NOT a child of <header>).
-   position:absolute inside header was rejected because absolute references
-   the nearest positioned ancestor in the DOM tree — the cart ignores the header.
-
-   Solution (Suggestion A): Keep cart as position:fixed. Give the header a
-   3-column grid: [search+lang LEFT] [logo CENTER] [60px ghost zone RIGHT].
-   The 60px ghost zone is empty space where the fixed cart overlays without
-   covering any interactive element. */
-@media (max-width: 640px) {
-  .catalog-header-inner {
-    display: grid;
-    grid-template-columns: auto 1fr 60px;
-    align-items: center;
-    gap: 8px;
-    padding: 8px 12px;
-  }
-
-  /* Logo (the <Link> with flex-1) goes in the center column */
+  /* Logo Link — absolutely centered at the geometric midpoint of the header.
+     left:50% is physical → the logo stays at the true viewport center in both
+     LTR and RTL. flex:none removes the desktop flex-1 grow behavior on mobile. */
   .catalog-header-inner > a[href="/"] {
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    transform: translate(-50%, -50%);
+    flex: none;
+    max-width: 150px;
+    min-width: 0;
     justify-content: center;
     text-align: center;
-    min-width: 0;
   }
 
-  /* Search + Language stay in the left column (natural DOM order) */
-  /* The 60px right column is intentionally empty — it's the ghost zone
-     where the fixed cart button overlays without blocking any element */
+  /* Logo image cap on mobile (image case — when settings.logo is set) */
+  .lp-logo-mobile {
+    max-height: 32px !important;
+    height: 32px !important;
+    max-width: 130px;
+    object-fit: contain;
+  }
+
+  /* Detail view (mobile): hide the search icon to give the centered logo room
+     alongside the back arrow + language selector. Search remains available on
+     the catalog view; a product detail page doesn't need live search. */
+  .catalog-header--detail .header-search-wrapper {
+    display: none;
+  }
+}
+
+/* VG43 — Cart offset (LTR/RTL symmetric via [dir] attribute selector).
+   The <html> element gets dir="rtl" (ATTRIBUTE) when locale switches to
+   Arabic, but it does NOT get class="rtl". So the old `html.rtl .cart-header`
+   rule at L.374 is dead code (never matches). The cart's RTL mirroring is
+   actually done by Tailwind 4's `right-4` utility, which compiles to the
+   logical `inset-inline-end: 1rem` property (→ left:1rem = 16px in RTL).
+   To get a symmetric 60px offset matching the 72px header padding-inline-end
+   reserve (60px cart zone + 12px gap), we override with physical properties:
+     - LTR: right:60px !important → cart 60px from right edge
+     - RTL ([dir="rtl"]): left:60px !important → cart 60px from left edge
+   [dir="rtl"] (attribute, 0,1,0) + .cart-header-button (0,1,0) = (0,2,0),
+   which with !important beats Tailwind's .right-4 (0,1,0, no !important). */
+@media (max-width: 640px) {
+  .cart-header-button {
+    right: 60px !important;
+    left: auto !important;
+  }
+  html[dir="rtl"] .cart-header-button,
+  [dir="rtl"] .cart-header-button.cart-header-button {
+    right: auto !important;
+    left: 60px !important;
+  }
 }

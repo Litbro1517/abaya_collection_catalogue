@@ -67,3 +67,30 @@ Stage Summary:
 - PROJECT_MAP.md aligné avec l'état réel (PR #6 + #7 fusionnées)
 - Vérification E2E de production confirmée : message WhatsApp inclut bien Couleur/Taille/Quantité/Image
 - Ticket VG21 / P18 clôturé définitivement
+
+---
+Task ID: VG43-audit
+Agent: Main Orchestrator
+Task: VG43 — Audit header mobile layout centering bug (pre-fix diagnostic)
+
+Work Log:
+- Read PROJECT_MAP.md (252KB) — confirmed VG40.3-VG41.5 header evolution history
+- Located header JSX: src/components/preview/CatalogPreview.tsx L.830-1010 (renderHeader function)
+- Located header CSS: src/app/globals.css L.423-576 (base) + L.4288-4347 (VG41.2/VG41.4/VG41.5 mobile overrides)
+- Located GlobalCart: src/components/GlobalCart.tsx — position:fixed top-4 right-4, CSS .cart-header-button { right: 60px } on mobile
+- Captured live mobile LTR state with agent-browser (iPhone 14): logo "Mon Catalogue" on LEFT, search center-left, cart+globe+FR on RIGHT — logo NOT centered
+- Captured live mobile RTL state (switched locale to AR): cart+globe clustered RIGHT, logo+search center, lang "A" button FAR LEFT — logo NOT centered
+- Analyzed uploaded production screenshot (pasted_image_1787695139848.png) with VLM: confirms logo "baya collection" on far right, misaligned
+
+Root cause identified:
+- VG41.5 CSS (L.4328-4347) uses `grid-template-columns: auto 1fr 60px` with default auto-placement
+- DOM order in <header>: [Logo Link] [Search] [Lang] (logo is FIRST DOM child)
+- Auto-placement: Logo → col1 (auto, left in LTR / right in RTL), Search → col2 (1fr center), Lang → col3 (60px right)
+- CSS rule `.catalog-header-inner > a[href="/"]` only sets `justify-content:center` — centers logo CONTENT within its grid cell, but the cell itself is in col1 (side), NOT col2 (center)
+- Result: logo lands on the side, not the center, in BOTH LTR and RTL
+
+Stage Summary:
+- Branch fix/header-mobile-layout-centering created from main@d6c5068
+- Audit complete: root cause = grid auto-placement puts logo in col1 instead of center
+- Fix approach chosen: Option A (absolute centering) from mandate — logo position:absolute left:50% translate(-50%,-50%), robust in LTR+RTL regardless of DOM order
+- Detail view overlap risk identified: back arrow + search + lang on left may collide with centered logo → will hide search on mobile detail view
