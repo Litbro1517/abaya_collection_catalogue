@@ -192,7 +192,7 @@ function HomeContent() {
     if (viewParam && ['builder', 'preview', 'dashboard'].includes(viewParam)) {
       setView(viewParam);
     }
-    if (pillarParam && ['data', 'layout', 'settings', 'orders'].includes(pillarParam)) {
+    if (pillarParam && ['data', 'layout', 'settings', 'orders', 'landing-pages'].includes(pillarParam)) {
       setPillar(pillarParam);
     }
     if (settingsTabParam && ['general', 'appearance', 'conversion', 'display', 'admin'].includes(settingsTabParam)) {

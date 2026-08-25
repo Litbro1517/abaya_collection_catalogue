@@ -94,6 +94,18 @@ export function AdminDashboard({ admin }: AdminDashboardProps) {
   useEffect(() => {
     setIsAdmin(true);
     setAdminUser(admin);
+    // VG42.1: Save admin state to localStorage so HomeClient can restore it
+    // when navigateTo redirects from /admin to /?view=builder&pillar=data.
+    // Without this, HomeClient can't restore admin session and falls through
+    // to the public catalog instead of rendering BuilderShell.
+    try {
+      localStorage.setItem('abaya_admin_state', JSON.stringify({
+        isAdmin: true,
+        adminUser: { id: admin.id, email: admin.email, name: admin.name, role: admin.role },
+        googleSession: useAppStore.getState().googleSession || null,
+        timestamp: Date.now(),
+      }));
+    } catch { /* localStorage unavailable */ }
   }, [admin, setIsAdmin, setAdminUser]);
 
   useEffect(() => {
