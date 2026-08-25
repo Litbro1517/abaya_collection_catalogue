@@ -18,11 +18,20 @@ export function AdminLoginPage({ error: initialError }: AdminLoginPageProps) {
     setError(null);
     setLoading(true);
     try {
-      const res = await fetch('/api/auth/login', {
+      // VG44 fix: route is /api/auth (file: src/app/api/auth/route.ts POST handler).
+      // Previous code fetched '/api/auth/login' which DOES NOT EXIST → 404 HTML
+      // response → res.json() threw SyntaxError → catch → "Erreur réseau".
+      const res = await fetch('/api/auth', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, password }),
       });
+      // Guard: if the response isn't JSON (e.g. 404 HTML), avoid throwing in res.json()
+      const contentType = res.headers.get('content-type') || '';
+      if (!contentType.includes('application/json')) {
+        setError('Erreur réseau (réponse non JSON)');
+        return;
+      }
       const data = await res.json();
       if (!res.ok || data.error) {
         setError(data.error || 'Erreur de connexion');
