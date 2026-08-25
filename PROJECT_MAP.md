@@ -2794,3 +2794,135 @@ Eradication du double formulaire en mode CODE_IA + detection dynamique des CTA v
 
 ---
 Date de mise a jour : 27/07/2026
+
+---
+
+## [VG43 — MOBILE HEADER ABSOLUTE LOGO CENTERING (LTR/RTL SAFE)]
+
+### Mandat
+Audit, diagnostic et correction du chevauchement du header mobile : le logo "Abaya Collection" n'était pas centré et se retrouvait comprimé sur le côté, avec le sélecteur de langue et l'icône de recherche entremêlés. Branche isolée `fix/header-mobile-layout-centering` (créée depuis `main@d6c5068`).
+
+### Diagnostic technique préalable
+
+#### Cause racine identifiée (régression VG41.5)
+- Le CSS VG41.5 utilisait `grid-template-columns: auto 1fr 60px` avec placement automatique par défaut.
+- Le `<Link>` Logo est le **PREMIER enfant DOM** dans `<header>`, donc l'auto-placement le mettait dans la **colonne 1** (auto = GAUCHE en LTR, DROITE en RTL) au lieu de la colonne centrale.
+- La règle `.catalog-header-inner > a[href="/"] { justify-content: center }` ne centrait que le **contenu** du logo dans sa cellule latérale — la cellule elle-même restait sur le côté, le logo n'était donc jamais visuellement centré.
+- Vérifié en capture : LTR = logo à gauche (~30% du viewport), RTL = logo à droite, jamais centré.
+
+### Solution appliquée (Option A du mandat — centrage absolu)
+
+#### Axe 1 — Centrage absolu du logo (CSS)
+- `.catalog-header-inner` (mobile max-width:640px) : `position: relative; display: flex; padding-inline-end: 72px`
+- `.catalog-header-inner > a[href="/"]` : `position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); max-width: 150px`
+- `left: 50%` est **physique** → le logo reste au **centre géométrique du viewport** en LTR ET RTL (ne saute jamais au basculement de langue)
+- `padding-inline-end: 72px` (logique) réserve 72px du côté "end" (DROITE en LTR, GAUCHE en RTL) pour le bouton panier flottant `position:fixed`
+
+#### Axe 2 — Distribution latérale symétrique
+- Groupe gauche (flèche retour + recherche + langue) : flux naturel depuis `flex-start` (GAUCHE en LTR, DROITE en RTL)
+- Logo : centrage absolu
+- Panier : `position: fixed`, offset 60px depuis le bord, **symétrique** dans les deux directions via sélecteur `html[dir="rtl"]` avec `!important`
+
+#### Axe 3 — Compatibilité multilingue LTR/RTL
+- Le logo ne saute pas : `left: 50%` est physique, le centre reste à 50% du viewport dans les deux directions
+- Le panier se mire : `right: 60px` en LTR → `left: 60px` en RTL (sélecteur `html[dir="rtl"]`)
+- Règle `html.rtl` existante (L.374) identifiée comme **code mort** : `<html>` reçoit `dir="rtl"` (attribut) mais jamais `class="rtl"` → la règle ne match jamais. Le mirroir RTL du panier était en fait assuré par la propriété logique `inset-inline-end` de Tailwind 4 (`right-4` → `inset-inline-end: 1rem` → `left: 1rem` en RTL = 16px). Notre règle `html[dir="rtl"] .cart-header-button { left: 60px !important }` (spécificité 0,2,1 + !important) surcharge proprement cet offset à 60px.
+
+#### Axe 4 — Vue détail mobile
+- Classe `catalog-header--detail` ajoutée au `<header>` quand `isDetailView` est vrai
+- Classe `header-search-wrapper` ajoutée au `<div>` de recherche
+- Règle CSS : `.catalog-header--detail .header-search-wrapper { display: none }` sur mobile — masque l'icône recherche en vue détail pour libérer l'espace autour du logo centré (la recherche reste disponible en vue catalogue)
+
+### Fichiers modifiés (2 + docs)
+| # | Fichier | Modification |
+|---|---------|-------------|
+| 1 | `src/app/globals.css` | Remplacement blocs VG41.2/VG41.4/VG41.5 (L.4288-4347) par bloc VG43 consolidé : centrage absolu logo + padding-inline-end:72px + offset panier symétrique 60px LTR/RTL + masquage recherche vue détail |
+| 2 | `src/components/preview/CatalogPreview.tsx` | L.831 : `className={cn('catalog-header sticky top-0 z-30 bg-white', isDetailView && 'catalog-header--detail')}` ; L.882 : ajout classe `header-search-wrapper` au div recherche |
+| 3 | `PROJECT_MAP.md` | Documentation VG43 (cette section) |
+| 4 | `worklog.md` | Rapport d'audit préalable + stage summary |
+
+### Validations (agent-browser, iPhone 14, viewport 390px)
+
+| Contrôle | LTR (fr) | RTL (ar) |
+|----------|----------|----------|
+| Logo centre X | 195px (= 50% de 390) ✅ | 195px (= 50% de 390, identique) ✅ |
+| Logo position | absolute, left:50% ✅ | absolute, left:50% ✅ |
+| Panier offset | right:60px (cartL:306, cartR:330) ✅ | left:60px (cartL:60, cartR:84, miroir) ✅ |
+| Recherche + Langue | côté GAUCHE (flux flex-start) ✅ | côté DROITE (flux flex-start RTL) ✅ |
+| Chevauchement | aucun ✅ | aucun ✅ |
+| Desktop (1280px) | flex normal, logo flex-1, non affecté ✅ | — |
+
+- `bun run lint` : 0 erreur, 0 warning OK
+- Vérification VLM : RTL confirmé logo centré à 50%, panier à gauche (miroir), pas de chevauchement
+
+### Branche
+`fix/header-mobile-layout-centering` (créée depuis `main@d6c5068`, commit `24a11c6`). **POUSSÉE SUR ORIGIN. EN ATTENTE DU FEU VERT EXPLICITE POUR FUSION.**
+
+---
+Date de mise à jour : 26/08/2026
+
+---
+
+## [VG43 — MOBILE HEADER ABSOLUTE LOGO CENTERING (LTR/RTL SAFE)]
+
+### Mandat
+Audit, diagnostic et correction du chevauchement du header mobile : le logo "Abaya Collection" n'était pas centré et se retrouvait comprimé sur le côté, avec le sélecteur de langue et l'icône de recherche entremêlés. Branche isolée `fix/header-mobile-layout-centering` (créée depuis `main@d6c5068`).
+
+### Diagnostic technique préalable
+
+#### Cause racine identifiée (régression VG41.5)
+- Le CSS VG41.5 utilisait `grid-template-columns: auto 1fr 60px` avec placement automatique par défaut.
+- Le `<Link>` Logo est le **PREMIER enfant DOM** dans `<header>`, donc l'auto-placement le mettait dans la **colonne 1** (auto = GAUCHE en LTR, DROITE en RTL) au lieu de la colonne centrale.
+- La règle `.catalog-header-inner > a[href="/"] { justify-content: center }` ne centrait que le **contenu** du logo dans sa cellule latérale — la cellule elle-même restait sur le côté, le logo n'était donc jamais visuellement centré.
+- Vérifié en capture : LTR = logo à gauche (~30% du viewport), RTL = logo à droite, jamais centré.
+
+### Solution appliquée (Option A du mandat — centrage absolu)
+
+#### Axe 1 — Centrage absolu du logo (CSS)
+- `.catalog-header-inner` (mobile max-width:640px) : `position: relative; display: flex; padding-inline-end: 72px`
+- `.catalog-header-inner > a[href="/"]` : `position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); max-width: 150px`
+- `left: 50%` est **physique** → le logo reste au **centre géométrique du viewport** en LTR ET RTL (ne saute jamais au bascule de langue)
+- `padding-inline-end: 72px` (logique) réserve 72px du côté "end" (DROITE en LTR, GAUCHE en RTL) pour le bouton panier flottant `position:fixed`
+
+#### Axe 2 — Distribution latérale symétrique
+- Groupe gauche (flèche retour + recherche + langue) : flux naturel depuis `flex-start` (GAUCHE en LTR, DROITE en RTL)
+- Logo : centrage absolu
+- Panier : `position: fixed`, offset 60px depuis le bord, **symétrique** dans les deux directions via sélecteur `html[dir="rtl"]` avec `!important`
+
+#### Axe 3 — Compatibilité multilingue LTR/RTL
+- Le logo ne saute pas : `left: 50%` est physique, le centre reste à 50% du viewport dans les deux directions
+- Le panier se mire : `right: 60px` en LTR → `left: 60px` en RTL (sélecteur `html[dir="rtl"]`)
+- Règle `html.rtl` existante (L.374) identifiée comme **code mort** : `<html>` reçoit `dir="rtl"` (attribut) mais jamais `class="rtl"` → la règle ne match jamais. Le mirroir RTL du panier était en fait assuré par la propriété logique `inset-inline-end` de Tailwind 4 (`right-4` → `inset-inline-end: 1rem` → `left: 1rem` en RTL = 16px). Notre règle `html[dir="rtl"] .cart-header-button { left: 60px !important }` (spécificité 0,2,1 + !important) surcharge proprement cet offset à 60px.
+
+#### Axe 4 — Vue détail mobile
+- Classe `catalog-header--detail` ajoutée au `<header>` quand `isDetailView` est vrai
+- Classe `header-search-wrapper` ajoutée au `<div>` de recherche
+- Règle CSS : `.catalog-header--detail .header-search-wrapper { display: none }` sur mobile — masque l'icône recherche en vue détail pour libérer l'espace autour du logo centré (la recherche reste disponible en vue catalogue)
+
+### Fichiers modifiés (2 + docs)
+| # | Fichier | Modification |
+|---|---------|-------------|
+| 1 | `src/app/globals.css` | Remplacement blocs VG41.2/VG41.4/VG41.5 (L.4288-4347) par bloc VG43 consolidé : centrage absolu logo + padding-inline-end:72px + offset panier symétrique 60px LTR/RTL + masquage recherche vue détail |
+| 2 | `src/components/preview/CatalogPreview.tsx` | L.831 : `className={cn('catalog-header sticky top-0 z-30 bg-white', isDetailView && 'catalog-header--detail')}` ; L.882 : ajout classe `header-search-wrapper` au div recherche |
+| 3 | `PROJECT_MAP.md` | Documentation VG43 (cette section) |
+| 4 | `worklog.md` | Rapport d'audit préalable + stage summary |
+
+### Validations (agent-browser, iPhone 14, viewport 390px)
+
+| Contrôle | LTR (fr) | RTL (ar) |
+|----------|----------|----------|
+| Logo centre X | 195px (= 50% de 390) ✅ | 195px (= 50% de 390, identique) ✅ |
+| Logo position | absolute, left:50% ✅ | absolute, left:50% ✅ |
+| Panier offset | right:60px (cartL:306, cartR:330) ✅ | left:60px (cartL:60, cartR:84, miroir) ✅ |
+| Recherche + Langue | côté GAUCHE (flux flex-start) ✅ | côté DROITE (flux flex-start RTL) ✅ |
+| Chevauchement | aucun ✅ | aucun ✅ |
+| Desktop (1280px) | flex normal, logo flex-1, non affecté ✅ | — |
+
+- `bun run lint` : 0 erreur, 0 warning OK
+- Vérification VLM : RTL confirmé logo centré à 50%, panier à gauche (miroir), pas de chevauchement
+
+### Branche
+`fix/header-mobile-layout-centering` (créée depuis `main@d6c5068`, commit `24a11c6`). **POUSSÉE SUR ORIGIN. EN ATTENTE DU FEU VERT EXPLICITE POUR FUSION.**
+
+---
+Date de mise à jour : 26/08/2026

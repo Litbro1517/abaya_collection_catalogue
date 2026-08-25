@@ -828,7 +828,10 @@ export function CatalogPreview({ onAdminLogin }: CatalogPreviewProps) {
   // ── PERSISTENT HEADER (sticky top bar — always visible) ──
   // ═══════════════════════════════════════════════════════════════════════
   const renderHeader = () => (
-    <header className="catalog-header sticky top-0 z-30 bg-white" style={{ borderBottom: '1px solid rgba(0,0,0,0.06)' }}>
+    <header
+      className={cn('catalog-header sticky top-0 z-30 bg-white', isDetailView && 'catalog-header--detail')}
+      style={{ borderBottom: '1px solid rgba(0,0,0,0.06)' }}
+    >
       <div className="catalog-header-inner">
         {/* Back arrow — only visible on detail view */}
         {isDetailView && (
@@ -879,7 +882,7 @@ export function CatalogPreview({ onAdminLogin }: CatalogPreviewProps) {
 
         {/* ── Compact Search icon (ref: image_bf7a44.png) ── */}
         {s?.enableSearch && (
-          <div ref={searchOverlayRef} className="relative shrink-0">
+          <div ref={searchOverlayRef} className="header-search-wrapper relative shrink-0">
             <button
               type="button"
               onClick={() => setSearchOpen(o => !o)}
