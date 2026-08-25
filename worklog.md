@@ -69,28 +69,68 @@ Stage Summary:
 - Ticket VG21 / P18 clôturé définitivement
 
 ---
-Task ID: VG43-audit
+Task ID: VG43-fix
 Agent: Main Orchestrator
-Task: VG43 — Audit header mobile layout centering bug (pre-fix diagnostic)
+Task: VG43 — Implement + verify + push mobile header absolute logo centering fix
 
 Work Log:
-- Read PROJECT_MAP.md (252KB) — confirmed VG40.3-VG41.5 header evolution history
-- Located header JSX: src/components/preview/CatalogPreview.tsx L.830-1010 (renderHeader function)
-- Located header CSS: src/app/globals.css L.423-576 (base) + L.4288-4347 (VG41.2/VG41.4/VG41.5 mobile overrides)
-- Located GlobalCart: src/components/GlobalCart.tsx — position:fixed top-4 right-4, CSS .cart-header-button { right: 60px } on mobile
-- Captured live mobile LTR state with agent-browser (iPhone 14): logo "Mon Catalogue" on LEFT, search center-left, cart+globe+FR on RIGHT — logo NOT centered
-- Captured live mobile RTL state (switched locale to AR): cart+globe clustered RIGHT, logo+search center, lang "A" button FAR LEFT — logo NOT centered
-- Analyzed uploaded production screenshot (pasted_image_1787695139848.png) with VLM: confirms logo "baya collection" on far right, misaligned
-
-Root cause identified:
-- VG41.5 CSS (L.4328-4347) uses `grid-template-columns: auto 1fr 60px` with default auto-placement
-- DOM order in <header>: [Logo Link] [Search] [Lang] (logo is FIRST DOM child)
-- Auto-placement: Logo → col1 (auto, left in LTR / right in RTL), Search → col2 (1fr center), Lang → col3 (60px right)
-- CSS rule `.catalog-header-inner > a[href="/"]` only sets `justify-content:center` — centers logo CONTENT within its grid cell, but the cell itself is in col1 (side), NOT col2 (center)
-- Result: logo lands on the side, not the center, in BOTH LTR and RTL
+- Created branch fix/header-mobile-layout-centering from main@d6c5068
+- JSX edit 1 (CatalogPreview L.831): wrapped header className in cn() with isDetailView && 'catalog-header--detail'
+- JSX edit 2 (CatalogPreview L.882): added header-search-wrapper class to search div
+- CSS edit (globals.css L.4288-4347): replaced VG41.2/VG41.4/VG41.5 grid blocks with VG43 absolute-centering block
+  - .catalog-header-inner mobile: position:relative; flex; padding-inline-end:72px
+  - Logo Link mobile: position:absolute; left:50%; translate(-50%,-50%); max-width:150px
+  - .lp-logo-mobile: cap 130px width / 32px height
+  - .catalog-header--detail .header-search-wrapper: display:none on mobile
+  - Cart: right:60px !important (LTR) + html[dir="rtl"] .cart-header-button { left:60px !important } (RTL mirror)
+- Diagnosed cart offset conflict: existing html.rtl rule (L.374) is dead code (<html> has dir="rtl" attribute but no class="rtl"); Tailwind 4 right-4 uses logical inset-inline-end which auto-mirrors to 16px in RTL; required html[dir="rtl"] selector with !important (specificity 0,2,1) to override to 60px
+- Verified LTR (agent-browser iPhone 14, 390px): logoCx=195 (50%), cart at 306-330px (right:60px), no overlap
+- Verified RTL (locale=ar, dir=rtl): logoCx=195 (50%, same as LTR — no jump), cart at 60-84px (left:60px mirrored), no overlap
+- Verified desktop (1280px): flex layout, logo flex-1, position:static — completely unaffected
+- Lint: 0 errors, 0 warnings
+- Accidental commit to main (branch was switched back by environment mid-session) — immediately fixed: reset main back to d6c5068, moved commit to fix branch, verified main is clean
+- Pushed fix/header-mobile-layout-centering to origin (commit 24a11c6)
+- Updated PROJECT_MAP.md with VG43 section (audit, root cause, 4 axes, validation table, branch status)
 
 Stage Summary:
-- Branch fix/header-mobile-layout-centering created from main@d6c5068
-- Audit complete: root cause = grid auto-placement puts logo in col1 instead of center
-- Fix approach chosen: Option A (absolute centering) from mandate — logo position:absolute left:50% translate(-50%,-50%), robust in LTR+RTL regardless of DOM order
-- Detail view overlap risk identified: back arrow + search + lang on left may collide with centered logo → will hide search on mobile detail view
+- Branch: fix/header-mobile-layout-centering pushed to origin (commit 24a11c6)
+- PR URL: https://github.com/Litbro1517/abaya_collection_catalogue/pull/new/fix/header-mobile-layout-centering
+- Root cause: CSS grid auto-placement put logo (first DOM child) in column 1 (side) instead of center
+- Fix: Option A absolute centering (position:absolute; left:50%) — robust in LTR+RTL regardless of DOM order
+- All 3 mandate requirements verified: (1) logo perfectly centered mathematically (logoCx=195=50% in both LTR/RTL), (2) symmetrical lateral distribution (search+lang one side, cart other), (3) LTR/RTL compatible (logo doesn't jump)
+- Cart offset symmetric at 60px in both directions
+- Desktop unaffected
+- **AWAITING EXPLICIT GREEN LIGHT BEFORE MERGE TO MAIN**
+
+---
+Task ID: VG43-fix
+Agent: Main Orchestrator
+Task: VG43 — Implement + verify + push mobile header absolute logo centering fix
+
+Work Log:
+- Created branch fix/header-mobile-layout-centering from main@d6c5068
+- JSX edit 1 (CatalogPreview L.831): wrapped header className in cn() with isDetailView && 'catalog-header--detail'
+- JSX edit 2 (CatalogPreview L.882): added header-search-wrapper class to search div
+- CSS edit (globals.css L.4288-4347): replaced VG41.2/VG41.4/VG41.5 grid blocks with VG43 absolute-centering block
+  - .catalog-header-inner mobile: position:relative; flex; padding-inline-end:72px
+  - Logo Link mobile: position:absolute; left:50%; translate(-50%,-50%); max-width:150px
+  - .lp-logo-mobile: cap 130px width / 32px height
+  - .catalog-header--detail .header-search-wrapper: display:none on mobile
+  - Cart: right:60px !important (LTR) + html[dir="rtl"] .cart-header-button { left:60px !important } (RTL mirror)
+- Diagnosed cart offset conflict: existing html.rtl rule (L.374) is dead code (<html> has dir="rtl" attribute but no class="rtl"); Tailwind 4 right-4 uses logical inset-inline-end which auto-mirrors to 16px in RTL; required html[dir="rtl"] selector with !important (specificity 0,2,1) to override to 60px
+- Verified LTR (agent-browser iPhone 14, 390px): logoCx=195 (50%), cart at 306-330px (right:60px), no overlap
+- Verified RTL (locale=ar, dir=rtl): logoCx=195 (50%, same as LTR — no jump), cart at 60-84px (left:60px mirrored), no overlap
+- Verified desktop (1280px): flex layout, logo flex-1, position:static — completely unaffected
+- Lint: 0 errors, 0 warnings
+- Pushed fix/header-mobile-layout-centering to origin (commit 24a11c6)
+- Updated PROJECT_MAP.md with VG43 section (audit, root cause, 4 axes, validation table, branch status)
+
+Stage Summary:
+- Branch: fix/header-mobile-layout-centering pushed to origin (commit 24a11c6)
+- PR URL: https://github.com/Litbro1517/abaya_collection_catalogue/pull/new/fix/header-mobile-layout-centering
+- Root cause: CSS grid auto-placement put logo (first DOM child) in column 1 (side) instead of center
+- Fix: Option A absolute centering (position:absolute; left:50%) — robust in LTR+RTL regardless of DOM order
+- All 3 mandate requirements verified: (1) logo perfectly centered mathematically (logoCx=195=50% in both LTR/RTL), (2) symmetrical lateral distribution (search+lang one side, cart other), (3) LTR/RTL compatible (logo doesn't jump)
+- Cart offset symmetric at 60px in both directions
+- Desktop unaffected
+- **AWAITING EXPLICIT GREEN LIGHT BEFORE MERGE TO MAIN**
