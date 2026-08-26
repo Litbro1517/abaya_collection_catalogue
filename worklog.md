@@ -256,3 +256,33 @@ Stage Summary:
 - Root cause 2: translation copy error (tailoring → order)
 - Both fixes verified on mobile LTR + RTL
 - **AWAITING EXPLICIT GREEN LIGHT BEFORE MERGE TO MAIN**
+
+---
+Task ID: VG46-DEPLOY
+Agent: Auditor / Reviewer Dédié
+Task: VG46 — Audit, validation et fusion conditionnelle (feu vert)
+
+Work Log:
+- Audit complet du diff fix/mobile-lang-dropdown-and-arabic-text vs main (4 fichiers, +157/-3)
+- Point 1 CSS: @media (max-width:640px) .header-lang-menu { left:0 LTR, right:0 RTL via html[dir=rtl] } ✅
+- Point 2 traductions: AR=ملخص الطلب, FR=Récapitulatif de la commande, EN=Order Summary (0 reste de الخياطة/Couture/Tailoring) ✅
+- Point 3 intégrité: aucun fichier COD (CodForm, CartDrawer, cart-store, whatsapp, orders/route) ni auth (AdminLoginPage) touché ✅
+- Point 4 qualité: lint 0 erreur/0 warning, build exit 0 ✅
+- Point 5 live LTR (iPhone 14, 390px): menuX 52→180, labels ["FR","EN","AR"], visible:true ✅
+- Point 5 live RTL: menuX 210→338, labels ["FR","EN","AR"], visible:true ✅
+- Décision: 🟢 VALIDATION 100% → fusion autorisée
+
+FUSION:
+- git checkout main + git pull --ff-only (Already up to date, main@85bd158) ✅
+- git merge --no-ff fix/mobile-lang-dropdown-and-arabic-text -m "fix(VG46): mobile lang dropdown + Arabic translation deployment" → merge commit 26ca629 (pas de conflit) ✅
+- git push origin main (85bd158..26ca629) ✅
+- git branch -d fix/mobile-lang-dropdown-and-arabic-text (locale supprimée) ✅
+- git push origin --delete fix/mobile-lang-dropdown-and-arabic-text (distante supprimée) ✅
+- Vérifié code fusionné sur main: traductions correctes, CSS VG46 présent, lint 0 erreur ✅
+- Vercel auto-deploy déclenché par push GitHub main
+
+Stage Summary:
+- VG46 MERGED & DEPLOYED sur main (merge commit 26ca629)
+- Branche fix/mobile-lang-dropdown-and-arabic-text supprimée (locale + distante)
+- Vercel production build déclenché
+- Intervention VG46 clôturée

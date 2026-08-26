@@ -3041,7 +3041,7 @@ Correction de deux anomalies : (1) tronquage du menu déroulant des langues sur 
 - Aucun reste de "ملخص الخياطة", "Couture", "Tailoring" dans le source ✅
 
 ### Branche
-`fix/mobile-lang-dropdown-and-arabic-text` (créée depuis `main@85bd158`, commit `346f4f5`). **POUSSÉE SUR ORIGIN. EN ATTENTE DU FEU VERT EXPLICITE POUR FUSION.**
+`fix/mobile-lang-dropdown-and-arabic-text` (créée depuis `main@85bd158`, commits `346f4f5`+`b822282`). **FUSIONNÉE & DÉPLOYÉE sur main via merge --no-ff (commit `26ca629`) — VG46 déployé en production.**
 
 ---
 Date de mise à jour : 26/08/2026
