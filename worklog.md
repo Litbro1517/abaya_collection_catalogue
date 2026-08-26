@@ -171,3 +171,37 @@ Stage Summary:
 - Fix: EXCLUSIVE mode — DB favicon emitted alone when set, no competing static entries
 - /logo.png excluded from icon array (kept as apple-touch-icon only)
 - **AWAITING EXPLICIT GREEN LIGHT BEFORE MERGE TO MAIN**
+
+---
+Task ID: VG45-DEPLOY
+Agent: Main Orchestrator
+Task: VG45 — Feu vert reçu, fusion et déploiement en production
+
+Work Log:
+- Feu vert explicite reçu de la Direction du Projet pour fusionner fix/dynamic-favicon-priority → main
+- Exécuté la séquence bash complète du mandat:
+  1. git checkout main ✅
+  2. git pull origin main → discovered origin/main was ahead (VG44 merged at 0247233); synced local main to origin/main ✅
+  3. git merge --no-ff fix/dynamic-favicon-priority -m "fix(VG45): dynamic favicon priority deployment"
+     → 3 conflits (layout.tsx, PROJECT_MAP.md, worklog.md) résolus:
+       - layout.tsx: gardé VG45 EXCLUSIVE mode (supersede VG44 array)
+       - PROJECT_MAP.md: gardé sections VG44 + VG45 (additif)
+       - worklog.md: gardé entrées VG44 + VG45 (additif)
+     → Merge commit b7a74c7 créé ✅
+  4. git push origin main (0247233..b7a74c7) ✅
+  5. git branch -d fix/dynamic-favicon-priority (locale supprimée) ✅
+  6. git push origin --delete fix/dynamic-favicon-priority (distante supprimée) ✅
+- Vérifié code fusionné sur main:
+  - layout.tsx L.93: `const icons = dbFavicon ? {...EXCLUSIVE...} : {...fallback sans logo.png...}` ✅
+  - layout.tsx L.120: `icons,` dans le return ✅
+  - /logo.png uniquement en apple-touch-icon (L.113), PAS dans icon array ✅
+- Vérifié serveur dev (main fusionné):
+  - HTML head: /favicon.ico + /logo.svg (NO /logo.png in icon) ✅
+  - Lint: 0 errors ✅
+- Vercel auto-deploy: déclenché par le push GitHub main (0247233..b7a74c7), pipeline production Vercel en cours
+
+Stage Summary:
+- VG45 MERGED & DEPLOYED sur main (merge commit b7a74c7)
+- Branche fix/dynamic-favicon-priority supprimée (locale + distante)
+- Vercel production build déclenché via GitHub main push
+- Intervention VG45 clôturée
