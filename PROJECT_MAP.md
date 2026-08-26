@@ -2794,3 +2794,109 @@ Eradication du double formulaire en mode CODE_IA + detection dynamique des CTA v
 
 ---
 Date de mise a jour : 27/07/2026
+
+---
+
+## [VG44 — RESTAURATION LOGO/FAVICON ET AUTHENTIFICATION ADMIN]
+
+### Mandat
+Audit, diagnostic et correction de deux régressions production : (1) rupture des ressources graphiques (logo/favicon), (2) échec d'accès admin "Erreur réseau". Branche isolée `fix/assets-and-admin-auth-repair` (créée depuis `main@ef73034`).
+
+### Diagnostic technique préalable
+
+#### Cause racine 1 — Admin auth "Erreur réseau"
+- `AdminLoginPage.tsx` L.21 appelait `fetch('/api/auth/login', { method: 'POST' })`
+- **La route `/api/auth/login` N'EXISTE PAS** : `src/app/api/auth/` contient `route.ts` (→ `/api/auth`), `admins/`, `register/`, `change-password/` — mais pas de `login/`
+- Next.js retournait une page 404 HTML (`content-type: text/html`)
+- `await res.json()` sur du HTML → `SyntaxError` → déclenchait le bloc `catch` → `setError('Erreur réseau')`
+- Vérifié : `curl /api/auth/login` → 404 HTML ; `curl /api/auth` → 401 JSON
+
+#### Cause racine 2 — Logo brisé
+- `CatalogPreview.tsx` L.862 : `<img src={s.logo}>` sans handler `onError`
+- DB locale : `logo=null` (fallback badge rendu OK) ; DB production : URL externe brisée
+- URL brisée → navigateur affiche icône d'image brisée + texte alt brut "Mon Catalogue"
+- Aucun `/public/logo.png` à la racine (seulement `logo-brand.png`, `logo.svg`)
+
+#### Cause racine 3 — Favicon manquant
+- `layout.tsx generateMetadata()` : `icons: { icon: faviconUrl }` (URL unique depuis DB)
+- Si `settings.favicon` brisé/expiré → navigateur affiche l'icône globe grise par défaut
+- Aucun `/public/favicon.ico` n'existait
+
+### Solution appliquée (3 axes code + 2 assets)
+
+#### Axe 1 — Correction route auth (AdminLoginPage.tsx)
+- URL corrigée : `fetch('/api/auth/login')` → `fetch('/api/auth')`
+- Garde content-type : si la réponse n'est pas JSON, affiche "Erreur réseau (réponse non JSON)" au lieu de laisser `res.json()` jeter une exception
+```tsx
+const res = await fetch('/api/auth', { method: 'POST', ... });
+const contentType = res.headers.get('content-type') || '';
+if (!contentType.includes('application/json')) {
+  setError('Erreur réseau (réponse non JSON)');
+  return;
+}
+const data = await res.json();
+```
+
+#### Axe 2 — Fallback logo onError (CatalogPreview.tsx)
+- Handler `onError` sur le `<img>` du logo : 1er échec → swap `src` vers `/logo.png` ; 2e échec → `display:none`
+```tsx
+onError={(e) => {
+  const img = e.currentTarget as HTMLImageElement;
+  if (img.getAttribute('src') !== '/logo.png') {
+    img.src = '/logo.png';
+  } else {
+    img.style.display = 'none';
+  }
+}}
+```
+
+#### Axe 3 — Chaîne favicon robuste (layout.tsx)
+- `metadata.icons` maintenant un array avec 4 niveaux de fallback :
+```ts
+icons: {
+  icon: [
+    ...(dbFavicon ? [{ url: dbFavicon }] : []),
+    { url: '/favicon.ico', sizes: 'any' },
+    { url: '/logo.svg', type: 'image/svg+xml' },
+    { url: '/logo.png', type: 'image/png', sizes: '256x256' },
+  ],
+  shortcut: '/favicon.ico',
+  apple: '/logo.png',
+},
+```
+
+#### Assets créés (2)
+| # | Fichier | Description |
+|---|---------|-------------|
+| 1 | `public/logo.png` | 256×256 PNG généré via sharp depuis logo-brand.png |
+| 2 | `public/favicon.ico` | ICO multi-résolution 16/32/48px généré via sharp |
+
+### Fichiers modifiés (3)
+| # | Fichier | Modification |
+|---|---------|-------------|
+| 1 | `src/components/admin/AdminLoginPage.tsx` | URL fetch `/api/auth/login` → `/api/auth` + garde content-type |
+| 2 | `src/components/preview/CatalogPreview.tsx` | Ajout `onError` handler sur `<img>` logo (fallback `/logo.png`) |
+| 3 | `src/app/layout.tsx` | `metadata.icons` array 4-niveaux + `shortcut` + `apple` |
+
+### Validations
+
+| Contrôle | Avant | Après |
+|----------|-------|-------|
+| POST /api/auth/login | 404 HTML | N/A (route supprimée du fetch) |
+| POST /api/auth | N/A (non utilisé) | 401 JSON `{"error":"Email ou mot de passe incorrect"}` ✅ |
+| Admin login erreur | "Erreur réseau" | "Email ou mot de passe incorrect" ✅ |
+| Logo URL brisée | icône brisée + alt text | onError → `/logo.png` (naturalWidth=256) ✅ |
+| /favicon.ico | n'existait pas | 200 image/x-icon (5778 bytes) ✅ |
+| /logo.png | n'existait pas | 200 image/png (83079 bytes) ✅ |
+| /logo.svg | existait | 200 image/svg+xml ✅ |
+| HTML head | 1 link favicon | 5 link tags (shortcut + 3 icon + apple) ✅ |
+
+- `bun run lint` : 0 erreur, 0 warning OK
+- Test logo onError : URL brisée `https://broken.example.com/nonexistent.png` → swap vers `/logo.png` → `naturalWidth=256` (chargé) ✅
+- DB restaurée à `logo=null` après test
+
+### Branche
+`fix/assets-and-admin-auth-repair` (créée depuis `main@ef73034`, commit `bcd36e0`). **POUSSÉE SUR ORIGIN. EN ATTENTE DU FEU VERT EXPLICITE POUR FUSION.**
+
+---
+Date de mise à jour : 26/08/2026
