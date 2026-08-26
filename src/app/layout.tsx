@@ -78,29 +78,46 @@ export async function generateMetadata(): Promise<Metadata> {
     // DB not available — use default
   }
 
+  // ── VG45: Favicon priority — DB favicon takes ABSOLUTE precedence ──
+  // Prior behavior (VG44) declared an array with BOTH the DB favicon AND
+  // static fallbacks (/favicon.ico, /logo.svg, /logo.png). Chrome's favicon
+  // selection algorithm picks the LAST <link rel="icon"> tag that
+  // successfully loads, and prefers entries with explicit sizes. The 256x256
+  // /logo.png (a horizontal text logo) was being selected OVER the DB
+  // golden "A" badge favicon, showing a truncated text logo in the tab.
+  //
+  // Fix: EXCLUSIVE mode — when dbFavicon is set, emit ONLY that URL (no
+  // competing static entries). When dbFavicon is absent/null, emit the
+  // static fallback chain (favicon.ico + logo.svg, but NOT logo.png which
+  // is a rectangular text logo unsuitable as a tab icon).
+  const icons = dbFavicon
+    ? {
+        // Custom favicon configured in admin (Settings → Identité visuelle)
+        // — exposed exclusively so no static asset can override it.
+        icon: [{ url: dbFavicon }],
+        shortcut: dbFavicon,
+        apple: dbFavicon,
+      }
+    : {
+        // No DB favicon — use static fallbacks only.
+        // /favicon.ico (multi-res 16/32/48px) is the primary tab icon.
+        // /logo.svg is the vector fallback (crisp on retina).
+        // /logo.png (256x256 text logo) is intentionally EXCLUDED from the
+        // icon array — it's a rectangular text logo, unsuitable as a tab
+        // icon. It remains available as apple-touch-icon only.
+        icon: [
+          { url: '/favicon.ico', sizes: 'any' },
+          { url: '/logo.svg', type: 'image/svg+xml' },
+        ],
+        shortcut: '/favicon.ico',
+        apple: '/logo.png',
+      };
+
   return {
     metadataBase: new URL(metadataBaseUrl),
     title: `${catalogName} — Catalogue`,
     description: "Découvrez notre collection exclusive d'abayas, robes et ensembles. Commandez via WhatsApp, Messenger et plus.",
-    // VG44 fix: robust favicon chain. The DB-stored favicon (settings.favicon)
-    // may be a broken/expired external URL (e.g. Google Drive link that 404s).
-    // We declare an array so the browser falls back through:
-    //   1. DB favicon (if set) — custom admin-uploaded icon
-    //   2. /favicon.ico — multi-resolution ICO (16/32/48px, created via sharp)
-    //   3. /logo.svg — SVG vector (always available, crisp on retina)
-    //   4. /logo.png — 256px PNG (always available, broad compat)
-    // This prevents the "grey globe" default browser icon seen in production
-    // when the DB favicon URL fails (VG44 screenshot).
-    icons: {
-      icon: [
-        ...(dbFavicon ? [{ url: dbFavicon }] : []),
-        { url: '/favicon.ico', sizes: 'any' },
-        { url: '/logo.svg', type: 'image/svg+xml' },
-        { url: '/logo.png', type: 'image/png', sizes: '256x256' },
-      ],
-      shortcut: '/favicon.ico',
-      apple: '/logo.png',
-    },
+    icons,
   };
 }
 

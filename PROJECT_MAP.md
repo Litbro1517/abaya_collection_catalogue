@@ -2896,7 +2896,76 @@ icons: {
 - DB restaurée à `logo=null` après test
 
 ### Branche
-`fix/assets-and-admin-auth-repair` (créée depuis `main@ef73034`, commit `bcd36e0`). **POUSSÉE SUR ORIGIN. EN ATTENTE DU FEU VERT EXPLICITE POUR FUSION.**
+`fix/assets-and-admin-auth-repair` (créée depuis `main@ef73034`, commits `bcd36e0`+`710c7b0`). **FUSIONNÉE & DÉPLOYÉE — merge commit `0247233` sur main (VG44 déployé en production).**
+## [VG45 — PRIORISATION FAVICON DYNAMIQUE & CORRECTION ICÔNE SUR-MESURE]
+
+### Mandat
+Correction de la régression visuelle sur l'icône de l'onglet (favicon) : le navigateur affichait une portion tronquée du logo texte rectangulaire au lieu de l'icône dorée "A" configurée dans la DB. Branche isolée `fix/dynamic-favicon-priority` (créée depuis `main@aef267e`).
+
+### Diagnostic technique préalable
+
+#### Cause racine — Algorithme de sélection favicon de Chrome
+- Le fix VG44 (branche `fix/assets-and-admin-auth-repair`, non encore fusionnée) avait ajouté `/logo.png` (logo texte rectangulaire 256×256) au tableau `metadata.icons.icon` en complément du favicon DB pour la "compatibilité large"
+- **Comportement Chrome** : quand plusieurs balises `<link rel="icon">` existent, le navigateur sélectionne la **dernière** qui se charge avec succès, et **préfère les entrées avec attribut `sizes` explicite**
+- L'entrée `/logo.png` avait `sizes="256x256"` (haute résolution) → Chrome la sélectionnait **au détriment** du favicon DB (badge doré "A" Supabase)
+- Le favicon DB était présent mais perdait le concours de priorité contre le logo local haute résolution
+- Résultat : l'onglet affichait une portion tronquée du logo texte au lieu de l'icône configurée
+
+### Solution appliquée — Mode EXCLUSIF (layout.tsx)
+
+```typescript
+const icons = dbFavicon
+  ? {
+      // Favicon personnalisé configuré en admin — exposé EXCLUSIVEMENT
+      icon: [{ url: dbFavicon }],
+      shortcut: dbFavicon,
+      apple: dbFavicon,
+    }
+  : {
+      // Pas de favicon DB — fallbacks statiques uniquement
+      icon: [
+        { url: '/favicon.ico', sizes: 'any' },
+        { url: '/logo.svg', type: 'image/svg+xml' },
+      ],
+      shortcut: '/favicon.ico',
+      apple: '/logo.png',
+    };
+```
+
+#### Logique
+- **dbFavicon renseigné** : émet UNIQUEMENT l'URL DB pour `icon`, `shortcut`, `apple` — aucune entrée statique concurrente (`/favicon.ico`, `/logo.svg`, `/logo.png`) → Chrome n'a pas d'alternative → doit utiliser le favicon DB
+- **dbFavicon absent/null** : émet la chaîne de fallback statique (`/favicon.ico` + `/logo.svg`) — `/logo.png` EXCLU du tableau `icon` (logo texte rectangulaire inadapté comme icône d'onglet), conservé uniquement comme `apple-touch-icon`
+
+### Fichier modifié (1)
+| # | Fichier | Modification |
+|---|---------|-------------|
+| 1 | `src/app/layout.tsx` | Refonte `generateMetadata()` : variable `dbFavicon` (null|string) + mode EXCLUSIF (dbFavicon seul quand renseigné) vs fallback statique (sans /logo.png dans icon) |
+
+### Validations (serveur dev + inspection HTML head via curl)
+
+#### Scénario 1 — DB favicon renseigné (URL Supabase badge doré "A")
+HTML head émet UNIQUEMENT 3 liens, tous pointant vers l'URL DB :
+```
+<link rel="shortcut icon" href="https://ldvbfsnqqulynwxqwzau.supabase.co/.../favicon-gold-a.png"/>
+<link rel="icon" href="https://ldvbfsnqqulynwxqwzau.supabase.co/.../favicon-gold-a.png"/>
+<link rel="apple-touch-icon" href="https://ldvbfsnqqulynwxqwzau.supabase.co/.../favicon-gold-a.png"/>
+```
+Aucun `/logo.png`, `/favicon.ico`, `/logo.svg` concurrent ✅
+
+#### Scénario 2 — DB favicon null
+HTML head émet les fallbacks statiques (PAS de /logo.png dans le tableau icon) :
+```
+<link rel="shortcut icon" href="/favicon.ico"/>
+<link rel="icon" href="/favicon.ico" sizes="any"/>
+<link rel="icon" href="/logo.svg" type="image/svg+xml"/>
+<link rel="apple-touch-icon" href="/logo.png"/>
+```
+`/logo.png` uniquement comme `apple-touch-icon` ✅
+
+- `bun run lint` : 0 erreur, 0 warning OK
+
+### Branche
+`fix/dynamic-favicon-priority` (créée depuis `main@aef267e`, commits `004fa95`+`c4b386d`). **FUSIONNÉE & DÉPLOYÉE sur main via merge --no-ff (VG45 déployé en production).**
 
 ---
 Date de mise à jour : 26/08/2026
