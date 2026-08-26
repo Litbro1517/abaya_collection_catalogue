@@ -2797,132 +2797,106 @@ Date de mise a jour : 27/07/2026
 
 ---
 
-## [VG43 — MOBILE HEADER ABSOLUTE LOGO CENTERING (LTR/RTL SAFE)]
+## [VG44 — RESTAURATION LOGO/FAVICON ET AUTHENTIFICATION ADMIN]
 
 ### Mandat
-Audit, diagnostic et correction du chevauchement du header mobile : le logo "Abaya Collection" n'était pas centré et se retrouvait comprimé sur le côté, avec le sélecteur de langue et l'icône de recherche entremêlés. Branche isolée `fix/header-mobile-layout-centering` (créée depuis `main@d6c5068`).
+Audit, diagnostic et correction de deux régressions production : (1) rupture des ressources graphiques (logo/favicon), (2) échec d'accès admin "Erreur réseau". Branche isolée `fix/assets-and-admin-auth-repair` (créée depuis `main@ef73034`).
 
 ### Diagnostic technique préalable
 
-#### Cause racine identifiée (régression VG41.5)
-- Le CSS VG41.5 utilisait `grid-template-columns: auto 1fr 60px` avec placement automatique par défaut.
-- Le `<Link>` Logo est le **PREMIER enfant DOM** dans `<header>`, donc l'auto-placement le mettait dans la **colonne 1** (auto = GAUCHE en LTR, DROITE en RTL) au lieu de la colonne centrale.
-- La règle `.catalog-header-inner > a[href="/"] { justify-content: center }` ne centrait que le **contenu** du logo dans sa cellule latérale — la cellule elle-même restait sur le côté, le logo n'était donc jamais visuellement centré.
-- Vérifié en capture : LTR = logo à gauche (~30% du viewport), RTL = logo à droite, jamais centré.
+#### Cause racine 1 — Admin auth "Erreur réseau"
+- `AdminLoginPage.tsx` L.21 appelait `fetch('/api/auth/login', { method: 'POST' })`
+- **La route `/api/auth/login` N'EXISTE PAS** : `src/app/api/auth/` contient `route.ts` (→ `/api/auth`), `admins/`, `register/`, `change-password/` — mais pas de `login/`
+- Next.js retournait une page 404 HTML (`content-type: text/html`)
+- `await res.json()` sur du HTML → `SyntaxError` → déclenchait le bloc `catch` → `setError('Erreur réseau')`
+- Vérifié : `curl /api/auth/login` → 404 HTML ; `curl /api/auth` → 401 JSON
 
-### Solution appliquée (Option A du mandat — centrage absolu)
+#### Cause racine 2 — Logo brisé
+- `CatalogPreview.tsx` L.862 : `<img src={s.logo}>` sans handler `onError`
+- DB locale : `logo=null` (fallback badge rendu OK) ; DB production : URL externe brisée
+- URL brisée → navigateur affiche icône d'image brisée + texte alt brut "Mon Catalogue"
+- Aucun `/public/logo.png` à la racine (seulement `logo-brand.png`, `logo.svg`)
 
-#### Axe 1 — Centrage absolu du logo (CSS)
-- `.catalog-header-inner` (mobile max-width:640px) : `position: relative; display: flex; padding-inline-end: 72px`
-- `.catalog-header-inner > a[href="/"]` : `position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); max-width: 150px`
-- `left: 50%` est **physique** → le logo reste au **centre géométrique du viewport** en LTR ET RTL (ne saute jamais au basculement de langue)
-- `padding-inline-end: 72px` (logique) réserve 72px du côté "end" (DROITE en LTR, GAUCHE en RTL) pour le bouton panier flottant `position:fixed`
+#### Cause racine 3 — Favicon manquant
+- `layout.tsx generateMetadata()` : `icons: { icon: faviconUrl }` (URL unique depuis DB)
+- Si `settings.favicon` brisé/expiré → navigateur affiche l'icône globe grise par défaut
+- Aucun `/public/favicon.ico` n'existait
 
-#### Axe 2 — Distribution latérale symétrique
-- Groupe gauche (flèche retour + recherche + langue) : flux naturel depuis `flex-start` (GAUCHE en LTR, DROITE en RTL)
-- Logo : centrage absolu
-- Panier : `position: fixed`, offset 60px depuis le bord, **symétrique** dans les deux directions via sélecteur `html[dir="rtl"]` avec `!important`
+### Solution appliquée (3 axes code + 2 assets)
 
-#### Axe 3 — Compatibilité multilingue LTR/RTL
-- Le logo ne saute pas : `left: 50%` est physique, le centre reste à 50% du viewport dans les deux directions
-- Le panier se mire : `right: 60px` en LTR → `left: 60px` en RTL (sélecteur `html[dir="rtl"]`)
-- Règle `html.rtl` existante (L.374) identifiée comme **code mort** : `<html>` reçoit `dir="rtl"` (attribut) mais jamais `class="rtl"` → la règle ne match jamais. Le mirroir RTL du panier était en fait assuré par la propriété logique `inset-inline-end` de Tailwind 4 (`right-4` → `inset-inline-end: 1rem` → `left: 1rem` en RTL = 16px). Notre règle `html[dir="rtl"] .cart-header-button { left: 60px !important }` (spécificité 0,2,1 + !important) surcharge proprement cet offset à 60px.
+#### Axe 1 — Correction route auth (AdminLoginPage.tsx)
+- URL corrigée : `fetch('/api/auth/login')` → `fetch('/api/auth')`
+- Garde content-type : si la réponse n'est pas JSON, affiche "Erreur réseau (réponse non JSON)" au lieu de laisser `res.json()` jeter une exception
+```tsx
+const res = await fetch('/api/auth', { method: 'POST', ... });
+const contentType = res.headers.get('content-type') || '';
+if (!contentType.includes('application/json')) {
+  setError('Erreur réseau (réponse non JSON)');
+  return;
+}
+const data = await res.json();
+```
 
-#### Axe 4 — Vue détail mobile
-- Classe `catalog-header--detail` ajoutée au `<header>` quand `isDetailView` est vrai
-- Classe `header-search-wrapper` ajoutée au `<div>` de recherche
-- Règle CSS : `.catalog-header--detail .header-search-wrapper { display: none }` sur mobile — masque l'icône recherche en vue détail pour libérer l'espace autour du logo centré (la recherche reste disponible en vue catalogue)
+#### Axe 2 — Fallback logo onError (CatalogPreview.tsx)
+- Handler `onError` sur le `<img>` du logo : 1er échec → swap `src` vers `/logo.png` ; 2e échec → `display:none`
+```tsx
+onError={(e) => {
+  const img = e.currentTarget as HTMLImageElement;
+  if (img.getAttribute('src') !== '/logo.png') {
+    img.src = '/logo.png';
+  } else {
+    img.style.display = 'none';
+  }
+}}
+```
 
-### Fichiers modifiés (2 + docs)
+#### Axe 3 — Chaîne favicon robuste (layout.tsx)
+- `metadata.icons` maintenant un array avec 4 niveaux de fallback :
+```ts
+icons: {
+  icon: [
+    ...(dbFavicon ? [{ url: dbFavicon }] : []),
+    { url: '/favicon.ico', sizes: 'any' },
+    { url: '/logo.svg', type: 'image/svg+xml' },
+    { url: '/logo.png', type: 'image/png', sizes: '256x256' },
+  ],
+  shortcut: '/favicon.ico',
+  apple: '/logo.png',
+},
+```
+
+#### Assets créés (2)
+| # | Fichier | Description |
+|---|---------|-------------|
+| 1 | `public/logo.png` | 256×256 PNG généré via sharp depuis logo-brand.png |
+| 2 | `public/favicon.ico` | ICO multi-résolution 16/32/48px généré via sharp |
+
+### Fichiers modifiés (3)
 | # | Fichier | Modification |
 |---|---------|-------------|
-| 1 | `src/app/globals.css` | Remplacement blocs VG41.2/VG41.4/VG41.5 (L.4288-4347) par bloc VG43 consolidé : centrage absolu logo + padding-inline-end:72px + offset panier symétrique 60px LTR/RTL + masquage recherche vue détail |
-| 2 | `src/components/preview/CatalogPreview.tsx` | L.831 : `className={cn('catalog-header sticky top-0 z-30 bg-white', isDetailView && 'catalog-header--detail')}` ; L.882 : ajout classe `header-search-wrapper` au div recherche |
-| 3 | `PROJECT_MAP.md` | Documentation VG43 (cette section) |
-| 4 | `worklog.md` | Rapport d'audit préalable + stage summary |
+| 1 | `src/components/admin/AdminLoginPage.tsx` | URL fetch `/api/auth/login` → `/api/auth` + garde content-type |
+| 2 | `src/components/preview/CatalogPreview.tsx` | Ajout `onError` handler sur `<img>` logo (fallback `/logo.png`) |
+| 3 | `src/app/layout.tsx` | `metadata.icons` array 4-niveaux + `shortcut` + `apple` |
 
-### Validations (agent-browser, iPhone 14, viewport 390px)
+### Validations
 
-| Contrôle | LTR (fr) | RTL (ar) |
-|----------|----------|----------|
-| Logo centre X | 195px (= 50% de 390) ✅ | 195px (= 50% de 390, identique) ✅ |
-| Logo position | absolute, left:50% ✅ | absolute, left:50% ✅ |
-| Panier offset | right:60px (cartL:306, cartR:330) ✅ | left:60px (cartL:60, cartR:84, miroir) ✅ |
-| Recherche + Langue | côté GAUCHE (flux flex-start) ✅ | côté DROITE (flux flex-start RTL) ✅ |
-| Chevauchement | aucun ✅ | aucun ✅ |
-| Desktop (1280px) | flex normal, logo flex-1, non affecté ✅ | — |
-
-- `bun run lint` : 0 erreur, 0 warning OK
-- Vérification VLM : RTL confirmé logo centré à 50%, panier à gauche (miroir), pas de chevauchement
-
-### Branche
-`fix/header-mobile-layout-centering` (créée depuis `main@d6c5068`, commit `24a11c6`). **POUSSÉE SUR ORIGIN. EN ATTENTE DU FEU VERT EXPLICITE POUR FUSION.**
-
----
-Date de mise à jour : 26/08/2026
-
----
-
-## [VG43 — MOBILE HEADER ABSOLUTE LOGO CENTERING (LTR/RTL SAFE)]
-
-### Mandat
-Audit, diagnostic et correction du chevauchement du header mobile : le logo "Abaya Collection" n'était pas centré et se retrouvait comprimé sur le côté, avec le sélecteur de langue et l'icône de recherche entremêlés. Branche isolée `fix/header-mobile-layout-centering` (créée depuis `main@d6c5068`).
-
-### Diagnostic technique préalable
-
-#### Cause racine identifiée (régression VG41.5)
-- Le CSS VG41.5 utilisait `grid-template-columns: auto 1fr 60px` avec placement automatique par défaut.
-- Le `<Link>` Logo est le **PREMIER enfant DOM** dans `<header>`, donc l'auto-placement le mettait dans la **colonne 1** (auto = GAUCHE en LTR, DROITE en RTL) au lieu de la colonne centrale.
-- La règle `.catalog-header-inner > a[href="/"] { justify-content: center }` ne centrait que le **contenu** du logo dans sa cellule latérale — la cellule elle-même restait sur le côté, le logo n'était donc jamais visuellement centré.
-- Vérifié en capture : LTR = logo à gauche (~30% du viewport), RTL = logo à droite, jamais centré.
-
-### Solution appliquée (Option A du mandat — centrage absolu)
-
-#### Axe 1 — Centrage absolu du logo (CSS)
-- `.catalog-header-inner` (mobile max-width:640px) : `position: relative; display: flex; padding-inline-end: 72px`
-- `.catalog-header-inner > a[href="/"]` : `position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); max-width: 150px`
-- `left: 50%` est **physique** → le logo reste au **centre géométrique du viewport** en LTR ET RTL (ne saute jamais au bascule de langue)
-- `padding-inline-end: 72px` (logique) réserve 72px du côté "end" (DROITE en LTR, GAUCHE en RTL) pour le bouton panier flottant `position:fixed`
-
-#### Axe 2 — Distribution latérale symétrique
-- Groupe gauche (flèche retour + recherche + langue) : flux naturel depuis `flex-start` (GAUCHE en LTR, DROITE en RTL)
-- Logo : centrage absolu
-- Panier : `position: fixed`, offset 60px depuis le bord, **symétrique** dans les deux directions via sélecteur `html[dir="rtl"]` avec `!important`
-
-#### Axe 3 — Compatibilité multilingue LTR/RTL
-- Le logo ne saute pas : `left: 50%` est physique, le centre reste à 50% du viewport dans les deux directions
-- Le panier se mire : `right: 60px` en LTR → `left: 60px` en RTL (sélecteur `html[dir="rtl"]`)
-- Règle `html.rtl` existante (L.374) identifiée comme **code mort** : `<html>` reçoit `dir="rtl"` (attribut) mais jamais `class="rtl"` → la règle ne match jamais. Le mirroir RTL du panier était en fait assuré par la propriété logique `inset-inline-end` de Tailwind 4 (`right-4` → `inset-inline-end: 1rem` → `left: 1rem` en RTL = 16px). Notre règle `html[dir="rtl"] .cart-header-button { left: 60px !important }` (spécificité 0,2,1 + !important) surcharge proprement cet offset à 60px.
-
-#### Axe 4 — Vue détail mobile
-- Classe `catalog-header--detail` ajoutée au `<header>` quand `isDetailView` est vrai
-- Classe `header-search-wrapper` ajoutée au `<div>` de recherche
-- Règle CSS : `.catalog-header--detail .header-search-wrapper { display: none }` sur mobile — masque l'icône recherche en vue détail pour libérer l'espace autour du logo centré (la recherche reste disponible en vue catalogue)
-
-### Fichiers modifiés (2 + docs)
-| # | Fichier | Modification |
-|---|---------|-------------|
-| 1 | `src/app/globals.css` | Remplacement blocs VG41.2/VG41.4/VG41.5 (L.4288-4347) par bloc VG43 consolidé : centrage absolu logo + padding-inline-end:72px + offset panier symétrique 60px LTR/RTL + masquage recherche vue détail |
-| 2 | `src/components/preview/CatalogPreview.tsx` | L.831 : `className={cn('catalog-header sticky top-0 z-30 bg-white', isDetailView && 'catalog-header--detail')}` ; L.882 : ajout classe `header-search-wrapper` au div recherche |
-| 3 | `PROJECT_MAP.md` | Documentation VG43 (cette section) |
-| 4 | `worklog.md` | Rapport d'audit préalable + stage summary |
-
-### Validations (agent-browser, iPhone 14, viewport 390px)
-
-| Contrôle | LTR (fr) | RTL (ar) |
-|----------|----------|----------|
-| Logo centre X | 195px (= 50% de 390) ✅ | 195px (= 50% de 390, identique) ✅ |
-| Logo position | absolute, left:50% ✅ | absolute, left:50% ✅ |
-| Panier offset | right:60px (cartL:306, cartR:330) ✅ | left:60px (cartL:60, cartR:84, miroir) ✅ |
-| Recherche + Langue | côté GAUCHE (flux flex-start) ✅ | côté DROITE (flux flex-start RTL) ✅ |
-| Chevauchement | aucun ✅ | aucun ✅ |
-| Desktop (1280px) | flex normal, logo flex-1, non affecté ✅ | — |
+| Contrôle | Avant | Après |
+|----------|-------|-------|
+| POST /api/auth/login | 404 HTML | N/A (route supprimée du fetch) |
+| POST /api/auth | N/A (non utilisé) | 401 JSON `{"error":"Email ou mot de passe incorrect"}` ✅ |
+| Admin login erreur | "Erreur réseau" | "Email ou mot de passe incorrect" ✅ |
+| Logo URL brisée | icône brisée + alt text | onError → `/logo.png` (naturalWidth=256) ✅ |
+| /favicon.ico | n'existait pas | 200 image/x-icon (5778 bytes) ✅ |
+| /logo.png | n'existait pas | 200 image/png (83079 bytes) ✅ |
+| /logo.svg | existait | 200 image/svg+xml ✅ |
+| HTML head | 1 link favicon | 5 link tags (shortcut + 3 icon + apple) ✅ |
 
 - `bun run lint` : 0 erreur, 0 warning OK
-- Vérification VLM : RTL confirmé logo centré à 50%, panier à gauche (miroir), pas de chevauchement
+- Test logo onError : URL brisée `https://broken.example.com/nonexistent.png` → swap vers `/logo.png` → `naturalWidth=256` (chargé) ✅
+- DB restaurée à `logo=null` après test
 
 ### Branche
-`fix/header-mobile-layout-centering` (créée depuis `main@d6c5068`, commit `24a11c6`). **POUSSÉE SUR ORIGIN. EN ATTENTE DU FEU VERT EXPLICITE POUR FUSION.**
+`fix/assets-and-admin-auth-repair` (créée depuis `main@ef73034`, commit `bcd36e0`). **POUSSÉE SUR ORIGIN. EN ATTENTE DU FEU VERT EXPLICITE POUR FUSION.**
 
 ---
 Date de mise à jour : 26/08/2026

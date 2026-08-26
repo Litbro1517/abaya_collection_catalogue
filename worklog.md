@@ -69,68 +69,55 @@ Stage Summary:
 - Ticket VG21 / P18 clôturé définitivement
 
 ---
-Task ID: VG43-fix
+Task ID: VG44
 Agent: Main Orchestrator
-Task: VG43 — Implement + verify + push mobile header absolute logo centering fix
+Task: VG44 — Restore logo/favicon assets + repair admin auth route
 
 Work Log:
-- Created branch fix/header-mobile-layout-centering from main@d6c5068
-- JSX edit 1 (CatalogPreview L.831): wrapped header className in cn() with isDetailView && 'catalog-header--detail'
-- JSX edit 2 (CatalogPreview L.882): added header-search-wrapper class to search div
-- CSS edit (globals.css L.4288-4347): replaced VG41.2/VG41.4/VG41.5 grid blocks with VG43 absolute-centering block
-  - .catalog-header-inner mobile: position:relative; flex; padding-inline-end:72px
-  - Logo Link mobile: position:absolute; left:50%; translate(-50%,-50%); max-width:150px
-  - .lp-logo-mobile: cap 130px width / 32px height
-  - .catalog-header--detail .header-search-wrapper: display:none on mobile
-  - Cart: right:60px !important (LTR) + html[dir="rtl"] .cart-header-button { left:60px !important } (RTL mirror)
-- Diagnosed cart offset conflict: existing html.rtl rule (L.374) is dead code (<html> has dir="rtl" attribute but no class="rtl"); Tailwind 4 right-4 uses logical inset-inline-end which auto-mirrors to 16px in RTL; required html[dir="rtl"] selector with !important (specificity 0,2,1) to override to 60px
-- Verified LTR (agent-browser iPhone 14, 390px): logoCx=195 (50%), cart at 306-330px (right:60px), no overlap
-- Verified RTL (locale=ar, dir=rtl): logoCx=195 (50%, same as LTR — no jump), cart at 60-84px (left:60px mirrored), no overlap
-- Verified desktop (1280px): flex layout, logo flex-1, position:static — completely unaffected
-- Lint: 0 errors, 0 warnings
-- Accidental commit to main (branch was switched back by environment mid-session) — immediately fixed: reset main back to d6c5068, moved commit to fix branch, verified main is clean
-- Pushed fix/header-mobile-layout-centering to origin (commit 24a11c6)
-- Updated PROJECT_MAP.md with VG43 section (audit, root cause, 4 axes, validation table, branch status)
+- Read PROJECT_MAP.md and analyzed 3 production screenshots (Vercel deploy) showing:
+  1. Admin login "Erreur réseau" alert on /admin
+  2. Broken logo image + alt text "Mon Catalogue" in header
+  3. Generic grey globe favicon in browser tab + 20 console errors
+- Created branch fix/assets-and-admin-auth-repair from main@ef73034
+
+AUDIT — Root cause 1: Admin auth "Erreur réseau"
+- AdminLoginPage.tsx L.21 fetched '/api/auth/login' (POST)
+- No such route exists: src/app/api/auth/ contains route.ts (→ /api/auth), admins/, register/, change-password/
+- /api/auth/login → Next.js 404 HTML page (content-type: text/html)
+- res.json() on HTML body → SyntaxError → catch block → setError('Erreur réseau')
+- Verified with curl: /api/auth/login returns 404 HTML; /api/auth returns 401 JSON
+
+AUDIT — Root cause 2: Broken logo image
+- CatalogPreview.tsx L.862: <img src={s.logo}> with NO onError handler
+- Local DB has logo=null (fallback badge renders), but production DB has a broken external URL
+- Broken URL → browser shows broken-image icon + raw alt text "Mon Catalogue"
+- No /public/logo.png existed at root (only logo-brand.png, logo.svg)
+
+AUDIT — Root cause 3: Missing favicon
+- layout.tsx generateMetadata(): icons: { icon: faviconUrl } (single URL)
+- faviconUrl came from DB settings.favicon — if broken, browser shows grey globe
+- No /public/favicon.ico existed
+
+FIX — 3 code changes + 2 new assets:
+1. AdminLoginPage.tsx: fetch URL '/api/auth/login' → '/api/auth' + content-type guard (if not JSON, show 'Erreur réseau (réponse non JSON)' instead of throwing)
+2. CatalogPreview.tsx: added onError handler on <img> — swaps src to /logo.png on first failure, hides img on second failure
+3. layout.tsx: metadata.icons now an array with 4-level fallback: DB favicon → /favicon.ico → /logo.svg → /logo.png + shortcut + apple-touch-icon
+4. Created /public/logo.png (256x256 PNG via sharp from logo-brand.png)
+5. Created /public/favicon.ico (16/32/48px multi-res ICO via sharp)
+
+VERIFICATION (agent-browser + curl):
+- POST /api/auth → HTTP 401 + JSON {"error":"Email ou mot de passe incorrect"} ✅
+- Admin login form: "Erreur réseau" → "Email ou mot de passe incorrect" ✅
+- Logo onError: broken URL https://broken.example.com/nonexistent.png → swaps to /logo.png → naturalWidth=256 ✅
+- /favicon.ico serves 200 (image/x-icon, 5778 bytes) ✅
+- /logo.png serves 200 (image/png, 83079 bytes) ✅
+- /logo.svg serves 200 (image/svg+xml) ✅
+- HTML head has 5 favicon link tags (shortcut + 3 icon + apple-touch) ✅
+- Lint: 0 errors, 0 warnings ✅
+- DB restored to logo=null after test
 
 Stage Summary:
-- Branch: fix/header-mobile-layout-centering pushed to origin (commit 24a11c6)
-- PR URL: https://github.com/Litbro1517/abaya_collection_catalogue/pull/new/fix/header-mobile-layout-centering
-- Root cause: CSS grid auto-placement put logo (first DOM child) in column 1 (side) instead of center
-- Fix: Option A absolute centering (position:absolute; left:50%) — robust in LTR+RTL regardless of DOM order
-- All 3 mandate requirements verified: (1) logo perfectly centered mathematically (logoCx=195=50% in both LTR/RTL), (2) symmetrical lateral distribution (search+lang one side, cart other), (3) LTR/RTL compatible (logo doesn't jump)
-- Cart offset symmetric at 60px in both directions
-- Desktop unaffected
-- **AWAITING EXPLICIT GREEN LIGHT BEFORE MERGE TO MAIN**
-
----
-Task ID: VG43-fix
-Agent: Main Orchestrator
-Task: VG43 — Implement + verify + push mobile header absolute logo centering fix
-
-Work Log:
-- Created branch fix/header-mobile-layout-centering from main@d6c5068
-- JSX edit 1 (CatalogPreview L.831): wrapped header className in cn() with isDetailView && 'catalog-header--detail'
-- JSX edit 2 (CatalogPreview L.882): added header-search-wrapper class to search div
-- CSS edit (globals.css L.4288-4347): replaced VG41.2/VG41.4/VG41.5 grid blocks with VG43 absolute-centering block
-  - .catalog-header-inner mobile: position:relative; flex; padding-inline-end:72px
-  - Logo Link mobile: position:absolute; left:50%; translate(-50%,-50%); max-width:150px
-  - .lp-logo-mobile: cap 130px width / 32px height
-  - .catalog-header--detail .header-search-wrapper: display:none on mobile
-  - Cart: right:60px !important (LTR) + html[dir="rtl"] .cart-header-button { left:60px !important } (RTL mirror)
-- Diagnosed cart offset conflict: existing html.rtl rule (L.374) is dead code (<html> has dir="rtl" attribute but no class="rtl"); Tailwind 4 right-4 uses logical inset-inline-end which auto-mirrors to 16px in RTL; required html[dir="rtl"] selector with !important (specificity 0,2,1) to override to 60px
-- Verified LTR (agent-browser iPhone 14, 390px): logoCx=195 (50%), cart at 306-330px (right:60px), no overlap
-- Verified RTL (locale=ar, dir=rtl): logoCx=195 (50%, same as LTR — no jump), cart at 60-84px (left:60px mirrored), no overlap
-- Verified desktop (1280px): flex layout, logo flex-1, position:static — completely unaffected
-- Lint: 0 errors, 0 warnings
-- Pushed fix/header-mobile-layout-centering to origin (commit 24a11c6)
-- Updated PROJECT_MAP.md with VG43 section (audit, root cause, 4 axes, validation table, branch status)
-
-Stage Summary:
-- Branch: fix/header-mobile-layout-centering pushed to origin (commit 24a11c6)
-- PR URL: https://github.com/Litbro1517/abaya_collection_catalogue/pull/new/fix/header-mobile-layout-centering
-- Root cause: CSS grid auto-placement put logo (first DOM child) in column 1 (side) instead of center
-- Fix: Option A absolute centering (position:absolute; left:50%) — robust in LTR+RTL regardless of DOM order
-- All 3 mandate requirements verified: (1) logo perfectly centered mathematically (logoCx=195=50% in both LTR/RTL), (2) symmetrical lateral distribution (search+lang one side, cart other), (3) LTR/RTL compatible (logo doesn't jump)
-- Cart offset symmetric at 60px in both directions
-- Desktop unaffected
+- Branch: fix/assets-and-admin-auth-repair pushed to origin (commit bcd36e0)
+- PR URL: https://github.com/Litbro1517/abaya_collection_catalogue/pull/new/fix/assets-and-admin-auth-repair
+- All 3 root causes fixed and verified
 - **AWAITING EXPLICIT GREEN LIGHT BEFORE MERGE TO MAIN**

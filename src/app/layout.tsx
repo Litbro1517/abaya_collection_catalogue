@@ -46,13 +46,13 @@ const tajawal = Tajawal({
 
 export async function generateMetadata(): Promise<Metadata> {
   // Try to read favicon and catalog name from DB for SSR metadata
-  let faviconUrl = "/logo.svg"; // default fallback
+  let dbFavicon: string | null = null;
   let catalogName = "Abaya Collection Chic";
 
   try {
     const settings = await db.catalogSettings.findFirst();
     if (settings?.favicon) {
-      faviconUrl = settings.favicon;
+      dbFavicon = settings.favicon;
     }
     if (settings) {
       // Get catalog name from the related catalog
@@ -82,8 +82,24 @@ export async function generateMetadata(): Promise<Metadata> {
     metadataBase: new URL(metadataBaseUrl),
     title: `${catalogName} — Catalogue`,
     description: "Découvrez notre collection exclusive d'abayas, robes et ensembles. Commandez via WhatsApp, Messenger et plus.",
+    // VG44 fix: robust favicon chain. The DB-stored favicon (settings.favicon)
+    // may be a broken/expired external URL (e.g. Google Drive link that 404s).
+    // We declare an array so the browser falls back through:
+    //   1. DB favicon (if set) — custom admin-uploaded icon
+    //   2. /favicon.ico — multi-resolution ICO (16/32/48px, created via sharp)
+    //   3. /logo.svg — SVG vector (always available, crisp on retina)
+    //   4. /logo.png — 256px PNG (always available, broad compat)
+    // This prevents the "grey globe" default browser icon seen in production
+    // when the DB favicon URL fails (VG44 screenshot).
     icons: {
-      icon: faviconUrl,
+      icon: [
+        ...(dbFavicon ? [{ url: dbFavicon }] : []),
+        { url: '/favicon.ico', sizes: 'any' },
+        { url: '/logo.svg', type: 'image/svg+xml' },
+        { url: '/logo.png', type: 'image/png', sizes: '256x256' },
+      ],
+      shortcut: '/favicon.ico',
+      apple: '/logo.png',
     },
   };
 }

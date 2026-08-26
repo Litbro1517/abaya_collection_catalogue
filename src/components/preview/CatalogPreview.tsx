@@ -867,6 +867,24 @@ export function CatalogPreview({ onAdminLogin }: CatalogPreviewProps) {
               alt={catalogName}
               className="w-auto object-contain shrink-0 lp-logo-mobile"
               style={{ height: `${s.logoHeight || 40}px`, maxHeight: `${s.logoHeight || 40}px` }}
+              // VG44 fix: onError fallback chain. If the DB-stored logo URL
+              // (e.g. a Google Drive URL that 404s, or an expired CDN link)
+              // fails to load, swap to the local /logo.png asset (always
+              // available in /public). If /logo.png also fails (extremely
+              // unlikely), hide the img so only the alt text remains rather
+              // than showing a broken-image icon. This prevents the broken
+              // "Mon Catalogue" vignette seen in production (VG44 screenshot).
+              onError={(e) => {
+                const img = e.currentTarget as HTMLImageElement;
+                const currentSrc = img.getAttribute('src');
+                if (currentSrc && currentSrc !== '/logo.png') {
+                  // First failure → swap to reliable local /logo.png
+                  img.src = '/logo.png';
+                } else {
+                  // /logo.png also failed → hide img, show alt text only
+                  img.style.display = 'none';
+                }
+              }}
             />
           ) : (
             <>
