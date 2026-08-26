@@ -462,6 +462,33 @@ html.rtl input[type="tel"] {
   animation: header-lang-fade 0.15s ease-out;
 }
 
+/* VG46 fix: Mobile language dropdown truncation.
+   On mobile (≤640px), the language button sits near the LEFT edge of the
+   viewport (after the search icon, ~52px from screen edge in LTR). With
+   `right: 0` anchoring + min-width: 128px, the menu extended LEFTWARD from
+   the button's right edge, pushing its left edge OFF-SCREEN (x ≈ -26px).
+   Result: only the last letters of FR/EN/AR were visible ("R", "N", "AR").
+
+   Fix: anchor the menu to `left: 0` on mobile so it extends RIGHTWARD into
+   the viewport (toward the screen center). In RTL, the lang button is near
+   the RIGHT edge — `left: 0` would push the menu off-screen to the right,
+   so we mirror with `right: 0`.
+
+   Note: the desktop RTL rule at L.594 ([dir="rtl"] .header-lang-menu { left: 0 })
+   also applies at mobile breakpoints. To override it on mobile, we use the
+   `html[dir="rtl"]` selector (specificity 0,2,1) which beats the desktop
+   rule (0,1,1), combined with source order (this rule comes after L.594). */
+@media (max-width: 640px) {
+  .header-lang-menu {
+    right: auto;
+    left: 0;
+  }
+  html[dir="rtl"] .header-lang-menu {
+    left: auto;
+    right: 0;
+  }
+}
+
 @keyframes header-lang-fade {
   from { opacity: 0; transform: translateY(-4px); }
   to   { opacity: 1; transform: translateY(0); }
