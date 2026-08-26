@@ -67,3 +67,56 @@ Stage Summary:
 - PROJECT_MAP.md aligné avec l'état réel (PR #6 + #7 fusionnées)
 - Vérification E2E de production confirmée : message WhatsApp inclut bien Couleur/Taille/Quantité/Image
 - Ticket VG21 / P18 clôturé définitivement
+
+---
+Task ID: VG45
+Agent: Main Orchestrator
+Task: VG45 — Dynamic favicon priority (DB favicon exclusive over static logo.png)
+
+Work Log:
+- Read PROJECT_MAP.md, created branch fix/dynamic-favicon-priority from main@aef267e
+- Analyzed production screenshot: browser tab showed truncated text logo instead of golden 'A' favicon badge
+- Audited src/app/layout.tsx: main branch had simple `icons: { icon: faviconUrl }` (single URL from DB)
+- The production regression was caused by the VG44 fix (on branch fix/assets-and-admin-auth-repair, not yet merged to main) which added /logo.png (256x256 text logo) to the metadata.icons.icon array alongside the DB favicon
+
+AUDIT — Root cause (Chrome favicon selection algorithm):
+- When multiple <link rel="icon"> tags exist, Chrome picks the LAST one that loads successfully
+- Chrome prefers entries with explicit `sizes` attributes
+- The /logo.png entry had sizes="256x256" (high resolution) → Chrome selected it OVER the DB golden 'A' badge favicon
+- The DB favicon URL (Supabase golden 'A' insigne) was present but lost the priority contest
+- Result: browser tab showed truncated portion of rectangular text logo instead of the configured icon
+
+FIX — EXCLUSIVE priority mode in layout.tsx generateMetadata():
+- When dbFavicon is set (admin configured custom favicon):
+  → icons.icon = [{ url: dbFavicon }] (ONLY the DB URL, no competing static entries)
+  → icons.shortcut = dbFavicon
+  → icons.apple = dbFavicon
+  → Chrome has no alternative → must use the DB favicon
+- When dbFavicon is null/absent:
+  → icons.icon = [{ url: '/favicon.ico', sizes: 'any' }, { url: '/logo.svg', type: 'image/svg+xml' }]
+  → /logo.png EXCLUDED from icon array (rectangular text logo unsuitable as tab icon)
+  → /logo.png remains only as apple-touch-icon
+
+VERIFICATION (dev server + curl HTML head inspection):
+- Scenario 1 (DB favicon set to Supabase golden 'A' URL):
+  HTML head emits ONLY 3 links, all pointing to dbFavicon URL:
+    <link rel="shortcut icon" href="https://ldvbfsnqqulynwxqwzau.supabase.co/.../favicon-gold-a.png"/>
+    <link rel="icon" href="https://ldvbfsnqqulynwxqwzau.supabase.co/.../favicon-gold-a.png"/>
+    <link rel="apple-touch-icon" href="https://ldvbfsnqqulynwxqwzau.supabase.co/.../favicon-gold-a.png"/>
+  NO /logo.png, NO /favicon.ico, NO /logo.svg competing ✅
+- Scenario 2 (DB favicon null):
+  HTML head emits static fallbacks (NO /logo.png in icon array):
+    <link rel="shortcut icon" href="/favicon.ico"/>
+    <link rel="icon" href="/favicon.ico" sizes="any"/>
+    <link rel="icon" href="/logo.svg" type="image/svg+xml"/>
+    <link rel="apple-touch-icon" href="/logo.png"/>
+  /logo.png only as apple-touch-icon ✅
+- Lint: 0 errors, 0 warnings ✅
+
+Stage Summary:
+- Branch: fix/dynamic-favicon-priority pushed to origin (commit 004fa95)
+- PR URL: https://github.com/Litbro1517/abaya_collection_catalogue/pull/new/fix/dynamic-favicon-priority
+- Root cause: Chrome prioritized /logo.png (256x256 text logo with explicit sizes) over DB favicon
+- Fix: EXCLUSIVE mode — DB favicon emitted alone when set, no competing static entries
+- /logo.png excluded from icon array (kept as apple-touch-icon only)
+- **AWAITING EXPLICIT GREEN LIGHT BEFORE MERGE TO MAIN**
