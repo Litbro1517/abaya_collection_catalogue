@@ -286,7 +286,7 @@ export const dictionaries: Record<Locale, TranslationDict> = {
     // ── Checkout / Finalisation Page ──
     'checkout.title': 'Finaliser la commande',
     'checkout.back': 'Retour au produit',
-    'checkout.recapTitle': 'Récapitulatif Couture',
+    'checkout.recapTitle': 'Récapitulatif de la commande',
     'checkout.formTitle': 'Vos coordonnées de livraison',
     'checkout.product': 'Produit',
     'checkout.color': 'Couleur choisie',
@@ -1049,7 +1049,7 @@ export const dictionaries: Record<Locale, TranslationDict> = {
     // ── Checkout / Finalisation Page ──
     'checkout.title': 'Finalize your order',
     'checkout.back': 'Back to product',
-    'checkout.recapTitle': 'Tailoring Summary',
+    'checkout.recapTitle': 'Order Summary',
     'checkout.formTitle': 'Your delivery details',
     'checkout.product': 'Product',
     'checkout.color': 'Selected color',
@@ -1812,7 +1812,7 @@ export const dictionaries: Record<Locale, TranslationDict> = {
     // ── Checkout / Finalisation Page ──
     'checkout.title': 'إتمام الطلب',
     'checkout.back': 'العودة إلى المنتج',
-    'checkout.recapTitle': 'ملخص الخياطة',
+    'checkout.recapTitle': 'ملخص الطلب',
     'checkout.formTitle': 'بيانات التوصيل الخاصة بك',
     'checkout.product': 'المنتج',
     'checkout.color': 'اللون المختار',

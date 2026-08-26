@@ -205,3 +205,54 @@ Stage Summary:
 - Branche fix/dynamic-favicon-priority supprimée (locale + distante)
 - Vercel production build déclenché via GitHub main push
 - Intervention VG45 clôturée
+
+---
+Task ID: VG46
+Agent: Main Orchestrator
+Task: VG46 — Mobile language dropdown truncation + Arabic translation error
+
+Work Log:
+- Read PROJECT_MAP.md, created branch fix/mobile-lang-dropdown-and-arabic-text from main@85bd158
+- Analyzed production screenshot: mobile language dropdown showed only last letters ("R", "N", "AR" instead of FR, EN, AR)
+- Audited language dropdown CSS (globals.css L.451): .header-lang-menu { position:absolute; right:0; min-width:128px }
+
+AUDIT — Root cause 1: Mobile lang dropdown truncation
+- Captured live state with agent-browser (iPhone 14, 390px viewport):
+  menuX = -25.77px (LEFT edge OFF-SCREEN), menuRightEdge = 102px
+- Root cause: the lang button sits ~52px from the LEFT viewport edge (after search icon, due to VG43 mobile header layout)
+- With right:0 anchoring + min-width:128px, the menu extended LEFTWARD from the button's right edge
+- 128px menu width from button right edge (~102px) → left edge at 102-128 = -26px (OFF-SCREEN)
+- Result: first letter clipped (only "R", "N", "AR" visible)
+- VLM confirmed: "The first letter of each label is cut off. The visible text shows 'R', 'N', and 'AR'."
+
+AUDIT — Root cause 2: Arabic translation error
+- Found 'checkout.recapTitle': 'ملخص الخياطة' (tailoring summary — WRONG) at dictionaries.ts L.1815
+- The site sells finished products, not tailoring services
+- Correct term: 'ملخص الطلب' (order summary)
+- Also found the SAME error in FR ('Récapitulatif Couture') and EN ('Tailoring Summary')
+
+FIX 1 — CSS (globals.css): Added mobile media query block (L.465-490)
+- @media (max-width: 640px): .header-lang-menu { right:auto; left:0 } → extends RIGHTWARD into viewport
+- html[dir="rtl"] .header-lang-menu { left:auto; right:0 } → mirror for RTL (lang button near RIGHT edge)
+- Used html[dir="rtl"] selector (specificity 0,2,1) to beat desktop [dir="rtl"] rule at L.594 (0,1,1)
+
+FIX 2 — Translations (dictionaries.ts L.289, L.1052, L.1815)
+- FR: 'Récapitulatif Couture' → 'Récapitulatif de la commande'
+- EN: 'Tailoring Summary' → 'Order Summary'
+- AR: 'ملخص الخياطة' → 'ملخص الطلب'
+
+VERIFICATION (agent-browser):
+- LTR mobile: menuX 52px → menuRightEdge 180px (fully visible, viewport 390px) ✅
+- RTL mobile: menuX 210px → menuRightEdge 338px (fully visible) ✅
+- VLM confirmed LTR: "labels are fully visible without any truncation — FR, EN, AR"
+- Translations verified via dictionaries import: all 3 locales show correct order summary text ✅
+- No 'ملخص الخياطة', 'Couture', or 'Tailoring' remains in source ✅
+- Lint: 0 errors, 0 warnings ✅
+
+Stage Summary:
+- Branch: fix/mobile-lang-dropdown-and-arabic-text pushed to origin (commit 346f4f5)
+- PR URL: https://github.com/Litbro1517/abaya_collection_catalogue/pull/new/fix/mobile-lang-dropdown-and-arabic-text
+- Root cause 1: right:0 anchoring pushed menu off-screen left (menuX -26px)
+- Root cause 2: translation copy error (tailoring → order)
+- Both fixes verified on mobile LTR + RTL
+- **AWAITING EXPLICIT GREEN LIGHT BEFORE MERGE TO MAIN**

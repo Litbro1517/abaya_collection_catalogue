@@ -2969,3 +2969,79 @@ HTML head émet les fallbacks statiques (PAS de /logo.png dans le tableau icon) 
 
 ---
 Date de mise à jour : 26/08/2026
+
+---
+
+## [VG46 — CORRECTION DU SÉLECTEUR DE LANGUES MOBILE & TRADUCTION DU RÉCAPITULATIF DE COMMANDE]
+
+### Mandat
+Correction de deux anomalies : (1) tronquage du menu déroulant des langues sur mobile (seules les dernières lettres "R", "N", "AR" étaient visibles), (2) erreur de traduction arabe "ملخص الخياطة" (récapitulatif de la couture) au lieu de "ملخص الطلب" (récapitulatif de la commande). Branche isolée `fix/mobile-lang-dropdown-and-arabic-text` (créée depuis `main@85bd158`).
+
+### Diagnostic technique préalable
+
+#### Cause racine 1 — Tronquage du menu des langues (mobile)
+- `.header-lang-menu` CSS (L.451) : `position:absolute; right:0; min-width:128px`
+- Sur mobile, le bouton langue se trouve à ~52px du bord GAUCHE du viewport (après l'icône recherche, dû au layout header VG43)
+- Avec l'ancrage `right:0`, le menu s'étendait vers la GAUCHE depuis le bord droit du bouton
+- Largeur menu 128px depuis bord droit bouton (~102px) → bord gauche à `102-128 = -26px` (HORS ÉCRAN)
+- Résultat : première lettre tronquée ("R", "N", "AR" au lieu de FR, EN, AR)
+- Vérifié en capture live (agent-browser iPhone 14, 390px) : `menuX = -25.77px` (hors écran)
+
+#### Cause racine 2 — Erreur de traduction arabe
+- `dictionaries.ts` L.1815 : `'checkout.recapTitle': 'ملخص الخياطة'` (récapitulatif de la couture — FAUX)
+- Le site vend des produits finis, pas un service de couture
+- Terme correct : `'ملخص الطلب'` (récapitulatif de la commande)
+- La MÊME erreur existait aussi en FR (`'Récapitulatif Couture'`) et EN (`'Tailoring Summary'`)
+
+### Solution appliquée (2 axes)
+
+#### Axe 1 — CSS positioning du menu (globals.css L.465-490)
+```css
+@media (max-width: 640px) {
+  .header-lang-menu {
+    right: auto;
+    left: 0;  /* étend vers la DROITE dans le viewport */
+  }
+  html[dir="rtl"] .header-lang-menu {
+    left: auto;
+    right: 0;  /* miroir RTL (bouton langue près du bord DROIT) */
+  }
+}
+```
+- Sélecteur `html[dir="rtl"]` (spécificité 0,2,1) surpasse la règle desktop `[dir="rtl"]` (0,1,1) à L.594
+
+#### Axe 2 — Traductions (dictionaries.ts)
+| Locale | Avant (FAUX) | Après (CORRECT) |
+|--------|--------------|-----------------|
+| FR (L.289) | `'Récapitulatif Couture'` | `'Récapitulatif de la commande'` |
+| EN (L.1052) | `'Tailoring Summary'` | `'Order Summary'` |
+| AR (L.1815) | `'ملخص الخياطة'` | `'ملخص الطلب'` |
+
+### Fichiers modifiés (2)
+| # | Fichier | Modification |
+|---|---------|-------------|
+| 1 | `src/app/globals.css` | +27 lignes : bloc media query mobile pour positionnement menu langue (left:0 LTR, right:0 RTL) |
+| 2 | `src/lib/i18n/dictionaries.ts` | 3 lignes : correction checkout.recapTitle en FR/EN/AR (couture → commande) |
+
+### Validations (agent-browser iPhone 14, viewport 390px)
+
+| Contrôle | Avant | Après |
+|----------|-------|-------|
+| LTR menu X | -25.77px (hors écran) | 52px (dans viewport) ✅ |
+| LTR menu right edge | 102px | 180px (≤390px) ✅ |
+| RTL menu X | N/A | 210px (dans viewport) ✅ |
+| RTL menu right edge | 415px (hors écran) | 338px (≤390px) ✅ |
+| Labels visibles | "R", "N", "AR" | "FR", "EN", "AR" ✅ |
+| VLM LTR confirmation | "first letter cut off" | "fully visible without truncation" ✅ |
+| AR checkout.recapTitle | ملخص الخياطة | ملخص الطلب ✅ |
+| FR checkout.recapTitle | Récapitulatif Couture | Récapitulatif de la commande ✅ |
+| EN checkout.recapTitle | Tailoring Summary | Order Summary ✅ |
+
+- `bun run lint` : 0 erreur, 0 warning OK
+- Aucun reste de "ملخص الخياطة", "Couture", "Tailoring" dans le source ✅
+
+### Branche
+`fix/mobile-lang-dropdown-and-arabic-text` (créée depuis `main@85bd158`, commit `346f4f5`). **POUSSÉE SUR ORIGIN. EN ATTENTE DU FEU VERT EXPLICITE POUR FUSION.**
+
+---
+Date de mise à jour : 26/08/2026
