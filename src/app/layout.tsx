@@ -9,10 +9,15 @@ import { ThemeInjector } from "@/components/ThemeInjector";
 import { GlobalCart } from "@/components/GlobalCart";
 import { db } from '@/lib/db';
 
-// VG37.3 D1: Google Tag Manager container ID
-// ⚠️ PLACEHOLDER — Replace GTM-XXXXXXX with the real GTM container ID before production.
-// Location: src/app/layout.tsx, this line + the <Script> and <noscript> tags below.
-const GTM_CONTAINER_ID = 'GTM-XXXXXXX';
+// ── Audit remediation: GTM container ID via env var (no more placeholder) ──
+// Previously: hard-coded 'GTM-XXXXXXX' placeholder → GTM container never loaded,
+// no GA4/Meta tracking fired even with dataLayer events in place.
+// Now: reads NEXT_PUBLIC_GTM_ID env var. If unset, GTM script is skipped entirely
+// (the dataLayer array still receives events — they'll be flushed once a real ID
+// is configured, or picked up by Zaraz which listens on window.dataLayer).
+// Empty string = "no GTM" (graceful no-op), distinct from the fake 'GTM-XXXXXXX'
+// which previously fired a 404 request to googletagmanager.com on every page load.
+const GTM_CONTAINER_ID = process.env.NEXT_PUBLIC_GTM_ID || '';
 
 const playfair = Playfair_Display({
   variable: "--font-playfair",
@@ -149,32 +154,40 @@ export default async function RootLayout({
   return (
     <html lang={ssrLocale} dir={ssrDir} suppressHydrationWarning>
       <head>
-        {/* VG37.3 D1: Google Tag Manager — container script (head, afterInteractive).
-            ⚠️ PLACEHOLDER GTM-XXXXXXX at layout.tsx L.15 — replace with real GTM ID. */}
-        <Script
-          id="gtm-init"
-          strategy="afterInteractive"
-          dangerouslySetInnerHTML={{
-            __html: `(function(w,d,s,l,i){w[l]=w[l]||[];w[l].push({'gtm.start':
+        {/* Audit remediation: Google Tag Manager — container script.
+            Only rendered when NEXT_PUBLIC_GTM_ID env var is set to a real ID.
+            When unset (empty string), the <Script> is skipped entirely — no 404
+            request to googletagmanager.com, no fake container injection. The
+            window.dataLayer array is still initialized by analytics.ts so events
+            queue up and will flush once a real GTM ID is configured. */}
+        {GTM_CONTAINER_ID && (
+          <Script
+            id="gtm-init"
+            strategy="afterInteractive"
+            dangerouslySetInnerHTML={{
+              __html: `(function(w,d,s,l,i){w[l]=w[l]||[];w[l].push({'gtm.start':
 new Date().getTime(),event:'gtm.js'});var f=d.getElementsByTagName(s)[0],
 j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
 'https://www.googletagmanager.com/gtm.js?id='+i+dl;f.parentNode.insertBefore(j,f);
 })(window,document,'script','dataLayer','${GTM_CONTAINER_ID}');`,
-          }}
-        />
+            }}
+          />
+        )}
       </head>
       <body
         className={`${playfair.variable} ${inter.variable} ${zain.variable} ${tajawal.variable} antialiased bg-background text-foreground`}
       >
-        {/* VG37.3 D1: Google Tag Manager — noscript fallback (immediately after <body>) */}
-        <noscript>
-          <iframe
-            src={`https://www.googletagmanager.com/ns.html?id=${GTM_CONTAINER_ID}`}
-            height="0"
-            width="0"
-            style={{ display: 'none', visibility: 'hidden' }}
-          />
-        </noscript>
+        {/* Audit remediation: GTM noscript fallback — only when GTM ID is set */}
+        {GTM_CONTAINER_ID && (
+          <noscript>
+            <iframe
+              src={`https://www.googletagmanager.com/ns.html?id=${GTM_CONTAINER_ID}`}
+              height="0"
+              width="0"
+              style={{ display: 'none', visibility: 'hidden' }}
+            />
+          </noscript>
+        )}
         <ThemeInjector />
         <TooltipProvider>
           {children}

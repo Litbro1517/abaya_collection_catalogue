@@ -211,7 +211,20 @@ function HomeContent({ initialCatalog, initialDatasources }: HomeClientProps) {
   const datasourcesFromStore = useAppStore(s => s.dataSources);
   const hasCachedData = !!(catalogFromStore || datasourcesFromStore.length > 0);
 
-  const [initializing, setInitializing] = useState(!hasCachedData);
+  // ━━ Audit remediation (Réserve 1): skip spinner when SSR props are present ━━
+  // Previously: `useState(!hasCachedData)` initialized `initializing=true` on the
+  // first render even when SSR props (initialCatalog/initialDatasources) were
+  // provided — because the Zustand hydration (L.172-186) runs during render but
+  // `hasCachedData` is read BEFORE that hydration completes in the same render
+  // pass. This caused the "Chargement..." spinner to flash in production (Vercel)
+  // on every first visit, defeating the Lot 2 SSR goal.
+  //
+  // Fix: initialize `initializing=false` when SSR props are present. The SSR
+  // data is already in the HTML (server-rendered catalog grid), so there is no
+  // need to show a loading state. The client-side `loadData()` effect still runs
+  // in the background to revalidate (FROZEN_MODE), but the UI renders immediately.
+  const hasSSRData = !!(initialCatalog || (initialDatasources && initialDatasources.length > 0));
+  const [initializing, setInitializing] = useState(!(hasCachedData || hasSSRData));
   const [showLogin, setShowLogin] = useState(false);
 
   // ── Read URL params and set Zustand state on mount ──

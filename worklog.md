@@ -441,3 +441,46 @@ Stage Summary:
 - 2 fichiers i18n: dictionaries.ts (whatsapp.items + whatsapp.total FR/EN/AR)
 - 3 faiblesses corrigées
 - **EN ATTENTE DU FEU VERT EXPLICITE POST-AUDIT POUR FUSION — main demeure intacte**
+
+---
+Task ID: AUDIT-REMEDIATION-ZAI
+Agent: Agent Développeur ZAI
+Task: Résolution des 3 réserves bloquantes de l'audit (score 78/100 → ciblage 100%)
+
+Work Log:
+- Read PROJECT_MAP.md (lots 1/2/3) + Audit_Technique_Abaya_Collection_1.docx
+- Créé branche isolée fix/audit-remediation-zai depuis main@687be3b
+- 3 réserves bloquantes identifiées: (1) spinner "Chargement..." Vercel, (2) GTM placeholder, (3) sous-total WhatsApp manquant
+
+RÉSERVE 1 — Écart Live Vercel / SSR (spinner "Chargement...")
+- Cause racine: HomeClient.tsx L.214 `useState(!hasCachedData)` initialisait `initializing=true` même quand les props SSR (initialCatalog/initialDatasources) étaient présentes. L'hydratation Zustand (L.172-186) se fait pendant le rendu, mais `hasCachedData` est lu AVANT dans le même cycle → le spinner flashait.
+- Fix 1 (HomeClient.tsx L.214-227): ajouté `hasSSRData` = !!(initialCatalog || initialDatasources?.length) ; `useState(!(hasCachedData || hasSSRData))` → initializing=false dès que SSR props présentes
+- Fix 2 (page.tsx getInitialCatalogData): ajouté `withTimeout()` (Promise.race, 3s) pour éviter que l'SSR soit bloqué par une DB Supabase froide/lente en production. Si timeout → retourne null props, client fetch via /api/catalog
+- Validé: 0 occurrence `animate-spin` dans le HTML initial ✅
+
+RÉSERVE 2 — ID GTM factice (GTM-XXXXXXX)
+- Cause: layout.tsx L.15 `const GTM_CONTAINER_ID = 'GTM-XXXXXXX'` hard-codé → GTM chargeait un conteneur inexistant (404 googletagmanager.com) + aucun tracking réel
+- Fix (layout.tsx L.12-20): remplacé par `process.env.NEXT_PUBLIC_GTM_ID || ''`
+- Rendu conditionnel: `{GTM_CONTAINER_ID && (<Script.../>)}` + `{GTM_CONTAINER_ID && (<noscript>...</noscript>)}` → si env var vide, GTM est skip entièrement (pas de 404, dataLayer garde les events en queue)
+- Validé: sans env var = 0 occurrence googletagmanager ; avec NEXT_PUBLIC_GTM_ID=GTM-TEST123 = 2 occurrences (script + iframe) ✅
+
+RÉSERVE 3 — Sous-total WhatsApp manquant (prix × quantité)
+- Cause: whatsapp.ts L.293 n'affichait que `Prix : <unitPrice>` sans calculer `unitPrice × quantity`
+- Fix (whatsapp.ts L.292-304): ajouté calcul `subtotal = parseItemPrice(item.price) × qty` + ligne `Sous-total : <unit> × <qty> = <subtotal>` (uniquement si qty > 1)
+- Nouveaux helpers: `parseItemPrice(price)` (parse "290 DH" → 290), `formatLineAmount(n)` (290 → "290", 290.5 → "290.5")
+- Nouveau label i18n: `whatsapp.subtotal` ajouté en FR ("Sous-total"), EN ("Subtotal"), AR ("المجموع الفرعي")
+- CheckoutPage.tsx L.206: passé `subtotalLabel: t('whatsapp.subtotal')` à buildMultiProductWhatsappLink
+- Validé: panier 3 produits (Abaya Noir qty=2 → "Sous-total : 290 × 2 = 580", Écharpe qty=3 → "75 × 3 = 225", qty=1 pas de ligne sous-total) ✅
+
+VALIDATION FINALE:
+- bun run lint: 0 erreur, 0 warning ✅
+- bun run build: exit 0 (toutes routes générées) ✅
+- Réserve 1: 0 spinner dans HTML SSR ✅
+- Réserve 2: GTM-XXXXXXX supprimé, GTM conditionnel par env var ✅
+- Réserve 3: sous-total WhatsApp calculé et affiché ✅
+
+Stage Summary:
+- Branche: fix/audit-remediation-zai (créée depuis main@687be3b)
+- 4 fichiers modifiés: src/app/layout.tsx (GTM), src/app/page.tsx (SSR timeout), src/components/HomeClient.tsx (SSR spinner skip), src/lib/whatsapp.ts (sous-total), src/components/preview/CheckoutPage.tsx (subtotalLabel), src/lib/i18n/dictionaries.ts (whatsapp.subtotal FR/EN/AR)
+- 3 réserves bloquantes levées
+- **AVOUEMENT: aucune fusion (merge) sur main — en attente du feu vert officiel après ré-audit**

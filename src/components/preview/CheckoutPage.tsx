@@ -203,6 +203,7 @@ export function CheckoutPage({ product, onBack }: CheckoutPageProps) {
           quantityLabel: t('product.quantity'),
           totalLabel: t('whatsapp.total'),
           itemsLabel: t('whatsapp.items'),
+          subtotalLabel: t('whatsapp.subtotal'),
         },
       })
     : '#';

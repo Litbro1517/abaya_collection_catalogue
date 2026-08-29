@@ -59,6 +59,7 @@ export const dictionaries: Record<Locale, TranslationDict> = {
     'whatsapp.greetingB': 'Bonjour, j\'aimerais obtenir des informations ou des clarifications sur vos produits.',
     'whatsapp.items': 'Articles',
     'whatsapp.total': 'Total',
+    'whatsapp.subtotal': 'Sous-total',
 
     // ── Filters ──
     'filter.all': 'Tous',
@@ -824,6 +825,7 @@ export const dictionaries: Record<Locale, TranslationDict> = {
     'whatsapp.greetingB': 'Hello, I would like to get some information or clarifications about your products.',
     'whatsapp.items': 'Items',
     'whatsapp.total': 'Total',
+    'whatsapp.subtotal': 'Subtotal',
 
     // ── Filters ──
     'filter.all': 'All',
@@ -1587,6 +1589,7 @@ export const dictionaries: Record<Locale, TranslationDict> = {
     // ── WhatsApp Smart Logic greetings (Flux A = شراء, Flux B = استفسار) ──
     'whatsapp.items': 'المنتجات',
     'whatsapp.total': 'المجموع',
+    'whatsapp.subtotal': 'المجموع الفرعي',
     'whatsapp.greetingA': 'مرحباً، لقد اخترت هذا المنتج وأرغب في إتمام عملية الشراء.',
     'whatsapp.greetingB': 'مرحباً، أود الحصول على معلومات أو استفسارات حول منتجاتكم.',
 

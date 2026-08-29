@@ -217,7 +217,36 @@ export interface BuildMultiProductWhatsappLinkOptions {
     quantityLabel: string;
     totalLabel: string;       // e.g. "Total" / "المجموع" / "Total"
     itemsLabel: string;       // e.g. "Articles" / "المنتجات" / "Items"
+    subtotalLabel: string;    // Audit remediation: e.g. "Sous-total" / "المجموع الفرعي" / "Subtotal"
   };
+}
+
+// ━━ Audit remediation: helpers for WhatsApp subtotal formatting ━━
+
+/**
+ * Parse a numeric price from a possibly-formatted string.
+ * Handles: "290.00 DH", "1 290,50", "290", "290 DH".
+ * Returns 0 if unparseable (e.g. empty string or non-numeric).
+ * Used to compute per-line subtotals (unit price × quantity).
+ */
+function parseItemPrice(price: string): number {
+  if (!price) return 0;
+  const m = price.match(/[\d.,]+/);
+  if (!m) return 0;
+  // Remove spaces (thousand separators), handle comma decimal (fr-FR)
+  const cleaned = m[0].replace(/\s/g, '').replace(/\.(?=\d{3}\b)/g, '').replace(',', '.');
+  const n = parseFloat(cleaned);
+  return isFinite(n) ? n : 0;
+}
+
+/**
+ * Format a numeric amount with up to 2 decimal places (no trailing zeros).
+ * Examples: 290 → "290", 290.5 → "290.5", 290.567 → "290.57"
+ * Used for the subtotal line in the WhatsApp message body.
+ */
+function formatLineAmount(n: number): string {
+  if (n === Math.floor(n)) return String(Math.floor(n));
+  return n.toFixed(2).replace(/\.?0+$/, '');
 }
 
 /**
@@ -290,7 +319,16 @@ export function buildMultiProductWhatsappLink(opts: BuildMultiProductWhatsappLin
     }
     lines.push(`   ${opts.labels.quantityLabel} : ${qty}`);
     if (item.price) {
+      // ━━ Audit remediation: per-line subtotal (unit price × quantity) ━━
+      // Previously: only displayed the unit price, leaving the seller to mentally
+      // multiply by quantity for each line. Now: shows both unit price AND
+      // the computed subtotal, so the seller can verify the grand total at a glance.
+      const unitPrice = parseItemPrice(item.price);
+      const subtotal = unitPrice * qty;
       lines.push(`   ${opts.labels.priceLabel} : ${item.price}`);
+      if (qty > 1 && subtotal > unitPrice) {
+        lines.push(`   ${opts.labels.subtotalLabel} : ${unitPrice} × ${qty} = ${formatLineAmount(subtotal)}`);
+      }
     }
     lines.push('');  // blank line between items
   });

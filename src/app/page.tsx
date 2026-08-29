@@ -132,20 +132,44 @@ export async function generateMetadata({ searchParams }: PageProps): Promise<Met
 // Helper: getInitialCatalogData() mirrors what /api/catalog returns (same
 // Prisma query + JSON-field parsing) so the SSR payload is byte-identical to
 // what the client would fetch. This guarantees no hydration mismatch.
+//
+// ━━ Audit remediation (Réserve 1): 3-second timeout ━━
+// In production (Vercel + Supabase), a slow or cold DB connection could block
+// the SSR response indefinitely, causing the page to hang. We now race the
+// Prisma query against a 3s timeout — if the DB is slow, we return null props
+// and let the client-side loadData() fetch from /api/catalog instead. This
+// guarantees the page ALWAYS renders within ~3s, with or without SSR data.
+
+const SSR_DB_TIMEOUT_MS = 3000;
+
+function withTimeout<T>(promise: Promise<T>, ms: number, label: string): Promise<T> {
+  return Promise.race([
+    promise,
+    new Promise<T>((_, reject) =>
+      setTimeout(() => reject(new Error(`SSR timeout: ${label} exceeded ${ms}ms`)), ms),
+    ),
+  ]);
+}
 
 async function getInitialCatalogData() {
   try {
-    const catalog = await db.catalog.findFirst({
-      include: {
-        sections: {
-          orderBy: { order: 'asc' },
-          include: {
-            components: { orderBy: { order: 'asc' } },
+    // Race the catalog query against the SSR timeout — if the DB is slow/cold,
+    // we bail out and let the client fetch instead of blocking the SSR response.
+    const catalog = await withTimeout(
+      db.catalog.findFirst({
+        include: {
+          sections: {
+            orderBy: { order: 'asc' },
+            include: {
+              components: { orderBy: { order: 'asc' } },
+            },
           },
+          settings: true,
         },
-        settings: true,
-      },
-    });
+      }),
+      SSR_DB_TIMEOUT_MS,
+      'catalog.findFirst',
+    );
 
     if (!catalog) return { catalog: null, datasources: [] };
 
@@ -162,17 +186,29 @@ async function getInitialCatalogData() {
       })),
     };
 
-    // Datasources: needed by CatalogPreview for column resolution
-    const datasources = await db.dataSource.findMany({
-      include: {
-        columns: { orderBy: { order: 'asc' } },
-        rows: { orderBy: { order: 'asc' } },
-      },
-    });
+    // Datasources: needed by CatalogPreview for column resolution.
+    // Also wrapped in the timeout — if the catalog succeeded but datasources
+    // are slow, we still return the catalog (client will fetch datasources).
+    let datasources: Awaited<ReturnType<typeof db.dataSource.findMany>> = [];
+    try {
+      datasources = await withTimeout(
+        db.dataSource.findMany({
+          include: {
+            columns: { orderBy: { order: 'asc' } },
+            rows: { orderBy: { order: 'asc' } },
+          },
+        }),
+        SSR_DB_TIMEOUT_MS,
+        'dataSource.findMany',
+      );
+    } catch {
+      // Datasources timeout — return catalog only, client will fetch datasources
+      datasources = [];
+    }
 
     return { catalog: parsedCatalog, datasources };
   } catch {
-    // DB not available (first deploy, build-time, etc.) — client will fetch
+    // DB not available, timed out, or error — client will fetch from /api/catalog
     return { catalog: null, datasources: [] };
   }
 }

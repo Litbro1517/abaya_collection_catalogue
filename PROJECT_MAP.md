@@ -3279,3 +3279,78 @@ Payload JSON généré (2 produits, order-abc-123):
 
 ---
 Date de mise à jour : 29/08/2026
+
+---
+
+## [AUDIT REMEDIATION ZAI — RÉSOLUTION DES 3 RÉSERVES BLOQUANTES]
+
+### Mandat
+Résolution des 3 réserves bloquantes identifiées par l'audit (score 78/100 sur commit `687be3b`) empêchant la certification "prêt pour campagnes payantes". Branche isolée `fix/audit-remediation-zai` (créée depuis `main@687be3b`).
+
+### Réserves levées (3 axes)
+
+#### Réserve 1 — Écart Live Vercel / SSR (spinner "Chargement...")
+**Cause racine**: `HomeClient.tsx` L.214 `useState(!hasCachedData)` initialisait `initializing=true` même quand les props SSR (Lot 2) étaient présentes — l'hydratation Zustand (pendant le rendu) n'était pas encore reflétée dans `hasCachedData` au moment de l'évaluation du `useState`.
+
+**Fix**:
+- `HomeClient.tsx` L.214-227: ajouté `hasSSRData = !!(initialCatalog || initialDatasources?.length)` ; `useState(!(hasCachedData || hasSSRData))` → spinner skip dès que props SSR présentes
+- `page.tsx` `getInitialCatalogData()`: ajouté `withTimeout()` (Promise.race, 3s) pour garantir que l'SSR n'est pas bloqué par une DB Supabase froide/lente. Si timeout → null props, client fetch via `/api/catalog`
+
+#### Réserve 2 — ID GTM factice (GTM-XXXXXXX)
+**Cause**: `layout.tsx` L.15 hard-codait `'GTM-XXXXXXX'` → GTM chargeait un conteneur inexistant (404) + aucun tracking réel.
+
+**Fix** (`layout.tsx` L.12-20):
+```typescript
+const GTM_CONTAINER_ID = process.env.NEXT_PUBLIC_GTM_ID || '';
+// ...
+{GTM_CONTAINER_ID && (<Script id="gtm-init" ... />)}  // rendu conditionnel
+{GTM_CONTAINER_ID && (<noscript>...</noscript>)}
+```
+Si `NEXT_PUBLIC_GTM_ID` est vide → GTM est skip entièrement (pas de 404, dataLayer garde les events en queue). Si défini → GTM charge le vrai conteneur.
+
+#### Réserve 3 — Sous-total WhatsApp manquant (prix × quantité)
+**Cause**: `whatsapp.ts` L.293 n'affichait que `Prix : <unitPrice>` sans calculer `unitPrice × quantity`.
+
+**Fix** (`whatsapp.ts` L.292-304):
+- Calcul `subtotal = parseItemPrice(item.price) × qty`
+- Ligne `Sous-total : <unit> × <qty> = <subtotal>` (uniquement si qty > 1)
+- Nouveaux helpers: `parseItemPrice(price)` (parse "290 DH" → 290), `formatLineAmount(n)`
+- Nouveau label i18n `whatsapp.subtotal`: FR="Sous-total", EN="Subtotal", AR="المجموع الفرعي"
+
+Exemple de message généré (panier 3 produits):
+```
+1. *Abaya Noir*
+   Quantité : 2
+   Prix : 290 DH
+   Sous-total : 290 × 2 = 580
+
+2. *Écharpe Soie*
+   Quantité : 3
+   Prix : 75 DH
+   Sous-total : 75 × 3 = 225
+
+*Total : 985 DH*
+```
+
+### Fichiers modifiés (6)
+| # | Fichier | Réserve(s) |
+|---|---------|-----------|
+| 1 | `src/app/layout.tsx` | 2 (GTM env var + rendu conditionnel) |
+| 2 | `src/app/page.tsx` | 1 (SSR timeout 3s via withTimeout) |
+| 3 | `src/components/HomeClient.tsx` | 1 (hasSSRData skip spinner) |
+| 4 | `src/lib/whatsapp.ts` | 3 (sous-total + helpers parseItemPrice/formatLineAmount + label subtotalLabel) |
+| 5 | `src/components/preview/CheckoutPage.tsx` | 3 (passage subtotalLabel) |
+| 6 | `src/lib/i18n/dictionaries.ts` | 3 (whatsapp.subtotal FR/EN/AR) |
+
+### Validations
+- `bun run lint`: 0 erreur, 0 warning ✅
+- `bun run build`: exit 0 (toutes routes générées) ✅
+- Réserve 1: 0 occurrence `animate-spin` dans HTML SSR ✅
+- Réserve 2: GTM-XXXXXXX supprimé, GTM conditionnel (0 sans env var, 2 occurrences avec `NEXT_PUBLIC_GTM_ID`) ✅
+- Réserve 3: sous-total WhatsApp calculé (290×2=580, 75×3=225) ✅
+
+### Branche
+`fix/audit-remediation-zai` (créée depuis `main@687be3b`). **EN ATTENTE DU FEU VERT OFFICIEL EXPLICITE APRÈS RÉ-AUDIT — AUCUNE FUSION SUR main.**
+
+---
+Date de mise à jour : 29/08/2026
