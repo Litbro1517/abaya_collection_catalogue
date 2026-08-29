@@ -13,6 +13,7 @@ import {
   isCacheFresh,
   CACHE_KEYS,
 } from '@/lib/cache';
+import type { Catalog, DataSource } from '@/types';
 
 // ── Code Splitting: Admin components lazy-loaded ──
 // These are ONLY needed for authenticated admins, never for public visitors.
@@ -130,7 +131,18 @@ if (typeof window !== 'undefined' && !_cacheHydrated) {
 
 // ── Main Page ─────────────────────────────────────────────────────────────
 
-function HomeContent() {
+// ━━ Lot 2: SSR Props ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// The server component (src/app/page.tsx) now fetches catalog + datasources
+// via Prisma and passes them as initial props. These hydrate the Zustand
+// store BEFORE first paint, so the catalog HTML is present in the SSR
+// response (no "Chargement..." spinner). After hydration, the client-side
+// cache-first logic revalidates the data (FROZEN_MODE) as before.
+interface HomeClientProps {
+  initialCatalog?: Catalog | null;
+  initialDatasources?: DataSource[];
+}
+
+function HomeContent({ initialCatalog, initialDatasources }: HomeClientProps) {
   const {
     view,
     isAdmin,
@@ -150,6 +162,28 @@ function HomeContent() {
   const settings = useAppStore(s => s.settings);
   const clientLocale = useAppStore(s => s.clientLocale);
   const setClientLocale = useAppStore(s => s.setClientLocale);
+
+  // ━━ Lot 2: Hydrate Zustand store from SSR props on first render ━━━━━━━
+  // This runs synchronously on the FIRST client render (before paint), so the
+  // store is populated with SSR data when React hydrates — no loading spinner.
+  // We use a ref guard to only run once, and we do NOT call setCatalog inside
+  // a useEffect (that would cause a flash). Instead we hydrate during render
+  // via useMemo/useRef on the initial props.
+  const ssrHydrated = useRef(false);
+  if (!ssrHydrated.current) {
+    ssrHydrated.current = true;
+    // Only hydrate if store is empty (no localStorage cache already loaded at
+    // module level). This prevents SSR data from overriding a fresher client
+    // cache after the module-level hydration already ran.
+    const currentState = useAppStore.getState();
+    if (initialCatalog && !currentState.catalog) {
+      currentState.setCatalog(initialCatalog);
+      if (initialCatalog.settings) currentState.setSettings(initialCatalog.settings);
+    }
+    if (initialDatasources && initialDatasources.length > 0 && currentState.dataSources.length === 0) {
+      currentState.setDataSources(initialDatasources);
+    }
+  }
 
   // ── Seed visitor locale from DB default (first visit only) ──
   // If the visitor has no localStorage AND no cookie (truly first visit),
@@ -459,6 +493,6 @@ function HomeContent() {
   return <CatalogPreview onAdminLogin={() => setShowLogin(true)} />;
 }
 
-export default function HomeClient() {
-  return <HomeContent />;
+export default function HomeClient(props: HomeClientProps = {}) {
+  return <HomeContent {...props} />;
 }

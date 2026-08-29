@@ -286,3 +286,50 @@ Stage Summary:
 - Branche fix/mobile-lang-dropdown-and-arabic-text supprimée (locale + distante)
 - Vercel production build déclenché
 - Intervention VG46 clôturée
+
+---
+Task ID: LOT2-SEO-SSR
+Agent: Agent Développeur
+Task: Lot 2 — SEO Technique, Canonical & Rendu Serveur (SSR)
+
+Work Log:
+- Read PROJECT_MAP.md (mis à jour après Lot 1) + audit technique (3 anomalies critiques)
+- Créé branche feature/lot2-seo-ssr depuis main (9a0036a)
+- 3 anomalies audit: (1) canonical fixe → toujours home URL, (2) HTML initial vide (CSR exclusif, spinner "Chargement..."), (3) conflit robots.txt (statique + dynamique)
+
+CORRECTION 1 — Dynamic Canonical Tag (src/app/page.tsx)
+- generateMetadata({ searchParams }) maintenant accepte et await searchParams (Next.js 16: Promise)
+- Quand ?product=<slug> présent: canonical = `${baseUrl}/?product=${slug}` (pas juste baseUrl)
+- Bonus: title + description + ogImage deviennent product-specific via resolveProduct(slug)
+- Avant: toutes les fiches produits canonicalisaient vers la home → non indexables indépendamment
+- Après: chaque produit a son URL canonique propre
+
+CORRECTION 2 — SSR du catalogue (src/app/page.tsx + HomeClient.tsx)
+- page.tsx: nouveau getInitialCatalogData() — requête Prisma directe (catalog + datasources)
+  - Même requête que /api/catalog (findFirst + include sections/components/settings)
+  - Parse les champs JSON (SQLite les retourne en string)
+  - try/catch: DB indisponible → retourne { catalog: null, datasources: [] } (client fetchera)
+- page.tsx: HomePage() maintenant async, passe initialCatalog + initialDatasources en props
+- HomeClient.tsx: accepte HomeClientProps { initialCatalog?, initialDatasources? }
+  - Hydrate le store Zustand AVANT le 1er paint (ref guard, pas de useEffect → pas de flash)
+  - Garde la logique cache-first FROZEN_MODE pour la revalidation client après hydratation
+  - Le SSR payload est un SEED, pas un remplacement du data layer client
+
+CORRECTION 3 — Suppression robots.txt statique
+- git rm public/robots.txt (fichier statique avec règles divergentes: par bot nommé, sans Disallow /admin ni /api)
+- La route dynamique src/app/robots.ts gère désormais seule les règles:
+  User-Agent: *, Allow: /, Disallow: /admin, Disallow: /api/, Sitemap: {baseUrl}/sitemap.xml
+
+VALIDATION (agent-browser + curl):
+- HOME canonical: https://abaya-collection-catalogue-9dum.vercel.app/ ✅
+- PRODUCT canonical (?product=abaya-test): https://...vercel.app/?product=abaya-test ✅ (dynamique, pas home)
+- Title: "Abaya Collection Chic — Catalogue" (préservé) ✅
+- NO SPINNER: 0 occurrence .animate-spin au 1er rendu ✅ (SSR complet)
+- robots.txt: route dynamique unifiée (Disallow /admin, /api/, Sitemap) ✅
+- lint: 0 erreur, 0 warning ✅
+
+Stage Summary:
+- Branche: feature/lot2-seo-ssr (créée depuis main@9a0036a)
+- 3 fichiers modifiés: src/app/page.tsx (canonical dynamique + SSR), src/components/HomeClient.tsx (props SSR + hydratation store), public/robots.txt (SUPPRIMÉ)
+- 3 anomalies critiques corrigées
+- **EN ATTENTE DU FEU VERT EXPLICITE POST-AUDIT POUR FUSION**
