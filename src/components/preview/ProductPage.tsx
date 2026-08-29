@@ -28,6 +28,7 @@ import { cn } from '@/lib/utils';
 import { useClientTranslation } from '@/lib/i18n';
 import { toast } from 'sonner';
 import { computeDiscount, getCompareAtPrice } from '@/lib/discount-utils';
+import { pushDataLayer, buildEcommerceItem, parsePriceToNumber } from '@/lib/analytics';
 import { useAutoTranslatedText } from '@/lib/useAutoTranslatedText';
 import { useCartStore } from '@/lib/cart-store';
 import { useAppStore } from '@/lib/store';
@@ -483,6 +484,26 @@ export function ProductPage({
       size: selectedSize || '',
       image: carouselImages[0] || '',
     });
+    // ── Lot 1: add_to_cart dataLayer event ──
+    // Fires after the item is added to the cart. Includes the selected variant
+    // (color / size) and quantity (defaults to 1 — quantity picker is on PDP).
+    pushDataLayer({
+      event: 'add_to_cart',
+      ecommerce: {
+        currency: 'MAD',
+        value: parsePriceToNumber(price),
+        items: [
+          buildEcommerceItem({
+            id: row.id,
+            name: title,
+            price,
+            category: section.title || 'Abaya',
+            variant: `${selectedColor || ''} / ${selectedSize || ''}`.trim(),
+            quantity: quantity || 1,
+          }),
+        ],
+      },
+    });
     toast.success(t('cart.added'));
   };
 
@@ -498,6 +519,28 @@ export function ProductPage({
       setShowVariantError(true);
       return;
     }
+    // ── Lot 1: begin_checkout dataLayer event (single-product COD flow) ──
+    // Fires when the user clicks the CTA on the PDP to open the inline COD form.
+    // This is the single-product checkout initiation point (complementary to
+    // the multi-product begin_checkout in CartDrawer.handleCheckout).
+    const priceNum = parsePriceToNumber(price);
+    pushDataLayer({
+      event: 'begin_checkout',
+      ecommerce: {
+        currency: 'MAD',
+        value: priceNum * (quantity || 1),
+        items: [
+          buildEcommerceItem({
+            id: row.id,
+            name: title,
+            price,
+            category: section.title || 'Abaya',
+            variant: `${selectedColor || ''} / ${selectedSize || ''}`.trim(),
+            quantity: quantity || 1,
+          }),
+        ],
+      },
+    });
     // VG34.3: Smooth scroll to inline COD form (not checkout redirect)
     const codForm = document.getElementById('cod-form');
     if (codForm) {
@@ -620,6 +663,34 @@ export function ProductPage({
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [onBack, carouselImages.length, rtl]);
+
+  // ── Lot 1: view_item event — fire ONCE when the product detail view mounts ──
+  // Triggered when ProductPage renders (selectedProduct opens). Uses a ref guard
+  // so it fires exactly once per product view (not on every re-render).
+  const viewItemTracked = useRef<string | null>(null);
+  useEffect(() => {
+    // Dedupe by product id+title so navigating away and back re-fires correctly
+    const trackKey = `${row.id}|${title}`;
+    if (viewItemTracked.current === trackKey) return;
+    if (!title) return; // Wait for title to be resolved (cache/translation)
+    viewItemTracked.current = trackKey;
+    const priceNum = parsePriceToNumber(price);
+    pushDataLayer({
+      event: 'view_item',
+      ecommerce: {
+        currency: 'MAD',
+        value: priceNum,
+        items: [
+          buildEcommerceItem({
+            id: row.id,
+            name: title,
+            price,
+            category: section.title || 'Abaya',
+          }),
+        ],
+      },
+    });
+  }, [row.id, title, price, section.title]);
 
   const isEpuise = stockState === 'epuise';
   const isSurCommande = stockState === 'sur_commande';

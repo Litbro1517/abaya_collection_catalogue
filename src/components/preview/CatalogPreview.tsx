@@ -24,6 +24,7 @@ import { useClientTranslation } from '@/lib/i18n';
 import { buildWhatsappLink } from '@/lib/whatsapp';
 import { toast } from 'sonner';
 import { computeDiscount, getCompareAtPrice } from '@/lib/discount-utils';
+import { pushDataLayer, buildEcommerceItem, parsePriceToNumber } from '@/lib/analytics';
 import { PriceText } from '@/components/PriceText';
 import { useAutoTranslatedText } from '@/lib/useAutoTranslatedText';
 import { resolveMarketingStatus } from '@/lib/status-config';
@@ -1477,7 +1478,29 @@ export function CatalogPreview({ onAdminLogin }: CatalogPreviewProps) {
                 {/* Clickable overlay */}
                 <button
                   className="product-card-action"
-                  onClick={() => { setSelectedProduct({ row, columns, section }); setCarouselIdx(0); }}
+                  onClick={() => {
+                    // ── Lot 1: select_item dataLayer event ──
+                    // Fires when a product card is clicked in the catalog grid
+                    // (before the detail view opens → view_item fires on PDP mount).
+                    const priceNum = parsePriceToNumber(price);
+                    pushDataLayer({
+                      event: 'select_item',
+                      ecommerce: {
+                        currency: 'MAD',
+                        value: priceNum,
+                        items: [
+                          buildEcommerceItem({
+                            id: row.id,
+                            name: title,
+                            price,
+                            category: section.title || 'Abaya',
+                          }),
+                        ],
+                      },
+                    });
+                    setSelectedProduct({ row, columns, section });
+                    setCarouselIdx(0);
+                  }}
                   aria-label={`${t('catalog.viewProduct')} ${title}`}
                 />
 
@@ -1541,6 +1564,23 @@ export function CatalogPreview({ onAdminLogin }: CatalogPreviewProps) {
                     onClick={(e) => {
                       e.stopPropagation();
                       if (!isEpuise) {
+                        // ── Lot 1: select_item dataLayer event (hover CTA) ──
+                        const priceNum = parsePriceToNumber(price);
+                        pushDataLayer({
+                          event: 'select_item',
+                          ecommerce: {
+                            currency: 'MAD',
+                            value: priceNum,
+                            items: [
+                              buildEcommerceItem({
+                                id: row.id,
+                                name: title,
+                                price,
+                                category: section.title || 'Abaya',
+                              }),
+                            ],
+                          },
+                        });
                         setSelectedProduct({ row, columns, section });
                         setCarouselIdx(0);
                       }

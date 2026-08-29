@@ -286,3 +286,62 @@ Stage Summary:
 - Branche fix/mobile-lang-dropdown-and-arabic-text supprimée (locale + distante)
 - Vercel production build déclenché
 - Intervention VG46 clôturée
+
+---
+Task ID: LOT1-DATALAYER
+Agent: Agent Développeur
+Task: Lot 1 — Tracking & Événements DataLayer E-commerce (GA4/Meta)
+
+Work Log:
+- Read PROJECT_MAP.md + audit technique fourni (Audit_Technique_Abaya_Collection_1.docx)
+- Constat: seul l'événement purchase (merci/page.tsx) existait. view_item, add_to_cart, begin_checkout, select_item étaient absents (audit: 15/100 Tracking)
+- Créé branche feature/lot1-datalayer-tracking depuis main (origin/main à 9a0036a)
+- Conservé placeholder GTM-XXXXXXX dans layout.tsx (hors périmètre Lot 1)
+
+IMPLÉMENTATION:
+
+1. NOUVEAU FICHIER: src/lib/analytics.ts
+   - pushDataLayer(event): helper type-safe, SSR-guardé (typeof window === 'undefined' → no-op), wrapped try/catch (tracking never breaks UX), init window.dataLayer=[] si manquant
+   - buildEcommerceItem(item): construit un item GA4 propre, strippé des undefined
+   - parsePriceToNumber(price): parse "290.00 DH", "1 290,50", etc. → number
+   - Types: EcommerceItem, DataLayerEvent
+
+2. ÉVÉNEMENT view_item (ProductPage.tsx L.625-651)
+   - useEffect au mount du composant ProductPage (quand selectedProduct ouvre la fiche)
+   - Ref guard (viewItemTracked) déduplique par `${row.id}|${title}` — fire une fois par produit
+   - Attend que title soit résolu (cache/traduction) avant de pousser
+   - Payload: event=view_item, ecommerce.currency=MAD, value=price, items=[{item_id, item_name, price, item_category}]
+
+3. ÉVÉNEMENT add_to_cart (ProductPage.tsx L.487-506, dans handleAddToCart)
+   - Fire après addItem() du cart-store
+   - Inclut la variante sélectionnée: item_variant=`${color} / ${size}`.trim()
+   - Inclut quantity (defaults 1)
+   - Payload: event=add_to_cart, ecommerce.value=price, items=[{item_id, item_name, price, item_variant, quantity}]
+
+4. ÉVÉNEMENT begin_checkout — 2 points de déclenchement:
+   a) CartDrawer.tsx L.33-55 (multi-produit): handleCheckout clique bouton panier → checkout
+      - items = tous les items du panier (items.map)
+      - value = getTotalPrice() du cart-store
+   b) ProductPage.tsx L.522-543 (single-produit COD): handleCtaClick clique CTA PDP → scroll vers CodForm
+      - items = [produit courant]
+      - value = price * quantity
+   - Les 2 couvrent les flux: panier multi-produit ET tunnel COD direct PDP
+
+5. ÉVÉNEMENT select_item (CatalogPreview.tsx L.1482-1500 + L.1567-1583)
+   - 2 handlers onClick: bouton carte produit + bouton hover CTA "Commander"
+   - Fire avant setSelectedProduct (avant ouverture PDP → view_item ensuite)
+   - Payload: event=select_item, items=[{item_id, item_name, price, item_category}]
+
+VALIDATION:
+- bun run lint: 0 erreur, 0 warning ✅
+- Test Node direct: parsePriceToNumber ("290.00 DH"→290, "1 290,50"→1290.5, ""→0), buildEcommerceItem strips undefined ✅
+- Test intégration navigateur (agent-browser): spy dataLayer capture les 4 events dans l'ordre [select_item, view_item, add_to_cart, begin_checkout], payload begin_checkout conforme (currency=MAD, value=580, items avec item_id/item_name/price/item_variant/quantity) ✅
+- SSR guard vérifié: pushDataLayer no-op côté serveur (typeof window === 'undefined')
+- GTM-XXXXXXX placeholder conservé dans layout.tsx ✅
+
+Stage Summary:
+- Branche: feature/lot1-datalayer-tracking (créée depuis main@9a0036a)
+- 5 fichiers modifiés: src/lib/analytics.ts (NEW), ProductPage.tsx, CartDrawer.tsx, CatalogPreview.tsx + docs
+- 4 événements GA4 implémentés: view_item, add_to_cart, begin_checkout (×2 points), select_item (×2 points)
+- Pattern dataLayer unifié via helper pushDataLayer (évite duplication du pattern merci/page.tsx)
+- **EN ATTENTE DU FEU VERT EXPLICITE POST-AUDIT POUR FUSION**
