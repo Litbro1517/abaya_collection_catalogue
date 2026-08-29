@@ -18,6 +18,7 @@ import { cn } from '@/lib/utils';
 import { useClientTranslation } from '@/lib/i18n';
 import { useAppStore } from '@/lib/store';
 import { buildMultiProductWhatsappLink } from '@/lib/whatsapp';
+import { validateMoroccanPhone } from '@/lib/phone-validation';
 
 // ── Brand Constants (matching ProductPage / CodForm) ──
 const BRAND = {
@@ -108,7 +109,7 @@ export function CheckoutPage({ product, onBack }: CheckoutPageProps) {
       setError(t('order.errorName'));
       return;
     }
-    if (!form.customerPhone.trim() || form.customerPhone.trim().length < 6) {
+    if (!validateMoroccanPhone(form.customerPhone)) {
       setError(t('order.errorPhone'));
       return;
     }

@@ -67,14 +67,19 @@ function MerciContent() {
 
     // Build the GA4 items array from the FULL orderItems array (multi-product).
     // Each item gets: item_id, item_name, price, quantity, item_variant, item_size.
+    // ━━ Lot 3 Correctif: Isolated variants — each item reads ONLY its own fields ━━
+    // Previously: item_variant/size fell back to order.productColor/Size, causing
+    // an accessory without size to inherit the main garment's size (data pollution).
+    // Now: secondary items read exclusively item.productColor / item.productSize.
+    // If a field is null, it stays null (no cross-item inheritance).
     const ga4Items = orderItems.map((item, idx) => ({
       item_id: idx === 0 ? order.id : `${order.id}-${idx + 1}`,  // primary uses order id, others get suffix
-      sku: item.productId || order.productId || 'N/A',
-      item_name: item.productName || order.productName || 'Unknown',
-      price: parsePrice(item.productPrice || order.productPrice),
+      sku: item.productId || 'N/A',
+      item_name: item.productName || 'Unknown',
+      price: parsePrice(item.productPrice),
       quantity: item.productQuantity || 1,
-      item_variant: item.productColor || order.productColor || undefined,
-      item_size: item.productSize || order.productSize || undefined,
+      item_variant: item.productColor || undefined,
+      item_size: item.productSize || undefined,
     }));
 
     // True total value = sum of (item.price × item.quantity) across all items
