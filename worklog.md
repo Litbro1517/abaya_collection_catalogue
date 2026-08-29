@@ -556,3 +556,26 @@ Stage Summary:
 - Branche: fix/return-policy-and-og-image (créée depuis main@90be23e)
 - 6 fichiers modifiés/créés: ReturnPolicyContent.tsx (NEW), politique-de-retour/page.tsx (NEW), og-cover.jpg (NEW), dictionaries.ts (+54 clés), CatalogPreview.tsx (+1 lien footer), LegalPageLayout.tsx (+1 lien footer), layout.tsx (+OG), page.tsx (default ogImage)
 - **AUCUNE FUSION SUR main — en attente du feu vert explicite post-audit**
+
+---
+Task ID: AUDIT-MERGE-RETURN-POLICY-1
+Agent: Agent Auditeur Z.ai (Mandat d'Audit, de Validation et de Fusion)
+Task: Audit de conformité de fix/return-policy-and-og-image (ba673ef + 6048845), fusion sur main, push production, contrôle post-déploiement Vercel
+
+Work Log:
+- PARTIE 1 (audit) : fetch origin → branche = 6048845, base 90be23e (fast-forward possible) ; diff = 10 fichiers tous dans le périmètre mission (page légale, i18n, footers, OG, docs) ; addendum 6048845 chirurgical (og-cover.jpg + 1 ligne AR)
+- i18n : 18/18 clés returns.* × 3 locales présentes, non vides, 0 orpheline (test bun programmatique) ; libellé footer AR court « الاسترجاع والاستبدال » EXACT
+- Asset OG : JPEG progressif 1200×630 sRGB 62,430 o (sharp) ; servi HTTP 200 image/jpeg byte-identique
+- Meta OG/Twitter : og:image+width+height+alt, og:type=website, og:site_name, og:locale, twitter:card=summary_large_image — vérifiés dans le HTML servi (home + page légale)
+- Conformité CGV : même LegalPageLayout/LegalHelpers/styling h1, dir RTL automatique par useClientTranslation
+- Tests (arbre isolé git archive + DB SQLite propre seedée) : lint 0/0 ; build exit 0 avec route /politique-de-retour
+- Batterie navigateur locale : home FR fresh cssLinks=2 + 0 erreur (1 erreur console dataSourceId = artefact de seed, corrigée) ; page retour FR (h1, 5 sections, footer 4 liens) ; AR rtl cssLinks=2 stylée Tajawal + #418 préexistant bénin (non-régression M2 confirmée) ; EN sain ; 0 requête GTM
+- PARTIE 2 (fusion) : merge fast-forward 90be23e..6048845 sur main ; push origin réussi ; origin/main synchronisé
+- PARTIE 3 (Vercel) : promotion en ~80 s ; marqueurs 404→200 (/politique-de-retour, /og-cover.jpg 62,430 o) ; sanity live prod : home cssLinks=2 0 erreur + lien retour ; page retour FR/AR saines (h1, rtl, footer court) ; prod sert html lang=ar dir=rtl par défaut (defaultCatalogLanguage='ar' DB production — comportement attendu)
+- PARTIE 4 (docs) : anomalie mineure non-bloquante relevée (docs v1 décrivaient libellé AR long + image 16KB) → alignées par commit docs dédié (ce commit)
+
+Stage Summary:
+- VERDICT AUDIT : CONFORME — branche certifiée (périmètre, i18n, OG, footers, lint/build, non-régression hydratation M2)
+- FUSION : main = 6048845508ffa01c1170f3f5c84846ad61fcb213 (fast-forward propre), origin/main synchronisé
+- DÉPLOIEMENT : Vercel promu en ~80 s, sanity production complète FR/AR/EN — page Politique de Retour + OG cover EN LIGNE
+- 1 réserve mineure fermée (alignement documentaire) ; limitation notée : comparaison byte-level avec le docx source impossible (non fourni) — intégrité validée par complétude/coherence structurale 3 langues

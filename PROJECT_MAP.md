@@ -3102,7 +3102,29 @@ Implémentation des déclencheurs d'événements e-commerce GA4 dans le dataLaye
 - Placeholder `GTM-XXXXXXX` conservé dans layout.tsx ✅
 
 ### Branche
-`feature/lot1-datalayer-tracking` (créée depuis `main@9a0036a`). **POUSSÉE SUR ORIGIN. EN ATTENTE DU FEU VERT EXPLICITE POST-AUDIT POUR FUSION.**
+`feature/lot1-datalayer-tracking` (créée depuis `main@9a0036a`). Poussée sur origin, auditée, puis **FUSIONNÉE sur main** (voir section audit ci-dessous).
+
+---
+
+## [AUDIT + FUSION RETURN POLICY AND OG IMAGE — Record de déploiement]
+
+### Audit de conformité (Agent Auditeur — mandataire de fusion)
+- **Périmètre** : 10 fichiers, tous dans la mission (2 commits ba673ef + 6048845 ; addendum chirurgical : og-cover.jpg + 1 ligne dictionaries.ts). Aucune modification non autorisée (prisma/api/packages intacts).
+- **i18n** : 18/18 clés `returns.*` présentes, non vides, 0 orpheline dans les 3 locales ; libellé footer AR = `الاسترجاع والاستبدال` (court) confirmé.
+- **Asset OG** : JPEG progressif 1200×630 sRGB, 62,430 bytes, servi HTTP 200 image/jpeg.
+- **Meta OG/Twitter** (layout global) : og:title/description/site_name/locale + og:image (1200×630 + alt) + og:type=website + twitter:card=summary_large_image — vérifiés dans le HTML servi (home + page légale, héritage global confirmé).
+- **Conformité CGV** : même `LegalPageLayout`, mêmes `LegalHelpers`, même styling h1, dir RTL automatique.
+- **Lint/build** : `bun run lint` 0 erreur/0 warning ; `bun run build` exit 0, route `/politique-de-retour` générée.
+- **Non-régression hydratation (fix M2 90be23e)** : AR localStorage → cssLinks=2, page stylée (flex, police Tajawal), #418 préexistant bénin ; 0 requête GTM parasite.
+- **Anomalie mineure non-bloquante** : dérive documentaire de cette même section (docs v1 décrivaient libellé long AR + image 16KB) → alignée par le présent commit.
+
+### Fusion + déploiement
+- Merge **fast-forward** `90be23e..6048845` sur main, push origin réussi, origin/main synchronisé.
+- Vercel : déploiement déclenché automatiquement, promu en production (~80 s). Marqueurs vérifiés : `/politique-de-retour` 404→200, `/og-cover.jpg` 404→200 (62,430 o byte-identique), meta OG complètes, `age: 0`.
+- Sanity production live : home cssLinks=2, 0 page error, lien footer retour présent ; page retour FR/AR saines (h1 corrects, dir=rtl, 5 sections, footer 4 liens) ; NOTE : la prod sert `<html lang="ar" dir="rtl">` par défaut — `defaultCatalogLanguage='ar'` dans la DB de production (comportement configuré attendu).
+
+---
+Date de mise à jour (audit + fusion + déploiement) : 30/08/2026
 ## [LOT 2 — SEO TECHNIQUE, CANONICAL & RENDU SERVEUR (SSR)]
 
 ### Mandat
@@ -3420,7 +3442,7 @@ Implémenter une page "Politique de Retour et d'Échange" (FR/AR/EN, textes verb
 
 **i18n** (`dictionaries.ts`): ajouté 54 clés `returns.*` (18 × 3 locales FR/EN/AR):
 - `returns.title`, `returns.intro`, `returns.s1-s5` (title, p1, li1, li2, sub1, sub2)
-- `legal.footerReturns`: FR="Politique de retour", EN="Return Policy", AR="سياسة الاسترجاع"
+- `legal.footerReturns`: FR="Politique de retour", EN="Return Policy", AR="الاسترجاع والاستبدال" (libellé court — addendum 6048845)
 - Textes verbatim du document fourni (aucun mot modifié)
 
 **Footer**:
@@ -3428,8 +3450,9 @@ Implémenter une page "Politique de Retour et d'Échange" (FR/AR/EN, textes verb
 - `LegalPageLayout.tsx` L.41: ajout lien `/politique-de-retour` (cohérence sur toutes pages légales)
 
 #### Axe 2 — Image Open Graph
-**Nouveau fichier**: `public/og-cover.jpg` (1200×630 JPEG, 16KB)
-- Généré via sharp depuis SVG (gradient #1A3C34→#14241E, logo or, tagline "Paiement à la Livraison • Livraison Gratuite")
+**Nouveau fichier**: `public/og-cover.jpg` (1200×630 JPEG, 62,430 bytes)
+- Image OFFICIELLE de la marque (addendum 6048845) — redimensionnée via sharp 472×315 → 1200×630 (fit:cover, position:center), JPEG progressif quality 90
+- (v1 initiale ba673ef : générée via SVG (gradient #1A3C34→#14241E, logo or, tagline "Paiement à la Livraison • Livraison Gratuite")
 
 **Configuration Meta**:
 - `layout.tsx` L.126-150: ajout `openGraph` + `twitter` card avec `/og-cover.jpg` (héritage global — toutes les pages héritent de l'OG cover par défaut)
@@ -3453,7 +3476,7 @@ Implémenter une page "Politique de Retour et d'Échange" (FR/AR/EN, textes verb
 - Page `/politique-de-retour` FR: HTTP 200, h1="Politique de Retour et d'Échange", 6 sections ✅
 - Page `/politique-de-retour` AR: h1="سياسة الاسترجاع والاستبدال", dir=rtl ✅
 - Footer principal: 4 liens (mentions, privacy, cgv, returns) ✅
-- `og-cover.jpg`: HTTP 200, image/jpeg, 16407 bytes ✅
+- `og-cover.jpg`: HTTP 200, image/jpeg, 62430 bytes ✅ (v1: 16407 bytes, remplacée par l’image officielle en 6048845)
 - OG meta: `<meta property="og:image" content="https://...vercel.app/og-cover.jpg"/>` ✅
 
 ### Branche
