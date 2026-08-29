@@ -3103,6 +3103,70 @@ Implémentation des déclencheurs d'événements e-commerce GA4 dans le dataLaye
 
 ### Branche
 `feature/lot1-datalayer-tracking` (créée depuis `main@9a0036a`). **POUSSÉE SUR ORIGIN. EN ATTENTE DU FEU VERT EXPLICITE POST-AUDIT POUR FUSION.**
+## [LOT 2 — SEO TECHNIQUE, CANONICAL & RENDU SERVEUR (SSR)]
+
+### Mandat
+Corriger 3 anomalies critiques pénalisant l'indexation Google : (1) canonical fixe pointant toujours vers la home, (2) HTML initial vide (CSR exclusif, spinner "Chargement..."), (3) conflit robots.txt (statique + dynamique). Branche isolée `feature/lot2-seo-ssr` (créée depuis `main@9a0036a`).
+
+### Corrections appliquées (3 axes)
+
+#### Axe 1 — Dynamic Canonical Tag (src/app/page.tsx generateMetadata)
+- `generateMetadata({ searchParams })` maintenant accepte et **await** `searchParams` (Next.js 16: Promise)
+- Quand `?product=<slug>` présent → `canonical = ${baseUrl}/?product=${slug}` (pas juste baseUrl)
+- Bonus: title + description + ogImage deviennent product-specific via `resolveProduct(slug)`
+- Avant: toutes les fiches produits canonicalisaient vers la home → non indexables indépendamment
+- Après: chaque produit a son URL canonique propre
+
+```typescript
+export async function generateMetadata({ searchParams }: PageProps): Promise<Metadata> {
+  const seo = await getSeoMetadata();
+  const params = await searchParams;  // Next.js 16: Promise
+  const productSlug = params?.product;
+  const canonicalUrl = productSlug
+    ? `${seo.canonicalUrl}/?product=${encodeURIComponent(productSlug)}`
+    : seo.canonicalUrl;
+  // + title/description/ogImage product-specific via resolveProduct(slug)
+  ...
+}
+```
+
+#### Axe 2 — SSR du catalogue (src/app/page.tsx + HomeClient.tsx)
+- `page.tsx`: nouveau `getInitialCatalogData()` — requête Prisma directe (catalog + datasources)
+  - Même requête que `/api/catalog` (findFirst + include sections/components/settings)
+  - Parse les champs JSON (SQLite les retourne en string)
+  - try/catch: DB indisponible → retourne `{ catalog: null, datasources: [] }` (client fetchera)
+- `page.tsx`: `HomePage()` maintenant **async**, passe `initialCatalog` + `initialDatasources` en props
+- `HomeClient.tsx`: accepte `HomeClientProps { initialCatalog?, initialDatasources? }`
+  - Hydrate le store Zustand **AVANT le 1er paint** (ref guard, pas de useEffect → pas de flash)
+  - Garde la logique cache-first FROZEN_MODE pour la revalidation client après hydratation
+  - Le SSR payload est un **SEED**, pas un remplacement du data layer client
+
+#### Axe 3 — Suppression robots.txt statique
+- `git rm public/robots.txt` (fichier statique avec règles divergentes: par bot nommé, sans Disallow /admin ni /api)
+- La route dynamique `src/app/robots.ts` gère désormais seule les règles:
+  - `User-Agent: *, Allow: /, Disallow: /admin, Disallow: /api/, Sitemap: {baseUrl}/sitemap.xml`
+
+### Fichiers modifiés (2 + 1 supprimé + docs)
+| # | Fichier | Modification |
+|---|---------|-------------|
+| 1 | `src/app/page.tsx` | Refonte `generateMetadata` (searchParams Promise + canonical dynamique + product-specific title/desc) + nouveau `getInitialCatalogData()` + `HomePage()` async avec props SSR |
+| 2 | `src/components/HomeClient.tsx` | +import types Catalog/DataSource, +interface `HomeClientProps`, hydratation store Zustand depuis props SSR (ref guard, avant 1er paint) |
+| 3 | `public/robots.txt` | **SUPPRIMÉ** (conflit avec route dynamique `src/app/robots.ts`) |
+
+### Validations (agent-browser + curl)
+
+| Contrôle | Avant Lot 2 | Après Lot 2 |
+|----------|-------------|------------|
+| Canonical home | `https://...vercel.app/` | `https://...vercel.app/` ✅ |
+| Canonical `?product=abaya-test` | `https://...vercel.app/` (toujours home) ❌ | `https://...vercel.app/?product=abaya-test` (dynamique) ✅ |
+| Title | `Abaya Collection Chic — Catalogue` | (préservé) ✅ |
+| Spinner "Chargement..." au 1er rendu | ❌ présent | ✅ **NO SPINNER** (SSR complet) |
+| robots.txt | ❌ fichier statique (conflit) | ✅ route dynamique unifiée |
+
+- `bun run lint` : 0 erreur, 0 warning ✅
+
+### Branche
+`feature/lot2-seo-ssr` (créée depuis `main@9a0036a`). **POUSSÉE LOCALEMENT. EN ATTENTE DU FEU VERT EXPLICITE POST-AUDIT POUR FUSION.**
 
 ---
 Date de mise à jour : 26/08/2026
