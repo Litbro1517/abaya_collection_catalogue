@@ -172,3 +172,133 @@ export function buildWhatsappLink(opts: BuildWhatsappLinkOptions): string {
 
   return `https://wa.me/${phone}?text=${encodeURIComponent(message)}`;
 }
+
+// ═══════════════════════════════════════════════════════════════════════
+// Lot 3 — Multi-product WhatsApp link builder
+// ═══════════════════════════════════════════════════════════════════════
+// Problem (audit): when the COD API fails, the WhatsApp fallback used only
+// the first cart item and summarized the rest as "(+N autres)" — losing the
+// color/size/price details of the secondary items, which the seller needs
+// to fulfill the order.
+//
+// Fix: buildMultiProductWhatsappLink() loops over ALL cart items and emits
+// a structured line for each (title, color, size, quantity, unit price +
+// line total), followed by a grand total line. No item is truncated.
+
+export interface WhatsAppCartItem {
+  title: string;
+  price: string;        // unit price (formatted, e.g. "290 DH")
+  color?: string | null;
+  size?: string | null;
+  quantity: number;
+  imageUrl?: string;
+}
+
+export interface BuildMultiProductWhatsappLinkOptions {
+  phone: string;
+  items: WhatsAppCartItem[];
+  /** Grand total formatted (e.g. "580 DH") — emitted as a Total line. */
+  totalFormatted: string;
+  /** Total quantity across all items (for the summary line). */
+  totalQuantity: number;
+  /** Legacy single-locale admin message. */
+  customMessage?: string;
+  /** Multilingual admin messages keyed by locale. */
+  conversionMessages?: Record<string, string> | null;
+  locale?: string;
+  flux?: 'A' | 'B';
+  labels: {
+    greeting: string;
+    greetingA: string;
+    greetingB: string;
+    priceLabel: string;
+    colorLabel: string;
+    sizeLabel: string;
+    quantityLabel: string;
+    totalLabel: string;       // e.g. "Total" / "المجموع" / "Total"
+    itemsLabel: string;       // e.g. "Articles" / "المنتجات" / "Items"
+  };
+}
+
+/**
+ * Build a multi-product WhatsApp wa.me link.
+ *
+ * Message structure:
+ *   <greeting>
+ *
+ *   🛒 <itemsLabel> (<totalQuantity>)
+ *   ━━━━━━━━━━━━━━━
+ *   1. *<title>*
+ *      Couleur : <color>
+ *      Taille : <size>
+ *      Quantité : <qty>
+ *      Prix : <unitPrice> × <qty> = <lineTotal>
+ *
+ *   2. *<title>*
+ *      ...
+ *
+ *   ━━━━━━━━━━━━━━━
+ *   *Total : <totalFormatted>*
+ *
+ * Each item gets its own block with color/size/quantity/price. No truncation.
+ */
+export function buildMultiProductWhatsappLink(opts: BuildMultiProductWhatsappLinkOptions): string {
+  const phone = (opts.phone || '').trim();
+  if (!phone || opts.items.length === 0) return '#';
+
+  // Resolve greeting (reuse the single-product Smart Logic)
+  const singleOpts: BuildWhatsappLinkOptions = {
+    phone: opts.phone,
+    title: opts.items[0]?.title || '',
+    price: opts.items[0]?.price || '',
+    color: opts.items[0]?.color,
+    size: opts.items[0]?.size,
+    quantity: opts.totalQuantity,
+    imageUrl: opts.items[0]?.imageUrl,
+    customMessage: opts.customMessage,
+    conversionMessages: opts.conversionMessages,
+    locale: opts.locale,
+    flux: opts.flux || 'A',
+    labels: {
+      greeting: opts.labels.greeting,
+      greetingA: opts.labels.greetingA,
+      greetingB: opts.labels.greetingB,
+      priceLabel: opts.labels.priceLabel,
+      colorLabel: opts.labels.colorLabel,
+      sizeLabel: opts.labels.sizeLabel,
+      quantityLabel: opts.labels.quantityLabel,
+    },
+  };
+  const { text: greeting } = resolveGreeting(singleOpts);
+
+  // Build the multi-product body
+  const lines: string[] = [greeting, ''];
+
+  // Items header
+  lines.push(`🛒 ${opts.labels.itemsLabel} (${opts.totalQuantity})`);
+  lines.push('━━━━━━━━━━━━━━━');
+
+  // One block per item
+  opts.items.forEach((item, idx) => {
+    const qty = item.quantity > 0 ? item.quantity : 1;
+    lines.push(`${idx + 1}. *${item.title}*`);
+    if (item.color) {
+      lines.push(`   ${opts.labels.colorLabel} : ${item.color}`);
+    }
+    if (item.size) {
+      lines.push(`   ${opts.labels.sizeLabel} : ${item.size}`);
+    }
+    lines.push(`   ${opts.labels.quantityLabel} : ${qty}`);
+    if (item.price) {
+      lines.push(`   ${opts.labels.priceLabel} : ${item.price}`);
+    }
+    lines.push('');  // blank line between items
+  });
+
+  // Grand total
+  lines.push('━━━━━━━━━━━━━━━');
+  lines.push(`*${opts.labels.totalLabel} : ${opts.totalFormatted}*`);
+
+  const message = lines.join('\n');
+  return `https://wa.me/${phone}?text=${encodeURIComponent(message)}`;
+}

@@ -4,6 +4,7 @@ import { useState, type FormEvent } from 'react';
 import { Loader2, CheckCircle2, Check } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useClientTranslation } from '@/lib/i18n';
+import { validateMoroccanPhone } from '@/lib/phone-validation';
 
 const BRAND = {
   vertFonce: '#1A3C34',
@@ -48,7 +49,10 @@ export function CodForm({ productId, productName, productPrice }: CodFormProps) 
     e.preventDefault();
     setError(null);
     if (!form.customerName.trim()) { setError(t('order.errorName')); return; }
-    if (!form.customerPhone.trim() || form.customerPhone.trim().length < 6) { setError(t('order.errorPhone')); return; }
+    // ━━ Lot 3: Moroccan phone validation (replaces loose length < 6 check) ━━
+    // Previously: form.customerPhone.trim().length < 6 — let through "12345", "abcde", etc.
+    // Now: validateMoroccanPhone() checks the full Moroccan format (06/07/05, +212, 00212).
+    if (!validateMoroccanPhone(form.customerPhone)) { setError(t('order.errorPhone')); return; }
     if (!form.customerCity.trim()) { setError(t('order.errorCity')); return; }
     if (!form.customerAddress.trim()) { setError(t('order.errorAddress')); return; }
     setIsSubmitting(true);

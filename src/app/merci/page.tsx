@@ -43,17 +43,50 @@ function MerciContent() {
   // Push conversion tracking event once the order data is loaded.
   // Enriched dataLayer for Meta/Google conversion tracking (Zaraz-compatible).
   // Includes: value, currency, transaction_id, and items array (GA4/Meta Pixel standard).
+  // ━━ Lot 3: Multi-product payload — maps ALL orderItems, not just the first ━━
+  // Previously: items[] contained only `order` (single product), even for multi-cart
+  // orders. This underreported revenue (only first item's price) and lost variant
+  // details for secondary items in GA4/Meta.
+  // Now: items[] is mapped from the full orderItems array. The `value` field is
+  // the sum of all items' (price × quantity), giving the true total.
   useEffect(() => {
     if (typeof window === 'undefined') return;
     if (tracked.current) return;
     if (!order) return; // Wait for order data to be fetched
+    if (!orderItems || orderItems.length === 0) return; // Wait for items array
 
     tracked.current = true;
 
-    // Parse numeric value from productPrice (e.g. "290.00 DH" → 290.00)
-    const priceStr = order.productPrice || '';
-    const priceMatch = priceStr.match(/[\d.,]+/);
-    const numericValue = priceMatch ? parseFloat(priceMatch[0].replace(/\s/g, '').replace(',', '.')) : 0;
+    // Helper: parse numeric price from a possibly-formatted string ("290.00 DH" → 290.00)
+    const parsePrice = (s: string | null | undefined): number => {
+      if (!s) return 0;
+      const m = s.match(/[\d.,]+/);
+      if (!m) return 0;
+      return parseFloat(m[0].replace(/\s/g, '').replace(',', '.')) || 0;
+    };
+
+    // Build the GA4 items array from the FULL orderItems array (multi-product).
+    // Each item gets: item_id, item_name, price, quantity, item_variant, item_size.
+    // ━━ Lot 3 Correctif: Isolated variants — each item reads ONLY its own fields ━━
+    // Previously: item_variant/size fell back to order.productColor/Size, causing
+    // an accessory without size to inherit the main garment's size (data pollution).
+    // Now: secondary items read exclusively item.productColor / item.productSize.
+    // If a field is null, it stays null (no cross-item inheritance).
+    const ga4Items = orderItems.map((item, idx) => ({
+      item_id: idx === 0 ? order.id : `${order.id}-${idx + 1}`,  // primary uses order id, others get suffix
+      sku: item.productId || 'N/A',
+      item_name: item.productName || 'Unknown',
+      price: parsePrice(item.productPrice),
+      quantity: item.productQuantity || 1,
+      item_variant: item.productColor || undefined,
+      item_size: item.productSize || undefined,
+    }));
+
+    // True total value = sum of (item.price × item.quantity) across all items
+    const numericValue = ga4Items.reduce(
+      (sum, item) => sum + item.price * (item.quantity || 1),
+      0,
+    );
 
     const dl = (window as unknown as Record<string, unknown[]>).dataLayer;
     if (dl) {
@@ -63,17 +96,7 @@ function MerciContent() {
           transaction_id: order.id,
           value: numericValue,
           currency: 'MAD',
-          items: [
-            {
-              item_id: order.id,
-              sku: order.productId || 'N/A',
-              item_name: order.productName || 'Unknown',
-              price: numericValue,
-              quantity: order.productQuantity || 1,
-              item_variant: order.productColor || undefined,
-              item_size: order.productSize || undefined,
-            },
-          ],
+          items: ga4Items,
         },
         // Flat fields for Meta Pixel compatibility
         value: numericValue,
@@ -82,7 +105,7 @@ function MerciContent() {
         order_id: order.id,
       });
     }
-  }, [order]);
+  }, [order, orderItems]);
 
   // Fetch the real order data for the recap
   useEffect(() => {
