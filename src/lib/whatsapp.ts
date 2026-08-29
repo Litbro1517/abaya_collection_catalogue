@@ -13,6 +13,8 @@
  * stays in sync and placeholders are honoured consistently.
  */
 
+import { parsePriceToNumber } from '@/lib/analytics';
+
 export interface BuildWhatsappLinkOptions {
   /** WhatsApp phone number in international format, digits only (e.g. "212600000000"). */
   phone: string;
@@ -221,23 +223,11 @@ export interface BuildMultiProductWhatsappLinkOptions {
   };
 }
 
-// ━━ Audit remediation: helpers for WhatsApp subtotal formatting ━━
-
-/**
- * Parse a numeric price from a possibly-formatted string.
- * Handles: "290.00 DH", "1 290,50", "290", "290 DH".
- * Returns 0 if unparseable (e.g. empty string or non-numeric).
- * Used to compute per-line subtotals (unit price × quantity).
- */
-function parseItemPrice(price: string): number {
-  if (!price) return 0;
-  const m = price.match(/[\d.,]+/);
-  if (!m) return 0;
-  // Remove spaces (thousand separators), handle comma decimal (fr-FR)
-  const cleaned = m[0].replace(/\s/g, '').replace(/\.(?=\d{3}\b)/g, '').replace(',', '.');
-  const n = parseFloat(cleaned);
-  return isFinite(n) ? n : 0;
-}
+// ━━ Audit remediation: helper for WhatsApp subtotal formatting ━━
+// Note: parsePriceToNumber (canonical price parser) is imported from @/lib/analytics.
+// It correctly handles prices with thousand separators (spaces): "1 290,50 DH" → 1290.5.
+// The previous local parseItemPrice used /[\d.,]+/ which stopped at the first space,
+// returning 1 instead of 1290.5 for prices >= 1000 DH.
 
 /**
  * Format a numeric amount with up to 2 decimal places (no trailing zeros).
@@ -323,7 +313,7 @@ export function buildMultiProductWhatsappLink(opts: BuildMultiProductWhatsappLin
       // Previously: only displayed the unit price, leaving the seller to mentally
       // multiply by quantity for each line. Now: shows both unit price AND
       // the computed subtotal, so the seller can verify the grand total at a glance.
-      const unitPrice = parseItemPrice(item.price);
+      const unitPrice = parsePriceToNumber(item.price);
       const subtotal = unitPrice * qty;
       lines.push(`   ${opts.labels.priceLabel} : ${item.price}`);
       if (qty > 1 && subtotal > unitPrice) {
