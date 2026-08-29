@@ -6,6 +6,7 @@ import { X, Plus, Minus, Trash2, ShoppingBag, Loader2 } from 'lucide-react';
 import { useState } from 'react';
 import { cn } from '@/lib/utils';
 import { resolveHybridImageUrl } from '@/lib/media-utils';
+import { pushDataLayer, buildEcommerceItem, parsePriceToNumber } from '@/lib/analytics';
 
 /**
  * CartDrawer (VG34) — Slide-over cart drawer.
@@ -30,6 +31,28 @@ export function CartDrawer({ onCheckout }: Props) {
   const total = getTotalPrice();
 
   const handleCheckout = () => {
+    // ── Lot 1: begin_checkout dataLayer event ──
+    // Fires when the user clicks the Checkout button in the cart drawer.
+    // Captures the full cart contents (items, total value) at the exact moment
+    // the checkout flow is initiated.
+    if (items.length > 0) {
+      pushDataLayer({
+        event: 'begin_checkout',
+        ecommerce: {
+          currency: 'MAD',
+          value: parsePriceToNumber(total),
+          items: items.map((item) =>
+            buildEcommerceItem({
+              id: item.productId,
+              name: item.title,
+              price: item.price,
+              variant: `${item.color || ''} / ${item.size || ''}`.trim(),
+              quantity: item.quantity,
+            }),
+          ),
+        },
+      });
+    }
     setCheckingOut(true);
     closeDrawer();
     if (onCheckout) {

@@ -3045,3 +3045,64 @@ Correction de deux anomalies : (1) tronquage du menu déroulant des langues sur 
 
 ---
 Date de mise à jour : 26/08/2026
+
+---
+
+## [LOT 1 — TRACKING & ÉVÉNEMENTS DATALAYER E-COMMERCE (GA4/META)]
+
+### Mandat
+Implémentation des déclencheurs d'événements e-commerce GA4 dans le dataLayer aux points d'interaction clés du tunnel d'acquisition et de conversion. Branche isolée `feature/lot1-datalayer-tracking` (créée depuis `main@9a0036a`). Constat initial (audit technique): seul `purchase` (merci/page.tsx) existait — `view_item`, `add_to_cart`, `begin_checkout`, `select_item` étaient absents (score Tracking 15/100). Placeholder `GTM-XXXXXXX` conservé tel quel (hors périmètre Lot 1).
+
+### Architecture — Helper centralisé (NOUVEAU)
+
+#### Fichier créé: `src/lib/analytics.ts`
+- `pushDataLayer(event: DataLayerEvent)`: helper type-safe, SSR-guardé (`typeof window === 'undefined'` → no-op), wrapped `try/catch` (tracking never breaks UX), init `window.dataLayer=[]` si manquant
+- `buildEcommerceItem(item)`: construit un item GA4 propre, strippé des `undefined`
+- `parsePriceToNumber(price)`: parse `"290.00 DH"`, `"1 290,50"`, etc. → `number` (gère séparateurs de milliers espace + virgule décimale fr-FR)
+- Types: `EcommerceItem`, `DataLayerEvent`
+
+### Événements implémentés (4)
+
+#### 1. `view_item` — Fiche Produit (ProductPage.tsx L.625-651)
+- **Déclencheur**: `useEffect` au mount du composant ProductPage (quand `selectedProduct` ouvre la fiche détaillée)
+- **Déduplication**: ref guard `viewItemTracked` par `${row.id}|${title}` — fire une fois par produit
+- **Attendre**: title résolu (cache/traduction auto) avant de pousser
+- **Payload**: `event=view_item, ecommerce.currency=MAD, value=price, items=[{item_id, item_name, price, item_category}]`
+
+#### 2. `add_to_cart` — Ajout au panier (ProductPage.tsx L.487-506)
+- **Déclencheur**: dans `handleAddToCart`, après `addItem()` du cart-store
+- **Variante**: `item_variant=`${color} / ${size}`.trim()`
+- **Quantité**: `quantity` (defaults 1)
+- **Payload**: `event=add_to_cart, ecommerce.value=price, items=[{item_id, item_name, price, item_variant, quantity}]`
+
+#### 3. `begin_checkout` — Initiation commande (2 points)
+- **a) Multi-produit** (CartDrawer.tsx L.33-55): `handleCheckout` clique bouton panier → checkout. `items` = tous les items du panier (`items.map`), `value` = `getTotalPrice()` du cart-store
+- **b) Single-produit COD** (ProductPage.tsx L.522-543): `handleCtaClick` clique CTA PDP → scroll vers CodForm. `items` = [produit courant], `value` = `price * quantity`
+- Les 2 couvrent les flux: panier multi-produit ET tunnel COD direct PDP
+- **Payload**: `event=begin_checkout, ecommerce.currency=MAD, value, items[]`
+
+#### 4. `select_item` — Sélection produit grille (CatalogPreview.tsx L.1482-1500 + L.1567-1583)
+- **Déclencheur**: 2 handlers onClick — bouton carte produit (`product-card-action`) + bouton hover CTA "Commander"
+- Fire avant `setSelectedProduct` (avant ouverture PDP → `view_item` ensuite sur mount PDP)
+- **Payload**: `event=select_item, items=[{item_id, item_name, price, item_category}]`
+
+### Fichiers modifiés (4 + docs)
+| # | Fichier | Modification |
+|---|---------|-------------|
+| 1 | `src/lib/analytics.ts` | NEW — Helper `pushDataLayer`, `buildEcommerceItem`, `parsePriceToNumber` + types |
+| 2 | `src/components/preview/ProductPage.tsx` | +import analytics, +`view_item` useEffect (L.625), +`add_to_cart` dans handleAddToCart (L.487), +`begin_checkout` dans handleCtaClick (L.522) |
+| 3 | `src/components/preview/CartDrawer.tsx` | +import analytics, +`begin_checkout` dans handleCheckout (L.33) |
+| 4 | `src/components/preview/CatalogPreview.tsx` | +import analytics, +`select_item` dans 2 onClick handlers (L.1482, L.1567) |
+
+### Validations
+- `bun run lint` : 0 erreur, 0 warning ✅
+- Test Node direct: `parsePriceToNumber` ("290.00 DH"→290, "1 290,50"→1290.5, ""→0, null→0) ✅ ; `buildEcommerceItem` strips undefined ✅
+- Test intégration navigateur (agent-browser spy dataLayer): 4 événements capturés dans l'ordre `["select_item","view_item","add_to_cart","begin_checkout"]`, payload `begin_checkout` conforme (currency=MAD, value=580, items avec item_id/item_name/price/item_variant/quantity) ✅
+- SSR guard: `pushDataLayer` no-op côté serveur ✅
+- Placeholder `GTM-XXXXXXX` conservé dans layout.tsx ✅
+
+### Branche
+`feature/lot1-datalayer-tracking` (créée depuis `main@9a0036a`). **POUSSÉE SUR ORIGIN. EN ATTENTE DU FEU VERT EXPLICITE POST-AUDIT POUR FUSION.**
+
+---
+Date de mise à jour : 26/08/2026
