@@ -31,6 +31,8 @@ interface WhatsappOrderFormProps {
   selectedSize: string | null;
   whatsappNumber: string;
   locale: string;
+  /** Selected quantity (defaults to 1). Used to compute the total price. */
+  quantity?: number;
   /** When true, a required variant (size/color) is missing → block submission */
   hasMissingVariant: boolean;
   /** Called when submission is blocked due to missing variant → parent shows red alert */
@@ -49,10 +51,30 @@ export function WhatsappOrderForm({
   selectedSize,
   whatsappNumber,
   locale,
+  quantity = 1,
   hasMissingVariant,
   onVariantMissing,
 }: WhatsappOrderFormProps) {
   const { t, rtl, formatPrice } = useClientTranslation();
+
+  // ━━ Fix: compute total price = unit price × quantity ━━
+  // Previously: WhatsappOrderForm displayed and sent the unit price only,
+  // ignoring the quantity picker value. Now: computes the total so the UI
+  // recap and the WhatsApp message both reflect the real order amount.
+  const qty = quantity > 0 ? quantity : 1;
+  const parseUnitPrice = (s: string): number => {
+    if (!s) return 0;
+    const m = s.match(/[\d\s.,]+/);
+    if (!m) return 0;
+    return parseFloat(m[0].replace(/\s/g, '').replace(',', '.')) || 0;
+  };
+  const unitPriceNum = parseUnitPrice(productPrice);
+  const totalPriceNum = unitPriceNum * qty;
+  // Build a formatted total string by replacing the numeric portion of the
+  // original formatted price. This preserves the currency suffix (DH, Dhs, درهم).
+  const totalPriceStr = unitPriceNum > 0 && qty > 1
+    ? formatPrice(totalPriceNum)
+    : productPrice;
   const [form, setForm] = useState<FormState>({
     customerName: '',
     customerAddress: '',
@@ -86,9 +108,13 @@ export function WhatsappOrderForm({
     if (variantParts.length > 0) {
       lines.push(`🎨 ${locale === 'ar' ? 'الخيارات' : 'Variante'}: ${variantParts.join(' | ')}`);
     }
-    // Price
+    // Price — show unit price, quantity (if > 1), and total
     if (productPrice) {
       lines.push(`💰 ${locale === 'ar' ? 'السعر' : 'Prix'}: ${formatPrice(productPrice)}`);
+      if (qty > 1) {
+        lines.push(`📊 ${locale === 'ar' ? 'الكمية' : 'Quantité'}: ${qty}`);
+        lines.push(`🔢 ${locale === 'ar' ? 'المجموع' : 'Total'}: ${totalPriceStr}`);
+      }
     }
     // VG36.1 Fix D: Product URL — direct link to the PDP for commercial verification
     if (typeof window !== 'undefined' && window.location.href) {
@@ -249,7 +275,7 @@ export function WhatsappOrderForm({
               fontWeight: 700,
               color: 'var(--price-charcoal, #121212)',
             }}>
-              {formatPrice(productPrice)}
+              {totalPriceStr}
             </span>
           </div>
         )}

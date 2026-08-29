@@ -105,6 +105,18 @@ function buildStructuredBody(opts: BuildWhatsappLinkOptions): string {
   // Quantity (only shown when > 1)
   if (qty > 1) {
     lines.push(`${opts.labels.quantityLabel} : ${qty}`);
+    // ━━ Fix: Total = unit price × quantity (only shown when qty > 1) ━━
+    // Previously: only the unit price was shown, even for multi-quantity orders.
+    // Now: also shows the computed total so the seller can verify the amount.
+    if (opts.price) {
+      const unitPrice = parsePriceToNumber(opts.price);
+      if (unitPrice > 0) {
+        const total = unitPrice * qty;
+        const totalStr = formatLineAmount(total);
+        // Reuse the priceLabel as the total label (contextually clear with qty shown above)
+        lines.push(`${opts.labels.totalLabel || opts.labels.priceLabel} (${qty}×) : ${totalStr}`);
+      }
+    }
   }
 
   // Product image direct URL

@@ -3484,3 +3484,57 @@ Implémenter une page "Politique de Retour et d'Échange" (FR/AR/EN, textes verb
 
 ---
 Date de mise à jour : 29/08/2026
+
+---
+
+## [FIX WHATSAPP TOTAL CALCULATION — Correction du total WhatsApp (quantité > 1)]
+
+### Mandat
+Corriger le calcul du total WhatsApp : quand l'utilisateur augmente la quantité (ex: 2 articles), le total affiché et transmis restait bloqué au prix unitaire. Branche isolée `fix/whatsapp-total-calculation` (créée depuis `main@84eb3f9`).
+
+### Cause racine
+- `whatsapp.ts` `buildStructuredBody` : affichait `opts.price` (prix unitaire) sans multiplier par `quantity`
+- `ProductPage.tsx` : `formatPrice(price)` (prix unitaire) dans desktop price row + mobile sticky CTA, sans tenir compte de `quantity`
+- `WhatsappOrderForm.tsx` : ne recevait pas la prop `quantity`, affichait `formatPrice(productPrice)` (unitaire) dans le recap + le message WhatsApp
+
+### Corrections appliquées (3 axes)
+
+#### Axe 1 — whatsapp.ts `buildStructuredBody` (L.105-120)
+- Ajout ligne `Total (qty×) : <total>` quand `qty > 1`
+- Calcul : `parsePriceToNumber(opts.price) × qty`, formaté via `formatLineAmount`
+- Justification : le message WhatsApp doit refléter le montant réel de la commande
+
+#### Axe 2 — ProductPage.tsx (L.374-383 + L.963 + L.1200)
+- Nouveau `useMemo totalPriceDisplay` : calcule `unitNum × quantity`
+- Desktop price row (L.963) : `formatPrice(price)` → `totalPriceDisplay`
+- Mobile sticky CTA (L.1200) : `formatPrice(price)` → `totalPriceDisplay`
+- Justification : l'UI s'actualise en temps réel quand l'utilisateur change la quantité
+
+#### Axe 3 — WhatsappOrderForm.tsx (L.34 + L.47-77 + L.91 + L.278)
+- Ajout prop `quantity` (defaults to 1)
+- Calcul `totalPriceStr = formatPrice(unitPriceNum × qty)` quand qty > 1
+- `buildWhatsAppMessage` : ajout lignes Quantité + Total quand qty > 1
+- Recap UI (L.278) : `formatPrice(productPrice)` → `totalPriceStr`
+- `ProductPage.tsx` L.1153 : passe `quantity={quantity}` au form
+- Justification : le formulaire WhatsApp (mode non-landing) doit aussi refléter le total
+
+### Fichiers modifiés (3)
+| # | Fichier | Modification |
+|---|---------|-------------|
+| 1 | `src/lib/whatsapp.ts` | `buildStructuredBody` : +ligne Total (qty×) quand qty > 1 |
+| 2 | `src/components/preview/ProductPage.tsx` | +`totalPriceDisplay` useMemo, desktop price + mobile CTA utilisent le total |
+| 3 | `src/components/preview/WhatsappOrderForm.tsx` | +prop `quantity`, calcul `totalPriceStr`, message WhatsApp + recap UI |
+
+### Validations
+- `bun run lint` : 0 erreur, 0 warning ✅
+- `bun run build` : exit 0 ✅
+- Test `buildWhatsappLink` qty=2 price=270 DH :
+  - Message contient `Prix : 270 DH` (unitaire) ✅
+  - Message contient `Quantité : 2` ✅
+  - Message contient `Total (2×) : 540` (calculé) ✅
+
+### Branche
+`fix/whatsapp-total-calculation` (créée depuis `main@84eb3f9`). **POUSSÉE SUR ORIGIN. EN ATTENTE DU FEU VERT EXPLICITE POUR FUSION.**
+
+---
+Date de mise à jour : 29/08/2026

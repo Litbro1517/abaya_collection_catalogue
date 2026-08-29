@@ -579,3 +579,42 @@ Stage Summary:
 - FUSION : main = 6048845508ffa01c1170f3f5c84846ad61fcb213 (fast-forward propre), origin/main synchronisé
 - DÉPLOIEMENT : Vercel promu en ~80 s, sanity production complète FR/AR/EN — page Politique de Retour + OG cover EN LIGNE
 - 1 réserve mineure fermée (alignement documentaire) ; limitation notée : comparaison byte-level avec le docx source impossible (non fourni) — intégrité validée par complétude/coherence structurale 3 langues
+
+---
+Task ID: WHATSAPP-TOTAL-CALCULATION
+Agent: Agent Développeur
+Task: Correction du calcul du total WhatsApp (quantité > 1)
+
+Work Log:
+- Read PROJECT_MAP.md + analyse code ProductPage/WhatsappOrderForm/whatsapp.ts
+- Créé branche isolée fix/whatsapp-total-calculation depuis main@84eb3f9
+- Bug: le total WhatsApp et l'affichage UI restaient au prix unitaire même quand qty > 1
+
+CORRECTION 1 — whatsapp.ts buildStructuredBody (L.105-120):
+- Ajout ligne "Total (qty×) : <total>" quand qty > 1
+- Calcul: parsePriceToNumber(opts.price) × qty, formaté via formatLineAmount
+- Justification: le message WhatsApp doit refléter le montant réel (prix × quantité)
+
+CORRECTION 2 — ProductPage.tsx (L.374-383 + L.963 + L.1200):
+- Nouveau useMemo totalPriceDisplay (L.378): calcule unitNum × quantity
+- L.963 (desktop price row): formatPrice(price) → totalPriceDisplay
+- L.1200 (mobile sticky CTA): formatPrice(price) → totalPriceDisplay
+- Justification: l'UI doit s'actualiser en temps réel quand l'utilisateur change la quantité
+
+CORRECTION 3 — WhatsappOrderForm.tsx (L.34 + L.47-77 + L.91 + L.278):
+- Ajout prop quantity (defaults to 1)
+- Calcul totalPriceStr = formatPrice(unitPriceNum × qty) quand qty > 1
+- buildWhatsAppMessage: ajout lignes Quantité + Total quand qty > 1
+- Recap UI (L.278): formatPrice(productPrice) → totalPriceStr
+- ProductPage L.1153: passe quantity={quantity} au form
+- Justification: le formulaire WhatsApp (mode non-landing) doit aussi refléter le total
+
+VALIDATION:
+- bun run lint: 0 erreur, 0 warning ✅
+- bun run build: exit 0 ✅
+- Test buildWhatsappLink qty=2 price=270: message contient "Prix: 270 DH", "Quantité: 2", "Total (2×): 540" ✅
+
+Stage Summary:
+- Branche: fix/whatsapp-total-calculation (créée depuis main@84eb3f9)
+- 3 fichiers modifiés: whatsapp.ts, ProductPage.tsx, WhatsappOrderForm.tsx
+- **AUCUNE FUSION SUR main — en attente du feu vert explicite**

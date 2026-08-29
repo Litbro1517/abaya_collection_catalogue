@@ -371,6 +371,16 @@ export function ProductPage({
   const [selectedSize, setSelectedSize] = useState<string | null>(null);
   const [selectedColor, setSelectedColor] = useState<string | null>(null);
   const [quantity, setQuantity] = useState(1);
+  // ━━ Fix: total price = unit price × quantity ━━
+  // Used to display the dynamic total in the price row + mobile sticky CTA when
+  // the user changes the quantity picker. When qty=1, displays the unit price
+  // (no visual change from the original behavior).
+  const totalPriceDisplay = useMemo(() => {
+    if (quantity <= 1) return price;  // unit price, unchanged
+    const unitNum = parsePriceToNumber(price);
+    if (unitNum <= 0) return price;  // can't parse, fall back to unit price string
+    return formatPrice(unitNum * quantity);
+  }, [price, quantity, formatPrice]);
   const [isLiked, setIsLiked] = useState(false);
   const [showShareToast, setShowShareToast] = useState(false);
   const [imageLoaded, setImageLoaded] = useState<Set<number>>(new Set());
@@ -949,7 +959,8 @@ export function ProductPage({
           {price && (
             <div className="pdp-price-row">
               <span className="pdp-current-price">
-                <PriceText locale={locale}>{formatPrice(price)}</PriceText>
+                {/* Fix: show total (unit × qty) when quantity > 1, else unit price */}
+                <PriceText locale={locale}>{totalPriceDisplay}</PriceText>
               </span>
               {discount.hasDiscount && (
                 <>
@@ -1150,6 +1161,7 @@ export function ProductPage({
                 selectedSize={selectedSize}
                 whatsappNumber={whatsappNumber}
                 locale={locale}
+                quantity={quantity}
                 hasMissingVariant={hasMissingVariant}
                 onVariantMissing={() => setShowVariantError(true)}
               />
@@ -1184,7 +1196,8 @@ export function ProductPage({
           {price && (
             <>
               <span className="mobile-cta-price">
-                <PriceText locale={locale}>{formatPrice(price)}</PriceText>
+                {/* Fix: show total (unit × qty) when quantity > 1, else unit price */}
+                <PriceText locale={locale}>{totalPriceDisplay}</PriceText>
               </span>
               {/* DEBT-9 : badge discount compact pour mobile */}
               {discount.hasDiscount && (
