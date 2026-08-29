@@ -286,3 +286,57 @@ Stage Summary:
 - Branche fix/mobile-lang-dropdown-and-arabic-text supprimée (locale + distante)
 - Vercel production build déclenché
 - Intervention VG46 clôturée
+
+---
+Task ID: LOT3-TUNNELS-COD-WHATSAPP
+Agent: Agent Développeur
+Task: Lot 3 — Fortification des Tunnels COD & WhatsApp
+
+Work Log:
+- Read PROJECT_MAP.md (mis à jour après Lot 1 + Lot 2)
+- Créé branche feature/lot3-tunnels-cod-whatsapp depuis main (9a0036a)
+- 3 faiblesses audit: (1) validation téléphone trop permissive (length < 6), (2) fallback WhatsApp tronque à "(+N autres)", (3) payload purchase ne transmet que le 1er article
+
+CORRECTION 1 — Regex Validation Téléphone Marocain (CodForm.tsx + lib/phone-validation.ts)
+- NOUVEAU FICHIER: src/lib/phone-validation.ts
+  - validateMoroccanPhone(phone): regex ^(?:\+212|00212|0)[5-7]\d{8}$
+  - normalizePhone(phone): strip espaces/points/tirets avant validation
+  - Accepte: 06/07/05 (10 chiffres), +212, 00212, formats espacés/ponctués
+  - Rejette: "12345", "abcde", préfixe 08, 9 chiffres, etc.
+- CodForm.tsx L.55: remplacé `form.customerPhone.trim().length < 6` par `!validateMoroccanPhone(form.customerPhone)`
+- Test: 14/14 cas validés (8 valides + 6 invalides correctement rejetés)
+
+CORRECTION 2 — Fallback WhatsApp Multi-Produits (whatsapp.ts + CheckoutPage.tsx)
+- whatsapp.ts: NOUVELLE fonction buildMultiProductWhatsappLink()
+  - Boucle sur TOUS les items du panier (items.map)
+  - Pour chaque item: titre, couleur, taille, quantité, prix unitaire
+  - Ligne de total global à la fin
+  - Plus de "(+N autres)" — tous les détails sont préservés
+  - Nouveaux types: WhatsAppCartItem, BuildMultiProductWhatsappLinkOptions
+- CheckoutPage.tsx L.179-207: remplacé buildWhatsappLink (firstItem only) par buildMultiProductWhatsappLink (all items)
+- i18n: ajouté whatsapp.items + whatsapp.total en FR/EN/AR (dictionaries.ts L.60-61, L.825-826, L.1588-1589)
+- Test message généré pour 2 produits (Abaya Noir + Kimono Beige): tous les détails présents ✅
+
+CORRECTION 3 — Payload purchase Multi-Produits (merci/page.tsx)
+- Avant: items[] ne contenait que `order` (single product), même pour commandes multi-produits
+  → value = prix du 1er article seulement (sous-rapporté)
+  → variantes des articles secondaires perdues
+- Après: items[] mappé depuis le tableau complet orderItems
+  → value = somme de (price × quantity) pour TOUS les items
+  → chaque item a son item_id, item_name, price, quantity, item_variant, item_size
+- Ajouté guard `if (!orderItems || orderItems.length === 0) return` pour attendre les items
+- useEffect dependency: [order, orderItems] (au lieu de juste [order])
+- Test: 2 produits → items.length=2, value=440 (290+150), variantes préservées ✅
+
+VALIDATION:
+- bun run lint: 0 erreur, 0 warning ✅
+- Test validateMoroccanPhone: 14/14 cas ✅
+- Test buildMultiProductWhatsappLink: message structuré avec 2 produits complets ✅
+- Test payload purchase: items[2], value=440, variantes préservées ✅
+
+Stage Summary:
+- Branche: feature/lot3-tunnels-cod-whatsapp (créée depuis main@9a0036a)
+- 5 fichiers modifiés: src/lib/phone-validation.ts (NEW), src/lib/whatsapp.ts (buildMultiProductWhatsappLink), src/components/preview/CodForm.tsx (validateMoroccanPhone), src/components/preview/CheckoutPage.tsx (buildMultiProductWhatsappLink), src/app/merci/page.tsx (payload multi-produits)
+- 2 fichiers i18n: dictionaries.ts (whatsapp.items + whatsapp.total FR/EN/AR)
+- 3 faiblesses corrigées
+- **EN ATTENTE DU FEU VERT EXPLICITE POST-AUDIT POUR FUSION — main demeure intacte**

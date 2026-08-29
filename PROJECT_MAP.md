@@ -3045,3 +3045,115 @@ Correction de deux anomalies : (1) tronquage du menu déroulant des langues sur 
 
 ---
 Date de mise à jour : 26/08/2026
+
+---
+
+## [LOT 3 — FORTIFICATION DES TUNNELS COD & WHATSAPP]
+
+### Mandat
+Fiabiliser les données de contact en entrée + garantir 100% des commandes WhatsApp/COD exploitables sans perte d'information sur les variantes. Branche isolée `feature/lot3-tunnels-cod-whatsapp` (créée depuis `main@9a0036a`).
+
+### Corrections appliquées (3 axes)
+
+#### Axe 1 — Regex Validation Téléphone Marocain
+**Nouveau fichier**: `src/lib/phone-validation.ts`
+- `validateMoroccanPhone(phone)`: regex `^(?:\+212|00212|0)[5-7]\d{8}$`
+- `normalizePhone(phone)`: strip espaces/points/tirets avant validation
+- Accepte: `06/07/05` (10 chiffres), `+212`, `00212`, formats espacés/ponctués
+- Rejette: `12345`, `abcde`, préfixe `08`, 9 chiffres, etc.
+
+**CodForm.tsx** L.55: `form.customerPhone.trim().length < 6` → `!validateMoroccanPhone(form.customerPhone)`
+
+Jeux de tests (14/14 validés):
+| Téléphone | Résultat |
+|-----------|----------|
+| `0661234567` | ✅ valide |
+| `0712345678` | ✅ valide |
+| `0512345678` | ✅ valide |
+| `+212661234567` | ✅ valide |
+| `00212661234567` | ✅ valide |
+| `06 12 34 56 78` | ✅ valide (espaces) |
+| `06.12.34.56.78` | ✅ valide (points) |
+| `12345` | ❌ rejeté |
+| `abcde` | ❌ rejeté |
+| `0812345678` | ❌ rejeté (préfixe 08) |
+| `061234567` | ❌ rejeté (9 chiffres) |
+
+#### Axe 2 — Fallback WhatsApp Multi-Produits
+**whatsapp.ts**: nouvelle fonction `buildMultiProductWhatsappLink(opts)`
+- Boucle sur TOUS les items du panier (`items.map`)
+- Pour chaque item: titre, couleur, taille, quantité, prix unitaire
+- Ligne de total global à la fin
+- Plus de `(+N autres)` — tous les détails sont préservés
+
+**CheckoutPage.tsx** L.179-207: `buildWhatsappLink` (firstItem only) → `buildMultiProductWhatsappLink` (all items)
+
+Exemple de message généré (panier 2 produits):
+```
+Bonjour, j'ai sélectionné ce produit et je souhaite finaliser ma commande.
+
+🛒 Articles (3)
+━━━━━━━━━━━━━━━
+1. *Abaya Noir*
+   Couleur : Noir
+   Taille : M
+   Quantité : 2
+   Prix : 290 DH
+
+2. *Kimono Beige*
+   Couleur : Beige
+   Taille : L
+   Quantité : 1
+   Prix : 150 DH
+
+━━━━━━━━━━━━━━━
+*Total : 730 DH*
+```
+
+**i18n**: ajouté `whatsapp.items` + `whatsapp.total` en FR/EN/AR (dictionaries.ts)
+
+#### Axe 3 — Payload purchase Multi-Produits
+**merci/page.tsx** L.52-103:
+- Avant: `items: [{...order}]` (single product) → value = prix du 1er article seulement
+- Après: `items: orderItems.map(...)` (full array) → value = somme de (price × quantity) pour TOUS les items
+- Guard: `if (!orderItems || orderItems.length === 0) return` (attend les items)
+- useEffect dependency: `[order, orderItems]`
+
+Payload JSON généré (2 produits, order-abc-123):
+```json
+{
+  "event": "purchase",
+  "ecommerce": {
+    "transaction_id": "order-abc-123",
+    "value": 440,
+    "currency": "MAD",
+    "items": [
+      { "item_id": "order-abc-123", "item_name": "Abaya Noir", "price": 290, "quantity": 1, "item_variant": "Noir", "item_size": "M" },
+      { "item_id": "order-abc-123-2", "item_name": "Kimono Beige", "price": 150, "quantity": 1, "item_variant": "Beige", "item_size": "L" }
+    ]
+  },
+  "value": 440, "currency": "MAD", "transaction_id": "order-abc-123", "order_id": "order-abc-123"
+}
+```
+
+### Fichiers modifiés (5 + i18n + docs)
+| # | Fichier | Modification |
+|---|---------|-------------|
+| 1 | `src/lib/phone-validation.ts` | NEW — `validateMoroccanPhone`, `normalizePhone` |
+| 2 | `src/lib/whatsapp.ts` | NEW `buildMultiProductWhatsappLink()` + types `WhatsAppCartItem`, `BuildMultiProductWhatsappLinkOptions` |
+| 3 | `src/components/preview/CodForm.tsx` | Import + remplacement check `length < 6` par `!validateMoroccanPhone()` |
+| 4 | `src/components/preview/CheckoutPage.tsx` | Import + `whatsappFallbackLink` utilise `buildMultiProductWhatsappLink` (all items) |
+| 5 | `src/app/merci/page.tsx` | Payload purchase multi-produits (items.map, value=sum) + guard orderItems |
+| 6 | `src/lib/i18n/dictionaries.ts` | +`whatsapp.items`, +`whatsapp.total` FR/EN/AR |
+
+### Validations
+- `bun run lint` : 0 erreur, 0 warning ✅
+- Test `validateMoroccanPhone` : 14/14 cas ✅
+- Test `buildMultiProductWhatsappLink` : message structuré 2 produits complet ✅
+- Test payload purchase : items[2], value=440, variantes préservées ✅
+
+### Branche
+`feature/lot3-tunnels-cod-whatsapp` (créée depuis `main@9a0036a`). **POUSSÉE LOCALEMENT. EN ATTENTE DU FEU VERT EXPLICITE POST-AUDIT POUR FUSION — main demeure intacte.**
+
+---
+Date de mise à jour : 29/08/2026

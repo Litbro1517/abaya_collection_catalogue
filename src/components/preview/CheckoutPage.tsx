@@ -17,7 +17,7 @@ import {
 import { cn } from '@/lib/utils';
 import { useClientTranslation } from '@/lib/i18n';
 import { useAppStore } from '@/lib/store';
-import { buildWhatsappLink } from '@/lib/whatsapp';
+import { buildMultiProductWhatsappLink } from '@/lib/whatsapp';
 
 // ── Brand Constants (matching ProductPage / CodForm) ──
 const BRAND = {
@@ -172,16 +172,22 @@ export function CheckoutPage({ product, onBack }: CheckoutPageProps) {
   };
 
   // ── WhatsApp fallback link (when API fails) ──
-  // VG37.4 Phase 2: Use first item for the WhatsApp message (multi-product summary)
-  const firstItem = items[0];
-  const whatsappFallbackLink = whatsappNumber && firstItem
-    ? buildWhatsappLink({
+  // Lot 3: Multi-product fallback — loops over ALL cart items (no truncation).
+  // Previously: used only firstItem + "(+N autres)" summary → lost variant details.
+  // Now: buildMultiProductWhatsappLink emits a structured block per item with
+  // title, color, size, quantity, unit price — plus a grand total line.
+  const whatsappFallbackLink = whatsappNumber && items.length > 0
+    ? buildMultiProductWhatsappLink({
         phone: whatsappNumber,
-        title: items.length === 1 ? firstItem.productTitle : `${firstItem.productTitle} (+${items.length - 1} autres)`,
-        price: totalFormatted,
-        color: firstItem.selectedColor,
-        size: firstItem.selectedSize,
-        quantity: totalQuantity,
+        items: items.map(item => ({
+          title: item.productTitle,
+          price: item.productPrice,
+          color: item.selectedColor || null,
+          size: item.selectedSize || null,
+          quantity: item.quantity,
+        })),
+        totalFormatted,
+        totalQuantity,
         customMessage: settings?.conversionMessage || undefined,
         conversionMessages: settings?.conversionMessages || null,
         locale: useAppStore.getState().clientLocale,
@@ -194,6 +200,8 @@ export function CheckoutPage({ product, onBack }: CheckoutPageProps) {
           colorLabel: t('product.color'),
           sizeLabel: t('product.size'),
           quantityLabel: t('product.quantity'),
+          totalLabel: t('whatsapp.total'),
+          itemsLabel: t('whatsapp.items'),
         },
       })
     : '#';

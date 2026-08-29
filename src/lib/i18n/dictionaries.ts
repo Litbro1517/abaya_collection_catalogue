@@ -57,6 +57,8 @@ export const dictionaries: Record<Locale, TranslationDict> = {
     // Used when the admin has not filled a custom message for the visitor's locale.
     'whatsapp.greetingA': 'Bonjour, j\'ai sélectionné ce produit et je souhaite finaliser ma commande.',
     'whatsapp.greetingB': 'Bonjour, j\'aimerais obtenir des informations ou des clarifications sur vos produits.',
+    'whatsapp.items': 'Articles',
+    'whatsapp.total': 'Total',
 
     // ── Filters ──
     'filter.all': 'Tous',
@@ -820,6 +822,8 @@ export const dictionaries: Record<Locale, TranslationDict> = {
     // ── WhatsApp Smart Logic greetings (Flux A = purchase, Flux B = clarification) ──
     'whatsapp.greetingA': 'Hello, I have selected this product and I would like to complete my purchase.',
     'whatsapp.greetingB': 'Hello, I would like to get some information or clarifications about your products.',
+    'whatsapp.items': 'Items',
+    'whatsapp.total': 'Total',
 
     // ── Filters ──
     'filter.all': 'All',
@@ -1581,6 +1585,8 @@ export const dictionaries: Record<Locale, TranslationDict> = {
     // ── WhatsApp Message ──
     'whatsapp.message': 'مرحبًا، أرغب في الطلب:',
     // ── WhatsApp Smart Logic greetings (Flux A = شراء, Flux B = استفسار) ──
+    'whatsapp.items': 'المنتجات',
+    'whatsapp.total': 'المجموع',
     'whatsapp.greetingA': 'مرحباً، لقد اخترت هذا المنتج وأرغب في إتمام عملية الشراء.',
     'whatsapp.greetingB': 'مرحباً، أود الحصول على معلومات أو استفسارات حول منتجاتكم.',
 
