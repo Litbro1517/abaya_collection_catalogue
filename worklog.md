@@ -484,3 +484,33 @@ Stage Summary:
 - 4 fichiers modifiés: src/app/layout.tsx (GTM), src/app/page.tsx (SSR timeout), src/components/HomeClient.tsx (SSR spinner skip), src/lib/whatsapp.ts (sous-total), src/components/preview/CheckoutPage.tsx (subtotalLabel), src/lib/i18n/dictionaries.ts (whatsapp.subtotal FR/EN/AR)
 - 3 réserves bloquantes levées
 - **AVOUEMENT: aucune fusion (merge) sur main — en attente du feu vert officiel après ré-audit**
+
+---
+Task ID: FIX-HEAD-HYDRATION-GTM-NULL
+Agent: Agent Développeur
+Task: Correctif M2 — régression hydratation <head> + détachement CSS Tailwind
+
+Work Log:
+- Read PROJECT_MAP.md + rapports d'audit (3 itérations) identifiant la cause racine
+- Créé branche isolée fix/head-hydration-gtm-null depuis main@88b51cc
+- Cause racine confirmée par tests expérimentaux: layout.tsx L.171 `{GTM_CONTAINER_ID && (<Script/>)}` produit `''` (falsy string) quand NEXT_PUBLIC_GTM_ID est vide → React 19 render `''` comme text node dans <head> → hydration mismatch → React détache les <link> CSS du DOM → layout collapse
+
+CORRECTIF M2 APPLIQUÉ (layout.tsx L.171-201):
+- `<head>`: `{GTM_CONTAINER_ID && (<Script/>)}` → `{GTM_CONTAINER_ID ? (<Script/>) : null}`
+- `<body>` noscript: `{GTM_CONTAINER_ID && (<noscript>...</noscript>)}` → `{GTM_CONTAINER_ID ? (<noscript>...</noscript>) : null}`
+- `null` est ignoré par le renderer React → aucun text node parasite → pas de mismatch hydratation → CSS restent attachées
+- Le GTM reste conditionnel: skip quand NEXT_PUBLIC_GTM_ID vide (pas de 404 vers googletagmanager.com), rendu quand l'env var est set
+
+VALIDATION (3 scénarios testés en build production):
+- FR fresh (sans GTM_ID): links=2, display=flex, gtmScript=0 ✅ SAIN
+- AR (localStorage ar, sans GTM_ID): links=2, display=flex, overflowX=clip, htmlDir=rtl ✅ BUG FIXÉ
+- FR fresh (NEXT_PUBLIC_GTM_ID=GTM-TEST123): links=2, display=flex, gtmScript=1 ✅ SAIN
+- Console: aucune erreur d'hydratation (vs 3× #418 + whitespace mismatch avant correctif)
+- lint: 0 erreur, 0 warning
+- build: exit 0
+
+Stage Summary:
+- Branche: fix/head-hydration-gtm-null (créée depuis main@88b51cc)
+- 1 fichier modifié: src/app/layout.tsx (2 blocs: <head> Script + <body> noscript)
+- Correctif M2 (Option B): ternary `: null` au lieu de `&&` pour éviter le text node parasite
+- **AUCUNE FUSION SUR main — en attente du feu vert explicite post-audit**

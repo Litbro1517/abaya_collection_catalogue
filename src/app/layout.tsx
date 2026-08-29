@@ -156,11 +156,19 @@ export default async function RootLayout({
       <head>
         {/* Audit remediation: Google Tag Manager — container script.
             Only rendered when NEXT_PUBLIC_GTM_ID env var is set to a real ID.
-            When unset (empty string), the <Script> is skipped entirely — no 404
+            When unset (empty string), GTM script is skipped entirely — no 404
             request to googletagmanager.com, no fake container injection. The
             window.dataLayer array is still initialized by analytics.ts so events
-            queue up and will flush once a real GTM ID is configured. */}
-        {GTM_CONTAINER_ID && (
+            queue up and will flush once a real GTM ID is configured.
+            ━━ Correctif M2 (head hydration fix) ━━
+            Uses ternary `GTM_CONTAINER_ID ? <Script/> : null` instead of
+            `GTM_CONTAINER_ID && (<Script/>)`. When the env var is empty, the
+            `&&` expression evaluates to `''` (the falsy value itself), which
+            React renders as a text node in <head> — this triggers a hydration
+            mismatch in React 19 / Next 16 that detaches all <link> stylesheet
+            tags from the DOM, causing the layout to collapse. `null` is
+            ignored by the React renderer and produces no DOM node at all. */}
+        {GTM_CONTAINER_ID ? (
           <Script
             id="gtm-init"
             strategy="afterInteractive"
@@ -172,13 +180,16 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
 })(window,document,'script','dataLayer','${GTM_CONTAINER_ID}');`,
             }}
           />
-        )}
+        ) : null}
       </head>
       <body
         className={`${playfair.variable} ${inter.variable} ${zain.variable} ${tajawal.variable} antialiased bg-background text-foreground`}
       >
-        {/* Audit remediation: GTM noscript fallback — only when GTM ID is set */}
-        {GTM_CONTAINER_ID && (
+        {/* Audit remediation: GTM noscript fallback — only when GTM ID is set.
+            Uses ternary `: null` (same M2 fix as the head <Script>) to avoid
+            injecting a whitespace text node that would trigger a hydration
+            mismatch. */}
+        {GTM_CONTAINER_ID ? (
           <noscript>
             <iframe
               src={`https://www.googletagmanager.com/ns.html?id=${GTM_CONTAINER_ID}`}
@@ -187,7 +198,7 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
               style={{ display: 'none', visibility: 'hidden' }}
             />
           </noscript>
-        )}
+        ) : null}
         <ThemeInjector />
         <TooltipProvider>
           {children}

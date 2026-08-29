@@ -3354,3 +3354,52 @@ Exemple de message généré (panier 3 produits):
 
 ---
 Date de mise à jour : 29/08/2026
+
+---
+
+## [FIX HEAD HYDRATION GTM NULL — Correctif M2 régression layout RTL/CSS]
+
+### Mandat
+Correction de la régression d'hydratation `<head>` causant le détachement des feuilles de style Tailwind CSS du DOM vivant. Branche isolée `fix/head-hydration-gtm-null` (créée depuis `main@88b51cc`).
+
+### Cause racine (confirmée par 3 audits croisés)
+- `layout.tsx` L.171 : `{GTM_CONTAINER_ID && (<Script/>)}` — quand `NEXT_PUBLIC_GTM_ID` est vide, l'expression `'' && (...)` évalue à `''` (la chaîne vide falsy elle-même)
+- React 19 / Next 16 render `''` comme un **text node** dans `<head>` → déclenche l'erreur *"In HTML, whitespace text nodes cannot be a child of `<head>`"*
+- En locale AR (localStorage `ar`), le mismatch de texte s'ajoute → React détache **tous les `<link rel="stylesheet">`** du `<head>` pour récupérer → layout collapse (HTML brut sans CSS)
+- Commit coupable : `c331a0d` (audit remediation qui a introduit le GTM conditionnel avec `&&`)
+
+### Correctif M2 appliqué (layout.tsx L.171-201)
+```diff
+- {GTM_CONTAINER_ID && (
++ {GTM_CONTAINER_ID ? (
+    <Script id="gtm-init" ... />
+- )}
++ ) : null}
+```
+Appliqué aux deux blocs :
+1. `<head>` : `<Script id="gtm-init">` (L.171-183)
+2. `<body>` : `<noscript><iframe>` (L.192-201)
+
+`null` est ignoré par le renderer React → aucun text node parasite → hydratation correcte → CSS restent attachées.
+
+### Fichiers modifiés (1)
+| # | Fichier | Modification |
+|---|---------|-------------|
+| 1 | `src/app/layout.tsx` | L.171 + L.192 : `{GTM_CONTAINER_ID && (...)}` → `{GTM_CONTAINER_ID ? (...) : null}` (2 blocs) |
+
+### Validations (3 scénarios, build production)
+| Scénario | `links` CSS | `display` | GTM script | État |
+|----------|-------------|-----------|------------|------|
+| FR fresh (sans GTM_ID) | 2 | flex | 0 | ✅ SAIN |
+| AR (localStorage `ar`) | **2** | **flex** | 0 | ✅ **BUG FIXÉ** |
+| FR fresh (GTM-TEST123) | 2 | flex | 1 | ✅ SAIN |
+
+- Console : **0 erreur d'hydratation** (vs 3× React #418 + whitespace mismatch avant correctif)
+- `bun run lint` : 0 erreur, 0 warning ✅
+- `bun run build` : exit 0 ✅
+
+### Branche
+`fix/head-hydration-gtm-null` (créée depuis `main@88b51cc`). **POUSSÉE SUR ORIGIN. EN ATTENTE DU FEU VERT EXPLICITE POST-AUDIT POUR FUSION.**
+
+---
+Date de mise à jour : 30/08/2026
