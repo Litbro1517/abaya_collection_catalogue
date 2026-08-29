@@ -123,6 +123,30 @@ export async function generateMetadata(): Promise<Metadata> {
     title: `${catalogName} — Catalogue`,
     description: "Découvrez notre collection exclusive d'abayas, robes et ensembles. Commandez via WhatsApp, Messenger et plus.",
     icons,
+    // ━━ OG cover image for social sharing (WhatsApp, Facebook, Twitter) ━━
+    // Uses /og-cover.jpg (1200×630 JPEG, brand colors) as the default cover.
+    // Page-specific openGraph (page.tsx) overrides this for product pages.
+    openGraph: {
+      title: `${catalogName} — Catalogue`,
+      description: "Découvrez notre collection exclusive d'abayas, robes et ensembles. Commandez via WhatsApp, Messenger et plus.",
+      siteName: catalogName,
+      images: [
+        {
+          url: '/og-cover.jpg',
+          width: 1200,
+          height: 630,
+          alt: `${catalogName} — Catalogue`,
+        },
+      ],
+      type: 'website',
+      locale: 'fr_FR',
+    },
+    twitter: {
+      card: 'summary_large_image',
+      title: `${catalogName} — Catalogue`,
+      description: "Découvrez notre collection exclusive d'abayas, robes et ensembles. Commandez via WhatsApp, Messenger et plus.",
+      images: ['/og-cover.jpg'],
+    },
   };
 }
 

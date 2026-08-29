@@ -38,6 +38,7 @@ export default function LegalPageLayout({ children }: LegalPageLayoutProps) {
           <Link href="/mentions-legales" className="hover:text-white transition-colors">{t('legal.footerMentions')}</Link>
           <Link href="/politique-de-confidentialite" className="hover:text-white transition-colors">{t('legal.footerPrivacy')}</Link>
           <Link href="/conditions-generales" className="hover:text-white transition-colors">{t('legal.footerCgv')}</Link>
+          <Link href="/politique-de-retour" className="hover:text-white transition-colors">{t('legal.footerReturns')}</Link>
           <span className="ml-auto text-white/50">{t('legal.footerCopyright').replace('{year}', String(year))}</span>
         </div>
       </footer>

@@ -1882,6 +1882,7 @@ export function CatalogPreview({ onAdminLogin }: CatalogPreviewProps) {
                 {t('footer.regulatoryPages')}
               </h3>
               <a href="/conditions-generales" className="text-xs text-white/70 hover:text-white transition-colors">{t('footer.cgv')}</a>
+              <a href="/politique-de-retour" className="text-xs text-white/70 hover:text-white transition-colors">{t('legal.footerReturns')}</a>
               <a href="/mentions-legales" className="text-xs text-white/70 hover:text-white transition-colors">{t('footer.legalNotice')}</a>
               <a href="/politique-de-confidentialite" className="text-xs text-white/70 hover:text-white transition-colors">{t('footer.privacyPolicy')}</a>
             </div>

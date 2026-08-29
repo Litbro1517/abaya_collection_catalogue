@@ -3403,3 +3403,61 @@ Appliqué aux deux blocs :
 
 ---
 Date de mise à jour : 30/08/2026
+
+---
+
+## [FIX RETURN POLICY AND OG IMAGE — Page Politique de Retour + Image Open Graph]
+
+### Mandat
+Implémenter une page "Politique de Retour et d'Échange" (FR/AR/EN, textes verbatim du document fourni) + intégrer une image Open Graph pour les aperçus sociaux. Branche isolée `fix/return-policy-and-og-image` (créée depuis `main@90be23e`).
+
+### Corrections appliquées (2 axes)
+
+#### Axe 1 — Page Politique de Retour (FR/AR/EN)
+**Nouveaux fichiers**:
+- `src/components/legal/ReturnPolicyContent.tsx` — duplique la structure de `ConditionsGeneralesContent` (même `LegalPageLayout`, mêmes `LegalHelpers` → styling byte-identique aux pages légales existantes). 5 sections, textes depuis i18n `returns.*`.
+- `src/app/politique-de-retour/page.tsx` — route avec metadata (title + description FR).
+
+**i18n** (`dictionaries.ts`): ajouté 54 clés `returns.*` (18 × 3 locales FR/EN/AR):
+- `returns.title`, `returns.intro`, `returns.s1-s5` (title, p1, li1, li2, sub1, sub2)
+- `legal.footerReturns`: FR="Politique de retour", EN="Return Policy", AR="سياسة الاسترجاع"
+- Textes verbatim du document fourni (aucun mot modifié)
+
+**Footer**:
+- `CatalogPreview.tsx` L.1885: ajout lien `/politique-de-retour` (entre CGV et Mentions légales)
+- `LegalPageLayout.tsx` L.41: ajout lien `/politique-de-retour` (cohérence sur toutes pages légales)
+
+#### Axe 2 — Image Open Graph
+**Nouveau fichier**: `public/og-cover.jpg` (1200×630 JPEG, 16KB)
+- Généré via sharp depuis SVG (gradient #1A3C34→#14241E, logo or, tagline "Paiement à la Livraison • Livraison Gratuite")
+
+**Configuration Meta**:
+- `layout.tsx` L.126-150: ajout `openGraph` + `twitter` card avec `/og-cover.jpg` (héritage global — toutes les pages héritent de l'OG cover par défaut)
+- `page.tsx` L.17: `SEO_DEFAULTS.ogImage` `/logo.svg` → `/og-cover.jpg` (default pour la home)
+
+### Fichiers modifiés/créés (6 + docs)
+| # | Fichier | Type | Modification |
+|---|---------|------|-------------|
+| 1 | `src/components/legal/ReturnPolicyContent.tsx` | NEW | Composant page retour (structure CGV) |
+| 2 | `src/app/politique-de-retour/page.tsx` | NEW | Route + metadata |
+| 3 | `public/og-cover.jpg` | NEW | Image OG 1200×630 (sharp) |
+| 4 | `src/lib/i18n/dictionaries.ts` | MODIF | +54 clés returns.* FR/EN/AR + legal.footerReturns |
+| 5 | `src/components/preview/CatalogPreview.tsx` | MODIF | +1 lien footer /politique-de-retour |
+| 6 | `src/components/legal/LegalPageLayout.tsx` | MODIF | +1 lien footer /politique-de-retour |
+| 7 | `src/app/layout.tsx` | MODIF | +openGraph +twitter card avec og-cover.jpg |
+| 8 | `src/app/page.tsx` | MODIF | SEO_DEFAULTS.ogImage → /og-cover.jpg |
+
+### Validations
+- `bun run lint`: 0 erreur, 0 warning ✅
+- `bun run build`: exit 0, route `/politique-de-retour` générée ✅
+- Page `/politique-de-retour` FR: HTTP 200, h1="Politique de Retour et d'Échange", 6 sections ✅
+- Page `/politique-de-retour` AR: h1="سياسة الاسترجاع والاستبدال", dir=rtl ✅
+- Footer principal: 4 liens (mentions, privacy, cgv, returns) ✅
+- `og-cover.jpg`: HTTP 200, image/jpeg, 16407 bytes ✅
+- OG meta: `<meta property="og:image" content="https://...vercel.app/og-cover.jpg"/>` ✅
+
+### Branche
+`fix/return-policy-and-og-image` (créée depuis `main@90be23e`). **POUSSÉE SUR ORIGIN. EN ATTENTE DU FEU VERT EXPLICITE POST-AUDIT POUR FUSION.**
+
+---
+Date de mise à jour : 29/08/2026

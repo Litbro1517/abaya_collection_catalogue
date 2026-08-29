@@ -14,7 +14,7 @@ import { resolveProduct } from '@/lib/products';
 const SEO_DEFAULTS = {
   title: 'Abaya Collection Chic — Catalogue',
   description: "Découvrez notre collection exclusive d'abayas, robes et ensembles. Commandez via WhatsApp, Messenger et plus.",
-  ogImage: '/logo.svg',
+  ogImage: '/og-cover.jpg',
   canonicalUrl: 'https://abaya-collection-catalogue-9dum.vercel.app',
 };
 

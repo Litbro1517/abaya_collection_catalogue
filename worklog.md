@@ -514,3 +514,45 @@ Stage Summary:
 - 1 fichier modifié: src/app/layout.tsx (2 blocs: <head> Script + <body> noscript)
 - Correctif M2 (Option B): ternary `: null` au lieu de `&&` pour éviter le text node parasite
 - **AUCUNE FUSION SUR main — en attente du feu vert explicite post-audit**
+
+---
+Task ID: RETURN-POLICY-AND-OG-IMAGE
+Agent: Agent Développeur
+Task: Page Politique de Retour (FR/AR/EN) + Image Open Graph
+
+Work Log:
+- Read PROJECT_MAP.md + structure pages légales existantes (LegalPageLayout, LegalHelpers, CGV)
+- Read Document sans titre.docx fourni (textes politique retour AR/FR/EN — verbatim, aucun mot modifié)
+- Créé branche isolée fix/return-policy-and-og-image depuis main@90be23e (inclut fix M2 hydration)
+
+CORRECTION 1 — Page Politique de Retour (FR/AR/EN):
+- NOUVEAU FICHIER: src/components/legal/ReturnPolicyContent.tsx
+  - Duplique la structure de ConditionsGeneralesContent (même LegalPageLayout, mêmes LegalHelpers)
+  - 5 sections: Inspection à la livraison, Conditions d'échange, Délai+état articles, Frais de retour, Mode de traitement
+  - Textes depuis i18n returns.* namespace (verbatim du document fourni)
+- NOUVELLE ROUTE: src/app/politique-de-retour/page.tsx (metadata title + description FR)
+- i18n: ajouté 54 clés returns.* (18 × 3 locales FR/EN/AR) dans dictionaries.ts
+  - returns.title, returns.intro, returns.s1-s5 (title, p1, li1, li2, sub1, sub2)
+  - legal.footerReturns: FR='Politique de retour', EN='Return Policy', AR='سياسة الاسترجاع'
+- Footer CatalogPreview.tsx L.1885: ajout lien /politique-de-retour (entre CGV et Mentions légales)
+- Footer LegalPageLayout.tsx L.41: ajout lien /politique-de-retour (cohérence sur toutes pages légales)
+
+CORRECTION 2 — Image Open Graph:
+- NOUVEAU FICHIER: public/og-cover.jpg (1200×630 JPEG, 16KB, couleurs marque or+vert deep)
+  - Généré via sharp depuis SVG (gradient #1A3C34→#14241E, logo or, tagline)
+- layout.tsx L.126-150: ajout openGraph + twitter card avec og-cover.jpg (héritage global toutes pages)
+- page.tsx L.17: SEO_DEFAULTS.ogImage '/logo.svg' → '/og-cover.jpg' (default pour la home)
+
+VALIDATION:
+- bun run lint: 0 erreur, 0 warning ✅
+- bun run build: exit 0, route /politique-de-retour générée ✅
+- TEST page /politique-de-retour: HTTP 200, FR h1='Politique de Retour et d'Échange' + 6 sections ✅
+- TEST AR: h1='سياسة الاسترجاع والاستبدال', dir=rtl ✅
+- TEST footer: 4 liens (mentions, privacy, cgv, returns) ✅
+- TEST og-cover.jpg: HTTP 200, image/jpeg, 16407 bytes ✅
+- TEST OG meta: <meta property="og:image" content="https://...vercel.app/og-cover.jpg"/> ✅
+
+Stage Summary:
+- Branche: fix/return-policy-and-og-image (créée depuis main@90be23e)
+- 6 fichiers modifiés/créés: ReturnPolicyContent.tsx (NEW), politique-de-retour/page.tsx (NEW), og-cover.jpg (NEW), dictionaries.ts (+54 clés), CatalogPreview.tsx (+1 lien footer), LegalPageLayout.tsx (+1 lien footer), layout.tsx (+OG), page.tsx (default ogImage)
+- **AUCUNE FUSION SUR main — en attente du feu vert explicite post-audit**
