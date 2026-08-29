@@ -2302,7 +2302,7 @@ export const dictionaries: Record<Locale, TranslationDict> = {
     'cgv.s6.p2': 'في حالة نشوء نزاع يتعلق بتكوين هذه الشروط أو تفسيرها أو تنفيذها، يلتزم الطرفان بالبحث أولًا عن حل ودي. وفي حالة عدم التوصل إلى اتفاق ودي داخل أجل معقول، تكون محاكم مدينة مراكش المختصة وحدها صاحبة الصلاحية للبث في النزاع.',
     'legal.footerMentions': 'إشعار قانوني',
     'legal.footerPrivacy': 'سياسة الخصوصية',
-    'legal.footerReturns': 'سياسة الاسترجاع',
+    'legal.footerReturns': 'الاسترجاع والاستبدال',
     'legal.footerCgv': 'شروط البيع',
     'legal.footerCopyright': '© {year} أبايا كولكشن شيك',
     'trust.livraison.title': 'توصيل مجاني',
