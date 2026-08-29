@@ -788,6 +788,39 @@ export function CatalogPreview({ onAdminLogin }: CatalogPreviewProps) {
     currentPage * ITEMS_PER_PAGE
   );
 
+  // ━━ Lot 1 Correctif: view_item_list — fire when the visible grid changes ━━
+  // GA4 standard impression event: pushes the list of products currently
+  // displayed on the active page. Fires on: initial load, page change, filter
+  // change, search — anything that mutates `paginatedProducts`.
+  // Deduped via a ref keyed on the product IDs so it fires once per distinct
+  // visible set (not on every re-render).
+  const viewItemListTracked = useRef<string>('');
+  useEffect(() => {
+    if (!paginatedProducts || paginatedProducts.length === 0) return;
+    const trackKey = paginatedProducts.map(p => p.row.id).join('|');
+    if (viewItemListTracked.current === trackKey) return;
+    viewItemListTracked.current = trackKey;
+
+    const items = paginatedProducts.map(({ row, columns, section, config }) => {
+      const title = config.titleColumn ? getCellValue(row, config.titleColumn) : '';
+      const price = config.priceColumn ? getCellValue(row, config.priceColumn) : '';
+      return buildEcommerceItem({
+        id: row.id,
+        name: title,
+        price,
+        category: section.title || 'Abaya',
+      });
+    });
+
+    pushDataLayer({
+      event: 'view_item_list',
+      ecommerce: {
+        currency: 'MAD',
+        items,
+      },
+    });
+  }, [paginatedProducts]);
+
 
 
   const filterOptions = getFilterOptions();
