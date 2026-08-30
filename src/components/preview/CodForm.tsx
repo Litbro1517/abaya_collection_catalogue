@@ -78,7 +78,11 @@ export function CodForm({ productId, productName, productPrice, quantity = 1 }: 
         body: JSON.stringify({
           productId, customerName: form.customerName.trim(), customerPhone: form.customerPhone.trim(),
           customerCity: form.customerCity.trim(), customerAddress: form.customerAddress.trim(),
-          productName, productPrice: totalPriceStr, productQuantity: qty,
+          // HOTFIX AUDIT-MERGE-QTY-SYNC-DUO-1: productPrice doit rester le prix UNITAIRE
+          // (convention système VG41.2 — la page Merci calcule total = unitaire × qty).
+          // Envoyer le total ici provoquait un double comptage Merci (597×3=1791).
+          // Le récap UI du formulaire continue d'afficher totalPriceStr (total).
+          productName, productPrice, productQuantity: qty,
         }),
       });
       const data = await res.json();
