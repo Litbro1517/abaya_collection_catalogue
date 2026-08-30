@@ -4,6 +4,11 @@ import ZAI from 'z-ai-web-dev-sdk';
 // Simple in-memory cache to avoid re-translating the same text
 const translationCache = new Map<string, Record<string, string>>();
 
+// ━━ Fix: track SDK availability so we don't retry ZAI.create() on every request ━━
+// In production (Vercel), the .z-ai-config file doesn't exist → ZAI.create() throws.
+// Once we detect this, we skip the SDK entirely and return the original text (200 OK).
+let sdkAvailable: boolean | null = null;
+
 // ━━ DEBT-10 production repair : détection automatique de la langue source ━━
 function detectSourceLang(text: string): string {
   if (!text || typeof text !== 'string') return 'fr';
@@ -43,6 +48,18 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ data: filtered });
     }
 
+    // ━━ Fix: defensive SDK check — skip if SDK is known unavailable ━━
+    // In production without .z-ai-config, ZAI.create() throws. We catch this
+    // once, set sdkAvailable=false, and return the original text with 200 OK
+    // so the front-end gets a clean fallback (no HTTP 500 in the console).
+    if (sdkAvailable === false) {
+      const fallback: Record<string, string> = { [source]: text.trim() };
+      for (const lang of targets) {
+        if (lang !== source) fallback[lang] = text.trim();
+      }
+      return NextResponse.json({ data: fallback, translated: false });
+    }
+
     // Build the target language list for the prompt
     const targetLabels: Record<string, string> = {
       fr: 'French',
@@ -51,21 +68,47 @@ export async function POST(req: NextRequest) {
     };
     const targetList = targets.map(l => `${l} (${targetLabels[l] || l})`).join(', ');
 
-    const zai = await ZAI.create();
-    const response = await zai.chat.completions.create({
-      messages: [
-        {
-          role: 'system',
-          content: `You are a professional translator for an e-commerce fashion catalog specializing in modest clothing (abayas, dresses, ensembles, kimonos). Translate the given text accurately and naturally. Respond ONLY with a valid JSON object where keys are language codes and values are translations. No explanation, no markdown, no backticks. Example: {"fr": "Ensemble", "ar": "طقم", "en": "Set"}`,
-        },
-        {
-          role: 'user',
-          content: `Translate "${text.trim()}" from ${targetLabels[source] || source} to: ${targetList}. Return JSON with keys: ${source}, ${targets.join(', ')}`,
-        },
-      ],
-    });
+    // ━━ Fix: try/catch around ZAI.create() — catch config errors gracefully ━━
+    let zai: InstanceType<typeof ZAI>;
+    try {
+      zai = await ZAI.create();
+      sdkAvailable = true;
+    } catch (sdkError) {
+      // SDK config not available (missing .z-ai-config file in production)
+      console.warn('[translate] ZAI SDK unavailable, returning original text:', sdkError instanceof Error ? sdkError.message : String(sdkError));
+      sdkAvailable = false;
+      const fallback: Record<string, string> = { [source]: text.trim() };
+      for (const lang of targets) {
+        if (lang !== source) fallback[lang] = text.trim();
+      }
+      return NextResponse.json({ data: fallback, translated: false });
+    }
 
-    const content = response.choices?.[0]?.message?.content || '';
+    // ━━ Fix: try/catch around the chat completion API call ━━
+    let content = '';
+    try {
+      const response = await zai.chat.completions.create({
+        messages: [
+          {
+            role: 'system',
+            content: `You are a professional translator for an e-commerce fashion catalog specializing in modest clothing (abayas, dresses, ensembles, kimonos). Translate the given text accurately and naturally. Respond ONLY with a valid JSON object where keys are language codes and values are translations. No explanation, no markdown, no backticks. Example: {"fr": "Ensemble", "ar": "طقم", "en": "Set"}`,
+          },
+          {
+            role: 'user',
+            content: `Translate "${text.trim()}" from ${targetLabels[source] || source} to: ${targetList}. Return JSON with keys: ${source}, ${targets.join(', ')}`,
+          },
+        ],
+      });
+      content = response.choices?.[0]?.message?.content || '';
+    } catch (apiError) {
+      // Network error, quota exceeded, or API authentication failure
+      console.warn('[translate] ZAI API call failed, returning original text:', apiError instanceof Error ? apiError.message : String(apiError));
+      const fallback: Record<string, string> = { [source]: text.trim() };
+      for (const lang of targets) {
+        if (lang !== source) fallback[lang] = text.trim();
+      }
+      return NextResponse.json({ data: fallback, translated: false });
+    }
 
     // Parse the JSON response — try to extract JSON even if wrapped in backticks
     let translations: Record<string, string> = {};
@@ -100,7 +143,22 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json({ data: translations });
   } catch (error) {
-    console.error('Translation API error:', error);
-    return NextResponse.json({ error: 'Translation failed' }, { status: 500 });
+    // ━━ Fix: never return 500 — always return original text with 200 OK ━━
+    // The front-end (useAutoTranslatedText) already handles the fallback gracefully.
+    // A 500 error pollutes the browser console and fails ad platform audits.
+    console.error('Translation API unexpected error:', error);
+    try {
+      const body = await req.json();
+      const text = body?.text || '';
+      const source = body?.sourceLang || detectSourceLang(text);
+      const targets = body?.targetLangs || ['ar', 'en'];
+      const fallback: Record<string, string> = { [source]: text.trim() };
+      for (const lang of targets) {
+        if (lang !== source) fallback[lang] = text.trim();
+      }
+      return NextResponse.json({ data: fallback, translated: false });
+    } catch {
+      return NextResponse.json({ data: {}, translated: false });
+    }
   }
 }

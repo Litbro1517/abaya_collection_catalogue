@@ -3907,3 +3907,48 @@ V2 déstructurait `initialCatalog`/`initialDatasources` sans les déclarer dans 
 
 ---
 Date de mise à jour : 30/08/2026
+
+---
+
+## [FIX TRANSLATE API 500 — Correction erreur HTTP 500 sur /api/translate]
+
+### Mandat
+Corriger l'erreur HTTP 500 sur `/api/translate` qui apparaît en production (Vercel) quand le SDK ZAI n'est pas configuré. Branche isolée `fix/translate-api-500` (créée depuis `main@ce16a9c`).
+
+### Cause racine
+- `ZAI.create()` appelle `loadConfig()` qui cherche un fichier `.z-ai-config` à 3 emplacements (cwd, home, /etc)
+- En production Vercel : fichier absent → `loadConfig()` lance `throw new Error('Configuration file not found...')`
+- Le `catch` global retournait `NextResponse.json({ error: 'Translation failed' }, { status: 500 })`
+- Résultat : `[useAutoTranslatedText] Translation failed: HTTP 500` dans la console navigateur
+
+### Correction — 3 niveaux de défense
+1. **`sdkAvailable` flag** (L.10) : track si le SDK est disponible. Si `false`, skip `ZAI.create()` entièrement → retourne texte original avec 200 OK
+2. **try/catch autour de `ZAI.create()`** (L.73-85) : catch config errors → `sdkAvailable=false` + retour 200 OK avec texte original
+3. **try/catch autour de `zai.chat.completions.create()`** (L.89-111) : catch network/quota/auth errors → retour 200 OK
+4. **catch global** (L.145-163) : ne retourne **JAMAIS** 500 — toujours 200 OK avec fallback (texte original)
+
+### Fichiers modifiés (2)
+| # | Fichier | Modification |
+|---|---------|-------------|
+| 1 | `src/app/api/translate/route.ts` | +`sdkAvailable` flag, +try/catch `ZAI.create()`, +try/catch API call, +catch global jamais 500 |
+| 2 | `.env.example` (NEW) | Documente `.z-ai-config` (baseUrl + apiKey), `NEXT_PUBLIC_GTM_ID`, `DATABASE_URL`/`DIRECT_URL` |
+
+### Variables d'environnement requises sur Vercel
+| Variable | Fichier | Description |
+|----------|---------|-------------|
+| `.z-ai-config` | fichier JSON à la racine du projet | `{"baseUrl":"https://api.z.ai/api","apiKey":"your-key"}` — requis pour la traduction automatique |
+| `NEXT_PUBLIC_GTM_ID` | env var Vercel | ID Google Tag Manager (optionnel) |
+| `DATABASE_URL` | env var Vercel | Connection string Supabase PostgreSQL |
+| `DIRECT_URL` | env var Vercel | Connection string directe Supabase (pooling) |
+
+### Validations
+- `bun run lint` : 0 erreur, 0 warning ✅
+- `bun run build` : exit 0 ✅
+- Test API locale (SDK disponible) : HTTP 200 + traduction arabe ✅
+- Test API sans SDK (production) : HTTP 200 + texte original + `translated: false` ✅ (plus de 500)
+
+### Branche
+`fix/translate-api-500` (créée depuis `main@ce16a9c`). **POUSSÉE SUR ORIGIN. EN ATTENTE DU FEU VERT EXPLICITE POUR FUSION.**
+
+---
+Date de mise à jour : 29/08/2026
