@@ -946,3 +946,22 @@ Stage Summary:
 - Branche: fix/translate-api-500 (créée depuis main@ce16a9c)
 - 2 fichiers: route.ts (défense SDK + jamais 500), .env.example (NEW)
 - **AUCUNE FUSION SUR main — en attente du feu vert explicite**
+
+---
+Task ID: AUDIT-TRANSLATE-API-500
+Agent: Agent Auditeur Z.ai (Mandat de Contre-Audit et de Déploiement)
+Task: Contre-audit de fix/translate-api-500 (8c2d974) — /api/translate jamais 500 — et déploiement conditionnel
+
+Work Log:
+- Isolation vérifiée : 1 commit sur main@ce16a9c, main gelée, périmètre = route.ts + .env.example + 2 docs
+- Cause racine confirmée dans le code SDK : loadConfig() (cwd/home//etc, zéro fallback env) → throw si absent → ancien catch = 500 ; analyse développeur EXACTE
+- Arbre isolé /tmp/verify-translate (git archive + hardlink node_modules + SQLite seedée 5 produits/1 section) ; simulation « SDK absent » par patch du SDK isolé (configPaths → chemin inexistant) + REBUILD (le SDK est bundlé par Next à la compilation — le patch runtime seul n'a aucun effet, vérifié)
+- Tests runtime : SDK présent → 200 + traduction réelle ; SDK absent → 200 + texte original + translated:false + log « ZAI SDK unavailable » ; flag sdkAvailable → 2ᵉ requête 8 ms (skip ZAI.create()) ; body invalide → 200 {data:{}} ; texte vide → 400 préservé
+- Batterie navigateur (locale fr pour forcer les traductions, sans SDK) : 50 cartes, console VIERGE (0 warning vs 15 « HTTP 500 » avant), 0 erreur, 0 mismatch
+- Défaut détecté : 1 erreur TS NOUVELLE TS2344 (InstanceType<typeof ZAI> — constructeur privé de la classe ZAI), masquée par ignoreBuildErrors → remédiation d'audit f8b8102 : Awaited<ReturnType<typeof ZAI.create>> (compile-only) ; tsc 0 erreur dans le fichier, lint 0/0, build exit 0 re-vérifiés
+- Fusion 13dad25 (--no-ff) ; arbre merge ≡ branche validée (diff vide) ; docs d'audit ajoutés ; push origin (branche + main) → Vercel
+- Observations mineures (suivi) : hook cache les fallbacks non traduits 30 j (ignore translated:false) ; /api/categories persiste des copies non traduites pendant une panne SDK
+
+Stage Summary:
+- VERDICT : CONFORME après remédiation typage f8b8102 — 4 niveaux de défense validés empiriquement, plus aucun 500, console client propre, non-régression totale (périmètre limité à la route translate)
+- main = merge 13dad25 + docs ; origin mis à jour ; production vérifiée post-déploiement (voir enregistrement suivant)
