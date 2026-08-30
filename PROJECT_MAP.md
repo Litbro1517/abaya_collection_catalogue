@@ -3672,3 +3672,58 @@ Audit de synchronisation et fusion des branches `fix/pdp-unit-price-row` (52a36c
 2. **#9EIAONZA** (اختبار التدقيق) — post-hotfix, données conformes (199.00 DH × 2 = 398)
 
 Date de mise à jour (audit + fusion + hotfix + déploiement) : 30/08/2026
+
+---
+
+## [FIX UNIFIED SELECTION VALIDATION — Uniformisation validation variantes Desktop + Mobile]
+
+### Mandat
+Unifier la validation des options (taille/couleur) sur tous les tunnels de conversion (Desktop + Mobile : Achat Rapide, WhatsApp, CodForm). Scroller automatiquement vers les sélecteurs manquants + contour rouge + message d'erreur. Branche isolée `fix/unified-selection-validation` (créée depuis `main@285f9ad`).
+
+### Cause racine
+- **CodForm** : `handleSubmit` validait les champs client (nom, téléphone, ville, adresse) mais **PAS** les variantes produit → commande soumise avec couleur/taille vides
+- **handleCtaClick + handleWhatsappCtaClick** : avaient la garde (`setShowVariantError`) mais ne **scrollaient pas** vers les sélecteurs manquants
+- **WhatsappOrderForm** : avait déjà la garde (`hasMissingVariant` + `onVariantMissing`) ✅
+
+### Corrections appliquées (5 axes)
+
+#### Axe 1 — CodForm : ajout props `hasMissingVariant` + `onVariantMissing`
+- `CodForm.tsx` L.25-27 : +props `hasMissingVariant?: boolean` + `onVariantMissing?: () => void`
+- `CodForm.tsx` L.73-77 : garde variantes dans `handleSubmit` **avant** la validation des champs client
+- `ProductPage.tsx` L.1169-1170 : passe `hasMissingVariant` + `onVariantMissing` au CodForm
+
+#### Axe 2 — `scrollToVariantSelectors` (fonction utilitaire)
+- `ProductPage.tsx` L.472-476 : `useCallback` qui scroll vers `variantSelectorsRef.current`
+- Réutilisé par `handleCtaClick`, `handleWhatsappCtaClick`, `CodForm.onVariantMissing`, `WhatsappOrderForm.onVariantMissing`
+
+#### Axe 3 — `variantSelectorsRef`
+- `ProductPage.tsx` L.396 : `useRef<HTMLDivElement>` attaché sur le conteneur "Color swatches" (L.1018)
+- Si pas de couleurs (`colorData.length === 0`) : attaché sur "Size selector" (L.1068)
+
+#### Axe 4 — `handleCtaClick` + `handleWhatsappCtaClick` : ajout scroll
+- Avant : `setShowVariantError(true)` seulement
+- Après : `setShowVariantError(true)` + `scrollToVariantSelectors()`
+
+#### Axe 5 — `onVariantMissing` callbacks unifiés
+- CodForm : `() => { setShowVariantError(true); scrollToVariantSelectors(); }`
+- WhatsappOrderForm : `() => { setShowVariantError(true); scrollToVariantSelectors(); }`
+
+### Fichiers modifiés (2)
+| # | Fichier | Modifications |
+|---|---------|-------------|
+| 1 | `src/components/preview/ProductPage.tsx` | +`variantSelectorsRef`, +`scrollToVariantSelectors`, handlers +scroll, CodForm/WhatsappOrderForm props +scroll |
+| 2 | `src/components/preview/CodForm.tsx` | +props `hasMissingVariant`/`onVariantMissing`, +garde dans `handleSubmit` |
+
+### Validations
+- `bun run lint` : 0 erreur, 0 warning ✅
+- `bun run build` : exit 0 ✅
+- CodForm : garde variantes ajoutée (bloque soumission si couleur/taille manquante) ✅
+- handleCtaClick : scroll vers sélecteurs ✅
+- handleWhatsappCtaClick : scroll vers sélecteurs ✅
+- Boutons mobile : utilisent handleCtaClick/handleWhatsappCtaClick → scroll inclus ✅
+
+### Branche
+`fix/unified-selection-validation` (créée depuis `main@285f9ad`). **POUSSÉE SUR ORIGIN. EN ATTENTE DU FEU VERT EXPLICITE POUR FUSION.**
+
+---
+Date de mise à jour : 29/08/2026

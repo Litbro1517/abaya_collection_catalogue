@@ -21,6 +21,10 @@ interface CodFormProps {
   productPrice: string;
   /** Selected quantity (defaults to 1). Used to compute the total and send to API. */
   quantity?: number;
+  /** When true, a required variant (size/color) is missing → block submission */
+  hasMissingVariant?: boolean;
+  /** Called when submission is blocked due to missing variant → parent shows red alert + scrolls */
+  onVariantMissing?: () => void;
 }
 
 interface FormState {
@@ -30,7 +34,7 @@ interface FormState {
   customerAddress: string;
 }
 
-export function CodForm({ productId, productName, productPrice, quantity = 1 }: CodFormProps) {
+export function CodForm({ productId, productName, productPrice, quantity = 1, hasMissingVariant = false, onVariantMissing }: CodFormProps) {
   const { t, rtl, formatPrice } = useClientTranslation();
 
   // ━━ Fix: compute total = unit price × quantity ━━
@@ -63,6 +67,14 @@ export function CodForm({ productId, productName, productPrice, quantity = 1 }: 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
     setError(null);
+    // ━━ Fix: variant gate — block submission if color/size not selected ━━
+    // Same pattern as WhatsappOrderForm: call onVariantMissing to trigger the
+    // parent's showVariantError (red borders on selectors + alert message + scroll).
+    if (hasMissingVariant) {
+      onVariantMissing?.();
+      setError(t('product.selectMissingVariants'));
+      return;
+    }
     if (!form.customerName.trim()) { setError(t('order.errorName')); return; }
     // ━━ Lot 3: Moroccan phone validation (replaces loose length < 6 check) ━━
     // Previously: form.customerPhone.trim().length < 6 — let through "12345", "abcde", etc.

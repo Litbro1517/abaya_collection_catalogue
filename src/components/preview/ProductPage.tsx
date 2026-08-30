@@ -392,6 +392,8 @@ export function ProductPage({
   const [colorSheetOpen, setColorSheetOpen] = useState(false);
   // ── Description overflow detection: shows "Lire la suite" only when clamped ──
   const descriptionRef = useRef<HTMLParagraphElement>(null);
+  // ━━ Fix: ref for the variant selectors section (used to scroll on validation error) ━━
+  const variantSelectorsRef = useRef<HTMLDivElement>(null);
   const [descOverflow, setDescOverflow] = useState(false);
 
   // ── Color overflow: show max 11 pills + a matte-black "+X" button when > 12 colors ──
@@ -464,6 +466,15 @@ export function ProductPage({
 
   // ── WhatsApp CTA click guard ──
   // Reuses the Landing Page validation logic: blocks wa.me opening if variants are missing.
+  // ━━ Fix: unified scroll-to-selectors on missing variant ━━
+  // Called by handleCtaClick, handleWhatsappCtaClick, and CodForm's onVariantMissing.
+  // Scrolls smoothly to the variant selectors section so the user sees the red borders.
+  const scrollToVariantSelectors = useCallback(() => {
+    if (variantSelectorsRef.current) {
+      variantSelectorsRef.current.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+  }, []);
+
   // Same pattern as handleCtaClick but for the <a> WhatsApp element.
   const handleWhatsappCtaClick = (e: React.MouseEvent<HTMLAnchorElement>) => {
     if (isEpuise) {
@@ -473,6 +484,7 @@ export function ProductPage({
     if (hasMissingVariant) {
       e.preventDefault();              // ← hard stop: don't follow wa.me href
       setShowVariantError(true);       // ← show red alert (same as Landing mode)
+      scrollToVariantSelectors();      // ← scroll to the selectors
       return;
     }
     // Variants OK — let the browser follow the href normally
@@ -532,6 +544,7 @@ export function ProductPage({
     if (isEpuise) return;
     if (hasMissingVariant) {
       setShowVariantError(true);
+      scrollToVariantSelectors();  // ← scroll to the selectors
       return;
     }
     // ── Lot 1: begin_checkout dataLayer event (single-product COD flow) ──
@@ -1002,7 +1015,7 @@ export function ProductPage({
 
           {/* ── Color swatches ── */}
           {colorData.length > 0 && (
-            <div className="product-page-section">
+            <div className="product-page-section" ref={variantSelectorsRef}>
               <div className="product-page-section-title">
                 {t('product.colors')}{selectedColor ? <span className="selected-value">: {selectedColor}</span> : ''}
               </div>
@@ -1052,7 +1065,7 @@ export function ProductPage({
 
           {/* ── Size selector ── */}
           {sizes.length > 0 && (
-            <div className="product-page-section">
+            <div className="product-page-section" ref={colorData.length === 0 ? variantSelectorsRef : undefined}>
               <div className="product-page-section-title">
                 {t('product.sizes')}{selectedSize ? <span className="selected-value">: {selectedSize}</span> : ''}
               </div>
@@ -1153,6 +1166,8 @@ export function ProductPage({
                 productName={title}
                 productPrice={price}
                 quantity={quantity}
+                hasMissingVariant={hasMissingVariant}
+                onVariantMissing={() => { setShowVariantError(true); scrollToVariantSelectors(); }}
               />
             </>
           ) : (
@@ -1170,7 +1185,7 @@ export function ProductPage({
                 locale={locale}
                 quantity={quantity}
                 hasMissingVariant={hasMissingVariant}
-                onVariantMissing={() => setShowVariantError(true)}
+                onVariantMissing={() => { setShowVariantError(true); scrollToVariantSelectors(); }}
               />
             </>
           )}
