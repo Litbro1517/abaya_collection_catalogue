@@ -3973,6 +3973,17 @@ Date de mise à jour : 29/08/2026
 
 ---
 
+## [AUDIT PRELAUNCH-QUICK-WINS — Contre-audit et déploiement]
+
+### Verdict : CONFORME SANS RÉSERVE — FUSIONNÉ ET DÉPLOYÉ (merge 3e5acaf)
+- **Isolation** : 1 commit (09b7c79) sur main@964f1ab, main gelée pendant l'audit, périmètre = sitemap.ts + not-found.tsx (NEW) + error.tsx (NEW) + 2 docs ✅
+- **Task 1 (try/catch sitemap)** : validé EMPIRIQUEMENT — découverte structurante : sitemap.xml est PRÉRENDU au build (statique) → la résilience du try/catch s'exerce au BUILD (scénario réel Vercel : panne Supabase pendant un déploiement). Preuve : rebuild avec DB cassée → build exit 0, sitemap bâti = 5 routes statiques seules (0 produit) ; GET /sitemap.xml sur ce build → HTTP 200 (routes statiques, jamais 500). Sur main (sans garde), la même panne aurait crashé le prerender
+- **Task 2 (/politique-de-retour)** : présent dans le sitemap DB saine ET DB cassée ; baseline production avant fusion : 0 occurrence → le manque était réel
+- **Task 3 (404/500 brandés)** : not-found.tsx = server component, h1 « 404 » #1A3C34 Playfair, emblem gradient #C9A84C→#E8D48B, fond #FAF8F5, CTA « Retour au catalogue » (vérifié curl + navigateur, console propre) ; error.tsx = 'use client' canonique (signature error/reset, console.error dans useEffect), compilé dans le chunk client (vérifié), bouton « Réessayer » onClick={reset} + lien « Retour à l'accueil »
+- **Task 4 (qualité)** : lint 0/0 ✅ ; tsc MESURÉ DANS LE MÊME ENVIRONNEMENT : main = 139, branche = 139, distribution par fichier IDENTIQUE, 0 erreur dans les 3 fichiers touchés — AUCUNE erreur TS masquée cette fois (leçon des dossiers précédents retenue) ✅
+- **Non-régression SSR** : arbre isolé DB saine → 60 product-card dans le HTML brut / 50 cartes navigateur, 0 état vide, console vierge ✅
+- Observations mineures non-bloquantes (suivi) : (1) 404/500 en français seul (le site gère AR) — i18n en suivi ; (2) pas de global-error.tsx (erreurs du root layout non brandées) ; (3) la page 404 hérite du titre du site (metadata title « Page introuvable » serait un plus SEO)
+
 ## [FIX PRELAUNCH QUICK WINS — Sitemap resilience + /politique-de-retour + 404/500 pages]
 
 ### Mandat
