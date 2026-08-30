@@ -1116,3 +1116,21 @@ Stage Summary:
 - Branche: fix/seo-breadcrumb-hydration-418 (V3)
 - 2 fichiers: ProductPage.tsx (import slugify + TDZ fix), whatsapp.ts (totalLabel optional)
 - **AUCUNE FUSION SUR main — en attente du feu vert explicite ADF**
+
+---
+
+## AUDIT ADF — CONTRE-AUDIT V3 & FUSION (session unique)
+
+### Verdict : CONFORME — FUSION EXÉCUTÉE
+
+WORK LOG:
+- Isolation : 3 commits (5a45642+b804e78+aaa52d3) sur main@6aab823, périmètre 8 fichiers
+- Statique V3 : import { slugify } from '@/lib/products' L.31 ✓ ; bloc productUrl DÉPLACÉ après déclaration title (L.239→L.241-243, TDZ résolu) ✓ ; whatsapp.ts totalLabel?: string = type-only (L.117 runtime identique main, fallback priceLabel préservé) ✓ ; docs honnêtes
+- Qualité : lint 0/0 ; tsc **138** (main 139, -1 = fix TS2339 totalLabel préexistant, 0 nouvelle) ; build exit 0
+- Empirique (port 3234, seed distinctif) : T1 Googlebot slug arabe → h1 produit + 6 blocs ld+json (Organization+BreadcrumbList+Product/Brand/Offer/ListItem), 0 « Produit non trouvé », 0 typeof window ; T2 clic PDP → pdp:true, 3 scripts, errors:[] (crash V2 RÉSOLU) ; deep-link ✓ ; JSON-LD client = baseUrl DB + slugify(title) EXACT ; WA E2E 199×3=597 ✓ ; AR rtl/CSS ✓ (#418 préexistant documenté) ; session vierge errors:[] ✓ ; home SSR 60 product-card ✓
+- FUSION : merge --no-ff 2161f4f (arbre ≡ branche) + docs d'audit ; PUSH main → origin (Vercel déclenché)
+- Production : Googlebot slug arabe réel → BreadcrumbList+Product servis (à confirmer post-promotion)
+
+Stage Summary:
+- 3e itération validée : les 3 défauts V2 corrigés + bonus TS2339 éliminé ; zéro régression ; SEO SSR Googlebot 100 % conforme pour slugs arabes
+- Suivi non-bloquant : #418 préexistant (chantier séparé : ssrLocale en props + textes caches-tolerants)

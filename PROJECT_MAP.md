@@ -4134,3 +4134,31 @@ V2 rectification sur la branche `fix/seo-breadcrumb-hydration-418` (commit `5a45
 
 ---
 Date de mise à jour : 30/08/2026
+
+---
+
+## [AUDIT ADF — CONTRE-AUDIT V3 & FUSION fix/seo-breadcrumb-hydration-418 (aaa52d3)]
+
+### Verdict : CONFORME — FUSION EXÉCUTÉE (merge 2161f4f)
+
+**Historique de la branche** : V1 (5a45642) bloquée (BreadcrumbList code mort pour slugs arabes + claim #418 faux) ; V2 (b804e78) bloquée (ReferenceError `slugify is not defined` → PDP 100 % cassée + tsc 139→142) ; **V3 (aaa52d3) validée**.
+
+**Matrice de validation (arbre isolé /tmp/verify-418v3, seed distinctif, port 3234) :**
+
+| Contrôle ADF | Preuve | Statut |
+|---|---|---|
+| SSR slugs arabes Googlebot | curl Googlebot `/?product=عباية-قمر` (percent-encodé) → `<h1>عباية قمر</h1>` + **Organization + BreadcrumbList (2 ListItem) + Product (Brand+Offer)** — 0 « Produit non trouvé » ; idem accès direct /product-meta/%D8%B9… ; 0 `typeof window` dans le HTML SSR | ✅ |
+| Stabilité client (crash V2) | Clic `.product-card-action` → **PDP rendue** (pdp:true), 3 scripts JSON-LD, `errors:[]` (0 ReferenceError, 0 ErrorBoundary) ; deep-link `?product=` idem | ✅ |
+| JSON-LD client | BreadcrumbList : position 1 = catalogName+baseUrl DB (threading V1 intact) ; positions 2-3 + Product offers.url = `${ssrBaseUrl}/?product=${encodeURIComponent(slugify(title))}` — slug EXACT (fallback `row.id` de V1 éliminé) | ✅ |
+| TypeScript | tsc **138 ≤ 138** (main 139 → -1 : fix du TS2339 `totalLabel` whatsapp.ts L.117 PRÉEXISTANT ; **0 erreur nouvelle** — les 2 différences page.tsx = erreurs préexistantes décalées +16 lignes) | ✅ |
+| Lint / Build | lint 0/0 ; build exit 0 | ✅ |
+| Non-régression tunnels | WA E2E : عباية قمر + Prix 199 DH + Taille S + Quantité 3 + **Prix (3×) : 597** (=199×3, libellé fallback priceLabel = comportement main inchangé, whatsapp.ts = type-only) | ✅ |
+| Non-régression générale | Home session vierge : errors:[], 5 cartes, 60 product-card HTML brut, 0 état vide ; AR : rtl + 5 cartes + CSS intact (2 stylesheets) | ✅ |
+| #418 | Persiste ×1 en AR récurrent — **défaut PRÉEXISTANT documenté** (cause : textes caches/SSR), NON claimé par V3 (docs honnêtes « ne prétend pas résoudre ») → pas une régression, chantier séparé | ⚠️ documenté |
+
+### État git
+- main : 6aab823 → **2161f4f** (merge --no-ff de aaa52d3, arbre ≡ branche)
+- Bonus qualité : élimination du TS2339 whatsapp.ts L.117 (遗留 documenté depuis l'audit COD subtotal)
+
+---
+Date de mise à jour : 30/08/2026 (audit V3 + fusion)
