@@ -841,3 +841,48 @@ Stage Summary:
 - VERDICT : CONFORME — correction exacte de la découverte n°1 de l'audit précédent, zéro régression (garde, prix unitaire×qty, WA, AR, M2)
 - main = 4bfd788, origin/main synchronisé, production déployée et saine
 - Statut : mission ACCOMPLIE
+
+---
+Task ID: SSR-CATALOG-RENDERING-V2
+Agent: Agent Développeur
+Task: V2 — SSR catalogue via props React (pas Zustand store) — preuves empiriques
+
+Work Log:
+- Read PROJECT_MAP.md + worklog.md + audit QA (useState depuis store = no-op en SSR)
+- Poursuivi sur la branche fix/ssr-catalog-rendering
+
+DIAGNOSTIC V2 (confirmé par audit QA):
+- Zustand v5 useSyncExternalStore.getServerSnapshot() retourne l'état initial (catalog: null) en SSR
+- Les mutations setCatalog pendant le rendu serveur sont INVISIBLES aux composants enfants
+- V1 utilisait `buildSectionsFromStore(catalog, dataSourcesFromStore)` — catalog venait du store = null en SSR → no-op
+
+CORRECTION V2:
+- CatalogPreviewProps: ajout `initialCatalog?: Catalog | null` + `initialDatasources?: DataSource[]`
+- CatalogPreview: déstructuration `{ onAdminLogin, initialCatalog, initialDatasources }`
+- `effectiveCatalog = initialCatalog || catalog` — props en priorité, store en fallback (client-only nav)
+- `effectiveDatasources = initialDatasources?.length > 0 ? initialDatasources : dataSourcesFromStore`
+- `useState(() => buildSectionsFromData(effectiveCatalog, effectiveDatasources))` — init synchrone depuis PROPS
+- `sectionsLoaded = !!(effectiveCatalog?.sections?.length && effectiveDatasources.length > 0)`
+- HomeClient L.509: passe `initialCatalog={initialCatalog} initialDatasources={initialDatasources}` au CatalogPreview
+- Imports: ajout `Catalog, DataSource` depuis `@/types`
+
+GESTION CACHE CLIENT:
+- Le useEffect existant (L.400+ network sync FROZEN_MODE) reste intact
+- networkSyncDone.current = true empêche le re-fetch si sections déjà présentes
+- Le cache localStorage est lu en priorité côté client (déjà dans le useEffect)
+- Si le cache est stale, le useEffect re-fetch et met à jour sections (ne détruit pas le SSR HTML)
+
+PREUVES EMPIRIQUES (DB SQLite locale seedée avec 3 produits):
+- product-card dans le HTML SSR: 1 ✅ (était 0 avant)
+- Titres produits: "Abaya Noir", "Kimono Beige", "Robe Bordeaux" dans le HTML ✅
+- État vide "preparing/noProducts": 0 (absent) ✅
+
+VALIDATION:
+- lint: 0 erreur, 0 warning ✅
+- build: exit 0 ✅
+- curl HTML SSR: product-card + titres + prix présents ✅
+
+Stage Summary:
+- Branche: fix/ssr-catalog-rendering (poursuivie, commit V2)
+- 2 fichiers modifiés: CatalogPreview.tsx (props + init depuis props), HomeClient.tsx (passe props au CatalogPreview)
+- **AUCUNE FUSION SUR main — en attente du feu vert explicite**

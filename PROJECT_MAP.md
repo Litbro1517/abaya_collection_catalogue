@@ -3834,3 +3834,50 @@ Contrôle du correctif de persistance des variantes CodForm (découverte n°1 de
 - Validation prod (locale AR, PDP عباية صدفة, build 4bfd788 servi) : home saine cssLinks=2/0 GTM ; tunnel WA non-régressé : message « السعر 199 / الكمية 2 / المجموع 398 درهم » ✅ (la prod est en mode whatsapp : le comportement COD du fix est prouvé par la batterie locale avec preuve DB)
 
 Date de mise à jour (audit + fusion + déploiement) : 30/08/2026
+
+---
+
+## [FIX SSR CATALOG RENDERING V2 — Props React au lieu de Zustand store]
+
+### Mandat
+V2 du fix SSR catalogue. L'audit QA a démontré que l'initialisation du `useState` via le store Zustand en SSR est un **no-op** (Zustand v5 `useSyncExternalStore.getServerSnapshot` retourne l'état initial `catalog: null`). Solution : passer les données par les **props React** qui traversent le payload RSC. Branche `fix/ssr-catalog-rendering` (poursuivie).
+
+### Cause racine V2 (confirmée par audit QA)
+- Zustand v5 `useSyncExternalStore.getServerSnapshot()` retourne l'état initial du store (`catalog: null`) pendant le rendu serveur
+- Les mutations `setCatalog` faites par `HomeClient` pendant le rendu serveur sont **invisibles** aux composants enfants
+- V1 utilisait `buildSectionsFromStore(catalog, dataSourcesFromStore)` → `catalog` venait du store = `null` en SSR → no-op
+
+### Correction V2 — Props React (SSR-friendly)
+1. **CatalogPreviewProps** : ajout `initialCatalog?: Catalog | null` + `initialDatasources?: DataSource[]`
+2. **CatalogPreview** : `effectiveCatalog = initialCatalog || catalog` (props en priorité, store en fallback)
+3. **CatalogPreview** : `effectiveDatasources = initialDatasources?.length > 0 ? initialDatasources : dataSourcesFromStore`
+4. **CatalogPreview** : `useState(() => buildSectionsFromData(effectiveCatalog, effectiveDatasources))` — init synchrone depuis **PROPS**
+5. **HomeClient** L.509 : passe `initialCatalog={initialCatalog} initialDatasources={initialDatasources}` au CatalogPreview
+6. **Imports** : ajout `Catalog, DataSource` depuis `@/types`
+
+### Gestion du cache client vs SSR
+- Le `useEffect` existant (network sync FROZEN_MODE) reste intact : re-fetch côté client si cache stale
+- `networkSyncDone.current = true` empêche le re-fetch si sections déjà présentes (SSR data)
+- Le cache localStorage est lu en priorité côté client (déjà dans le useEffect)
+
+### Fichiers modifiés (2)
+| # | Fichier | Modification |
+|---|---------|-------------|
+| 1 | `src/components/preview/CatalogPreview.tsx` | +props `initialCatalog`/`initialDatasources`, +`buildSectionsFromData` (depuis props), +imports `Catalog`/`DataSource` |
+| 2 | `src/components/HomeClient.tsx` | L.509 : passe `initialCatalog`/`initialDatasources` au `<CatalogPreview>` |
+
+### Preuves empiriques (DB SQLite locale seedée avec 3 produits)
+| Test | Résultat |
+|------|----------|
+| `product-card` dans le HTML SSR | **1** ✅ (était 0) |
+| Titres produits dans le HTML | **"Abaya Noir"**, **"Kimono Beige"**, **"Robe Bordeaux"** ✅ |
+| État vide "preparing/noProducts" | **0** (absent) ✅ |
+
+- `bun run lint` : 0 erreur, 0 warning ✅
+- `bun run build` : exit 0 ✅
+
+### Branche
+`fix/ssr-catalog-rendering` (poursuivie, V2). **POUSSÉE SUR ORIGIN. EN ATTENTE DU FEU VERT EXPLICITE POUR FUSION.**
+
+---
+Date de mise à jour : 29/08/2026
