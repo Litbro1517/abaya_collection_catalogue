@@ -683,3 +683,30 @@ VALIDATION:
 Stage Summary:
 - Branche: fix/unified-quantity-sync-and-cart (créée depuis main@48964f5)
 - 2 fichiers modifiés: ProductPage.tsx (handleAddToCart + dataLayer + CodForm prop), CodForm.tsx (prop quantity + total + API)- **AUCUNE FUSION SUR main — en attente du feu vert explicite**
+
+---
+Task ID: AUDIT-MERGE-QTY-SYNC-DUO-1
+Agent: Agent Auditeur Z.ai (Mandat de Fusion et de Contrôle — Session Unique)
+Task: Audit de synchronisation + fusion des branches fix/pdp-unit-price-row (52a36c7) et fix/unified-quantity-sync-and-cart (4c64c39) vers main, déploiement Vercel, remédiation anomalie post-déploiement
+
+Work Log:
+- Fetch : 2 nouvelles branches détectées (base commune 48964f5 = main, divergentes entre elles)
+- Audit périmètre : A = 3 fichiers (ProductPage prix unitaire + docs), B = 4 fichiers (addItem quantity + dataLayer ×qty + CodForm quantity/total + docs) — chevauchement ProductPage.tsx hunks DISJOINTS (auto-merge propre)
+- Vérifications structurelles : cart-store addItem acceptait déjà quantity (item.quantity ?? 1) ; API /api/orders gère déjà productQuantity ; Prisma Order.productQuantity Int @default(1) ; LandingPageRender (CodForm sans quantity) → défaut 1 inchangé
+- Fusion locale de test : A fast-forward + B merge (conflits UNIQUEMENT additifs sur PROJECT_MAP/worklog, résolus par script déterministe) ; arbre validé = arbre poussé
+- Batterie locale (port 3219, seed 2 produits 270/1 290,50) : A validé (prix unitaire fixe qty=3 FR+AR) ; B axes 1-2-3 validés (panier qty=3/810 + incrément 4/1080, dataLayer 540/810, DB qty=3) ; WA c9f11c7 non-régressé (message 270/3/810) ; M2 non-régressé (cssLinks=2, 0 GTM)
+- lint 0/0 + build exit 0 → FUSION main 05093bf → push → Vercel promu ~90 s
+- Validation prod : A validé (199 fixe, CTA 597) MAIS anomalie découverte via commande test : /merci affichait 1791 (= 597×3) — DOUBLE COMPTAGE
+- Diagnostic : B envoie productPrice=TOTAL vs convention système VG41.2 productPrice=UNITAIRE (Merci L.186 et CheckoutPage L.94/137 multiplient par qty)
+- HOTFIX 3c96b89 (fix/cod-unit-price-payload) : CodForm renvoie productPrice unitaire (1 ligne + commentaire) ; récap UI garde le total
+- Batterie hotfix (port 3220, AVEC suivi /merci) : qty=3 → « MONTANT À PAYER (3 ARTICLES) 810 Dhs » ; DB "270 Dhs"+qty 3 ; AR sain
+- Fusion hotfix → main 3c96b89 → push → Vercel promu ~105 s
+- Validation prod FINALE : commande qty=2 → /merci « 199.00 DH / الكمية 2 / 398 Dhs » EXACT
+- Captures : /home/z/verify-logs/qty-sync-duo/ (pdp-ar-qty3, cart-drawer-qty3, prod-merci-1791-pre-hotfix, prod-merci-398-post-hotfix)
+
+Stage Summary:
+- VERDICT : A CONFORME intégralité ; B conforme sur 3 axes fonctionnels MAIS anomalie bloquante sémantique (productPrice total vs unitaire) détectée en prod et CORRIGÉE par hotfix 3c96b89 — système désormais cohérent (convention unitaire unique)
+- main = 3c96b89 (48964f5 + 52a36c7 + merge 4c64c39 + hotfix), origin/main synchronisé, 2 déploiements Vercel vérifiés
+- Production VALIDÉE E2E : prix unitaire fixe (A), qty propagée panier/dataLayer/COD (B), Merci exact (hotfix)
+- 2 commandes test prod à purger par le client : #CJPIQELZ (pré-hotfix, affichage historique faux) + #9EIAONZA (conforme)
+- Réserve mineure non-bloquante héritée : parseur local parseUnit dupliqué dans CodForm (recommandation : importer parsePriceToNumber canonique)

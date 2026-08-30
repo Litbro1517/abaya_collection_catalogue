@@ -3634,3 +3634,41 @@ Corriger 3 régressions de synchronisation quantité : (1) panier ajoute toujour
 
 ---
 Date de mise à jour : 29/08/2026
+
+---
+
+## [AUDIT-MERGE-QTY-SYNC-DUO-1 — Audit, fusion et remédiation des 2 branches quantité]
+
+### Mandat
+Audit de synchronisation et fusion des branches `fix/pdp-unit-price-row` (52a36c7) et `fix/unified-quantity-sync-and-cart` (4c64c39) vers main + déploiement Vercel.
+
+### Fusion réalisée
+- main : 48964f5 → 52a36c7 (fast-forward, branche A) → 05093bf (merge branche B, conflits docs PROJECT_MAP/worklog résolus en conservant les 2 sections ; ProductPage.tsx fusionné automatiquement — hunks disjoints)
+- Arbre poussé vérifié byte-identique à l'arbre validé (`git diff audit-test-merge main` vide)
+
+### Validations pré-fusion (arbre isolé /tmp, DB propre seedée, port 3219)
+- lint 0/0 ✅ ; build exit 0 ✅
+- Branche A : ligne pdp-price-row = prix unitaire FIXE à qty=3 (« 270 Dhs » / AR « 270 درهم ») ; sticky CTA mobile = 810 ✅
+- Branche B axe 1 (panier) : addItem transmet quantity → localStorage/drawer qty=3, « 270 Dhs 3 Total 810 Dhs » ; incrément cumulatif 2+2=4/1080 ✅
+- Branche B axe 2 (dataLayer) : add_to_cart value = 540 (qty2) / 810 (qty3) ✅
+- Branche B axe 3 (COD) : récap formulaire = total ; commande locale qty=3 → DB productQuantity=3 ✅
+- Non-régression c9f11c7 : message WA intercepté « Prix 270 / Quantité 3 / Total 810 » ✅
+- Non-régression M2 : cssLinks=2 FR+AR, dir rtl, Tajawal, 0 requête GTM, 0 page error ✅
+
+### ANOMALIE BLOQUANTE détectée en production (post-déploiement 05093bf)
+- Symptôme : commande COD test qty=3 → page /merci affichait « 597 درهم × 3 = **1791 Dhs** » (double comptage)
+- Cause racine : branche B envoie `productPrice = TOTAL` (unit×qty), mais la convention système VG41.2 (page Merci L.186, CheckoutPage L.94/137) est `productPrice = PRIX UNITAIRE`, total dérivé = ×qty
+- Impact : montant client FAUX sur /merci pour toute commande COD qty>1 ; admin OrderDetailSheet affichait le total en clair de prix (ambigu, pas de double comptage)
+- Couverture locale initiale lacunaire : la 1re batterie n'avait pas suivi la redirection /merci après soumission COD (corrigé dans la batterie hotfix)
+
+### Remédiation (hotfix 3c96b89, branche fix/cod-unit-price-payload)
+- CodForm.tsx : payload API renvoie `productPrice` = prix UNITAIRE (+ `productQuantity` = qty) ; récap UI du formulaire continue d'afficher le total (totalPriceStr)
+- Validations : lint 0/0, build 0, E2E locale qty=3 → /merci « MONTANT À PAYER (3 ARTICLES) 810 Dhs » ✅ ; DB productPrice="270 Dhs" + qty=3 ✅ ; sanity AR cssLinks=2/0 GTM ✅
+- Déploiements Vercel : 05093bf (~90 s) puis 3c96b89 (~105 s), marqueurs chunks
+- Validation production FINALE post-hotfix : commande test qty=2 → /merci « 199.00 DH / الكمية 2 / المبلغ المطلوب دفعه (2 ARTICLES) **398 Dhs** » EXACT ✅ ; ligne prix 199 fixe + CTA 398 ✅
+
+### Commandes de test en production (À PURGER par le client — purge admin protégée auth)
+1. **#CJPIQELZ** (سعاد بنعلي) — pré-hotfix, productPrice="597 درهم" (total) stocké : Merci affichera 1791 pour cette commande historique
+2. **#9EIAONZA** (اختبار التدقيق) — post-hotfix, données conformes (199.00 DH × 2 = 398)
+
+Date de mise à jour (audit + fusion + hotfix + déploiement) : 30/08/2026
