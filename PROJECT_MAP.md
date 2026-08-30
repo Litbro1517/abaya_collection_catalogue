@@ -4093,3 +4093,56 @@ Date de mise à jour : 30/08/2026
 
 ---
 Date de mise à jour : 30/08/2026 (audit V2 + fusion)
+
+---
+
+## [FIX SEO BREADCRUMB HYDRATION 418 — BreadcrumbList SSR + React #418 + hreflang]
+
+### Mandat
+Corriger 3 défauts: BreadcrumbList absent du SSR, React #418 (typeof window mismatch), contradiction documentaire PROJECT_MAP. Branche isolée `fix/seo-breadcrumb-hydration-418` (créée depuis `main@6aab823`).
+
+### Corrections appliquées (4 axes)
+
+#### Axe 1 — BreadcrumbList SSR (ProductPage.tsx)
+- Ajout prop `baseUrl?: string` à `ProductPageProps`
+- `ssrBaseUrl = baseUrl || fallback` — URL depuis SSR, pas depuis `typeof window`
+- `productUrl` = `window.location.href` (client) ou `${ssrBaseUrl}/?product=${row.id}` (SSR)
+- BreadcrumbList items: `ssrBaseUrl` et `productUrl` (pas de `typeof window`)
+- Product JSON-LD `url`: `productUrl` (pas de `typeof window`)
+
+#### Axe 2 — BreadcrumbList SSR (/product-meta/[slug])
+- Ajout script JSON-LD BreadcrumbList dans `ProductMetaPage`
+- 2 items: position 1 (catalogName → baseUrl), position 2 (product.title → baseUrl/?product=slug)
+- 100% SSR, aucun `typeof window`
+
+#### Axe 3 — Chaîne props SSR baseUrl
+- `page.tsx`: nouveau `getBaseUrl()` lit `settings.__seo_metadata__.canonicalUrl`
+- `page.tsx`: `HomePage` passe `initialBaseUrl={baseUrl}` au HomeClient
+- `HomeClient.tsx`: +prop `initialBaseUrl`, passe au CatalogPreview
+- `CatalogPreview.tsx`: +prop `initialBaseUrl`, passe au ProductPage
+
+#### Axe 4 — Harmonisation PROJECT_MAP
+- Statut #418 clarifié: **préexistant bénin** (CSS intact), **corrigé par ce fix** (typeof window éliminé des JSON-LD → plus de mismatch SSR/Client)
+
+### Fichiers modifiés (5)
+| # | Fichier | Modification |
+|---|---------|-------------|
+| 1 | `src/app/page.tsx` | +`getBaseUrl()`, +`initialBaseUrl` prop au HomeClient |
+| 2 | `src/components/HomeClient.tsx` | +prop `initialBaseUrl`, passe au CatalogPreview |
+| 3 | `src/components/preview/CatalogPreview.tsx` | +prop `initialBaseUrl`, passe au ProductPage |
+| 4 | `src/components/preview/ProductPage.tsx` | +prop `baseUrl`, `ssrBaseUrl`/`productUrl`, JSON-LD sans `typeof window` |
+| 5 | `src/app/product-meta/[slug]/page.tsx` | +JSON-LD BreadcrumbList (SSR, 2 items) |
+
+### Validations
+- `bun run lint` : 0 erreur, 0 warning ✅
+- `bun run build` : exit 0 ✅
+- Organization JSON-LD : présent dans SSR HTML ✅
+- `typeof window` dans le HTML SSR : 0 ✅ (éliminé)
+- `/product-meta/[slug]` : 2 scripts `application/ld+json` (Organization + BreadcrumbList/Product) ✅
+- Console errors : 0 React #418 ✅
+
+### Branche
+`fix/seo-breadcrumb-hydration-418` (créée depuis `main@6aab823`). **POUSSÉE SUR ORIGIN. EN ATTENTE DU FEU VERT EXPLICITE POUR FUSION.**
+
+---
+Date de mise à jour : 30/08/2026

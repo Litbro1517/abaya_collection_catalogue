@@ -220,12 +220,29 @@ async function getInitialCatalogData() {
   }
 }
 
+// ━━ Fix #418 + BreadcrumbList SSR: pass baseUrl to HomeClient → CatalogPreview → ProductPage ━━
+// This eliminates typeof window checks in JSON-LD (which cause SSR/client mismatch → React #418)
+async function getBaseUrl() {
+  try {
+    const seoRow = await db.settings.findUnique({ where: { key: '__seo_metadata__' } });
+    if (seoRow?.value) {
+      const parsed = JSON.parse(seoRow.value);
+      if (parsed.canonicalUrl) return parsed.canonicalUrl;
+    }
+  } catch { /* DB unavailable */ }
+  return 'https://abaya-collection-catalogue-9dum.vercel.app';
+}
+
 export default async function HomePage() {
-  const { catalog, datasources } = await getInitialCatalogData();
+  const [ { catalog, datasources }, baseUrl ] = await Promise.all([
+    getInitialCatalogData(),
+    getBaseUrl(),
+  ]);
   return (
     <HomeClient
       initialCatalog={catalog}
       initialDatasources={datasources}
+      initialBaseUrl={baseUrl}
     />
   );
 }

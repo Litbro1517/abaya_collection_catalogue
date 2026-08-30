@@ -86,6 +86,20 @@ export default async function ProductMetaPage({
 
   return (
     <div style={{ padding: '2rem', fontFamily: 'system-ui, sans-serif' }}>
+      {/* SEO Fix #418: JSON-LD BreadcrumbList — SSR, no typeof window, visible to Googlebot */}
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{
+          __html: JSON.stringify({
+            "@context": "https://schema.org",
+            "@type": "BreadcrumbList",
+            itemListElement: [
+              { "@type": "ListItem", position: 1, name: product.catalogName, item: baseUrl },
+              { "@type": "ListItem", position: 2, name: product.title, item: `${baseUrl}/?product=${slug}` },
+            ],
+          }),
+        }}
+      />
       {/* VG37.3 B1: JSON-LD structured data for Google Rich Snippets & Google Shopping */}
       <script
         type="application/ld+json"

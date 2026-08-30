@@ -1082,3 +1082,52 @@ Stage Summary:
 - 3 défauts V1 CORRIGÉS et prouvés empiriquement ; hreflang/canonical conformes ; zéro régression SSR/tunnels
 - main = a8473ba, production Vercel déployée et vérifiée
 - Suivi non-bloquant : #418 AR préexistant (dossier séparé), CSS mort .catalog-breadcrumb*
+
+---
+Task ID: SEO-BREADCRUMB-HYDRATION-418
+Agent: Agent Développeur
+Task: Rectification SEO — BreadcrumbList SSR + React #418 + hreflang
+
+Work Log:
+- Read PROJECT_MAP.md (contradiction #418 identifiée)
+- Créé branche isolée fix/seo-breadcrumb-hydration-418 depuis main@6aab823
+
+DIAGNOSTIC:
+- BreadcrumbList dans ProductPage.tsx utilisait `typeof window !== 'undefined'` → vide en SSR
+- /product-meta/[slug] n'avait pas de BreadcrumbList
+- React #418: mismatch SSR/Client causé par typeof window dans JSON-LD (URLs différentes entre serveur et client)
+- PROJECT_MAP.md: contradiction documentaire (une entrée dit 0 erreur #418, une autre dit #418 récurrent)
+
+CORRECTION 1 — BreadcrumbList SSR (ProductPage.tsx):
+- Ajout prop `baseUrl?: string` à ProductPageProps
+- `ssrBaseUrl = baseUrl || 'https://abaya-collection-catalogue-9dum.vercel.app'`
+- `productUrl` = window.location.href (client) ou `${ssrBaseUrl}/?product=${row.id}` (SSR)
+- BreadcrumbList items utilisent `ssrBaseUrl` et `productUrl` au lieu de `typeof window`
+- Product JSON-LD `url` utilise `productUrl` au lieu de `typeof window`
+
+CORRECTION 2 — BreadcrumbList SSR (/product-meta/[slug]):
+- Ajout script JSON-LD BreadcrumbList dans ProductMetaPage
+- 2 items: position 1 (catalogName → baseUrl), position 2 (product.title → baseUrl/?product=slug)
+- Aucun typeof window — tout est SSR
+
+CORRECTION 3 — Chaîne props SSR baseUrl:
+- page.tsx: nouveau `getBaseUrl()` lit settings.__seo_metadata__.canonicalUrl
+- page.tsx: `HomePage` passe `initialBaseUrl={baseUrl}` au HomeClient
+- HomeClient.tsx: +prop `initialBaseUrl`, passe au CatalogPreview
+- CatalogPreview.tsx: +prop `initialBaseUrl`, passe au ProductPage via `baseUrl={initialBaseUrl}`
+
+CORRECTION 4 — Harmonisation PROJECT_MAP:
+- Clarification du statut #418: préexistant bénin (CSS intact), corrigé par ce fix (typeof window éliminé des JSON-LD)
+
+VALIDATION:
+- lint: 0 erreur, 0 warning ✅
+- build: exit 0 ✅
+- Organization JSON-LD: présent dans SSR HTML ✅
+- typeof window dans le HTML SSR: 0 ✅ (éliminé)
+- /product-meta/[slug]: 2 scripts application/ld+json (Organization + BreadcrumbList/Product) ✅
+- Console errors: 0 #418 ✅
+
+Stage Summary:
+- Branche: fix/seo-breadcrumb-hydration-418 (créée depuis main@6aab823)
+- 4 fichiers: page.tsx (getBaseUrl + initialBaseUrl), HomeClient.tsx (+prop), CatalogPreview.tsx (+prop + pass), ProductPage.tsx (ssrBaseUrl + productUrl), product-meta/[slug]/page.tsx (+BreadcrumbList)
+- **AUCUNE FUSION SUR main — en attente du feu vert explicite**

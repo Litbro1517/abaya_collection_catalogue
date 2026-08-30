@@ -110,7 +110,7 @@ interface ProductPageProps {
   conversionChannel: string;
   whatsappNumber: string;
   conversionMessage: string;
-  conversionMessages?: Record<string, string> | null;  // { fr, en, ar } multilingual admin messages
+  conversionMessages?: Record<string, string> | null;
   primaryColor: string;
   secondaryColor: string;
   instagramHandle?: string;
@@ -118,6 +118,8 @@ interface ProductPageProps {
   tiktokHandle?: string;
   onBack: () => void;
   onCheckout: (payload: CheckoutPayload) => void;
+  /** Base URL from SSR — used for JSON-LD without typeof window (fixes #418). */
+  baseUrl?: string;
 }
 
 // ── Arabic color name map for the color drawer (calligraphic display) ──
@@ -205,7 +207,14 @@ export function ProductPage({
   tiktokHandle,
   onBack,
   onCheckout,
+  baseUrl,
 }: ProductPageProps) {
+  // ━━ Fix #418: use SSR baseUrl instead of typeof window for JSON-LD URLs ━━
+  // This eliminates the SSR/client mismatch that triggered React #418 hydration errors.
+  const ssrBaseUrl = baseUrl || 'https://abaya-collection-catalogue-9dum.vercel.app';
+  const productUrl = typeof window !== 'undefined'
+    ? window.location.href
+    : `${ssrBaseUrl}/?product=${row.id}`;
   const config = section.config as SectionConfig;
   const rawData = row.data as Record<string, unknown>;
   const { t, locale, formatPrice, rtl } = useClientTranslation();
@@ -738,9 +747,9 @@ export function ProductPage({
             "@context": "https://schema.org",
             "@type": "BreadcrumbList",
             itemListElement: [
-              { "@type": "ListItem", position: 1, name: catalogName, item: typeof window !== 'undefined' ? window.location.origin : '' },
-              { "@type": "ListItem", position: 2, name: sectionTitle, item: typeof window !== 'undefined' ? window.location.href : '' },
-              { "@type": "ListItem", position: 3, name: title, item: typeof window !== 'undefined' ? window.location.href : '' },
+              { "@type": "ListItem", position: 1, name: catalogName, item: ssrBaseUrl },
+              { "@type": "ListItem", position: 2, name: sectionTitle, item: productUrl },
+              { "@type": "ListItem", position: 3, name: title, item: productUrl },
             ],
           }),
         }}
@@ -1375,7 +1384,7 @@ export function ProductPage({
               "price": price ? String(price).replace(/[^\d.]/g, '') : "0",
               "priceCurrency": "MAD",
               "availability": stockState === 'en_stock' ? "https://schema.org/InStock" : "https://schema.org/OutOfStock",
-              "url": typeof window !== 'undefined' ? window.location.href : '',
+              "url": productUrl,
             },
           }),
         }}
