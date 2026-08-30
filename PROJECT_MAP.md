@@ -3807,3 +3807,30 @@ Corriger la régression des variantes (couleur/taille) sur la Thank You Page : l
 
 ---
 Date de mise à jour : 29/08/2026
+
+---
+
+## [AUDIT-MERGE-CODFORM-VARIANT-PERSIST-1 — Audit et fusion fix/codform-variant-persistence (4bfd788)]
+
+### Mandat
+Contrôle du correctif de persistance des variantes CodForm (découverte n°1 de l'audit AUDIT-MERGE-UNIFIED-SELECTION-1) + fusion + déploiement Vercel.
+
+### Verdict : CONFORME — fusion exécutée (fast-forward 2529c97..4bfd788)
+- Périmètre strict : 4 fichiers (CodForm +13, ProductPage +2, docs +87)
+- CodForm : props optionnelles selectedColor/selectedSize (défaut null, types string|null alignés sur les états ProductPage L.371-372) ; payload ajoute productColor/productSize (|| null contre chaînes vides)
+- API /api/orders voie single : réception productColor/productSize préexistante (String() : null) — aucune modification API nécessaire
+- LandingPageRender (CodForm sans nouvelles props) : défauts null → comportement inchangé (compat arrière)
+- Garde hasMissingVariant + onVariantMissing : INTACTES (non touchées par le diff)
+- Tunnel WhatsApp : non touché (WhatsappOrderForm reçoit déjà les variantes directement)
+
+### Validations (arbre isolé /tmp/verify-pers, port 3222, seed landing 1 produit Noir,Beige × S,M,L)
+- lint 0/0 ✅ ; build exit 0 ✅
+- T1 persistance E2E : Beige + L + qty=2 → commande → DB productColor="Beige", productSize="L", productPrice="270 Dhs" unitaire, productQuantity=2 ✅ ; Merci affiche « Couleur choisie Beige / Taille choisie L / Quantité 2 / 540 Dhs » (avant : « — ») ✅
+- T2 garde non-régressée : soumission sans variante (champs client remplis) → 0 appel API, ORDERS COUNT inchangé ✅
+- T3 sanity AR : rtl, cssLinks=2, 0 GTM, 0 page error ✅
+
+### Déploiement
+- push origin main 2529c97..4bfd788 → Vercel promu ~90 s (hash chunks changé cd2403ae → nouveau)
+- Validation prod (locale AR, PDP عباية صدفة, build 4bfd788 servi) : home saine cssLinks=2/0 GTM ; tunnel WA non-régressé : message « السعر 199 / الكمية 2 / المجموع 398 درهم » ✅ (la prod est en mode whatsapp : le comportement COD du fix est prouvé par la batterie locale avec preuve DB)
+
+Date de mise à jour (audit + fusion + déploiement) : 30/08/2026

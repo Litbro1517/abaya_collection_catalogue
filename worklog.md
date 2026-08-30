@@ -823,3 +823,21 @@ Stage Summary:
 - Branche: fix/codform-variant-persistence (créée depuis main@2529c97)
 - 2 fichiers modifiés: CodForm.tsx (props + payload API), ProductPage.tsx (passage props)
 - **AUCUNE FUSION SUR main — en attente du feu vert explicite post-audit**
+
+---
+Task ID: AUDIT-MERGE-CODFORM-VARIANT-PERSIST-1
+Agent: Agent Auditeur Z.ai (Mandat d'Audit, de Vérification et de Fusion)
+Task: Audit de fix/codform-variant-persistence (4bfd788) — persistance variantes CodForm — fusion + push + Vercel + docs
+
+Work Log:
+- Inspection : branche 4bfd788, base 2529c97 = main (fast-forward) ; diff 4 fichiers (2 code + 2 docs)
+- Audit statique : props selectedColor/selectedSize optionnelles (types alignés useState<string|null> L.371-372) ; payload productColor/productSize avec || null ; API single-path réceptrice préexistante ; LandingPageRender compat (défauts null) ; garde hasMissingVariant intacte ; tunnel WA non touché
+- Arbre isolé : lint 0/0, build exit 0
+- Batterie locale (port 3222, mode landing) : T1 persistance (DB Beige/L + Merci « Couleur choisie Beige / Taille choisie L / 540 Dhs » exact) ; T2 garde (0 commande sans variante malgré champs remplis) ; T3 AR sain
+- FUSION fast-forward 2529c97..4bfd788 → push → Vercel promu ~90 s
+- Validation prod build 4bfd788 : santé home (cssLinks=2, 0 GTM) + tunnel WA « الكمية 2 / المجموع 398 درهم » non-régressé
+
+Stage Summary:
+- VERDICT : CONFORME — correction exacte de la découverte n°1 de l'audit précédent, zéro régression (garde, prix unitaire×qty, WA, AR, M2)
+- main = 4bfd788, origin/main synchronisé, production déployée et saine
+- Statut : mission ACCOMPLIE
