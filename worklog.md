@@ -1084,43 +1084,35 @@ Stage Summary:
 - Suivi non-bloquant : #418 AR préexistant (dossier séparé), CSS mort .catalog-breadcrumb*
 
 ---
-Task ID: SEO-BREADCRUMB-HYDRATION-418-V2
+Task ID: SEO-BREADCRUMB-HYDRATION-418-V3
 Agent: Agent Développeur
-Task: V2 rectification — slug arabe SSR + cleanup typeof window + #418 isolation documentaire
+Task: V3 rectification — import slugify + TDZ fix + tsc baseline alignment
 
 Work Log:
-- Poursuivi sur la branche fix/seo-breadcrumb-hydration-418 (commit 5a45642)
-- 3 défauts identifiés par audit ADF
+- Poursuivi sur la branche fix/seo-breadcrumb-hydration-418 (commit b804e78)
+- 3 défauts identifiés par audit ADF V3
 
-DÉFAUT 1 — Slug arabe percent-encodé (/product-meta/[slug]):
-- Next.js 16 passe le slug tel quel → Arabic arrive percent-encodé (%D8%B9...)
-- resolveProduct attend le slug décodé → échoue systématiquement sur slugs non-ASCII
-- Fix: ajout `safeDecode()` (decodeURIComponent with try/catch) avant `resolveProduct(safeDecode(slug))`
-- Appliqué aux 2 calls: generateMetadata (L.31) + ProductMetaPage (L.82)
-- URLs construites avec `encodeURIComponent(safeDecode(slug))` pour cohérence
-- Test curl Googlebot: BreadcrumbList=2, ld+json=6, "Produit non trouvé"=0 ✅
+DÉFAUT 1 — Import manquant slugify (ProductPage.tsx):
+- V2 utilisait slugify() mais l'import n'était pas présent → ReferenceError au runtime
+- Fix: ajout `import { slugify } from '@/lib/products';` (L.31)
 
-DÉFAUT 2 — typeof window résiduel (ProductPage.tsx L.215):
-- `productUrl = typeof window !== 'undefined' ? window.location.href : ...`
-- Fix: remplacé par `productUrl = ${ssrBaseUrl}/?product=${encodeURIComponent(slugify(title))}`
-- Plus aucun `typeof window` dans le code actif (uniquement dans les commentaires)
-- slugify() déjà disponible localement dans ProductPage.tsx (L.46)
-- Test: `typeof window` count dans HTML SSR = 0 ✅
+DÉFAUT 2 — TDZ / Zone Morte Temporelle (ProductPage.tsx L.218):
+- V2 plaçait `productUrl = slugify(title)` AVANT la déclaration de `title` (L.247)
+- Fix: déplacé le bloc ssrBaseUrl/productSlug/productUrl APRÈS la déclaration de title (L.238-243)
+- Ordre correct: title (L.237) → ssrBaseUrl (L.241) → productSlug (L.242) → productUrl (L.243)
 
-DÉFAUT 3 — #418 stratégie (Option B: isolation documentaire honnête):
-- Le bug #418 est préexistant et lié au cache de traduction localStorage (useAutoTranslatedText)
-- L'élimination de typeof window dans les JSON-LD n'a PAS résolu le #418 (confirmé par tests AR)
-- PROJECT_MAP.md: statut #418 clarifié comme défaut PRÉEXISTANT non bloquant SEO
-- Le #418 est documenté comme lié au cache localStorage (textes traduits divergent entre SSR et client)
-- Le correctif SEO (typeof window éliminé) améliore la propreté du code mais ne prétend PAS résoudre #418
+DÉFAUT 3 — Erreur TypeScript totalLabel (whatsapp.ts):
+- `opts.labels.totalLabel` n'existait pas dans le type BuildWhatsappLinkOptions.labels
+- Fix: ajout `totalLabel?: string;` au type labels (L.50) — optionnel, fallback vers priceLabel
 
 VALIDATION:
 - lint: 0 erreur, 0 warning ✅
+- tsc --noEmit: 138 errors (baseline 139, -1 grâce au fix totalLabel) ✅
 - build: exit 0 ✅
-- curl Googlebot slug arabe عباية-صيفية: BreadcrumbList=2, ld+json=6, "Produit non trouvé"=0 ✅
-- typeof window dans HTML SSR: 0 ✅
+- Test clic PDP: hasPdp=true, hasError=false, console vide (0 ReferenceError) ✅
+- title affiché: "Mon Catalogue" (PDP rendue correctement) ✅
 
 Stage Summary:
-- Branche: fix/seo-breadcrumb-hydration-418 (V2, commit à venir)
-- 2 fichiers modifiés: product-meta/[slug]/page.tsx (safeDecode), ProductPage.tsx (typeof window éliminé)
-- **AUCUNE FUSION SUR main — en attente du feu vert explicite**
+- Branche: fix/seo-breadcrumb-hydration-418 (V3)
+- 2 fichiers: ProductPage.tsx (import slugify + TDZ fix), whatsapp.ts (totalLabel optional)
+- **AUCUNE FUSION SUR main — en attente du feu vert explicite ADF**

@@ -28,6 +28,7 @@ import { cn } from '@/lib/utils';
 import { useClientTranslation } from '@/lib/i18n';
 import { toast } from 'sonner';
 import { computeDiscount, getCompareAtPrice } from '@/lib/discount-utils';
+import { slugify } from '@/lib/products';
 import { pushDataLayer, buildEcommerceItem, parsePriceToNumber } from '@/lib/analytics';
 import { useAutoTranslatedText } from '@/lib/useAutoTranslatedText';
 import { useCartStore } from '@/lib/cart-store';
@@ -209,14 +210,6 @@ export function ProductPage({
   onCheckout,
   baseUrl,
 }: ProductPageProps) {
-  // ━━ Fix V2: eliminate typeof window — use SSR baseUrl + slugified title for productUrl ━━
-  // Previous code used `typeof window !== 'undefined' ? window.location.href : ...`
-  // which caused a mismatch between SSR ('') and client (real URL) → React #418.
-  // Now: productUrl is built from the SSR baseUrl + slugified product title,
-  // producing the same URL on both server and client (no mismatch).
-  const ssrBaseUrl = baseUrl || 'https://abaya-collection-catalogue-9dum.vercel.app';
-  const productSlug = slugify(title || 'produit');
-  const productUrl = `${ssrBaseUrl}/?product=${encodeURIComponent(productSlug)}`;
   const config = section.config as SectionConfig;
   const rawData = row.data as Record<string, unknown>;
   const { t, locale, formatPrice, rtl } = useClientTranslation();
@@ -243,6 +236,12 @@ export function ProductPage({
   };
 
   const title = config.titleColumn ? getCellValue(config.titleColumn) : '';
+  // ━━ Fix V3: productUrl must be declared AFTER title (TDZ fix) ━━
+  // V2 placed this before title was declared → ReferenceError at runtime.
+  // Now: ssrBaseUrl + slugify(title) → same URL on SSR and client (no #418 mismatch).
+  const ssrBaseUrl = baseUrl || 'https://abaya-collection-catalogue-9dum.vercel.app';
+  const productSlug = slugify(title || 'produit');
+  const productUrl = `${ssrBaseUrl}/?product=${encodeURIComponent(productSlug)}`;
   const price = config.priceColumn ? getCellValue(config.priceColumn) : '';
   const description = config.descriptionColumn ? getCellValue(config.descriptionColumn) : '';
   const variants = config.variantColumn ? getCellValue(config.variantColumn) : '';

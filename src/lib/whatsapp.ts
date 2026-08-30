@@ -47,6 +47,7 @@ export interface BuildWhatsappLinkOptions {
     colorLabel: string;     // e.g. "Couleur"
     sizeLabel: string;      // e.g. "Taille"
     quantityLabel: string;  // e.g. "Quantité"
+    totalLabel?: string;    // e.g. "Total" — optional, falls back to priceLabel
   };
 }
 
