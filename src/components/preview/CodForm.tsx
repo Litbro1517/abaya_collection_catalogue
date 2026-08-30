@@ -19,6 +19,8 @@ interface CodFormProps {
   productId: string;
   productName: string;
   productPrice: string;
+  /** Selected quantity (defaults to 1). Used to compute the total and send to API. */
+  quantity?: number;
 }
 
 interface FormState {
@@ -28,8 +30,21 @@ interface FormState {
   customerAddress: string;
 }
 
-export function CodForm({ productId, productName, productPrice }: CodFormProps) {
+export function CodForm({ productId, productName, productPrice, quantity = 1 }: CodFormProps) {
   const { t, rtl, formatPrice } = useClientTranslation();
+
+  // ━━ Fix: compute total = unit price × quantity ━━
+  // The CodForm recap and the API payload must reflect the real order amount.
+  const qty = quantity > 0 ? quantity : 1;
+  const parseUnit = (s: string): number => {
+    if (!s) return 0;
+    const m = s.match(/[\d\s.,]+/);
+    if (!m) return 0;
+    return parseFloat(m[0].replace(/\s/g, '').replace(',', '.')) || 0;
+  };
+  const totalPriceStr = qty > 1 && parseUnit(productPrice) > 0
+    ? formatPrice(parseUnit(productPrice) * qty)
+    : productPrice;
   const [form, setForm] = useState<FormState>({
     customerName: '',
     customerPhone: '',
@@ -63,7 +78,7 @@ export function CodForm({ productId, productName, productPrice }: CodFormProps) 
         body: JSON.stringify({
           productId, customerName: form.customerName.trim(), customerPhone: form.customerPhone.trim(),
           customerCity: form.customerCity.trim(), customerAddress: form.customerAddress.trim(),
-          productName, productPrice,
+          productName, productPrice: totalPriceStr, productQuantity: qty,
         }),
       });
       const data = await res.json();
@@ -171,7 +186,8 @@ export function CodForm({ productId, productName, productPrice }: CodFormProps) 
               {t('checkout.orderSummary')} :
             </span>
             <span style={{ fontSize: '0.95rem', fontWeight: 700, color: 'var(--price-charcoal, #121212)' }}>
-              {formatPrice(productPrice)}
+              {/* Fix: show total (unit × qty) when quantity > 1, else unit price */}
+              {totalPriceStr}
             </span>
           </div>
         )}

@@ -486,6 +486,9 @@ export function ProductPage({
       setShowVariantError(true);
       return;
     }
+    // ━━ Fix: pass the selected quantity so the cart reflects the real count ━━
+    // Previously: addItem() was called without quantity → cart-store defaulted to 1.
+    // Now: the quantity picker value is transmitted so the cart adds N articles.
     addItem({
       productId: row.id,
       title,
@@ -493,6 +496,7 @@ export function ProductPage({
       color: selectedColor || '',
       size: selectedSize || '',
       image: carouselImages[0] || '',
+      quantity,
     });
     // ── Lot 1: add_to_cart dataLayer event ──
     // Fires after the item is added to the cart. Includes the selected variant
@@ -501,7 +505,8 @@ export function ProductPage({
       event: 'add_to_cart',
       ecommerce: {
         currency: 'MAD',
-        value: parsePriceToNumber(price),
+        // ━━ Fix: value = unit price × quantity (was unit price only) ━━
+        value: parsePriceToNumber(price) * (quantity || 1),
         items: [
           buildEcommerceItem({
             id: row.id,
@@ -1146,6 +1151,7 @@ export function ProductPage({
                 productId={row.id}
                 productName={title}
                 productPrice={price}
+                quantity={quantity}
               />
             </>
           ) : (
