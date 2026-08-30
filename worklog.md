@@ -965,3 +965,35 @@ Work Log:
 Stage Summary:
 - VERDICT : CONFORME après remédiation typage f8b8102 — 4 niveaux de défense validés empiriquement, plus aucun 500, console client propre, non-régression totale (périmètre limité à la route translate)
 - main = merge 13dad25 + docs ; origin mis à jour ; production vérifiée post-déploiement (voir enregistrement suivant)
+
+---
+Task ID: PRELAUNCH-QUICK-WINS
+Agent: Agent Développeur
+Task: Finalisation pré-lancement — 4 quick wins (sitemap resilience + /politique-de-retour + 404/500 pages)
+
+Work Log:
+- Read PROJECT_MAP.md + worklog.md
+- Créé branche isolée fix/prelaunch-quick-wins depuis main@964f1ab
+
+TASK 1 — Sécurisation sitemap.ts (try/catch resolveAllProducts):
+- L.77-87: encapsulé `resolveAllProducts()` dans try/catch
+- En cas d'échec DB: log serveur + retour statiques uniquement (pas de HTTP 500)
+- `productEntries` initialisé à `[]` avant le try (fallback sûr)
+
+TASK 2 — Ajout /politique-de-retour dans sitemap statique:
+- L.63-68: ajout entrée /politique-de-retour (priority 0.3, monthly)
+
+TASK 3 — Pages d'erreur sur-mesure:
+- src/app/not-found.tsx (NEW): page 404 avec identité visuelle marque (gold emblem + #1A3C34 + #FAF8F5), message clair + bouton "Retour au catalogue"
+- src/app/error.tsx (NEW): Client Component, intercepte erreurs 500, bouton "Réessayer" (reset()) + lien "Retour à l'accueil"
+
+TASK 4 — Validation:
+- lint: 0 erreur, 0 warning ✅
+- build: exit 0 ✅
+- sitemap.xml: contient /politique-de-retour ✅
+- page 404: HTTP 404 avec page custom ✅
+
+Stage Summary:
+- Branche: fix/prelaunch-quick-wins (créée depuis main@964f1ab)
+- 4 fichiers: sitemap.ts (try/catch + /politique-de-retour), not-found.tsx (NEW), error.tsx (NEW)
+- **AUCUNE FUSION SUR main — en attente du feu vert explicite**

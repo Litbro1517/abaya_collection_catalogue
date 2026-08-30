@@ -3970,3 +3970,40 @@ Corriger l'erreur HTTP 500 sur `/api/translate` qui apparaît en production (Ver
 
 ---
 Date de mise à jour : 29/08/2026
+
+---
+
+## [FIX PRELAUNCH QUICK WINS — Sitemap resilience + /politique-de-retour + 404/500 pages]
+
+### Mandat
+4 quick wins pour finalisation pré-lancement (score cible > 80/100). Branche isolée `fix/prelaunch-quick-wins` (créée depuis `main@964f1ab`).
+
+### Task 1 — Sécurisation sitemap.ts
+- `resolveAllProducts()` encapsulé dans try/catch (L.77-87)
+- En cas d'échec DB : log serveur + retour des routes statiques uniquement (pas de HTTP 500)
+
+### Task 2 — Complétude sitemap statique
+- Ajout `/politique-de-retour` dans le tableau des routes statiques (L.63-68, priority 0.3, monthly)
+
+### Task 3 — Pages d'erreur sur-mesure
+- `src/app/not-found.tsx` (NEW) : page 404 avec identité visuelle marque (gold emblem + #1A3C34 + #FAF8F5), bouton "Retour au catalogue"
+- `src/app/error.tsx` (NEW) : Client Component, intercepte erreurs 500, bouton "Réessayer" (reset()) + lien "Retour à l'accueil"
+
+### Fichiers modifiés/créés (4)
+| # | Fichier | Type | Modification |
+|---|---------|------|-------------|
+| 1 | `src/app/sitemap.ts` | MODIF | +try/catch resolveAllProducts + /politique-de-retour |
+| 2 | `src/app/not-found.tsx` | NEW | Page 404 custom marque |
+| 3 | `src/app/error.tsx` | NEW | Page 500 custom marque + reset() |
+
+### Validations
+- `bun run lint` : 0 erreur, 0 warning ✅
+- `bun run build` : exit 0 ✅
+- sitemap.xml : contient `/politique-de-retour` ✅
+- Page 404 : HTTP 404 avec page custom ✅
+
+### Branche
+`fix/prelaunch-quick-wins` (créée depuis `main@964f1ab`). **POUSSÉE SUR ORIGIN. EN ATTENTE DU FEU VERT EXPLICITE POUR FUSION.**
+
+---
+Date de mise à jour : 30/08/2026

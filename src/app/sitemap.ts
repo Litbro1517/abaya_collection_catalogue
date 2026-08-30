@@ -60,17 +60,31 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       changeFrequency: 'monthly',
       priority: 0.3,
     },
+    {
+      url: `${baseUrl}/politique-de-retour`,
+      lastModified: now,
+      changeFrequency: 'monthly',
+      priority: 0.3,
+    },
   ];
 
   // ── Dynamic product routes ──
   // Each visible product gets a sitemap entry: /?product=<slug>
-  const products = await resolveAllProducts();
-  const productEntries: MetadataRoute.Sitemap = products.map(product => ({
-    url: `${baseUrl}/?product=${product.slug}`,
-    lastModified: product.updatedAt,
-    changeFrequency: 'weekly',
-    priority: 0.8,
-  }));
+  // ━━ Fix: try/catch around resolveAllProducts() — DB failure should NOT crash
+  // the /sitemap.xml route (HTTP 500). If the DB is unavailable, we return at
+  // minimum the static routes so search engines still get a valid sitemap.
+  let productEntries: MetadataRoute.Sitemap = [];
+  try {
+    const products = await resolveAllProducts();
+    productEntries = products.map(product => ({
+      url: `${baseUrl}/?product=${product.slug}`,
+      lastModified: product.updatedAt,
+      changeFrequency: 'weekly' as const,
+      priority: 0.8,
+    }));
+  } catch (error) {
+    console.error('[sitemap] resolveAllProducts failed, returning static routes only:', error);
+  }
 
   return [...staticEntries, ...productEntries];
 }
