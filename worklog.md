@@ -1017,3 +1017,41 @@ Stage Summary:
 - VERDICT : CONFORME SANS RÉSERVE — 4 Quick Wins validés empiriquement, zéro régression, zéro erreur TS masquée
 - main = 3e5acaf + docs ; production vérifiée post-promotion
 - Suivis non-bloquants : i18n des pages 404/500 (AR), global-error.tsx, metadata title de la 404
+
+---
+Task ID: SEO-HREFLANG-JSONLD-V2
+Agent: Agent Développeur
+Task: V2 correctif SEO — 3 défauts audit ADF (WhatsApp factice, code mort, valeurs hardcodées)
+
+Work Log:
+- Poursuivi sur la branche feat/seo-hreflang-jsonld (commit ad039d7)
+- 3 défauts identifiés par audit ADF
+
+DÉFAUT 1 — WhatsApp factice (wa.me/212600000000):
+- layout.tsx: getBrandMetadata() lit settings.whatsappNumber depuis DB
+- JSON-LD Organization: sameAs utilise whatsappNumber dynamique (pas hardcodé)
+- Si whatsappNumber vide → sameAs omis (spread conditionnel)
+
+DÉFAUT 2 — Code mort renderBreadcrumbs():
+- CatalogPreview.tsx L.1114-1167: renderBreadcrumbs() n'était JAMAIS appelé dans le JSX
+- Le fil d'Ariane réel est dans ProductPage.tsx L.734-744 (rendu dans <main>)
+- Fix: supprimé renderBreadcrumbs() de CatalogPreview (code mort éliminé)
+- Fix: déplacé JSON-LD BreadcrumbList vers ProductPage.tsx (où le breadcrumb est réellement rendu)
+
+DÉFAUT 3 — Valeurs codées en dur:
+- layout.tsx: getBrandMetadata() partagé entre generateMetadata et RootLayout
+  - catalogName: lu depuis DB catalog.name (fallback "Abaya Collection Chic")
+  - whatsappNumber: lu depuis DB CatalogSettings.whatsappNumber
+  - metadataBaseUrl: lu depuis DB Settings.__seo_metadata__.canonicalUrl
+  - dbFavicon: lu depuis DB CatalogSettings.favicon
+- JSON-LD Organization: url, logo, name tous variabilisés
+- BreadcrumbList: items utilisent window.location.origin/href (dynamique)
+
+VALIDATION:
+- lint: 0 erreur, 0 warning ✅
+- build: exit 0 ✅
+
+Stage Summary:
+- Branche: feat/seo-hreflang-jsonld (V2 correctif)
+- 3 fichiers: layout.tsx (getBrandMetadata + JSON-LD variabilisé), ProductPage.tsx (JSON-LD BreadcrumbList), CatalogPreview.tsx (code mort supprimé)
+- **AUCUNE FUSION SUR main — en attente du feu vert explicite ADF**

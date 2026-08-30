@@ -82,6 +82,13 @@ export async function generateMetadata({ searchParams }: PageProps): Promise<Met
     description: pageDescription,
     alternates: {
       canonical: canonicalUrl,
+      // ━━ SEO: hreflang — bilingue FR/AR pour le marché marocain (MENA) ━━
+      // Doit être répété ici car page.tsx generateMetadata écrase celui du layout.
+      languages: {
+        'fr-MA': seo.canonicalUrl,
+        'ar-MA': seo.canonicalUrl,
+        'x-default': seo.canonicalUrl,
+      },
     },
     openGraph: {
       title: pageTitle,

@@ -730,6 +730,21 @@ export function ProductPage({
 
   return (
     <main className="product-page pdp-wrapper">
+      {/* ━━ SEO V2: JSON-LD BreadcrumbList — injecté dans le DOM réel (pas code mort) ━━ */}
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{
+          __html: JSON.stringify({
+            "@context": "https://schema.org",
+            "@type": "BreadcrumbList",
+            itemListElement: [
+              { "@type": "ListItem", position: 1, name: catalogName, item: typeof window !== 'undefined' ? window.location.origin : '' },
+              { "@type": "ListItem", position: 2, name: sectionTitle, item: typeof window !== 'undefined' ? window.location.href : '' },
+              { "@type": "ListItem", position: 3, name: title, item: typeof window !== 'undefined' ? window.location.href : '' },
+            ],
+          }),
+        }}
+      />
       {/* ── Breadcrumb — full width above grid (VG35.0 Fix C: aligns description top with image frame top) ── */}
       <nav className="product-page-breadcrumb" dir={rtl ? 'rtl' : 'ltr'}>
         <button onClick={onBack} className="breadcrumb-back" aria-label={t('catalog.back')}>

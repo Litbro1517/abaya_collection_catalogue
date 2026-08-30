@@ -4018,3 +4018,49 @@ Date de mise à jour : 29/08/2026
 
 ---
 Date de mise à jour : 30/08/2026
+
+---
+
+## [FEAT SEO HREFLANG JSON-LD V2 — Correctif 3 défauts audit ADF]
+
+### Mandat
+Corriger 3 défauts identifiés par l'audit ADF sur la branche `feat/seo-hreflang-jsonld` (commit `ad039d7`) : WhatsApp factice, code mort renderBreadcrumbs, valeurs hardcodées. Poursuivi sur la même branche.
+
+### Corrections appliquées (3 axes)
+
+#### Axe 1 — WhatsApp factice (wa.me/212600000000)
+- `layout.tsx` : nouvelle fonction `getBrandMetadata()` partagée qui lit `settings.whatsappNumber` depuis DB
+- JSON-LD Organization : `sameAs` utilise `whatsappNumber` dynamique (pas hardcodé)
+- Si `whatsappNumber` vide → `sameAs` omis (spread conditionnel `...()`)
+
+#### Axe 2 — Code mort renderBreadcrumbs()
+- `CatalogPreview.tsx` : `renderBreadcrumbs()` (L.1114-1167) n'était **jamais appelé** dans le JSX
+- Le fil d'Ariane réel est dans `ProductPage.tsx` L.734-744 (rendu dans `<main>`)
+- Fix : `renderBreadcrumbs()` supprimé de CatalogPreview (code mort éliminé)
+- Fix : JSON-LD BreadcrumbList déplacé vers `ProductPage.tsx` (où le breadcrumb est réellement rendu)
+
+#### Axe 3 — Valeurs codées en dur
+- `layout.tsx` : `getBrandMetadata()` partagé entre `generateMetadata` et `RootLayout`
+  - `catalogName` : DB `catalog.name` (fallback "Abaya Collection Chic")
+  - `whatsappNumber` : DB `CatalogSettings.whatsappNumber`
+  - `metadataBaseUrl` : DB `Settings.__seo_metadata__.canonicalUrl`
+  - `dbFavicon` : DB `CatalogSettings.favicon`
+- JSON-LD Organization : `url`, `logo`, `name` tous variabilisés
+- BreadcrumbList : `item` utilise `window.location.origin/href` (dynamique)
+
+### Fichiers modifiés (3)
+| # | Fichier | Modification |
+|---|---------|-------------|
+| 1 | `src/app/layout.tsx` | +`getBrandMetadata()` partagée, JSON-LD Organization variabilisé (url/logo/name/whatsapp depuis DB) |
+| 2 | `src/components/preview/ProductPage.tsx` | +JSON-LD BreadcrumbList dans le rendu réel (avec propriété `item` sur chaque ListItem) |
+| 3 | `src/components/preview/CatalogPreview.tsx` | `renderBreadcrumbs()` supprimé (code mort) |
+
+### Validations
+- `bun run lint` : 0 erreur, 0 warning ✅
+- `bun run build` : exit 0 ✅
+
+### Branche
+`feat/seo-hreflang-jsonld` (poursuivie, V2). **POUSSÉE SUR ORIGIN. EN ATTENTE DU FEU VERT EXPLICITE ADF POUR FUSION.**
+
+---
+Date de mise à jour : 30/08/2026
