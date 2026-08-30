@@ -209,12 +209,14 @@ export function ProductPage({
   onCheckout,
   baseUrl,
 }: ProductPageProps) {
-  // ━━ Fix #418: use SSR baseUrl instead of typeof window for JSON-LD URLs ━━
-  // This eliminates the SSR/client mismatch that triggered React #418 hydration errors.
+  // ━━ Fix V2: eliminate typeof window — use SSR baseUrl + slugified title for productUrl ━━
+  // Previous code used `typeof window !== 'undefined' ? window.location.href : ...`
+  // which caused a mismatch between SSR ('') and client (real URL) → React #418.
+  // Now: productUrl is built from the SSR baseUrl + slugified product title,
+  // producing the same URL on both server and client (no mismatch).
   const ssrBaseUrl = baseUrl || 'https://abaya-collection-catalogue-9dum.vercel.app';
-  const productUrl = typeof window !== 'undefined'
-    ? window.location.href
-    : `${ssrBaseUrl}/?product=${row.id}`;
+  const productSlug = slugify(title || 'produit');
+  const productUrl = `${ssrBaseUrl}/?product=${encodeURIComponent(productSlug)}`;
   const config = section.config as SectionConfig;
   const rawData = row.data as Record<string, unknown>;
   const { t, locale, formatPrice, rtl } = useClientTranslation();

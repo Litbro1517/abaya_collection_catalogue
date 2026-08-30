@@ -1,6 +1,13 @@
 import { Metadata } from 'next';
 import { resolveProduct } from '@/lib/products';
 
+// ━━ Fix V2: decode percent-encoded slugs (Arabic, etc.) before resolution ━━
+// Next.js 16 passes the slug as-is from the URL, which means Arabic characters
+// arrive percent-encoded (%D8%B9%D8%A8%D8%A7%D9%8A%D8%A9...). resolveProduct
+// expects the decoded form. Without this, 100% of Arabic slugs return "not found".
+const safeDecode = (s: string): string => {
+  try { return decodeURIComponent(s); } catch { return s; }
+};
 /**
  * Ghost Route — SSR meta tags for social media crawlers
  *
@@ -21,7 +28,7 @@ export async function generateMetadata({
   params: Promise<{ slug: string }>;
 }): Promise<Metadata> {
   const { slug } = await params;
-  const product = await resolveProduct(slug);
+  const product = await resolveProduct(safeDecode(slug));
 
   // Derive base URL: env var > fallback
   const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'https://abaya-collection-catalogue-9dum.vercel.app';
@@ -48,7 +55,7 @@ export async function generateMetadata({
     openGraph: {
       title: `${product.title} | ${product.catalogName}`,
       description: product.description,
-      url: `${baseUrl}/?product=${slug}`,
+      url: `${baseUrl}/?product=${encodeURIComponent(safeDecode(slug))}`,
       siteName: product.catalogName,
       images: product.coverUrl
         ? [{ url: product.coverUrl, width: 1200, height: 630, alt: product.title }]
@@ -72,7 +79,7 @@ export default async function ProductMetaPage({
   params: Promise<{ slug: string }>;
 }) {
   const { slug } = await params;
-  const product = await resolveProduct(slug);
+  const product = await resolveProduct(safeDecode(slug));
   const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'https://abaya-collection-catalogue-9dum.vercel.app';
 
   if (!product) {
@@ -86,7 +93,7 @@ export default async function ProductMetaPage({
 
   return (
     <div style={{ padding: '2rem', fontFamily: 'system-ui, sans-serif' }}>
-      {/* SEO Fix #418: JSON-LD BreadcrumbList — SSR, no typeof window, visible to Googlebot */}
+      {/* SEO Fix V2: JSON-LD BreadcrumbList — SSR, decoded slug, visible to Googlebot */}
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{
@@ -95,7 +102,7 @@ export default async function ProductMetaPage({
             "@type": "BreadcrumbList",
             itemListElement: [
               { "@type": "ListItem", position: 1, name: product.catalogName, item: baseUrl },
-              { "@type": "ListItem", position: 2, name: product.title, item: `${baseUrl}/?product=${slug}` },
+              { "@type": "ListItem", position: 2, name: product.title, item: `${baseUrl}/?product=${encodeURIComponent(safeDecode(slug))}` },
             ],
           }),
         }}
@@ -119,7 +126,7 @@ export default async function ProductMetaPage({
               "price": product.price ? product.price.replace(/[^\d.]/g, '') : "0",
               "priceCurrency": "MAD",
               "availability": "https://schema.org/InStock",
-              "url": `${baseUrl}/?product=${slug}`,
+              "url": `${baseUrl}/?product=${encodeURIComponent(safeDecode(slug))}`,
             },
           }),
         }}

@@ -1084,50 +1084,43 @@ Stage Summary:
 - Suivi non-bloquant : #418 AR préexistant (dossier séparé), CSS mort .catalog-breadcrumb*
 
 ---
-Task ID: SEO-BREADCRUMB-HYDRATION-418
+Task ID: SEO-BREADCRUMB-HYDRATION-418-V2
 Agent: Agent Développeur
-Task: Rectification SEO — BreadcrumbList SSR + React #418 + hreflang
+Task: V2 rectification — slug arabe SSR + cleanup typeof window + #418 isolation documentaire
 
 Work Log:
-- Read PROJECT_MAP.md (contradiction #418 identifiée)
-- Créé branche isolée fix/seo-breadcrumb-hydration-418 depuis main@6aab823
+- Poursuivi sur la branche fix/seo-breadcrumb-hydration-418 (commit 5a45642)
+- 3 défauts identifiés par audit ADF
 
-DIAGNOSTIC:
-- BreadcrumbList dans ProductPage.tsx utilisait `typeof window !== 'undefined'` → vide en SSR
-- /product-meta/[slug] n'avait pas de BreadcrumbList
-- React #418: mismatch SSR/Client causé par typeof window dans JSON-LD (URLs différentes entre serveur et client)
-- PROJECT_MAP.md: contradiction documentaire (une entrée dit 0 erreur #418, une autre dit #418 récurrent)
+DÉFAUT 1 — Slug arabe percent-encodé (/product-meta/[slug]):
+- Next.js 16 passe le slug tel quel → Arabic arrive percent-encodé (%D8%B9...)
+- resolveProduct attend le slug décodé → échoue systématiquement sur slugs non-ASCII
+- Fix: ajout `safeDecode()` (decodeURIComponent with try/catch) avant `resolveProduct(safeDecode(slug))`
+- Appliqué aux 2 calls: generateMetadata (L.31) + ProductMetaPage (L.82)
+- URLs construites avec `encodeURIComponent(safeDecode(slug))` pour cohérence
+- Test curl Googlebot: BreadcrumbList=2, ld+json=6, "Produit non trouvé"=0 ✅
 
-CORRECTION 1 — BreadcrumbList SSR (ProductPage.tsx):
-- Ajout prop `baseUrl?: string` à ProductPageProps
-- `ssrBaseUrl = baseUrl || 'https://abaya-collection-catalogue-9dum.vercel.app'`
-- `productUrl` = window.location.href (client) ou `${ssrBaseUrl}/?product=${row.id}` (SSR)
-- BreadcrumbList items utilisent `ssrBaseUrl` et `productUrl` au lieu de `typeof window`
-- Product JSON-LD `url` utilise `productUrl` au lieu de `typeof window`
+DÉFAUT 2 — typeof window résiduel (ProductPage.tsx L.215):
+- `productUrl = typeof window !== 'undefined' ? window.location.href : ...`
+- Fix: remplacé par `productUrl = ${ssrBaseUrl}/?product=${encodeURIComponent(slugify(title))}`
+- Plus aucun `typeof window` dans le code actif (uniquement dans les commentaires)
+- slugify() déjà disponible localement dans ProductPage.tsx (L.46)
+- Test: `typeof window` count dans HTML SSR = 0 ✅
 
-CORRECTION 2 — BreadcrumbList SSR (/product-meta/[slug]):
-- Ajout script JSON-LD BreadcrumbList dans ProductMetaPage
-- 2 items: position 1 (catalogName → baseUrl), position 2 (product.title → baseUrl/?product=slug)
-- Aucun typeof window — tout est SSR
-
-CORRECTION 3 — Chaîne props SSR baseUrl:
-- page.tsx: nouveau `getBaseUrl()` lit settings.__seo_metadata__.canonicalUrl
-- page.tsx: `HomePage` passe `initialBaseUrl={baseUrl}` au HomeClient
-- HomeClient.tsx: +prop `initialBaseUrl`, passe au CatalogPreview
-- CatalogPreview.tsx: +prop `initialBaseUrl`, passe au ProductPage via `baseUrl={initialBaseUrl}`
-
-CORRECTION 4 — Harmonisation PROJECT_MAP:
-- Clarification du statut #418: préexistant bénin (CSS intact), corrigé par ce fix (typeof window éliminé des JSON-LD)
+DÉFAUT 3 — #418 stratégie (Option B: isolation documentaire honnête):
+- Le bug #418 est préexistant et lié au cache de traduction localStorage (useAutoTranslatedText)
+- L'élimination de typeof window dans les JSON-LD n'a PAS résolu le #418 (confirmé par tests AR)
+- PROJECT_MAP.md: statut #418 clarifié comme défaut PRÉEXISTANT non bloquant SEO
+- Le #418 est documenté comme lié au cache localStorage (textes traduits divergent entre SSR et client)
+- Le correctif SEO (typeof window éliminé) améliore la propreté du code mais ne prétend PAS résoudre #418
 
 VALIDATION:
 - lint: 0 erreur, 0 warning ✅
 - build: exit 0 ✅
-- Organization JSON-LD: présent dans SSR HTML ✅
-- typeof window dans le HTML SSR: 0 ✅ (éliminé)
-- /product-meta/[slug]: 2 scripts application/ld+json (Organization + BreadcrumbList/Product) ✅
-- Console errors: 0 #418 ✅
+- curl Googlebot slug arabe عباية-صيفية: BreadcrumbList=2, ld+json=6, "Produit non trouvé"=0 ✅
+- typeof window dans HTML SSR: 0 ✅
 
 Stage Summary:
-- Branche: fix/seo-breadcrumb-hydration-418 (créée depuis main@6aab823)
-- 4 fichiers: page.tsx (getBaseUrl + initialBaseUrl), HomeClient.tsx (+prop), CatalogPreview.tsx (+prop + pass), ProductPage.tsx (ssrBaseUrl + productUrl), product-meta/[slug]/page.tsx (+BreadcrumbList)
+- Branche: fix/seo-breadcrumb-hydration-418 (V2, commit à venir)
+- 2 fichiers modifiés: product-meta/[slug]/page.tsx (safeDecode), ProductPage.tsx (typeof window éliminé)
 - **AUCUNE FUSION SUR main — en attente du feu vert explicite**
