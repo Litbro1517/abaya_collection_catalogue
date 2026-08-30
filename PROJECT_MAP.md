@@ -3727,3 +3727,38 @@ Unifier la validation des options (taille/couleur) sur tous les tunnels de conve
 
 ---
 Date de mise à jour : 29/08/2026
+
+---
+
+## [AUDIT-MERGE-UNIFIED-SELECTION-1 — Audit et fusion fix/unified-selection-validation (17ef21f)]
+
+### Mandat
+Audit exhaustif (ProductPage.tsx, CodForm.tsx, scrollToVariantSelectors) puis fusion + déploiement Vercel.
+
+### Verdict : CONFORME — fusion exécutée (fast-forward 285f9ad..17ef21f)
+- Périmètre strict : 4 fichiers (2 code + 2 docs), 0 modification hors mission
+- Gate CodForm réplique le pattern WhatsappOrderForm (props optionnelles hasMissingVariant/onVariantMissing + early-return avant validation champs client)
+- scrollToVariantSelectors : useCallback([]) propre ; ref attaché couleurs en priorité, tailles en fallback si colorData vide (évite double-attachement)
+- Clé i18n product.selectMissingVariants vérifiée fr/en/ar (préexistante) ; useCallback déjà importé
+
+### Validations (arbre isolé /tmp/verify-sel, port 3221, seed 2 produits dont 1 sans couleurs)
+- lint 0/0 ✅ ; build exit 0 ✅
+- Gate WA (T1) : blocage + alerte FR + scroll 0→80 + section couleurs viewport + bordure rouge rgb(220,38,38) ✅
+- Nominal WA qty=2 (T2) : message Prix 270/Quantité 2/Total 540 (non-régression c9f11c7) + alerte auto-effacée ✅
+- Gate CodForm SANS variante (T3) : 0 appel API + erreur formulaire + scroll 411→80 + alerte produit + pas de redirection ✅
+- Nominal CodForm qty=2 (T4) : Merci « 270 Dhs / Quantité 2 / 540 Dhs » + DB productPrice="270 Dhs" unitaire + qty=2 (non-régression hotfix 3c96b89) ✅
+- Ref fallback tailles (T5, produit sans couleurs) : scroll 341→82, section TAILLES dans viewport ✅
+- handleCtaClick buy-now (T6) : spy scrollIntoView block:center sur .product-page-section ✅
+- handleWhatsappCtaClick CTA mobile <a> (T7, viewport 390×844) : preventDefault + spy scroll + alerte, pas de navigation ✅
+- Sanity AR mobile : rtl + Tajawal + cssLinks=2 + 0 GTM + 0 page error ✅
+
+### Déploiement
+- push origin main 285f9ad..17ef21f → Vercel promu ~45 s (chunk 1ept8eqh7r48z.js remplacé)
+- Validation prod (locale AR, PDP عباية صدفة) : gate WA sans variante → spy scrollIntoView product-page-section + scroll 0→334 + alerte « يرجى اختيار الخيارات الناقصة » + WA non ouvert ; nominal qty=2 → message « السعر 199 / الكمية 2 / المجموع 398 درهم » ✅
+
+### Découvertes préexistantes hors périmètre (non bloquantes, dossiers séparés recommandés)
+1. CodForm n'envoie pas productColor/productSize à /api/orders (Merci affiche « Couleur choisie — ») : la nouvelle gate garantit une variante sélectionnée côté UI mais l'info n'est pas persistée — recommandation : props selectedColor/selectedSize au CodForm
+2. Alert AR « .يرجى اختيار الخيارات الناقصة » : point initial parasite dans dictionaries.ts L.1996 (cosmétique)
+3. Lien social sticky wa.me (sans text=) sans gate : normal, contact général hors tunnel produit
+
+Date de mise à jour (audit + fusion + déploiement) : 30/08/2026

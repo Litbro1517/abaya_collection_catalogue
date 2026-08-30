@@ -761,3 +761,23 @@ Stage Summary:
 - Branche: fix/unified-selection-validation (créée depuis main@285f9ad)
 - 2 fichiers modifiés: ProductPage.tsx (scrollToVariantSelectors + ref + handlers + CodForm props), CodForm.tsx (props + garde handleSubmit)
 - **AUCUNE FUSION SUR main — en attente du feu vert explicite**
+
+---
+Task ID: AUDIT-MERGE-UNIFIED-SELECTION-1
+Agent: Agent Auditeur Z.ai (Mandat d'Audit, de Fusion et de Déploiement)
+Task: Contrôle exhaustif de fix/unified-selection-validation (17ef21f) — CodForm variant gate + scrollToVariantSelectors — puis fusion main + push + Vercel
+
+Work Log:
+- Fetch : branche 17ef21f, base 285f9ad = main (fast-forward possible) ; diff 4 fichiers (CodForm +14, ProductPage +21, docs +106)
+- Audit statique : gate CodForm = réplique exacte du pattern WhatsappOrderForm (props optionnelles, early-return) ; useCallback importé ; clé product.selectMissingVariants présente ×3 langues ; ref intelligent (couleurs priorité, tailles fallback si colorData vide) ; hasMissingVariant dérivé colorMissing/sizeMissing intact
+- Arbre isolé /tmp/verify-sel : lint 0/0, build exit 0
+- Batterie locale (port 3221, seed 2 produits dont 1 sans couleurs, modes whatsapp→landing) : 8/8 validés — gates ×3 (WA form, CodForm sans variante → 0 appel API, CTA mobile <a> preventDefault), scroll prouvé 4 fois (positions 0→80, 411→80, 341→82, 0→334 + spy scrollIntoView block:center), fallback ref tailles, nominaux ×2 (WA qty=2 message 540 ; COD qty=2 Merci 540 + DB unitaire 270×2 = non-régression hotfix), bordure rouge rgb(220,38,38), alerte auto-effacée, AR mobile sain (cssLinks=2, 0 GTM)
+- FUSION : fast-forward 285f9ad..17ef21f, push origin réussi
+- Vercel : promotion ~45 s (marqueur chunk) ; validation prod navigateur (locale AR, PDP عباية صدفة) : gate WA → spy scrollIntoView + scroll 0→334 + alerte AR + WA bloqué ; nominal qty=2 → « السعر 199 / الكمية 2 / المجموع 398 درهم »
+- Captures : /home/z/verify-logs/qty-sync-duo/ (sel-ar-mobile.png, prod-sel-gate-ar.png)
+
+Stage Summary:
+- VERDICT : CONFORME SANS RÉSERVE BLOQUANTE — fusion exécutée et déployée, comportement vérifié localement ET en production
+- main = 17ef21f, origin/main synchronisé, production saine (cssLinks=2, 0 GTM)
+- 3 découvertes préexistantes hors périmètre documentées (CodForm sans color/size en DB ; point initial alerte AR ; lien social sans gate)
+- Statut : mission ACCOMPLIE
