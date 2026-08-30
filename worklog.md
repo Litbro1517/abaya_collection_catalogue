@@ -909,3 +909,40 @@ Stage Summary:
 - V2 (49cb8fa) est la bonne solution (implémente la rectification prescrite) : VALIDÉE sur les 7 points après remédiation typage 86171ab (3 erreurs TS résolues, retour à la baseline)
 - main locale = f9ea95c (fusion complète vérifiée) ; PUSH VERS ORIGIN BLOQUÉ par absence de credentials (réinitialisation du bac à sable) — à compléter avec le token GitHub via la procédure documentée, puis vérifier le déploiement Vercel (les cartes produits doivent apparaître dans le HTML brut de production)
 - Statut : mission d'audit ACCOMPLIE (débats tranchés avec preuves reproductibles) ; déploiement EN ATTENTE de credentials
+
+---
+Task ID: TRANSLATE-API-500
+Agent: Agent Développeur
+Task: Correction erreur HTTP 500 sur /api/translate (SDK ZAI config manquante)
+
+Work Log:
+- Read PROJECT_MAP.md + worklog.md
+- Créé branche isolée fix/translate-api-500 depuis main@ce16a9c
+
+DIAGNOSTIC:
+- /api/translate route: ZAI.create() appelle loadConfig() qui cherche .z-ai-config (cwd, home, /etc)
+- En production Vercel: fichier .z-ai-config absent → loadConfig() throw → catch retourne HTTP 500
+- Hook useAutoTranslatedText: affiche texte original en fallback (déjà correct côté client)
+- Cause: absence de config SDK en production, pas un bug de logique
+
+CORRECTION (3 niveaux de défense):
+1. sdkAvailable flag (L.10): track si SDK est disponible. Si false, skip ZAI.create() entièrement → retourne texte original avec 200 OK
+2. try/catch autour de ZAI.create() (L.73-85): catch config errors → sdkAvailable=false + retour 200 OK avec texte original
+3. try/catch autour de zai.chat.completions.create() (L.89-111): catch network/quota/auth errors → retour 200 OK avec texte original
+4. catch global (L.145-163): ne retourne JAMAIS 500 — toujours 200 OK avec fallback
+
+FICHIER .env.example (NEW):
+- Documente la config .z-ai-config (baseUrl + apiKey)
+- Documente NEXT_PUBLIC_GTM_ID (optionnel)
+- Documente DATABASE_URL/DIRECT_URL (Supabase)
+
+VALIDATION:
+- lint: 0 erreur, 0 warning ✅
+- build: exit 0 ✅
+- test API locale (SDK disponible): HTTP 200 + traduction arabe ✅
+- test API sans SDK (production): HTTP 200 + texte original + translated:false ✅ (plus de 500)
+
+Stage Summary:
+- Branche: fix/translate-api-500 (créée depuis main@ce16a9c)
+- 2 fichiers: route.ts (défense SDK + jamais 500), .env.example (NEW)
+- **AUCUNE FUSION SUR main — en attente du feu vert explicite**
