@@ -77,7 +77,12 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   try {
     const products = await resolveAllProducts();
     productEntries = products.map(product => ({
-      url: `${baseUrl}/?product=${product.slug}`,
+      // ━━ Fix: encode Arabic slugs properly in sitemap URLs ━━
+      // Previously: raw product.slug was concatenated → Mojibake (double UTF-8 encoding)
+      // when the sitemap XML was serialized. Now: encodeURIComponent ensures proper
+      // percent-encoding for non-ASCII characters (Arabic), which XML parsers and
+      // Googlebot handle correctly.
+      url: `${baseUrl}/?product=${encodeURIComponent(product.slug)}`,
       lastModified: product.updatedAt,
       changeFrequency: 'weekly' as const,
       priority: 0.8,

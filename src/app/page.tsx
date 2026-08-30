@@ -3,6 +3,16 @@ import HomeClient from '@/components/HomeClient';
 import { db } from '@/lib/db';
 import { resolveProduct } from '@/lib/products';
 
+// ━━ Fix: decode percent-encoded slugs (Arabic, etc.) before resolution ━━
+// Next.js 16 passes searchParams values as-is. When a bot sends
+// ?product=عباية-ذهبية, the value arrives percent-encoded. resolveProduct
+// expects the decoded form. Without this, Arabic product slugs return
+// "Produit non trouvé" and JSON-LD is never injected.
+const safeDecode = (s: string | undefined): string | undefined => {
+  if (!s) return s;
+  try { return decodeURIComponent(s); } catch { return s; }
+};
+
 // ═══════════════════════════════════════════════════════════════════════
 // SEO METADATA — Dynamic via Prisma (slug technique: __seo_metadata__)
 // ═══════════════════════════════════════════════════════════════════════
@@ -52,7 +62,7 @@ export async function generateMetadata({ searchParams }: PageProps): Promise<Met
   // Now each product gets its own canonical: https://domain/?product=<slug>
   // Next.js 16: searchParams is a Promise — unwrap with await before reading.
   const params = await searchParams;
-  const productSlug = params?.product;
+  const productSlug = safeDecode(params?.product);
   const canonicalUrl = productSlug
     ? `${seo.canonicalUrl}/?product=${encodeURIComponent(productSlug)}`
     : seo.canonicalUrl;
