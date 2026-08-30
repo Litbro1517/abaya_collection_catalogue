@@ -368,8 +368,38 @@ export function CatalogPreview({ onAdminLogin }: CatalogPreviewProps) {
   const resolvedConversionChannel = urlMode || s?.conversionChannel || 'whatsapp';
 
   // ━━━ Sections: useState starts empty (SSR can't read localStorage) ━━━
-  const [sections, setSections] = useState<{ section: Section; columns: Column[]; rows: Row[] }[]>([]);
-  const [sectionsLoaded, setSectionsLoaded] = useState(false);
+  // ━━ Fix SSR: initialize sections synchronously from catalog + datasources ━━
+  // Previously: sections=[] + sectionsLoaded=false in SSR → "Aucun produit trouvé"
+  // Now: if catalog.sections exists (hydrated from SSR props), we build the
+  // sections array synchronously during render so the SSR HTML contains products.
+  const dataSourcesFromStore = useAppStore(s => s.dataSources);
+
+  const buildSectionsFromStore = useCallback((cat: typeof catalog, dss: typeof dataSourcesFromStore) => {
+    if (!cat?.sections?.length) return [];
+    return cat.sections
+      .filter(s => s.visible)
+      .map(section => {
+        const config = section.config as SectionConfig;
+        const dsId = config.dataSourceId;
+        if (!dsId) return { section, columns: [], rows: [] };
+        const ds = dss.find(d => d.id === dsId);
+        if (!ds) return { section, columns: [], rows: [] };
+        return {
+          section,
+          columns: ds.columns || [],
+          rows: ds.rows || [],
+        };
+      });
+  }, []);
+
+  const [sections, setSections] = useState<{ section: Section; columns: Column[]; rows: Row[] }[]>(() => {
+    // SSR + first client render: initialize from catalog + datasources in store
+    return buildSectionsFromStore(catalog, dataSourcesFromStore);
+  });
+  const [sectionsLoaded, setSectionsLoaded] = useState(() => {
+    // If we already have sections from SSR, mark as loaded
+    return !!(catalog?.sections?.length && dataSourcesFromStore.length > 0);
+  });
   const [loadError, setLoadError] = useState<string | null>(null);
   const [isRefreshing, setIsRefreshing] = useState(false);
   // Track whether network sync has been triggered (ref, not state — no re-render)

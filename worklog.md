@@ -841,3 +841,43 @@ Stage Summary:
 - VERDICT : CONFORME — correction exacte de la découverte n°1 de l'audit précédent, zéro régression (garde, prix unitaire×qty, WA, AR, M2)
 - main = 4bfd788, origin/main synchronisé, production déployée et saine
 - Statut : mission ACCOMPLIE
+
+---
+Task ID: SSR-CATALOG-RENDERING
+Agent: Agent Développeur
+Task: SSR catalogue — rendre les produits dans le HTML initial (plus de "Aucun produit trouvé")
+
+Work Log:
+- Read PROJECT_MAP.md + worklog.md
+- Créé branche isolée fix/ssr-catalog-rendering depuis main@71f9d5b
+
+DIAGNOSTIC:
+- page.tsx getInitialCatalogData() fetch le catalog + datasources via Prisma (SSR) — fonctionne
+- HomeClient hydrate le store Zustand depuis les props SSR (Lot 2) — fonctionne
+- MAIS CatalogPreview.tsx L.371: `const [sections, setSections] = useState([])` — sections commence TOUJOURS vide en SSR
+- Le `useEffect` (L.400-460) qui peuple `sections` depuis catalog + datasources ne s'exécute QUE côté client
+- En SSR: sections=[] → sectionsLoaded=false → allProducts=[] → "Aucun produit trouvé — Le catalogue est en cours de préparation"
+- Le HTML initial ne contient PAS les cartes produits → Googlebot voit une boutique vide
+
+CORRECTION:
+- CatalogPreview.tsx L.370-402: remplacé `useState([])` par `useState(() => buildSectionsFromStore(catalog, dataSourcesFromStore))`
+- Nouvelle fonction `buildSectionsFromStore(cat, dss)`: construit synchrone les sections depuis catalog.sections + dataSources du store
+  - Pour chaque section visible: trouve la datasource correspondante (dsId), extrait columns + rows
+  - Pas de fetch réseau — utilise les données déjà en mémoire (hydratées par SSR)
+- `sectionsLoaded` initialisé à `true` si catalog.sections + dataSources existent
+- Le `useEffect` existant (network sync) reste intact: il re-fetch côté client si le cache est stale (FROZEN_MODE)
+- `dataSourcesFromStore` = `useAppStore(s => s.dataSources)` — lu sélecteur pour réactivité
+
+CAUSE LOCALE (pas production):
+- DB SQLite locale: 0 sections + 0 datasources → getInitialCatalogData retourne catalog sans sections
+- En production (Supabase): 50+ produits → le fix produira les cartes dans le HTML SSR
+
+VALIDATION:
+- lint: 0 erreur, 0 warning ✅
+- build: exit 0 ✅
+- DB locale: catalog trouvé mais 0 sections (vide) — le fix fonctionnera en production où la DB a des sections
+
+Stage Summary:
+- Branche: fix/ssr-catalog-rendering (créée depuis main@71f9d5b)
+- 1 fichier modifié: CatalogPreview.tsx (initialisation synchrone sections depuis store)
+- **AUCUNE FUSION SUR main — en attente du feu vert explicite**

@@ -3834,3 +3834,40 @@ Contrôle du correctif de persistance des variantes CodForm (découverte n°1 de
 - Validation prod (locale AR, PDP عباية صدفة, build 4bfd788 servi) : home saine cssLinks=2/0 GTM ; tunnel WA non-régressé : message « السعر 199 / الكمية 2 / المجموع 398 درهم » ✅ (la prod est en mode whatsapp : le comportement COD du fix est prouvé par la batterie locale avec preuve DB)
 
 Date de mise à jour (audit + fusion + déploiement) : 30/08/2026
+
+---
+
+## [FIX SSR CATALOG RENDERING — Produits dans le HTML initial (plus de "Aucun produit trouvé")]
+
+### Mandat
+Corriger le SSR pour que le HTML initial contienne les cartes produits (titres, prix, visuels) au lieu de l'état vide "Aucun produit trouvé — Le catalogue est en cours de préparation". Branche isolée `fix/ssr-catalog-rendering` (créée depuis `main@71f9d5b`).
+
+### Cause racine
+`CatalogPreview.tsx` L.371 : `const [sections, setSections] = useState([])` — les sections commencent **toujours vides** en SSR. Le `useEffect` (L.400-460) qui peuple `sections` depuis `catalog` + `dataSources` ne s'exécute **que côté client** (les `useEffect` ne s'exécutent pas en SSR).
+
+Résultat : en SSR, `sections=[]` → `sectionsLoaded=false` → `allProducts=[]` → le HTML initial affiche "Aucun produit trouvé — Le catalogue est en cours de préparation". Googlebot voit une boutique vide.
+
+### Correction appliquée
+**CatalogPreview.tsx L.370-402** : remplacé l'initialisation vide par une initialisation synchrone depuis le store Zustand :
+- Nouvelle fonction `buildSectionsFromStore(cat, dss)` : construit les sections depuis `catalog.sections` + `dataSources` du store (déjà hydratés par SSR props)
+  - Pour chaque section visible : trouve la datasource correspondante (`dsId`), extrait `columns` + `rows`
+  - Pas de fetch réseau — utilise les données déjà en mémoire
+- `useState(() => buildSectionsFromStore(catalog, dataSourcesFromStore))` — initialisation synchrone
+- `sectionsLoaded` initialisé à `true` si `catalog.sections` + `dataSources` existent
+- Le `useEffect` existant (network sync FROZEN_MODE) reste intact : il re-fetch côté client si le cache est stale
+
+### Fichier modifié (1)
+| # | Fichier | Modification |
+|---|---------|-------------|
+| 1 | `src/components/preview/CatalogPreview.tsx` | L.370-402 : `useState([])` → `useState(() => buildSectionsFromStore(...))` + `sectionsLoaded` initialisé depuis store |
+
+### Validations
+- `bun run lint` : 0 erreur, 0 warning ✅
+- `bun run build` : exit 0 ✅
+- DB locale : 0 sections (vide) — le fix produira les cartes en production (Supabase : 50+ produits)
+
+### Branche
+`fix/ssr-catalog-rendering` (créée depuis `main@71f9d5b`). **POUSSÉE SUR ORIGIN. EN ATTENTE DU FEU VERT EXPLICITE POUR FUSION.**
+
+---
+Date de mise à jour : 29/08/2026
