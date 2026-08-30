@@ -4064,3 +4064,32 @@ Corriger 3 défauts identifiés par l'audit ADF sur la branche `feat/seo-hreflan
 
 ---
 Date de mise à jour : 30/08/2026
+
+---
+
+## [AUDIT ADF — CONTRE-AUDIT V2 & FUSION feat/seo-hreflang-jsonld (04cce49)]
+
+### Verdict : CONFORME — FUSION EXÉCUTÉE (merge a8473ba)
+
+**Matrice de validation (arbre isolé /tmp/verify-seo2, seed distinctif, port 3229) :**
+
+| Contrôle ADF | Preuve | Statut |
+|---|---|---|
+| Défaut 1 — WhatsApp factice | JSON-LD sameAs = `wa.me/212612345678` (valeur seed DISTINCTIVE ≠ hardcodée) → dynamisme DB prouvé ; numéro vidé → sameAs **omis** (spread conditionnel) | ✅ CORRIGÉ |
+| Défaut 2 — Code mort BreadcrumbList | `renderBreadcrumbs()` supprimé (0 référence résiduelle hors commentaire doc) ; clic `.product-card-action` → ldScripts 1→3 (Organization+**BreadcrumbList**+Product) ; deep-link `?product=` → 3 scripts au chargement ; contenu : 3 ListItem avec `item` sur toutes positions, hiérarchie Accueil>Section>Produit | ✅ CORRIGÉ |
+| Défaut 3 — Valeurs hardcodées | name=`Catalogue Audit SEO V2`, url/logo=`https://audit-seo-v2.example.com` (valeurs seed distinctives) via `getBrandMetadata()` | ✅ CORRIGÉ |
+| hreflang FR/AR/x-default + canonical | Home : `<link rel=alternate hrefLang=fr-MA/ar-MA/x-default>` ×3 + canonical DB ; PDP : canonical `…/?product=<slug percent-encodé>` exact + 3 hreflang ; titre PDP `عباية قمر — Audit SEO V2` dynamique | ✅ |
+| SSR non-régression | 60 occurrences `product-card` HTML brut, 5 cartes navigateur, 0 état vide | ✅ |
+| Portes qualité | lint 0/0 ; tsc 139=139 (seule différence : 2 erreurs préexistantes page.tsx décalées +7 lignes) ; build exit 0 | ✅ |
+| Session vierge (scénario Googlebot) | 1 script Organization, **errors:[]** (0×#418), console vide, CSS intact | ✅ |
+
+**Observation documentée (non-bloquante, préexistante)** : React #418 (mismatch hydratation locale) en visite AR récurrente — reproduit à l'identique sur build main@8e3ced2 isolé (3×#418, CSS intact, 5 cartes) = défaut PRÉEXISTANT documenté (CONTRE-AUDIT-RTL-LAYOUT), non touché par ce diff. Conséquence spécifique branche : script Organization dupliqué ×2 (identiques, invisibles) dans le DOM client des visiteurs AR récurrents — Googlebot non affecté (crawl en contexte vierge = 1 script SSR correct).
+
+**Notes cosmétiques** : CSS `.catalog-breadcrumb*` résiduel inutilisé dans globals.css ; BreadcrumbList position 2 `item` = URL produit courante (pas d'URL de section dans cette SPA — formellement valide, item présent).
+
+### État git
+- main : 8e3ced2 → **a8473ba** (merge --no-ff de 04cce49, arbre merge ≡ branche, diff vide)
+- origin/feat/seo-hreflang-jsonld : 04cce49 (inchangée)
+
+---
+Date de mise à jour : 30/08/2026 (audit V2 + fusion)

@@ -1055,3 +1055,30 @@ Stage Summary:
 - Branche: feat/seo-hreflang-jsonld (V2 correctif)
 - 3 fichiers: layout.tsx (getBrandMetadata + JSON-LD variabilisé), ProductPage.tsx (JSON-LD BreadcrumbList), CatalogPreview.tsx (code mort supprimé)
 - **AUCUNE FUSION SUR main — en attente du feu vert explicite ADF**
+
+---
+
+## AUDIT ADF — CONTRE-AUDIT V2 & FUSION (session unique)
+
+### Verdict : CONFORME — FUSION EXÉCUTÉE
+
+WORK LOG:
+- Isolation : 2 commits (ad039d7+04cce49) sur main@8e3ced2, merge-base exact, périmètre 6 fichiers
+- Statique : getBrandMetadata() partagé (name/whatsapp/canonicalUrl/favicon DB), sameAs conditionnel dynamique, renderBreadcrumbs supprimé, BreadcrumbList déplacé dans ProductPage (rendu réel)
+- Qualité : lint 0/0 ; tsc 139=139 (2 erreurs préexistantes page.tsx décalées +7 lignes uniquement) ; build exit 0 arbre isolé
+- Empirique (port 3229, seed distinctif +212612345678 / audit-seo-v2.example.com / « Catalogue Audit SEO V2 ») :
+  · Home : canonical DB + 3 hreflang (fr-MA/ar-MA/x-default) + Organization 100% dynamique (sameAs=wa.me/212612345678)
+  · PDP : canonical ?product= exact + 3 hreflang + titre produit dynamique
+  · Clic produit : ldScripts 1→3, BreadcrumbList conforme (3 items, hiérarchie correcte), console VIERGE
+  · Deep-link ?product= : 3 scripts au chargement, 0 erreur
+  · whatsappNumber vide → sameAs omis (pas de numéro fabriqué)
+  · Session 100% vierge (Googlebot) : 1 script, errors:[], SSR 60 product-card, CSS intact
+  · Attribution #418 AR : reproduit IDENTIQUE sur main isolé (build 3230) = préexistant, non-bloquant
+- FUSION : merge --no-ff a8473ba, arbre ≡ branche (diff vide), docs d'audit apposés
+- PUSH : main a8473ba → origin (pipeline Vercel Production déclenché)
+- Vérification production : JSON-LD sameAs = wa.me/212698738664 (numéro réel), hreflang ×3, canonical, BreadcrumbList modal, SSR 196 product-card intact
+
+Stage Summary:
+- 3 défauts V1 CORRIGÉS et prouvés empiriquement ; hreflang/canonical conformes ; zéro régression SSR/tunnels
+- main = a8473ba, production Vercel déployée et vérifiée
+- Suivi non-bloquant : #418 AR préexistant (dossier séparé), CSS mort .catalog-breadcrumb*
