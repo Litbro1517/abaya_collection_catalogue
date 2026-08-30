@@ -3591,4 +3591,46 @@ Corriger la régression du fix WhatsApp total (c9f11c7) : le prix dans `div.pdp-
 `fix/pdp-unit-price-row` (créée depuis `main@48964f5`). **POUSSÉE SUR ORIGIN. EN ATTENTE DU FEU VERT EXPLICITE POUR FUSION.**
 
 ---
+
+## [FIX UNIFIED QUANTITY SYNC AND CART — Synchronisation quantité panier + tunnel COD]
+
+### Mandat
+Corriger 3 régressions de synchronisation quantité : (1) panier ajoute toujours 1 article, (2) dataLayer add_to_cart sous-rapporte la value, (3) CodForm n'envoie pas la quantité à l'API. Branche isolée `fix/unified-quantity-sync-and-cart` (créée depuis `main@48964f5`).
+
+### Corrections appliquées (3 axes)
+
+#### Axe 1 — Panier: handleAddToCart transmet quantity
+- `ProductPage.tsx` L.499 : `addItem({...})` sans `quantity` → ajout de `quantity,` dans l'objet
+- `cart-store.ts` L.53 : `const quantity = item.quantity ?? 1` acceptait déjà la prop mais ne la recevait pas
+- **Résultat** : qty=3 → cart ajoute 3 articles (pas 1)
+
+#### Axe 2 — add_to_cart dataLayer: value multiplié par qty
+- `ProductPage.tsx` L.509 : `value: parsePriceToNumber(price)` → `value: parsePriceToNumber(price) * (quantity || 1)`
+- **Résultat** : analytics reporte le total réel (prix × quantité)
+
+#### Axe 3 — CodForm: reçoit quantity + envoie total + qty à l'API
+- `CodForm.tsx` : ajout prop `quantity?: number`, calcul `totalPriceStr = formatPrice(unit × qty)` quand qty > 1
+- API POST L.81 : envoie `productPrice: totalPriceStr` (total) + `productQuantity: qty`
+- Recap UI L.190 : affiche `totalPriceStr` (total) au lieu de `formatPrice(productPrice)` (unitaire)
+- `ProductPage.tsx` L.1154 : passe `quantity={quantity}` au CodForm
+- **Résultat** : le tunnel COD (landing mode) transmet la quantité exacte + le total à la DB
+
+### Fichiers modifiés (2)
+| # | Fichier | Modifications |
+|---|---------|-------------|
+| 1 | `src/components/preview/ProductPage.tsx` | L.499 +quantity dans addItem, L.509 value×qty, L.1154 +quantity prop au CodForm |
+| 2 | `src/components/preview/CodForm.tsx` | +prop quantity, +totalPriceStr calcul, API envoie total+qty, recap UI affiche total |
+
+### Validations
+- `bun run lint` : 0 erreur, 0 warning ✅
+- `bun run build` : exit 0 ✅
+- cart-store `addItem` : accepte `quantity` (L.53 `item.quantity ?? 1`) ✅
+- API `/api/orders` : accepte `productQuantity` (L.81) ✅
+- CodForm : envoie `productPrice` (total) + `productQuantity` (qty) à l'API ✅
+- WhatsappOrderForm : reçoit déjà `quantity` (fix c9f11c7, non modifié) ✅
+
+### Branche
+`fix/unified-quantity-sync-and-cart` (créée depuis `main@48964f5`). **POUSSÉE SUR ORIGIN. EN ATTENTE DU FEU VERT EXPLICITE POUR FUSION.**
+
+---
 Date de mise à jour : 29/08/2026

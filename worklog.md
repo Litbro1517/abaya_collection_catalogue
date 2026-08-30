@@ -644,3 +644,42 @@ Stage Summary:
 - Branche: fix/pdp-unit-price-row (créée depuis main@48964f5)
 - 1 fichier modifié: ProductPage.tsx (1 ligne)
 - **AUCUNE FUSION SUR main — en attente du feu vert explicite**
+
+---
+
+Task ID: UNIFIED-QUANTITY-SYNC-AND-CART
+Agent: Agent Développeur
+Task: Diagnostic et correction unifiée (panier, tunnel d'achat COD, prix unitaire)
+
+Work Log:
+- Read PROJECT_MAP.md + diagnostic des 3 bugs de synchronisation quantité
+- Créé branche isolée fix/unified-quantity-sync-and-cart depuis main@48964f5
+
+BUG 1 — Panier: handleAddToCart ne passait pas quantity au cart-store
+- ProductPage.tsx L.492-500: addItem({...}) sans quantity → cart-store defaultait à 1
+- Fix: ajouté `quantity,` dans l'objet passé à addItem()
+- cart-store addItem (L.53): `const quantity = item.quantity ?? 1` → accepte déjà la prop, juste ne la recevait pas
+- Résultat: qty=3 → cart ajoute 3 articles (pas 1)
+
+BUG 2 — add_to_cart dataLayer: value non multiplié par qty
+- ProductPage.tsx L.509: `value: parsePriceToNumber(price)` → value = prix unitaire seulement
+- Fix: `value: parsePriceToNumber(price) * (quantity || 1)` → value = total réel
+
+BUG 3 — CodForm: ne recevait pas quantity, envoyait prix unitaire à l'API
+- CodForm.tsx: n'avait pas de prop quantity, envoyait `productPrice` (unitaire) sans `productQuantity`
+- Fix: ajouté prop `quantity?: number`, calcul `totalPriceStr = formatPrice(unit × qty)` quand qty > 1
+- API POST: envoie maintenant `productPrice: totalPriceStr` + `productQuantity: qty`
+- Recap UI: affiche `totalPriceStr` (total) au lieu de `formatPrice(productPrice)` (unitaire)
+- ProductPage.tsx L.1154: passe `quantity={quantity}` au CodForm
+
+VALIDATION:
+- lint: 0 erreur, 0 warning ✅
+- build: exit 0 ✅
+- cart-store addItem: accepte quantity (L.53 `item.quantity ?? 1`) ✅
+- API /api/orders: accepte productQuantity (L.81) ✅
+- CodForm: envoie productPrice (total) + productQuantity (qty) à l'API ✅
+- WhatsappOrderForm: reçoit déjà quantity (fix c9f11c7) ✅
+
+Stage Summary:
+- Branche: fix/unified-quantity-sync-and-cart (créée depuis main@48964f5)
+- 2 fichiers modifiés: ProductPage.tsx (handleAddToCart + dataLayer + CodForm prop), CodForm.tsx (prop quantity + total + API)- **AUCUNE FUSION SUR main — en attente du feu vert explicite**
