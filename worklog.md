@@ -618,3 +618,29 @@ Stage Summary:
 - Branche: fix/whatsapp-total-calculation (créée depuis main@84eb3f9)
 - 3 fichiers modifiés: whatsapp.ts, ProductPage.tsx, WhatsappOrderForm.tsx
 - **AUCUNE FUSION SUR main — en attente du feu vert explicite**
+
+---
+Task ID: PDP-UNIT-PRICE-ROW
+Agent: Agent Développeur
+Task: Restauration prix unitaire fixe dans div.pdp-price-row
+
+Work Log:
+- Read PROJECT_MAP.md
+- Créé branche isolée fix/pdp-unit-price-row depuis main@48964f5
+- Bug: div.pdp-price-row (sous le titre produit) affichait totalPriceDisplay (qty×price) au lieu du prix unitaire fixe — régression du fix WhatsApp total (c9f11c7)
+
+CORRECTION:
+- ProductPage.tsx L.963: totalPriceDisplay → formatPrice(price) (prix unitaire fixe restauré)
+- L.1201 (mobile sticky CTA): totalPriceDisplay conservé (doit refléter le total qty×price)
+- Justification: div.pdp-price-row est l'information produit (prix unitaire fixe), il ne doit pas changer avec la quantité. Seuls le sticky CTA mobile (récapitulatif en bas) et le formulaire WhatsApp (المجموع) doivent refléter le total.
+
+VALIDATION:
+- lint: 0 erreur ✅
+- build: exit 0 ✅
+- L.964 (pdp-price-row): formatPrice(price) = prix unitaire fixe ✅
+- L.1201 (sticky CTA): totalPriceDisplay = total dynamique ✅
+
+Stage Summary:
+- Branche: fix/pdp-unit-price-row (créée depuis main@48964f5)
+- 1 fichier modifié: ProductPage.tsx (1 ligne)
+- **AUCUNE FUSION SUR main — en attente du feu vert explicite**

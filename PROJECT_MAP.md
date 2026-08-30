@@ -3563,3 +3563,32 @@ Date de mise à jour (audit + fusion + déploiement) : 30/08/2026
 
 ---
 Date de mise à jour : 29/08/2026
+
+---
+
+## [FIX PDP UNIT PRICE ROW — Restauration prix unitaire fixe dans div.pdp-price-row]
+
+### Mandat
+Corriger la régression du fix WhatsApp total (c9f11c7) : le prix dans `div.pdp-price-row` (sous le titre produit) se multipliait avec la quantité. Il doit rester fixe. Branche isolée `fix/pdp-unit-price-row` (créée depuis `main@48964f5`).
+
+### Correction appliquée
+- `ProductPage.tsx` L.963 : `totalPriceDisplay` → `formatPrice(price)` (prix unitaire fixe restauré)
+- L.1201 (mobile sticky CTA) : `totalPriceDisplay` **conservé** (doit refléter le total qty×price)
+- **Justification** : `div.pdp-price-row` est l'information produit (prix unitaire fixe). Seuls le sticky CTA mobile (récapitulatif en bas) et le formulaire WhatsApp (المجموع) doivent refléter le total.
+
+### Fichier modifié (1)
+| # | Fichier | Ligne | Modification |
+|---|---------|-------|-------------|
+| 1 | `src/components/preview/ProductPage.tsx` | L.964 | `totalPriceDisplay` → `formatPrice(price)` (prix unitaire fixe) |
+
+### Validations
+- `bun run lint` : 0 erreur, 0 warning ✅
+- `bun run build` : exit 0 ✅
+- L.964 (`div.pdp-price-row`) : `formatPrice(price)` = prix unitaire fixe ✅
+- L.1201 (sticky CTA) : `totalPriceDisplay` = total dynamique ✅
+
+### Branche
+`fix/pdp-unit-price-row` (créée depuis `main@48964f5`). **POUSSÉE SUR ORIGIN. EN ATTENTE DU FEU VERT EXPLICITE POUR FUSION.**
+
+---
+Date de mise à jour : 29/08/2026

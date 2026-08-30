@@ -959,8 +959,9 @@ export function ProductPage({
           {price && (
             <div className="pdp-price-row">
               <span className="pdp-current-price">
-                {/* Fix: show total (unit × qty) when quantity > 1, else unit price */}
-                <PriceText locale={locale}>{totalPriceDisplay}</PriceText>
+                {/* Unit price — fixed, independent of quantity.
+                    Only the WhatsApp form recap + mobile sticky CTA show qty × price. */}
+                <PriceText locale={locale}>{formatPrice(price)}</PriceText>
               </span>
               {discount.hasDiscount && (
                 <>
