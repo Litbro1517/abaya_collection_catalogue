@@ -123,9 +123,20 @@ export async function generateMetadata(): Promise<Metadata> {
     title: `${catalogName} — Catalogue`,
     description: "Découvrez notre collection exclusive d'abayas, robes et ensembles. Commandez via WhatsApp, Messenger et plus.",
     icons,
+    // ━━ SEO: hreflang — bilingue FR/AR pour le marché marocain (MENA) ━━
+    // Puisque la gestion des langues est côté client (cookie localStorage),
+    // les deux versions (FR et AR) servent la même URL. Les balises hreflang
+    // indiquent à Googlebot que le contenu est disponible en FR et AR, ciblant
+    // le Maroc (ar-MA, fr-MA) avec un fallback x-default.
+    alternates: {
+      canonical: metadataBaseUrl,
+      languages: {
+        'fr-MA': metadataBaseUrl,
+        'ar-MA': metadataBaseUrl,
+        'x-default': metadataBaseUrl,
+      },
+    },
     // ━━ OG cover image for social sharing (WhatsApp, Facebook, Twitter) ━━
-    // Uses /og-cover.jpg (1200×630 JPEG, brand colors) as the default cover.
-    // Page-specific openGraph (page.tsx) overrides this for product pages.
     openGraph: {
       title: `${catalogName} — Catalogue`,
       description: "Découvrez notre collection exclusive d'abayas, robes et ensembles. Commandez via WhatsApp, Messenger et plus.",
@@ -205,6 +216,30 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
             }}
           />
         ) : null}
+        {/* ━━ SEO: JSON-LD Organization schema — Rich Snippets Google ━━
+            Injecté côté serveur (SSR) pour que Googlebot puisse l'indexer.
+            Inclut: nom, URL, logo, liens sociaux (WhatsApp, Instagram). */}
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{
+            __html: JSON.stringify({
+              "@context": "https://schema.org",
+              "@type": "Organization",
+              name: "Abaya Collection Chic",
+              url: "https://abaya-collection-catalogue-9dum.vercel.app",
+              logo: "https://abaya-collection-catalogue-9dum.vercel.app/logo.png",
+              description: "Boutique en ligne d'abayas, robes et ensembles. Commandez via WhatsApp avec paiement à la livraison (COD) au Maroc.",
+              address: {
+                "@type": "PostalAddress",
+                addressCountry: "MA",
+                addressRegion: "Marrakech",
+              },
+              sameAs: [
+                "https://wa.me/212600000000",
+              ],
+            }),
+          }}
+        />
       </head>
       <body
         className={`${playfair.variable} ${inter.variable} ${zain.variable} ${tajawal.variable} antialiased bg-background text-foreground`}

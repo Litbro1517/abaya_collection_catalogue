@@ -1119,8 +1119,26 @@ export function CatalogPreview({ onAdminLogin, initialCatalog, initialDatasource
     const productTitle = config.titleColumn ? getCellValue(selectedProduct.row, config.titleColumn) : '';
     const sectionTitle = section.title || t('catalog.collection');
 
+    // ━━ SEO: JSON-LD BreadcrumbList schema — Rich Snippets Google ━━
+    // Injecté dans le DOM pour que Googlebot puisse indexer la hiérarchie
+    // du catalogue (Accueil > Collection > Produit).
+    const breadcrumbLd = {
+      "@context": "https://schema.org",
+      "@type": "BreadcrumbList",
+      itemListElement: [
+        { "@type": "ListItem", position: 1, name: catalogName, item: typeof window !== 'undefined' ? window.location.origin : 'https://abaya-collection-catalogue-9dum.vercel.app' },
+        { "@type": "ListItem", position: 2, name: sectionTitle },
+        { "@type": "ListItem", position: 3, name: productTitle },
+      ],
+    };
+
     return (
       <nav className="catalog-breadcrumb">
+        {/* JSON-LD BreadcrumbList — invisible for users, readable by Googlebot */}
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbLd) }}
+        />
         <div className="catalog-breadcrumb-inner">
           {/* Small back arrow for redundancy */}
           <button

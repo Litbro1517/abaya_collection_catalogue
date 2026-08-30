@@ -4018,3 +4018,47 @@ Date de mise à jour : 29/08/2026
 
 ---
 Date de mise à jour : 30/08/2026
+
+---
+
+## [FEAT SEO HREFLANG JSON-LD — Optimisation SEO (hreflang FR/AR + JSON-LD Organization & BreadcrumbList)]
+
+### Mandat
+Implémenter les balises hreflang (FR/AR) pour le marché marocain (MENA) et les données structurées JSON-LD (Organization + BreadcrumbList) pour les Rich Snippets Google. Branche isolée `feat/seo-hreflang-jsonld` (créée depuis `main@8e3ced2`).
+
+### Corrections appliquées (3 axes)
+
+#### Axe 1 — hreflang (FR/AR pour Maroc/MENA)
+- `layout.tsx` L.126-138 : `alternates.languages` avec `fr-MA`, `ar-MA`, `x-default`
+- `page.tsx` L.83-92 : `alternates.languages` répété (page.tsx generateMetadata écrase celui du layout)
+- **Test** : 3 balises `<link rel="alternate" hreflang="fr-MA|ar-MA|x-default">` ✅
+
+#### Axe 2 — JSON-LD Organization (layout.tsx L.219-242)
+- Schema.org `Organization` : name, url, logo, description, address (MA, Marrakech), sameAs (WhatsApp)
+- Injecté en SSR via `<script type="application/ld+json">` dans le `<head>`
+- **Test** : 1 script `application/ld+json` présent ✅
+
+#### Axe 3 — JSON-LD BreadcrumbList (CatalogPreview.tsx L.1122-1141)
+- Schema.org `BreadcrumbList` : Accueil > Collection > Produit
+- Injecté dans `renderBreadcrumbs` (uniquement sur vue détail produit)
+- 3 items : catalogName (position 1), sectionTitle (position 2), productTitle (position 3)
+
+### Fichiers modifiés (3)
+| # | Fichier | Modification |
+|---|---------|-------------|
+| 1 | `src/app/layout.tsx` | +`alternates.languages` (hreflang) + JSON-LD Organization `<script>` dans `<head>` |
+| 2 | `src/app/page.tsx` | +`alternates.languages` (répété car page.tsx écrase le layout) |
+| 3 | `src/components/preview/CatalogPreview.tsx` | +JSON-LD BreadcrumbList dans `renderBreadcrumbs` |
+
+### Validations
+- `bun run lint` : 0 erreur, 0 warning ✅
+- `bun run build` : exit 0 ✅
+- hreflang : 3 balises (`fr-MA`, `ar-MA`, `x-default`) ✅
+- JSON-LD Organization : présent dans le `<head>` SSR ✅
+- canonical : `https://abaya-collection-catalogue-9dum.vercel.app/` ✅
+
+### Branche
+`feat/seo-hreflang-jsonld` (créée depuis `main@8e3ced2`). **POUSSÉE SUR ORIGIN. EN ATTENTE DU FEU VERT EXPLICITE POUR FUSION.**
+
+---
+Date de mise à jour : 30/08/2026

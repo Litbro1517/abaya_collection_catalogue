@@ -1017,3 +1017,41 @@ Stage Summary:
 - VERDICT : CONFORME SANS RÉSERVE — 4 Quick Wins validés empiriquement, zéro régression, zéro erreur TS masquée
 - main = 3e5acaf + docs ; production vérifiée post-promotion
 - Suivis non-bloquants : i18n des pages 404/500 (AR), global-error.tsx, metadata title de la 404
+
+---
+Task ID: SEO-HREFLANG-JSONLD
+Agent: Agent Développeur
+Task: Optimisation SEO — hreflang (FR/AR) + JSON-LD (Organization + BreadcrumbList)
+
+Work Log:
+- Read PROJECT_MAP.md
+- Créé branche isolée feat/seo-hreflang-jsonld depuis main@8e3ced2
+
+CORRECTION 1 — hreflang (FR/AR pour marché marocain MENA):
+- layout.tsx L.126-138: ajout `alternates.languages` avec fr-MA, ar-MA, x-default
+- page.tsx L.83-92: ajout `alternates.languages` (répété car page.tsx generateMetadata écrase celui du layout)
+- Test browser: 3 balises `<link rel="alternate" hreflang="fr-MA|ar-MA|x-default">` présentes ✅
+- Test browser: canonical `https://abaya-collection-catalogue-9dum.vercel.app/` ✅
+
+CORRECTION 2 — JSON-LD Organization (layout.tsx L.219-242):
+- Schema.org Organization: name, url, logo, description, address (MA, Marrakech), sameAs (WhatsApp)
+- Injecté en SSR via `<script type="application/ld+json">` dans le `<head>`
+- Test browser: 1 script `application/ld+json` présent ✅
+
+CORRECTION 3 — JSON-LD BreadcrumbList (CatalogPreview.tsx L.1122-1141):
+- Schema.org BreadcrumbList: Accueil > Collection > Produit
+- Injecté dans `renderBreadcrumbs` (uniquement sur vue détail produit)
+- 3 items: catalogName, sectionTitle, productTitle
+- Position 1: Accueil (URL origin), Position 2: Section, Position 3: Produit
+
+VALIDATION:
+- lint: 0 erreur, 0 warning ✅
+- build: exit 0 ✅
+- hreflang: 3 balises (fr-MA, ar-MA, x-default) ✅
+- JSON-LD Organization: présent dans le `<head>` SSR ✅
+- canonical: correct ✅
+
+Stage Summary:
+- Branche: feat/seo-hreflang-jsonld (créée depuis main@8e3ced2)
+- 2 fichiers modifiés: layout.tsx (hreflang + JSON-LD Organization), page.tsx (hreflang), CatalogPreview.tsx (JSON-LD BreadcrumbList)
+- **AUCUNE FUSION SUR main — en attente du feu vert explicite**
