@@ -69,7 +69,9 @@ export async function POST(req: NextRequest) {
     const targetList = targets.map(l => `${l} (${targetLabels[l] || l})`).join(', ');
 
     // ━━ Fix: try/catch around ZAI.create() — catch config errors gracefully ━━
-    let zai: InstanceType<typeof ZAI>;
+    // Typage : la classe ZAI a un constructeur privé → InstanceType<typeof ZAI>
+    // est invalide (TS2344) ; Awaited<ReturnType<typeof ZAI.create>> résout ZAI.
+    let zai: Awaited<ReturnType<typeof ZAI.create>>;
     try {
       zai = await ZAI.create();
       sdkAvailable = true;
