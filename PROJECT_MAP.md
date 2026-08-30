@@ -3881,3 +3881,29 @@ V2 du fix SSR catalogue. L'audit QA a démontré que l'initialisation du `useSta
 
 ---
 Date de mise à jour : 29/08/2026
+
+---
+
+## [AUDIT CONTRADICTOIRE — fix/ssr-catalog-rendering : V1 réfutée, V2 validée + remédiation typage, fusion locale]
+
+### Verdict contradictoire
+- **V1 (7667ee8) RÉFUTÉE** — la contestation « DB locale vide » est infirmée : avec une DB seedée (2 sections, 5 produits, 2 datasources), le serveur retourne BIEN les données (payload RSC complet + /api/catalog 200) mais le DOM reste à l'état vide ; zone `<main>` byte-identique à main@71f9d5b → no-op confirmé. Cause racine prouvée : zustand v5.0.14 `useSyncExternalStore` 3e argument `getServerSnapshot = api.getInitialState()` — les mutations `setCatalog` pendant le render serveur sont invisibles aux hooks enfants (reproducteur minimal react-dom/server + zustand : V1=état vide, V2=cartes).
+- **Preuve production** : le site en ligne (build 71f9d5b, DB Supabase réelle 50+ produits) rend l'état vide dans son HTML brut — le bug est réel en production, pas un artefact de DB locale.
+- **V2 (49cb8fa) VALIDÉE** : 5 `<article>` + 64 occurrences `product-card` dans le DOM SSR, état vide éliminé, zéro hydration mismatch (1ʳᵉ visite + retour avec cache), tunnels WA (199×2=398) et COD (validation téléphone + /merci + persistance DB Noire/M) non-régressés, GTM view_item_list 5 items, sanity AR mobile (rtl, cssLinks=2).
+
+### Remédiation d'audit (86171ab)
+V2 déstructurait `initialCatalog`/`initialDatasources` sans les déclarer dans `CatalogPreviewProps` → 3 erreurs TS nouvelles (TS2339 ×2 + TS2322) masquées par `ignoreBuildErrors`. Correctif : déclaration des 2 props optionnelles (aligne le code sur la doc V2). tsc retour à la baseline main (139), lint 0/0, build exit 0, SSR re-vérifié (cartes présentes).
+
+### État de la fusion
+- Merge local `--no-ff` exécuté : `main = f9ea95c` (7667ee8 + 49cb8fa + 86171ab + merge).
+- **PUSH ORIGIN BLOQUÉ** : le bac à sable a été réinitialisé entre sessions — le token GitHub (utilisé via `deploy-v2.sh <TOKEN>`) a disparu ; aucun credential n'est disponible (`git push` → « could not read Username »). origin/main reste à 71f9d5b jusqu'au push. Commandes de complétion :
+  ```bash
+  cd /home/z/audit-repo
+  git remote set-url origin "https://x-access-token:<GITHUB_TOKEN>@github.com/Litbro1517/abaya_collection_catalogue.git"
+  git push origin fix/ssr-catalog-rendering   # remédiation 86171ab
+  git push origin main                         # fusion f9ea95c → déclenche Vercel
+  ```
+- Production NON encore mise à jour au moment du rapport (sert 71f9d5b) ; vérification post-déploiement requise : cartes produits dans le HTML brut de https://abaya-collection-catalogue-9dum.vercel.app (le bug y est actuellement visible à l'état vide).
+
+---
+Date de mise à jour : 30/08/2026

@@ -886,3 +886,26 @@ Stage Summary:
 - Branche: fix/ssr-catalog-rendering (poursuivie, commit V2)
 - 2 fichiers modifiés: CatalogPreview.tsx (props + init depuis props), HomeClient.tsx (passe props au CatalogPreview)
 - **AUCUNE FUSION SUR main — en attente du feu vert explicite**
+
+---
+Task ID: AUDIT-SSR-CONTRADICTOIRE-1
+Agent: Agent Auditeur Z.ai (Mandat de Contrôle-Contradictoire et de Contre-Audit QA)
+Task: Ré-vérification contradictoire de fix/ssr-catalog-rendering suite à contestation développeur (« DB locale vide ») — trancher V1 (7667ee8), auditer V2 (49cb8fa), fusionner si conforme
+
+Work Log:
+- Contexte : bac à sable réinitialisé entre sessions → re-clone du dépôt (origin/main = 71f9d5b confirmé congelé, branche NON fusionnée) ; découverte d'un NOUVEAU commit : 49cb8fa « fix(V2): SSR catalog via props React — Zustand store no-op fixed » — le développeur a concédé le point technique et implémenté la rectification prescrite (props SSR), tout en contestant formellement V1 (« problème de DB locale vide »)
+- Étape 1 (seed) : 3 arbres isolés (v1:7667ee8, v2:49cb8fa, main2:71f9d5b) + 3 DB SQLite identiques (2 datasources, 12 colonnes, 5 produits, 2 sections visibles, settings whatsapp) ; preuve serveur : /api/catalog 200 (2 sections visibles) + les 5 titres présents dans le payload RSC du HTML de V1 → getInitialCatalogData() retourne BIEN les données seedées (réfute la thèse « DB vide »)
+- Étape 2 (réfutation V1) : DOM-only de V1 avec DB seedée → 0 product-card, 0 <article>, état vide « Aucun produit trouvé » RENDU, 0 titre ; zone <main> byte-identique V1 vs main (1047 octets) → NO-OP DÉFINITIF ; production live (build 71f9d5b, DB Supabase réelle) : 0 product-card + état vide dans le HTML brut → le bug est réel en prod avec de vraies données
+- Preuve architecturale : reproducteur minimal avec les versions exactes du dépôt (react 19.2.7 + zustand 5.0.14) — HomeClient-miroir fait le setState pendant le render, CatalogPreview-miroir lit via hook → HTML SSR = état vide ; getState().catalog NON null (mutation exécutée) mais getInitialState().catalog = null (ce que getServerSnapshot retourne en SSR) ; variante props → 5 cartes. Conclusion : la lecture du store en SSR échoue par construction, les props traversent le payload RSC
+- Validation V2 : DOM SSR = 5 <article> + 64 product-card + 5 titres + prix (199/220/270/350/420 Dhs) + titres de sections ; état vide ABSENT ; lint 0/0 ; build exit 0 ; hydratation : console vierge en 1ʳᵉ visite ET visite de retour (cache localStorage), marque « Collection Abaya » mise à jour post-hydratation sans mismatch ; WA E2E qty=2 → « Prix 199 / Quantité 2 / Total 398 » exact ; COD ?mode=landing → téléphone invalide bloqué (« Veuillez entrer un numéro de téléphone valide », 0 appel API), commande valide → /merci « MONTANT À PAYER 199 Dhs » + DB {productPrice 199 DH unitaire, productColor Noir, productSize M} ; GTM view_item_list 5 items ; AR mobile rtl/cssLinks=2/5 cartes (avertissements translate 500 = API absente de l'env isolé, fallback gracieux par conception, hors périmètre)
+- Défauts V2 détectés : (1) 3 erreurs TS nouvelles (interface CatalogPreviewProps non mise à jour — déstructuration de initialCatalog/initialDatasources non déclarés) ; (2) doc V2 affirmait l'interface à jour alors qu'elle ne l'était pas
+- REMÉDIATION D'AUDIT 86171ab : déclaration des 2 props optionnelles dans CatalogPreviewProps (Catalog | null, DataSource[]) → tsc 142→139 (= baseline main), lint 0/0, build exit 0, SSR re-vérifié sur arbre final (5 cartes, état vide absent), hydratation re-testée propre
+- FUSION LOCALE : git merge --no-ff sur main → f9ea95c (7667ee8 + 49cb8fa + 86171ab + merge commit « merge: fix SSR catalog rendering (products in initial HTML) »)
+- PUSH BLOQUÉ (contrainte environnement) : credentials GitHub absents après réinitialisation du bac à sable (aucun token, pas de credential helper, ~/.ssh inexistant, deploy-v2.sh requiert le token en argument) ; origin/main reste 71f9d5b, origin/branche reste 49cb8fa ; procédure de complétion documentée dans PROJECT_MAP.md (set-url + 2 pushes) ; production non encore mise à jour (bug encore visible en ligne à l'état vide)
+- Nettoyage : serveurs 3225/3226/3227/3228 tués, arbres /tmp supprimés sauf preuves, navigateurs fermés, dev 3000 opérationnel (HTTP 200) ; preuves archivées /home/z/verify-logs/ssr-contradictoire/ (v1/v2/main/final/prod raw HTML, DOM-only, screenshots)
+
+Stage Summary:
+- VERDICT CONTRADICTOIRE : le développeur a TORT sur V1 — réfutation triple (empirique DB seedée, byte-comparaison no-op, preuve architecturale getServerSnapshot + preuve production réelle) ; la contestation « DB vide » est formellement infirmée (données retournées par le serveur, visibles dans le payload RSC)
+- V2 (49cb8fa) est la bonne solution (implémente la rectification prescrite) : VALIDÉE sur les 7 points après remédiation typage 86171ab (3 erreurs TS résolues, retour à la baseline)
+- main locale = f9ea95c (fusion complète vérifiée) ; PUSH VERS ORIGIN BLOQUÉ par absence de credentials (réinitialisation du bac à sable) — à compléter avec le token GitHub via la procédure documentée, puis vérifier le déploiement Vercel (les cartes produits doivent apparaître dans le HTML brut de production)
+- Statut : mission d'audit ACCOMPLIE (débats tranchés avec preuves reproductibles) ; déploiement EN ATTENTE de credentials
