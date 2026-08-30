@@ -213,6 +213,10 @@ type DynamicCategory = {
 
 interface CatalogPreviewProps {
   onAdminLogin?: () => void;
+  // V2 SSR fix: SSR data passes through React props (not the Zustand store,
+  // whose getServerSnapshot is invisible during server rendering).
+  initialCatalog?: Catalog | null;
+  initialDatasources?: DataSource[];
 }
 
 // ━━ DEBT-10 repair : sous-composant pour traduction auto du titre carte produit ━━
