@@ -1166,6 +1166,8 @@ export function ProductPage({
                 productName={title}
                 productPrice={price}
                 quantity={quantity}
+                selectedColor={selectedColor}
+                selectedSize={selectedSize}
                 hasMissingVariant={hasMissingVariant}
                 onVariantMissing={() => { setShowVariantError(true); scrollToVariantSelectors(); }}
               />

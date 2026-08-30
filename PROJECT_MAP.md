@@ -3762,3 +3762,48 @@ Audit exhaustif (ProductPage.tsx, CodForm.tsx, scrollToVariantSelectors) puis fu
 3. Lien social sticky wa.me (sans text=) sans gate : normal, contact général hors tunnel produit
 
 Date de mise à jour (audit + fusion + déploiement) : 30/08/2026
+
+---
+
+## [FIX CODFORM VARIANT PERSISTENCE — Restauration couleur/taille sur Thank You Page]
+
+### Mandat
+Corriger la régression des variantes (couleur/taille) sur la Thank You Page : les valeurs étaient remplacées par des tirets (—) suite à l'absence de transmission des props `selectedColor`/`selectedSize` au CodForm. Branche isolée `fix/codform-variant-persistence` (créée depuis `main@2529c97`).
+
+### Auto-exploration et cause racine
+**Comparaison CodForm vs WhatsappOrderForm** :
+- `WhatsappOrderForm` reçoit `selectedColor` + `selectedSize` (L.1184-1185 dans ProductPage) → son message WhatsApp inclut les variantes ✅
+- `CodForm` ne recevait **pas** `selectedColor` ni `selectedSize` → le payload API n'incluait pas `productColor`/`productSize` → l'API créait l'Order avec `null` → la Thank You Page affichait `—` ❌
+
+**Flux de données** : `ProductPage (selectedColor/selectedSize)` → `CodForm (props manquantes)` → `API /api/orders (productColor/productSize absents du payload)` → `DB Order.productColor = null` → `Thank You Page affiche "—"`
+
+### Correction appliquée
+1. `CodForm.tsx` L.25-27 : +props `selectedColor?: string | null` + `selectedSize?: string | null`
+2. `CodForm.tsx` L.41 : destructuring `selectedColor = null, selectedSize = null`
+3. `CodForm.tsx` L.102-108 : payload API inclut `productColor: selectedColor || null` + `productSize: selectedSize || null`
+4. `ProductPage.tsx` L.1169-1170 : passe `selectedColor={selectedColor}` + `selectedSize={selectedSize}` au CodForm
+
+### Justification technique
+- **Pattern aligné sur WhatsappOrderForm** qui reçoit déjà ces props (même structure)
+- **Garde de validation intacte** : `hasMissingVariant` bloque la soumission si couleur/taille manquante → les props seront non-null au moment de la soumission
+- **Null-safe** : si le produit n'a pas de variantes (pas de couleur/taille), les props sont `null` → l'API gère déjà `null` (L.92: `productColor ? String(productColor) : null`)
+
+### Fichiers modifiés (2)
+| # | Fichier | Modification |
+|---|---------|-------------|
+| 1 | `src/components/preview/CodForm.tsx` | +props `selectedColor`/`selectedSize`, +payload API `productColor`/`productSize` |
+| 2 | `src/components/preview/ProductPage.tsx` | L.1169-1170 : passe `selectedColor`/`selectedSize` au CodForm |
+
+### Validations
+- `bun run lint` : 0 erreur, 0 warning ✅
+- `bun run build` : exit 0 ✅
+- CodForm reçoit `selectedColor` + `selectedSize` ✅
+- Payload API inclut `productColor` + `productSize` ✅
+- ProductPage passe les props ✅
+- Garde de validation `hasMissingVariant` intacte ✅
+
+### Branche
+`fix/codform-variant-persistence` (créée depuis `main@2529c97`). **POUSSÉE SUR ORIGIN. EN ATTENTE DU FEU VERT EXPLICITE POUR FUSION.**
+
+---
+Date de mise à jour : 29/08/2026

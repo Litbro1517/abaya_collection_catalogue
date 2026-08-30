@@ -21,6 +21,10 @@ interface CodFormProps {
   productPrice: string;
   /** Selected quantity (defaults to 1). Used to compute the total and send to API. */
   quantity?: number;
+  /** Selected color name (null if none selected / no color variants). */
+  selectedColor?: string | null;
+  /** Selected size name (null if none selected / no size variants). */
+  selectedSize?: string | null;
   /** When true, a required variant (size/color) is missing → block submission */
   hasMissingVariant?: boolean;
   /** Called when submission is blocked due to missing variant → parent shows red alert + scrolls */
@@ -34,7 +38,7 @@ interface FormState {
   customerAddress: string;
 }
 
-export function CodForm({ productId, productName, productPrice, quantity = 1, hasMissingVariant = false, onVariantMissing }: CodFormProps) {
+export function CodForm({ productId, productName, productPrice, quantity = 1, selectedColor = null, selectedSize = null, hasMissingVariant = false, onVariantMissing }: CodFormProps) {
   const { t, rtl, formatPrice } = useClientTranslation();
 
   // ━━ Fix: compute total = unit price × quantity ━━
@@ -95,6 +99,13 @@ export function CodForm({ productId, productName, productPrice, quantity = 1, ha
           // Envoyer le total ici provoquait un double comptage Merci (597×3=1791).
           // Le récap UI du formulaire continue d'afficher totalPriceStr (total).
           productName, productPrice, productQuantity: qty,
+          // ━━ Fix: persist selected variants (color/size) to the API ━━
+          // Previously: CodForm didn't receive selectedColor/selectedSize → the API
+          // created the Order with productColor=null + productSize=null → the Thank You
+          // page showed "—" instead of the selected color/size names.
+          // Now: passes the selected variant names so the Order row stores them.
+          productColor: selectedColor || null,
+          productSize: selectedSize || null,
         }),
       });
       const data = await res.json();
