@@ -3531,10 +3531,35 @@ Corriger le calcul du total WhatsApp : quand l'utilisateur augmente la quantité
 - Test `buildWhatsappLink` qty=2 price=270 DH :
   - Message contient `Prix : 270 DH` (unitaire) ✅
   - Message contient `Quantité : 2` ✅
-  - Message contient `Total (2×) : 540` (calculé) ✅
+- Message (chemin formulaire) contient `Total: 540` ✅ ; chemin lien rapide (whatsapp.ts) : libellé runtime `Prix (2×) : 540` (fallback priceLabel — totalLabel non déclaré dans l’interface labels, voir réserves audit) ✅ montant exact
 
 ### Branche
-`fix/whatsapp-total-calculation` (créée depuis `main@84eb3f9`). **POUSSÉE SUR ORIGIN. EN ATTENTE DU FEU VERT EXPLICITE POUR FUSION.**
+`fix/whatsapp-total-calculation` (créée depuis `main@84eb3f9`). Poussée sur origin, auditée, puis **FUSIONNÉE sur main** (voir section audit ci-dessous).
+
+---
+
+## [AUDIT + FUSION WHATSAPP TOTAL CALCULATION — Record de déploiement]
+
+### Audit de conformité (Agent Auditeur — mandataire de fusion)
+- **Périmètre** : 5 fichiers (3 code + 2 docs), tous dans la mission. Aucune modification non autorisée.
+- **Mathématique** (tests programmatiques + navigateur local + production) : 270×2=540 ✓, 270×3=810 ✓, 1 290,50×2=2 581 ✓, 1 290,50×3=3 871,5→3 872 (Intl arrondi) ✓, prod 199×2=398 ✓ ; qty=1 inchangé ✓ ; prix imparsable → pas de ligne Total ✓.
+- **UI temps réel** : prix desktop (270→540→810) ✓, sticky CTA mobile (2 581→3 872) ✓, récap formulaire ✓.
+- **Message WhatsApp** : chemin formulaire contient Quantité + Total explicites (FR/AR) ✓ ; chemin lien rapide contient Quantité + Total (libellé Prix (qty×)) ✓.
+- **Lint/build** : 0/0 · exit 0 (vérifiés indépendamment).
+- **Non-régression** : hydratation saine (cssLinks 2, 0 page error), 0 requête GTM.
+
+### Réserves mineures non bloquantes (documentées)
+1. **TS2339 latent** (whatsapp.ts:117) : `opts.labels.totalLabel` non déclaré dans `BuildWhatsappLinkOptions.labels` → 1 nouvelle erreur TypeScript (delta tsc main 138 → branche 139), masquée par `ignoreBuildErrors: true` préexistant. Zéro impact runtime (fallback `|| priceLabel` délibéré et documenté dans le code). Correctif trivial : ajouter `totalLabel?: string;` à l'interface.
+2. **Parseur dupliqué** : `parseUnitPrice` local dans WhatsappOrderForm (réinplémente le parsing au lieu d'importer le canonique `parsePriceToNumber`). Équivalent sur tous les formats réalistes (espaces milliers, virgule décimale, DH/Dhs/درهم — testé) ; divergent uniquement sur le format point-milliers « 1.290,50 » (non local) : local=1.29 vs canonique=1290.5. Recommandation : unifier avec le canonique.
+3. **Anomalie PRÉEXISTANTE découverte (hors périmètre branche, présente sur main)** : `formatPriceWithCurrency` (dictionaries.ts:2586) fait `parseFloat` brut sur les chaînes → « 1 290,50 DH » → 1 → la ligne « Prix : 1 Dhs » du message formulaire est fausse pour les prix à espaces milliers. La branche ne l'a pas introduite (ligne inchangée) et le nouveau Total la contourne (nombre passé à formatPrice). Dossier séparé recommandé.
+
+### Fusion + déploiement
+- Merge **fast-forward** `84eb3f9..c9f11c7` sur main, push origin réussi, origin/main synchronisé.
+- Vercel : promotion détectée en ~1 min (marqueur : apparition chunk 1ebi7ua7zij8w.js).
+- Sanity production live (PDP عباية صدفة, locale AR) : prix 199,00 DH → qty=2 → **398 درهم** ✓ ; message WhatsApp complet (Quantité : 2, المجموع : 398 درهم) ✓ ; 0 page error ; CSS sain.
+
+---
+Date de mise à jour (audit + fusion + déploiement) : 30/08/2026
 
 ---
 Date de mise à jour : 29/08/2026

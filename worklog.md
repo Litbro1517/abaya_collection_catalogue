@@ -612,7 +612,7 @@ CORRECTION 3 — WhatsappOrderForm.tsx (L.34 + L.47-77 + L.91 + L.278):
 VALIDATION:
 - bun run lint: 0 erreur, 0 warning ✅
 - bun run build: exit 0 ✅
-- Test buildWhatsappLink qty=2 price=270: message contient "Prix: 270 DH", "Quantité: 2", "Total (2×): 540" ✅
+- Test buildWhatsappLink qty=2 price=270: message contient "Prix: 270 DH", "Quantité: 2", "Total (2×): 540" ✅ (précision audit : le libellé runtime réel est "Prix (2×) : 540" — fallback priceLabel, montant exact ; le libellé "Total" n’apparaît que si totalLabel était déclaré/passé)
 
 Stage Summary:
 - Branche: fix/whatsapp-total-calculation (créée depuis main@84eb3f9)
