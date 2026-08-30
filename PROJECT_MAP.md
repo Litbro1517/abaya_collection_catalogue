@@ -3910,6 +3910,24 @@ Date de mise à jour : 30/08/2026
 
 ---
 
+
+## [AUDIT TRANSLATE-API-500 — Contre-audit et déploiement]
+
+### Verdict : CONFORME (après remédiation typage) — FUSIONNÉ ET DÉPLOYÉ
+- **Isolation** : branche = 1 commit (8c2d974) sur main@ce16a9c ; main gelée pendant l'audit ; périmètre 4 fichiers (route.ts + .env.example + 2 docs) ✅
+- **Cause racine vérifiée dans le code du SDK** : `loadConfig()` cherche `.z-ai-config` (cwd → home → /etc), aucun fallback env var ; sur Vercel les 3 sont absents → `throw 'Configuration file not found'` → l'ancien catch global répondait 500 ✅ (analyse du développeur exacte)
+- **4 niveaux de défense validés empiriquement** (arbre isolé + SQLite seedée) :
+  - SDK présent → 200 + traduction réelle (« عباية قمر » → « Abaya lunaire »)
+  - SDK absent (simulation Vercel : loadConfig sans aucun chemin valide) → 200 + `{ data: {lang: texte original}, translated: false }` ; log serveur `[translate] ZAI SDK unavailable`
+  - Flag `sdkAvailable` → 2ᵉ requête servie en 8 ms (vs 120 ms) — pas de retry de ZAI.create()
+  - Body JSON invalide → 200 + `{ data: {}, translated: false }` (catch global ne renvoie jamais 500)
+  - Texte vide → 400 préservé (validation client, inchangée — correct)
+- **Consommateurs compatibles** : `useAutoTranslatedText` absorbe le fallback sans console.warn (batterie navigateur : console VIERGE en condition sans SDK, 50 cartes rendues, 0 erreur, 0 mismatch) ; `/api/categories` stocke des copies non traduites pendant une panne SDK (même rendu visuel, dette mineure acceptée)
+- **Portes qualité** : lint 0/0 ✅ ; build exit 0 ✅ ; tsc : 1 erreur NOUVELLE TS2344 détectée dans route.ts (L.72 `InstanceType<typeof ZAI>` — la classe ZAI a un constructeur privé) → **remédiation d'audit f8b8102** : `Awaited<ReturnType<typeof ZAI.create>>` (compile-only, zéro delta runtime) → 0 erreur dans le fichier, retour baseline
+- **Sécurité** : `.env.example` ne contient aucun secret (placeholders uniquement) ✅
+- **Défauts mineurs non-bloquants** (suivi) : (1) le hook met en cache localStorage (30 j) les fallbacks non traduits — il ignore le flag `translated:false` ; après une future config du SDK sur Vercel, vider les caches ou bumper `CACHE_KEY_PREFIX` ; (2) `/api/categories` peut persister des copies non traduites en DB pendant une panne SDK
+- **Fusion** : `13dad25` (--no-ff, 8c2d974 + f8b8102), arbre du merge ≡ branche validée (diff vide) ; push origin (branche + main) → pipeline Vercel Production
+
 ## [FIX TRANSLATE API 500 — Correction erreur HTTP 500 sur /api/translate]
 
 ### Mandat
