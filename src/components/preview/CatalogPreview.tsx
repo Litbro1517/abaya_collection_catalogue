@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import Link from 'next/link';
 import { useAppStore } from '@/lib/store';
-import type { Section, SectionConfig, Column, ColumnConfig, Row, CatalogSettings } from '@/types';
+import type { Section, SectionConfig, Column, ColumnConfig, Row, CatalogSettings, Catalog, DataSource } from '@/types';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import {
@@ -229,7 +229,7 @@ function ProductCardTitle({ title, locale }: { title: string; locale: string }) 
 // now handles the cart button globally on ALL routes. This prevents double-render
 // conflict and ensures the cart is always visible.
 
-export function CatalogPreview({ onAdminLogin }: CatalogPreviewProps) {
+export function CatalogPreview({ onAdminLogin, initialCatalog, initialDatasources }: CatalogPreviewProps) {
   const { catalog, settings, isAdmin, adminUser, setView } = useAppStore();
   const { t, formatPrice, rtl, locale, resolveTranslation: resolveT } = useClientTranslation();
 
@@ -367,14 +367,19 @@ export function CatalogPreview({ onAdminLogin }: CatalogPreviewProps) {
 
   const resolvedConversionChannel = urlMode || s?.conversionChannel || 'whatsapp';
 
-  // ━━━ Sections: useState starts empty (SSR can't read localStorage) ━━━
-  // ━━ Fix SSR: initialize sections synchronously from catalog + datasources ━━
-  // Previously: sections=[] + sectionsLoaded=false in SSR → "Aucun produit trouvé"
-  // Now: if catalog.sections exists (hydrated from SSR props), we build the
-  // sections array synchronously during render so the SSR HTML contains products.
+  // ━━━ Sections: SSR-friendly initialization from PROPS (not Zustand store) ━━
+  // V2 Fix: Zustand's useSyncExternalStore.getServerSnapshot returns the initial
+  // store state (catalog: null) during SSR — mutations like setCatalog are invisible
+  // to child components during server render. Props traverse the RSC payload correctly.
+  // We use initialCatalog/initialDatasources props to build sections synchronously.
   const dataSourcesFromStore = useAppStore(s => s.dataSources);
 
-  const buildSectionsFromStore = useCallback((cat: typeof catalog, dss: typeof dataSourcesFromStore) => {
+  // Build sections from SSR props (initialCatalog + initialDatasources) or, if those
+  // are empty (e.g. client-only navigation), fall back to the Zustand store data.
+  const buildSectionsFromData = useCallback((
+    cat: Catalog | null | undefined,
+    dss: DataSource[],
+  ) => {
     if (!cat?.sections?.length) return [];
     return cat.sections
       .filter(s => s.visible)
@@ -392,13 +397,18 @@ export function CatalogPreview({ onAdminLogin }: CatalogPreviewProps) {
       });
   }, []);
 
+  // Use SSR props first, then fall back to store (for client-side navigations where
+  // SSR props may not be re-passed but the store has cached data)
+  const effectiveCatalog = initialCatalog || catalog;
+  const effectiveDatasources = initialDatasources && initialDatasources.length > 0
+    ? initialDatasources
+    : dataSourcesFromStore;
+
   const [sections, setSections] = useState<{ section: Section; columns: Column[]; rows: Row[] }[]>(() => {
-    // SSR + first client render: initialize from catalog + datasources in store
-    return buildSectionsFromStore(catalog, dataSourcesFromStore);
+    return buildSectionsFromData(effectiveCatalog, effectiveDatasources);
   });
   const [sectionsLoaded, setSectionsLoaded] = useState(() => {
-    // If we already have sections from SSR, mark as loaded
-    return !!(catalog?.sections?.length && dataSourcesFromStore.length > 0);
+    return !!(effectiveCatalog?.sections?.length && effectiveDatasources.length > 0);
   });
   const [loadError, setLoadError] = useState<string | null>(null);
   const [isRefreshing, setIsRefreshing] = useState(false);

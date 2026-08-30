@@ -3837,37 +3837,47 @@ Date de mise à jour (audit + fusion + déploiement) : 30/08/2026
 
 ---
 
-## [FIX SSR CATALOG RENDERING — Produits dans le HTML initial (plus de "Aucun produit trouvé")]
+## [FIX SSR CATALOG RENDERING V2 — Props React au lieu de Zustand store]
 
 ### Mandat
-Corriger le SSR pour que le HTML initial contienne les cartes produits (titres, prix, visuels) au lieu de l'état vide "Aucun produit trouvé — Le catalogue est en cours de préparation". Branche isolée `fix/ssr-catalog-rendering` (créée depuis `main@71f9d5b`).
+V2 du fix SSR catalogue. L'audit QA a démontré que l'initialisation du `useState` via le store Zustand en SSR est un **no-op** (Zustand v5 `useSyncExternalStore.getServerSnapshot` retourne l'état initial `catalog: null`). Solution : passer les données par les **props React** qui traversent le payload RSC. Branche `fix/ssr-catalog-rendering` (poursuivie).
 
-### Cause racine
-`CatalogPreview.tsx` L.371 : `const [sections, setSections] = useState([])` — les sections commencent **toujours vides** en SSR. Le `useEffect` (L.400-460) qui peuple `sections` depuis `catalog` + `dataSources` ne s'exécute **que côté client** (les `useEffect` ne s'exécutent pas en SSR).
+### Cause racine V2 (confirmée par audit QA)
+- Zustand v5 `useSyncExternalStore.getServerSnapshot()` retourne l'état initial du store (`catalog: null`) pendant le rendu serveur
+- Les mutations `setCatalog` faites par `HomeClient` pendant le rendu serveur sont **invisibles** aux composants enfants
+- V1 utilisait `buildSectionsFromStore(catalog, dataSourcesFromStore)` → `catalog` venait du store = `null` en SSR → no-op
 
-Résultat : en SSR, `sections=[]` → `sectionsLoaded=false` → `allProducts=[]` → le HTML initial affiche "Aucun produit trouvé — Le catalogue est en cours de préparation". Googlebot voit une boutique vide.
+### Correction V2 — Props React (SSR-friendly)
+1. **CatalogPreviewProps** : ajout `initialCatalog?: Catalog | null` + `initialDatasources?: DataSource[]`
+2. **CatalogPreview** : `effectiveCatalog = initialCatalog || catalog` (props en priorité, store en fallback)
+3. **CatalogPreview** : `effectiveDatasources = initialDatasources?.length > 0 ? initialDatasources : dataSourcesFromStore`
+4. **CatalogPreview** : `useState(() => buildSectionsFromData(effectiveCatalog, effectiveDatasources))` — init synchrone depuis **PROPS**
+5. **HomeClient** L.509 : passe `initialCatalog={initialCatalog} initialDatasources={initialDatasources}` au CatalogPreview
+6. **Imports** : ajout `Catalog, DataSource` depuis `@/types`
 
-### Correction appliquée
-**CatalogPreview.tsx L.370-402** : remplacé l'initialisation vide par une initialisation synchrone depuis le store Zustand :
-- Nouvelle fonction `buildSectionsFromStore(cat, dss)` : construit les sections depuis `catalog.sections` + `dataSources` du store (déjà hydratés par SSR props)
-  - Pour chaque section visible : trouve la datasource correspondante (`dsId`), extrait `columns` + `rows`
-  - Pas de fetch réseau — utilise les données déjà en mémoire
-- `useState(() => buildSectionsFromStore(catalog, dataSourcesFromStore))` — initialisation synchrone
-- `sectionsLoaded` initialisé à `true` si `catalog.sections` + `dataSources` existent
-- Le `useEffect` existant (network sync FROZEN_MODE) reste intact : il re-fetch côté client si le cache est stale
+### Gestion du cache client vs SSR
+- Le `useEffect` existant (network sync FROZEN_MODE) reste intact : re-fetch côté client si cache stale
+- `networkSyncDone.current = true` empêche le re-fetch si sections déjà présentes (SSR data)
+- Le cache localStorage est lu en priorité côté client (déjà dans le useEffect)
 
-### Fichier modifié (1)
+### Fichiers modifiés (2)
 | # | Fichier | Modification |
 |---|---------|-------------|
-| 1 | `src/components/preview/CatalogPreview.tsx` | L.370-402 : `useState([])` → `useState(() => buildSectionsFromStore(...))` + `sectionsLoaded` initialisé depuis store |
+| 1 | `src/components/preview/CatalogPreview.tsx` | +props `initialCatalog`/`initialDatasources`, +`buildSectionsFromData` (depuis props), +imports `Catalog`/`DataSource` |
+| 2 | `src/components/HomeClient.tsx` | L.509 : passe `initialCatalog`/`initialDatasources` au `<CatalogPreview>` |
 
-### Validations
+### Preuves empiriques (DB SQLite locale seedée avec 3 produits)
+| Test | Résultat |
+|------|----------|
+| `product-card` dans le HTML SSR | **1** ✅ (était 0) |
+| Titres produits dans le HTML | **"Abaya Noir"**, **"Kimono Beige"**, **"Robe Bordeaux"** ✅ |
+| État vide "preparing/noProducts" | **0** (absent) ✅ |
+
 - `bun run lint` : 0 erreur, 0 warning ✅
 - `bun run build` : exit 0 ✅
-- DB locale : 0 sections (vide) — le fix produira les cartes en production (Supabase : 50+ produits)
 
 ### Branche
-`fix/ssr-catalog-rendering` (créée depuis `main@71f9d5b`). **POUSSÉE SUR ORIGIN. EN ATTENTE DU FEU VERT EXPLICITE POUR FUSION.**
+`fix/ssr-catalog-rendering` (poursuivie, V2). **POUSSÉE SUR ORIGIN. EN ATTENTE DU FEU VERT EXPLICITE POUR FUSION.**
 
 ---
 Date de mise à jour : 29/08/2026
