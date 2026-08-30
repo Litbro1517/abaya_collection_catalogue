@@ -213,10 +213,10 @@ type DynamicCategory = {
 
 interface CatalogPreviewProps {
   onAdminLogin?: () => void;
-  // V2 SSR fix: SSR data passes through React props (not the Zustand store,
-  // whose getServerSnapshot is invisible during server rendering).
   initialCatalog?: Catalog | null;
   initialDatasources?: DataSource[];
+  /** Base URL from SSR — passed to ProductPage for JSON-LD without typeof window (fixes #418). */
+  initialBaseUrl?: string;
 }
 
 // ━━ DEBT-10 repair : sous-composant pour traduction auto du titre carte produit ━━
@@ -233,7 +233,7 @@ function ProductCardTitle({ title, locale }: { title: string; locale: string }) 
 // now handles the cart button globally on ALL routes. This prevents double-render
 // conflict and ensures the cart is always visible.
 
-export function CatalogPreview({ onAdminLogin, initialCatalog, initialDatasources }: CatalogPreviewProps) {
+export function CatalogPreview({ onAdminLogin, initialCatalog, initialDatasources, initialBaseUrl }: CatalogPreviewProps) {
   const { catalog, settings, isAdmin, adminUser, setView } = useAppStore();
   const { t, formatPrice, rtl, locale, resolveTranslation: resolveT } = useClientTranslation();
 
@@ -1138,6 +1138,7 @@ export function CatalogPreview({ onAdminLogin, initialCatalog, initialDatasource
         tiktokHandle={s?.tiktokHandle || undefined}
         onBack={() => setSelectedProduct(null)}
         onCheckout={(payload) => setCheckoutData(payload)}
+        baseUrl={initialBaseUrl}
       />
     );
   };

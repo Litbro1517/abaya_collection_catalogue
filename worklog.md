@@ -1082,3 +1082,37 @@ Stage Summary:
 - 3 défauts V1 CORRIGÉS et prouvés empiriquement ; hreflang/canonical conformes ; zéro régression SSR/tunnels
 - main = a8473ba, production Vercel déployée et vérifiée
 - Suivi non-bloquant : #418 AR préexistant (dossier séparé), CSS mort .catalog-breadcrumb*
+
+---
+Task ID: SEO-BREADCRUMB-HYDRATION-418-V3
+Agent: Agent Développeur
+Task: V3 rectification — import slugify + TDZ fix + tsc baseline alignment
+
+Work Log:
+- Poursuivi sur la branche fix/seo-breadcrumb-hydration-418 (commit b804e78)
+- 3 défauts identifiés par audit ADF V3
+
+DÉFAUT 1 — Import manquant slugify (ProductPage.tsx):
+- V2 utilisait slugify() mais l'import n'était pas présent → ReferenceError au runtime
+- Fix: ajout `import { slugify } from '@/lib/products';` (L.31)
+
+DÉFAUT 2 — TDZ / Zone Morte Temporelle (ProductPage.tsx L.218):
+- V2 plaçait `productUrl = slugify(title)` AVANT la déclaration de `title` (L.247)
+- Fix: déplacé le bloc ssrBaseUrl/productSlug/productUrl APRÈS la déclaration de title (L.238-243)
+- Ordre correct: title (L.237) → ssrBaseUrl (L.241) → productSlug (L.242) → productUrl (L.243)
+
+DÉFAUT 3 — Erreur TypeScript totalLabel (whatsapp.ts):
+- `opts.labels.totalLabel` n'existait pas dans le type BuildWhatsappLinkOptions.labels
+- Fix: ajout `totalLabel?: string;` au type labels (L.50) — optionnel, fallback vers priceLabel
+
+VALIDATION:
+- lint: 0 erreur, 0 warning ✅
+- tsc --noEmit: 138 errors (baseline 139, -1 grâce au fix totalLabel) ✅
+- build: exit 0 ✅
+- Test clic PDP: hasPdp=true, hasError=false, console vide (0 ReferenceError) ✅
+- title affiché: "Mon Catalogue" (PDP rendue correctement) ✅
+
+Stage Summary:
+- Branche: fix/seo-breadcrumb-hydration-418 (V3)
+- 2 fichiers: ProductPage.tsx (import slugify + TDZ fix), whatsapp.ts (totalLabel optional)
+- **AUCUNE FUSION SUR main — en attente du feu vert explicite ADF**

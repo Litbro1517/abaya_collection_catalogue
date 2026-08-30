@@ -28,6 +28,7 @@ import { cn } from '@/lib/utils';
 import { useClientTranslation } from '@/lib/i18n';
 import { toast } from 'sonner';
 import { computeDiscount, getCompareAtPrice } from '@/lib/discount-utils';
+import { slugify } from '@/lib/products';
 import { pushDataLayer, buildEcommerceItem, parsePriceToNumber } from '@/lib/analytics';
 import { useAutoTranslatedText } from '@/lib/useAutoTranslatedText';
 import { useCartStore } from '@/lib/cart-store';
@@ -110,7 +111,7 @@ interface ProductPageProps {
   conversionChannel: string;
   whatsappNumber: string;
   conversionMessage: string;
-  conversionMessages?: Record<string, string> | null;  // { fr, en, ar } multilingual admin messages
+  conversionMessages?: Record<string, string> | null;
   primaryColor: string;
   secondaryColor: string;
   instagramHandle?: string;
@@ -118,6 +119,8 @@ interface ProductPageProps {
   tiktokHandle?: string;
   onBack: () => void;
   onCheckout: (payload: CheckoutPayload) => void;
+  /** Base URL from SSR — used for JSON-LD without typeof window (fixes #418). */
+  baseUrl?: string;
 }
 
 // ── Arabic color name map for the color drawer (calligraphic display) ──
@@ -205,6 +208,7 @@ export function ProductPage({
   tiktokHandle,
   onBack,
   onCheckout,
+  baseUrl,
 }: ProductPageProps) {
   const config = section.config as SectionConfig;
   const rawData = row.data as Record<string, unknown>;
@@ -232,6 +236,12 @@ export function ProductPage({
   };
 
   const title = config.titleColumn ? getCellValue(config.titleColumn) : '';
+  // ━━ Fix V3: productUrl must be declared AFTER title (TDZ fix) ━━
+  // V2 placed this before title was declared → ReferenceError at runtime.
+  // Now: ssrBaseUrl + slugify(title) → same URL on SSR and client (no #418 mismatch).
+  const ssrBaseUrl = baseUrl || 'https://abaya-collection-catalogue-9dum.vercel.app';
+  const productSlug = slugify(title || 'produit');
+  const productUrl = `${ssrBaseUrl}/?product=${encodeURIComponent(productSlug)}`;
   const price = config.priceColumn ? getCellValue(config.priceColumn) : '';
   const description = config.descriptionColumn ? getCellValue(config.descriptionColumn) : '';
   const variants = config.variantColumn ? getCellValue(config.variantColumn) : '';
@@ -738,9 +748,9 @@ export function ProductPage({
             "@context": "https://schema.org",
             "@type": "BreadcrumbList",
             itemListElement: [
-              { "@type": "ListItem", position: 1, name: catalogName, item: typeof window !== 'undefined' ? window.location.origin : '' },
-              { "@type": "ListItem", position: 2, name: sectionTitle, item: typeof window !== 'undefined' ? window.location.href : '' },
-              { "@type": "ListItem", position: 3, name: title, item: typeof window !== 'undefined' ? window.location.href : '' },
+              { "@type": "ListItem", position: 1, name: catalogName, item: ssrBaseUrl },
+              { "@type": "ListItem", position: 2, name: sectionTitle, item: productUrl },
+              { "@type": "ListItem", position: 3, name: title, item: productUrl },
             ],
           }),
         }}
@@ -1375,7 +1385,7 @@ export function ProductPage({
               "price": price ? String(price).replace(/[^\d.]/g, '') : "0",
               "priceCurrency": "MAD",
               "availability": stockState === 'en_stock' ? "https://schema.org/InStock" : "https://schema.org/OutOfStock",
-              "url": typeof window !== 'undefined' ? window.location.href : '',
+              "url": productUrl,
             },
           }),
         }}
