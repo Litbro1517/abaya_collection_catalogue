@@ -49,39 +49,40 @@ const tajawal = Tajawal({
   weight: ["400", "500", "700"],
 });
 
-export async function generateMetadata(): Promise<Metadata> {
-  // Try to read favicon and catalog name from DB for SSR metadata
-  let dbFavicon: string | null = null;
+// ━━ SEO Fix V2: shared function to read brand metadata from DB ━━
+// Used by both generateMetadata and RootLayout to avoid duplicate DB queries.
+async function getBrandMetadata() {
   let catalogName = "Abaya Collection Chic";
+  let whatsappNumber = "";
+  let metadataBaseUrl = 'https://abaya-collection-catalogue-9dum.vercel.app';
+  let dbFavicon: string | null = null;
 
   try {
     const settings = await db.catalogSettings.findFirst();
-    if (settings?.favicon) {
-      dbFavicon = settings.favicon;
-    }
+    if (settings?.favicon) dbFavicon = settings.favicon;
+    if (settings?.whatsappNumber) whatsappNumber = settings.whatsappNumber;
     if (settings) {
-      // Get catalog name from the related catalog
       const catalog = await db.catalog.findFirst({
         where: { id: settings.catalogId },
         select: { name: true },
       });
       if (catalog?.name) catalogName = catalog.name;
     }
-  } catch {
-    // DB not available (first deploy, etc.) — use defaults
-  }
+  } catch { /* DB unavailable — use defaults */ }
 
-  // Resolve metadataBase from DB or fallback to production URL
-  let metadataBaseUrl = 'https://abaya-collection-catalogue-9dum.vercel.app';
   try {
     const seoRow = await db.settings.findUnique({ where: { key: '__seo_metadata__' } });
     if (seoRow?.value) {
       const parsed = JSON.parse(seoRow.value);
       if (parsed.canonicalUrl) metadataBaseUrl = parsed.canonicalUrl;
     }
-  } catch {
-    // DB not available — use default
-  }
+  } catch { /* DB unavailable — use default */ }
+
+  return { catalogName, whatsappNumber, metadataBaseUrl, dbFavicon };
+}
+
+export async function generateMetadata(): Promise<Metadata> {
+  const { catalogName, dbFavicon, metadataBaseUrl } = await getBrandMetadata();
 
   // ── VG45: Favicon priority — DB favicon takes ABSOLUTE precedence ──
   // Prior behavior (VG44) declared an array with BOTH the DB favicon AND
@@ -123,20 +124,9 @@ export async function generateMetadata(): Promise<Metadata> {
     title: `${catalogName} — Catalogue`,
     description: "Découvrez notre collection exclusive d'abayas, robes et ensembles. Commandez via WhatsApp, Messenger et plus.",
     icons,
-    // ━━ SEO: hreflang — bilingue FR/AR pour le marché marocain (MENA) ━━
-    // Puisque la gestion des langues est côté client (cookie localStorage),
-    // les deux versions (FR et AR) servent la même URL. Les balises hreflang
-    // indiquent à Googlebot que le contenu est disponible en FR et AR, ciblant
-    // le Maroc (ar-MA, fr-MA) avec un fallback x-default.
-    alternates: {
-      canonical: metadataBaseUrl,
-      languages: {
-        'fr-MA': metadataBaseUrl,
-        'ar-MA': metadataBaseUrl,
-        'x-default': metadataBaseUrl,
-      },
-    },
     // ━━ OG cover image for social sharing (WhatsApp, Facebook, Twitter) ━━
+    // Uses /og-cover.jpg (1200×630 JPEG, brand colors) as the default cover.
+    // Page-specific openGraph (page.tsx) overrides this for product pages.
     openGraph: {
       title: `${catalogName} — Catalogue`,
       description: "Découvrez notre collection exclusive d'abayas, robes et ensembles. Commandez via WhatsApp, Messenger et plus.",
@@ -166,6 +156,9 @@ export default async function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  // ━━ SEO Fix V2: read brand metadata once (shared with generateMetadata) ━━
+  const { catalogName, whatsappNumber, metadataBaseUrl } = await getBrandMetadata();
+
   // ── SSR: resolve visitor locale from cookie, fallback to DB default, then 'fr' ──
   let ssrLocale = 'fr';
   try {
@@ -216,27 +209,25 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
             }}
           />
         ) : null}
-        {/* ━━ SEO: JSON-LD Organization schema — Rich Snippets Google ━━
-            Injecté côté serveur (SSR) pour que Googlebot puisse l'indexer.
-            Inclut: nom, URL, logo, liens sociaux (WhatsApp, Instagram). */}
+        {/* ━━ SEO V2: JSON-LD Organization — variabilisé depuis DB ━━ */}
         <script
           type="application/ld+json"
           dangerouslySetInnerHTML={{
             __html: JSON.stringify({
               "@context": "https://schema.org",
               "@type": "Organization",
-              name: "Abaya Collection Chic",
-              url: "https://abaya-collection-catalogue-9dum.vercel.app",
-              logo: "https://abaya-collection-catalogue-9dum.vercel.app/logo.png",
+              name: catalogName,
+              url: metadataBaseUrl,
+              logo: `${metadataBaseUrl}/logo.png`,
               description: "Boutique en ligne d'abayas, robes et ensembles. Commandez via WhatsApp avec paiement à la livraison (COD) au Maroc.",
               address: {
                 "@type": "PostalAddress",
                 addressCountry: "MA",
                 addressRegion: "Marrakech",
               },
-              sameAs: [
-                "https://wa.me/212600000000",
-              ],
+              ...(whatsappNumber ? {
+                sameAs: [`https://wa.me/${whatsappNumber.replace(/[^\d]/g, '')}`],
+              } : {}),
             }),
           }}
         />

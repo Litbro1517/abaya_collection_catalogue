@@ -4021,44 +4021,46 @@ Date de mise à jour : 30/08/2026
 
 ---
 
-## [FEAT SEO HREFLANG JSON-LD — Optimisation SEO (hreflang FR/AR + JSON-LD Organization & BreadcrumbList)]
+## [FEAT SEO HREFLANG JSON-LD V2 — Correctif 3 défauts audit ADF]
 
 ### Mandat
-Implémenter les balises hreflang (FR/AR) pour le marché marocain (MENA) et les données structurées JSON-LD (Organization + BreadcrumbList) pour les Rich Snippets Google. Branche isolée `feat/seo-hreflang-jsonld` (créée depuis `main@8e3ced2`).
+Corriger 3 défauts identifiés par l'audit ADF sur la branche `feat/seo-hreflang-jsonld` (commit `ad039d7`) : WhatsApp factice, code mort renderBreadcrumbs, valeurs hardcodées. Poursuivi sur la même branche.
 
 ### Corrections appliquées (3 axes)
 
-#### Axe 1 — hreflang (FR/AR pour Maroc/MENA)
-- `layout.tsx` L.126-138 : `alternates.languages` avec `fr-MA`, `ar-MA`, `x-default`
-- `page.tsx` L.83-92 : `alternates.languages` répété (page.tsx generateMetadata écrase celui du layout)
-- **Test** : 3 balises `<link rel="alternate" hreflang="fr-MA|ar-MA|x-default">` ✅
+#### Axe 1 — WhatsApp factice (wa.me/212600000000)
+- `layout.tsx` : nouvelle fonction `getBrandMetadata()` partagée qui lit `settings.whatsappNumber` depuis DB
+- JSON-LD Organization : `sameAs` utilise `whatsappNumber` dynamique (pas hardcodé)
+- Si `whatsappNumber` vide → `sameAs` omis (spread conditionnel `...()`)
 
-#### Axe 2 — JSON-LD Organization (layout.tsx L.219-242)
-- Schema.org `Organization` : name, url, logo, description, address (MA, Marrakech), sameAs (WhatsApp)
-- Injecté en SSR via `<script type="application/ld+json">` dans le `<head>`
-- **Test** : 1 script `application/ld+json` présent ✅
+#### Axe 2 — Code mort renderBreadcrumbs()
+- `CatalogPreview.tsx` : `renderBreadcrumbs()` (L.1114-1167) n'était **jamais appelé** dans le JSX
+- Le fil d'Ariane réel est dans `ProductPage.tsx` L.734-744 (rendu dans `<main>`)
+- Fix : `renderBreadcrumbs()` supprimé de CatalogPreview (code mort éliminé)
+- Fix : JSON-LD BreadcrumbList déplacé vers `ProductPage.tsx` (où le breadcrumb est réellement rendu)
 
-#### Axe 3 — JSON-LD BreadcrumbList (CatalogPreview.tsx L.1122-1141)
-- Schema.org `BreadcrumbList` : Accueil > Collection > Produit
-- Injecté dans `renderBreadcrumbs` (uniquement sur vue détail produit)
-- 3 items : catalogName (position 1), sectionTitle (position 2), productTitle (position 3)
+#### Axe 3 — Valeurs codées en dur
+- `layout.tsx` : `getBrandMetadata()` partagé entre `generateMetadata` et `RootLayout`
+  - `catalogName` : DB `catalog.name` (fallback "Abaya Collection Chic")
+  - `whatsappNumber` : DB `CatalogSettings.whatsappNumber`
+  - `metadataBaseUrl` : DB `Settings.__seo_metadata__.canonicalUrl`
+  - `dbFavicon` : DB `CatalogSettings.favicon`
+- JSON-LD Organization : `url`, `logo`, `name` tous variabilisés
+- BreadcrumbList : `item` utilise `window.location.origin/href` (dynamique)
 
 ### Fichiers modifiés (3)
 | # | Fichier | Modification |
 |---|---------|-------------|
-| 1 | `src/app/layout.tsx` | +`alternates.languages` (hreflang) + JSON-LD Organization `<script>` dans `<head>` |
-| 2 | `src/app/page.tsx` | +`alternates.languages` (répété car page.tsx écrase le layout) |
-| 3 | `src/components/preview/CatalogPreview.tsx` | +JSON-LD BreadcrumbList dans `renderBreadcrumbs` |
+| 1 | `src/app/layout.tsx` | +`getBrandMetadata()` partagée, JSON-LD Organization variabilisé (url/logo/name/whatsapp depuis DB) |
+| 2 | `src/components/preview/ProductPage.tsx` | +JSON-LD BreadcrumbList dans le rendu réel (avec propriété `item` sur chaque ListItem) |
+| 3 | `src/components/preview/CatalogPreview.tsx` | `renderBreadcrumbs()` supprimé (code mort) |
 
 ### Validations
 - `bun run lint` : 0 erreur, 0 warning ✅
 - `bun run build` : exit 0 ✅
-- hreflang : 3 balises (`fr-MA`, `ar-MA`, `x-default`) ✅
-- JSON-LD Organization : présent dans le `<head>` SSR ✅
-- canonical : `https://abaya-collection-catalogue-9dum.vercel.app/` ✅
 
 ### Branche
-`feat/seo-hreflang-jsonld` (créée depuis `main@8e3ced2`). **POUSSÉE SUR ORIGIN. EN ATTENTE DU FEU VERT EXPLICITE POUR FUSION.**
+`feat/seo-hreflang-jsonld` (poursuivie, V2). **POUSSÉE SUR ORIGIN. EN ATTENTE DU FEU VERT EXPLICITE ADF POUR FUSION.**
 
 ---
 Date de mise à jour : 30/08/2026

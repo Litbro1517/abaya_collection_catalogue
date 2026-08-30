@@ -1109,80 +1109,11 @@ export function CatalogPreview({ onAdminLogin, initialCatalog, initialDatasource
   );
 
   // ═══════════════════════════════════════════════════════════════════════
-  // ── DYNAMIC BREADCRUMBS (only on detail view, scrolls with content) ──
+  // ── DYNAMIC BREADCRUMBS — removed (code mort) ──
+  // Le fil d'Ariane est désormais rendu directement dans ProductPage.tsx
+  // (qui inclut aussi le JSON-LD BreadcrumbList pour Googlebot).
+  // L'ancien renderBreadcrumbs() ici n'était jamais appelé dans le JSX.
   // ═══════════════════════════════════════════════════════════════════════
-  const renderBreadcrumbs = () => {
-    if (!selectedProduct) return null;
-
-    const { section } = selectedProduct;
-    const config = section.config as SectionConfig;
-    const productTitle = config.titleColumn ? getCellValue(selectedProduct.row, config.titleColumn) : '';
-    const sectionTitle = section.title || t('catalog.collection');
-
-    // ━━ SEO: JSON-LD BreadcrumbList schema — Rich Snippets Google ━━
-    // Injecté dans le DOM pour que Googlebot puisse indexer la hiérarchie
-    // du catalogue (Accueil > Collection > Produit).
-    const breadcrumbLd = {
-      "@context": "https://schema.org",
-      "@type": "BreadcrumbList",
-      itemListElement: [
-        { "@type": "ListItem", position: 1, name: catalogName, item: typeof window !== 'undefined' ? window.location.origin : 'https://abaya-collection-catalogue-9dum.vercel.app' },
-        { "@type": "ListItem", position: 2, name: sectionTitle },
-        { "@type": "ListItem", position: 3, name: productTitle },
-      ],
-    };
-
-    return (
-      <nav className="catalog-breadcrumb">
-        {/* JSON-LD BreadcrumbList — invisible for users, readable by Googlebot */}
-        <script
-          type="application/ld+json"
-          dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbLd) }}
-        />
-        <div className="catalog-breadcrumb-inner">
-          {/* Small back arrow for redundancy */}
-          <button
-            onClick={() => setSelectedProduct(null)}
-            className="flex items-center justify-center shrink-0 hover:opacity-60 transition-opacity"
-            aria-label={t('catalog.back')}
-          >
-            {/* VG36.2 Sprint 2: RTL-aware breadcrumb back arrow */}
-            {rtl ? <ArrowRight className="w-3.5 h-3.5" style={{ color: 'var(--muted-foreground)' }} /> : <ArrowLeft className="w-3.5 h-3.5" style={{ color: 'var(--muted-foreground)' }} />}
-          </button>
-
-          {/* Catalog Name segment */}
-          <button
-            className="breadcrumb-segment"
-            style={{ color: 'var(--muted-foreground)' }}
-            onClick={() => setSelectedProduct(null)}
-          >
-            {catalogName}
-          </button>
-
-          <span style={{ color: 'var(--muted-foreground)' }} className="shrink-0">/</span>
-
-          {/* Section Title segment */}
-          <button
-            className="breadcrumb-segment"
-            style={{ color: 'var(--muted-foreground)' }}
-            onClick={() => setSelectedProduct(null)}
-          >
-            {sectionTitle}
-          </button>
-
-          <span style={{ color: 'var(--muted-foreground)' }} className="shrink-0">/</span>
-
-          {/* Current product — bolder, not clickable */}
-          <span
-            className="breadcrumb-segment font-medium truncate"
-            style={{ color: 'var(--pivot-text)', cursor: 'default' }}
-          >
-            {productTitle}
-          </span>
-        </div>
-      </nav>
-    );
-  };
 
   // ═══════════════════════════════════════════════════════════════════════
   // ── PRODUCT DETAIL VIEW — Delegated to ProductPage component ──

@@ -1019,39 +1019,39 @@ Stage Summary:
 - Suivis non-bloquants : i18n des pages 404/500 (AR), global-error.tsx, metadata title de la 404
 
 ---
-Task ID: SEO-HREFLANG-JSONLD
+Task ID: SEO-HREFLANG-JSONLD-V2
 Agent: Agent Développeur
-Task: Optimisation SEO — hreflang (FR/AR) + JSON-LD (Organization + BreadcrumbList)
+Task: V2 correctif SEO — 3 défauts audit ADF (WhatsApp factice, code mort, valeurs hardcodées)
 
 Work Log:
-- Read PROJECT_MAP.md
-- Créé branche isolée feat/seo-hreflang-jsonld depuis main@8e3ced2
+- Poursuivi sur la branche feat/seo-hreflang-jsonld (commit ad039d7)
+- 3 défauts identifiés par audit ADF
 
-CORRECTION 1 — hreflang (FR/AR pour marché marocain MENA):
-- layout.tsx L.126-138: ajout `alternates.languages` avec fr-MA, ar-MA, x-default
-- page.tsx L.83-92: ajout `alternates.languages` (répété car page.tsx generateMetadata écrase celui du layout)
-- Test browser: 3 balises `<link rel="alternate" hreflang="fr-MA|ar-MA|x-default">` présentes ✅
-- Test browser: canonical `https://abaya-collection-catalogue-9dum.vercel.app/` ✅
+DÉFAUT 1 — WhatsApp factice (wa.me/212600000000):
+- layout.tsx: getBrandMetadata() lit settings.whatsappNumber depuis DB
+- JSON-LD Organization: sameAs utilise whatsappNumber dynamique (pas hardcodé)
+- Si whatsappNumber vide → sameAs omis (spread conditionnel)
 
-CORRECTION 2 — JSON-LD Organization (layout.tsx L.219-242):
-- Schema.org Organization: name, url, logo, description, address (MA, Marrakech), sameAs (WhatsApp)
-- Injecté en SSR via `<script type="application/ld+json">` dans le `<head>`
-- Test browser: 1 script `application/ld+json` présent ✅
+DÉFAUT 2 — Code mort renderBreadcrumbs():
+- CatalogPreview.tsx L.1114-1167: renderBreadcrumbs() n'était JAMAIS appelé dans le JSX
+- Le fil d'Ariane réel est dans ProductPage.tsx L.734-744 (rendu dans <main>)
+- Fix: supprimé renderBreadcrumbs() de CatalogPreview (code mort éliminé)
+- Fix: déplacé JSON-LD BreadcrumbList vers ProductPage.tsx (où le breadcrumb est réellement rendu)
 
-CORRECTION 3 — JSON-LD BreadcrumbList (CatalogPreview.tsx L.1122-1141):
-- Schema.org BreadcrumbList: Accueil > Collection > Produit
-- Injecté dans `renderBreadcrumbs` (uniquement sur vue détail produit)
-- 3 items: catalogName, sectionTitle, productTitle
-- Position 1: Accueil (URL origin), Position 2: Section, Position 3: Produit
+DÉFAUT 3 — Valeurs codées en dur:
+- layout.tsx: getBrandMetadata() partagé entre generateMetadata et RootLayout
+  - catalogName: lu depuis DB catalog.name (fallback "Abaya Collection Chic")
+  - whatsappNumber: lu depuis DB CatalogSettings.whatsappNumber
+  - metadataBaseUrl: lu depuis DB Settings.__seo_metadata__.canonicalUrl
+  - dbFavicon: lu depuis DB CatalogSettings.favicon
+- JSON-LD Organization: url, logo, name tous variabilisés
+- BreadcrumbList: items utilisent window.location.origin/href (dynamique)
 
 VALIDATION:
 - lint: 0 erreur, 0 warning ✅
 - build: exit 0 ✅
-- hreflang: 3 balises (fr-MA, ar-MA, x-default) ✅
-- JSON-LD Organization: présent dans le `<head>` SSR ✅
-- canonical: correct ✅
 
 Stage Summary:
-- Branche: feat/seo-hreflang-jsonld (créée depuis main@8e3ced2)
-- 2 fichiers modifiés: layout.tsx (hreflang + JSON-LD Organization), page.tsx (hreflang), CatalogPreview.tsx (JSON-LD BreadcrumbList)
-- **AUCUNE FUSION SUR main — en attente du feu vert explicite**
+- Branche: feat/seo-hreflang-jsonld (V2 correctif)
+- 3 fichiers: layout.tsx (getBrandMetadata + JSON-LD variabilisé), ProductPage.tsx (JSON-LD BreadcrumbList), CatalogPreview.tsx (code mort supprimé)
+- **AUCUNE FUSION SUR main — en attente du feu vert explicite ADF**
