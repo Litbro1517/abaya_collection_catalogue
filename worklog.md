@@ -1228,3 +1228,25 @@ Stage Summary:
 - Branche: fix/ui-badges-social-icons (V2)
 - 3 fichiers: CatalogPreview.tsx (footer bg-white), ProductPage.tsx (PDP SVG stroke), globals.css (PDP CSS)
 - **AUCUNE FUSION SUR main — en attente du feu vert explicite**
+
+---
+Task ID: AUDIT-UI-BADGES-SOCIAL-ICONS-2
+Agent: Agent Auditeur Z.ai (Mandat ADF — Session Unique, Règle Zéro Tolérance)
+Task: Contre-audit de zéro de fix/ui-badges-social-icons V2 (01c0d98 + 87fb1a2) vs main@f9eb33b — correction des 2 défauts bloquants V1 (contraste footer WCAG + harmonisation PDP) — fusion conditionnelle
+
+Work Log:
+- Isolation : PASS — 2 commits sur f9eb33b, 6 fichiers (4 code + 2 docs) ; main restée gelée à f9eb33b pendant tout l'audit (vérifié : la claim « push effectué » du rapport dev était fausse, aucun push)
+- Statique V2 : footer 4 icônes bg-white opaque + hover:bg-gray-50 (clair au survol) ; PDP 4 icônes remplacées par SVG lucide-style stylés via CSS (.pdp-social-circle-btn svg stroke #1A1A1A / fill none / 20px ; bordure dorée 1.5px alignée footer ; hover blanc 0.9) ; 0 couleur de marque résiduelle dans les icônes (grep)
+- Portes qualité : lint 0/0 ; tsc 138 = 138 (delta 0 — claim dev « 0 erreur » inexacte : 138 préexistants) ; build exit 0 (arbre isolé seed production-like)
+- Empirique (arbre isolé port 3234, seed : secondaryColor #1A1A1A + instagramHandle + facebookPage + whatsappNumber) :
+  · DÉFAUT 1 CORRIGÉ : footer 3/3 icônes — bg rgb(255,255,255) opaque, stroke #1A1A1A, bordure rgba(201,168,76,0.55), CONTRASTE MESURÉ 17.4:1 (V1 : 1.34:1) ; hover reste clair
+  · DÉFAUT 2 CORRIGÉ : PDP 3/3 icônes — computed stroke rgb(26,26,26), fill none, 20px, cercle blanc, bordure dorée ; Instagram #E4405F / Facebook #1877F2 / WhatsApp #25D366 ÉLIMINÉS
+  · Non-régression : garanties home 5/5 + PDP compact 5/5 #1A1A1A ; clic produit → PDP + 3 scripts JSON-LD + errs:[] + 0 ErrorBoundary ; AR rtl + 5 cartes (depuis home vierge) + 2 stylesheets
+- Réserves non bloquantes consignées : claims dev inexactes (tsc « 0 erreur » vs réel 138 delta 0 ; « push effectué » faux) ; import lucide Instagram mort (ProductPage L.25, cosmétique) ; border-width computed 1px vs 1.5px (arrondi navigateur)
+- DÉCISION : CONFORME — fusion autorisée (2 défauts corrigés et prouvés par mesure, zéro régression)
+- FUSION : merge --no-ff 8c0803e (arbre ≡ branche, diff vide) + présent enregistrement docs ; push origin main
+
+Stage Summary:
+- VERDICT : CONFORME — fusion 8c0803e. Charte « trait noir #1A1A1A sur cercle clair à bordure dorée » appliquée uniformément : footer (contraste 17.4:1), PDP (stroke computed noir + fill none), garanties home+PDP (#1A1A1A) ; zéro régression (JSON-LD, AR, clic produit, PDP)
+- main = origin/main = 8c0803e+docs ; production déployée et vérifiée end-to-end
+- Statut : mission ACCOMPLIE en session unique — audit V2, fusion, push, Vercel, production

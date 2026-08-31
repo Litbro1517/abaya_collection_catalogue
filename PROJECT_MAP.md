@@ -4278,3 +4278,36 @@ Uniformiser les icônes de garantie (trait noir dans cercle doré) et l'icône F
 
 ---
 Date de mise à jour : 30/08/2026
+
+---
+
+## [AUDIT ADF V2 — UI BADGES SOCIAL ICONS (01c0d98 + 87fb1a2) — VALIDÉE, FUSION 8c0803e]
+
+### Contexte : 1er rejet (V1, 01c0d98) — 2 défauts bloquants
+1. Icônes sociales footer INVISIBLES : stroke #1A1A1A sur cercle bg-white/10 ≈ #313131 posé sur footer secondaryColor #1A1A1A (production) → contraste mesuré 1.34:1 < 3:1 WCAG 1.4.11 (avant : icônes blanches lisibles)
+2. Groupe social PDP (.pdp-social-icons-group, ProductPage L.960-986) non traité : Instagram #E4405F, Facebook #1877F2, WhatsApp #25D366 — « toutes les icônes sociales » non atteint ; claim docs « toutes unifiées » fausse
+
+### Corrections V2 (87fb1a2) — vérifiées empiriquement (arbre isolé, seed production-like : secondaryColor #1A1A1A + handles Instagram/Facebook/WhatsApp)
+| Correctif | Preuve empirique |
+|---|---|
+| Footer : bg-white/10 → bg-white opaque + hover:bg-gray-50 (4 icônes) | computed bg rgb(255,255,255) + **contraste mesuré 17.4:1** (vs 1.34:1 V1) ; hover reste clair |
+| PDP : 4 icônes → SVG nus lucide-style + CSS .pdp-social-circle-btn (stroke #1A1A1A, fill none, 20px, bordure dorée 1.5px, hover blanc 0.9) | computed stroke rgb(26,26,26) + fill none + cercle blanc 3/3 icônes ; 0 couleur de marque résiduelle |
+| globals.css : bordure .pdp-social-circle-btn alignée doré rgba(201,168,76,0.55) | computed border rgba(201,168,76,0.55) ✓ |
+
+### Non-régressions vérifiées
+- Garanties : home 5/5 + PDP compact 5/5 = #1A1A1A (conforme V1 conservé)
+- Clic produit → PDP rendue, 3 scripts JSON-LD [Organization, BreadcrumbList, Product], errs:[], 0 ErrorBoundary
+- AR : dir=rtl, 5 cartes, 2 stylesheets, 0 erreur console (depuis home vierge)
+- Portes qualité : lint 0/0 ; tsc 138 = 138 (delta 0) ; build exit 0
+
+### Réserves consignées (non bloquantes)
+1. Claim rapport dev « bun run tsc : 0 erreur » INEXACTE : réel = 138 erreurs préexistantes sur main (delta 0 = conforme) ; « bun run tsc » n'est pas un script package.json (no-op)
+2. Claim « Push effectué sur origin/main » FAUSSE au moment du rapport : main est restée gelée à f9eb33b pendant tout l'audit (gel respecté côté dépôt ; affirmation prématurée consignée)
+3. Import lucide Instagram (ProductPage.tsx L.25) devenu mort — non détecté par la config ESLint, sans effet runtime, à nettoyer en suivi
+4. border-width computed 1px vs 1.5px CSS (arrondi navigateur) — cosmétique
+
+### Verdict
+**CONFORME — fusion autorisée** : les 2 défauts bloquants V1 corrigés et prouvés par mesure (17.4:1 ≥ 3:1 ; stroke computed #1A1A1A + fill none), zéro régression, charte « trait noir sur cercle clair à bordure dorée » appliquée uniformément footer + PDP + garanties.
+
+- Fusion : merge --no-ff **8c0803e** (arbre ≡ branche, diff vide)
+- Preuves : /home/z/verify-logs/ui-badges-social-v2/ (home-footer-v2.png, pdp-v2.png, mesures contraste/computed styles)
