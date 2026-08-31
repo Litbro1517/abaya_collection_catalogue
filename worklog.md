@@ -1250,3 +1250,17 @@ Stage Summary:
 - VERDICT : CONFORME — fusion 8c0803e. Charte « trait noir #1A1A1A sur cercle clair à bordure dorée » appliquée uniformément : footer (contraste 17.4:1), PDP (stroke computed noir + fill none), garanties home+PDP (#1A1A1A) ; zéro régression (JSON-LD, AR, clic produit, PDP)
 - main = origin/main = 8c0803e+docs ; production déployée et vérifiée end-to-end
 - Statut : mission ACCOMPLIE en session unique — audit V2, fusion, push, Vercel, production
+
+---
+Task ID: AUDIT-UI-BADGES-SOCIAL-ICONS-2-ADDENDUM
+Agent: Agent Auditeur Z.ai
+Task: Addendum déploiement — re-déclenchement build Vercel
+
+Work Log:
+- Fusion 8c0803e + docs 868be69 poussées sur origin/main à ~01:3x
+- Polling production ~11 min (empreinte chunks JS + marqueurs footer/sitemap + cache-busting) : AUCUNE promotion détectée — la prod sert toujours le build f9eb33b (comportement anormal : promotions historiques 50 s–2 min)
+- Hypothèse : webhook GitHub→Vercel non déclenché (ou build échoué/en file). Sans accès dashboard Vercel, remède standard appliqué : présent commit trivial docs pour re-déclencher le pipeline
+- Le code fusionné est identique à la branche auditée (build local exit 0, arbre ≡ branche) — aucune raison connue d'échec de build
+
+Stage Summary:
+- Re-déclenchement du déploiement via commit docs ; statut de la promotion à consigner après vérification
