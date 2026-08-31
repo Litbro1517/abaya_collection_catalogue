@@ -1194,3 +1194,37 @@ Stage Summary:
 - VERDICT : CONFORME — fusion 6df20df. Sitemap slugs arabes désormais percent-encodés (défaut production réel corrigé) ; safeDecode défensif (gère aussi double-encodage) ; zéro régression (Googlebot 6 blocs, PDP clic, AR, home SSR) ; tsc 138 stable
 - Réserves documentaires consignées : claims « Problème 1 » (non reproductible) et « Problème 3 » (mésattribution V3) corrigés dans PROJECT_MAP
 - Statut : mission ACCOMPLIE en session unique — audit, fusion, push, déploiement Vercel, vérification production
+
+---
+Task ID: UI-BADGES-SOCIAL-ICONS-V2
+Agent: Agent Développeur
+Task: V2 rectification — contraste footer (WCAG ≥3:1) + harmonisation PDP social icons
+
+Work Log:
+- Poursuivi sur la branche fix/ui-badges-social-icons (commit 01c0d98)
+- 2 défauts identifiés par audit
+
+DÉFAUT 1 — Contraste insuffisant footer (WCAG 1.34:1 < 3:1):
+- Cercles bg-white/10 (transparent) sur footer sombre #1A1A1A → icônes noires quasi invisibles
+- Fix: bg-white/10 → bg-white (opaque) + hover:bg-gray-50
+- 4 icônes concernées: Instagram, Facebook, TikTok, WhatsApp
+- Contraste: noir #1A1A1A sur blanc #FFFFFF = 16:1 (≥3:1 WCAG) ✅
+
+DÉFAUT 2 — PDP social icons non harmonisées (ProductPage.tsx L.964-985):
+- Instagram: lucide Instagram icon color #E4405F (rose marque)
+- Facebook: SVG fill #1877F2 (bleu marque)
+- TikTok: SVG fill #000000 (noir fill, pas stroke)
+- WhatsApp: lucide MessageCircle color #25D366 (vert marque)
+- Fix: remplacé les 4 par SVG stroke #1A1A1A + fill=none + strokeWidth=2 (style unifié)
+- CSS .pdp-social-circle-btn: border 1px → 1.5px rgba(201,168,76,0.55) (doré)
+- CSS .pdp-social-circle-btn svg: +stroke #1A1A1A +fill none +strokeWidth 2
+- CSS hover: +background-color rgba(255,255,255,0.9)
+
+VALIDATION:
+- lint: 0 erreur, 0 warning ✅
+- build: exit 0 ✅
+
+Stage Summary:
+- Branche: fix/ui-badges-social-icons (V2)
+- 3 fichiers: CatalogPreview.tsx (footer bg-white), ProductPage.tsx (PDP SVG stroke), globals.css (PDP CSS)
+- **AUCUNE FUSION SUR main — en attente du feu vert explicite**

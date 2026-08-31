@@ -153,7 +153,7 @@ function TrustCard({
         />
       </div>
 
-      {/* Glassmorphism circle with gold icon — compact uses smaller circle for PDP column */}
+      {/* Glassmorphism circle with gold-bordered icon — compact uses smaller circle for PDP column */}
       <div
         className={cn(
           'rounded-full flex items-center justify-center transition-transform duration-200 group-hover:scale-105',
@@ -167,7 +167,8 @@ function TrustCard({
           boxShadow: '0 2px 8px rgba(201, 168, 76, 0.12)',
         }}
       >
-        <Icon className={compact ? 'w-4 h-4' : 'w-5 h-5'} style={{ color: '#C9A84C' }} strokeWidth={1.5} />
+        {/* Fix: uniform black stroke icons inside gold-bordered circles */}
+        <Icon className={compact ? 'w-4 h-4' : 'w-5 h-5'} style={{ color: '#1A1A1A' }} strokeWidth={1.5} />
       </div>
 
       {/* Title — anthracite doux (not pure black). Compact = smaller text for PDP. */}

@@ -4235,3 +4235,46 @@ Date de mise à jour : 30/08/2026
 
 - Fusion : merge --no-ff **6df20df** (arbre ≡ branche, diff vide)
 - Preuves : /home/z/verify-logs/arabic-slug-enc/ (sitemaps avant/après, deep-links, googlebot, captures navigateur)
+
+---
+
+## [FIX UI BADGES SOCIAL ICONS — Harmonisation icônes garantie + réseaux sociaux]
+
+### Mandat
+Uniformiser les icônes de garantie (trait noir dans cercle doré) et l'icône Facebook (supprimer fond bleu, contour noir + cercle doré). Branche isolée `fix/ui-badges-social-icons` (créée depuis `main@f9eb33b`).
+
+### Corrections appliquées (3 axes)
+
+#### Axe 1 — Icônes de garantie (TrustGuaranteesSection.tsx)
+- L.170: `color: '#C9A84C'` (or) → `color: '#1A1A1A'` (noir)
+- 5 icônes concernées: Truck, Banknote, ShieldCheck, RefreshCw, Headphones
+- Effet: trait noir net dans cercle à bordure dorée → contraste maximal
+- Appliqué en mode compact (PDP) et non-compact (page d'accueil)
+
+#### Axe 2 — Icône Facebook (CatalogPreview.tsx)
+- Avant: `fill="currentColor"` (bleu #1877F2) + `hover:bg-[#1877F2]` (fond bleu)
+- Après: `stroke="#1A1A1A"` (noir) + `fill="none"` + bordure dorée `rgba(201,168,76,0.55)`
+- SVG lucide-style path au lieu du logo Facebook fill
+
+#### Axe 3 — Icônes Instagram + TikTok + WhatsApp (unification)
+- Toutes les 4 icônes sociales ont maintenant le même style unifié:
+  - Cercle `bg-white/10` + bordure `1.5px solid rgba(201,168,76,0.55)` (doré)
+  - Icône `stroke="#1A1A1A"` (noir) + `fill="none"` + `strokeWidth="2"`
+  - Hover: `bg-white/20` + `scale-110` (pas de couleur de marque)
+- Supprimé: gradients colorés au hover (purple-pink, cyan-red, green)
+
+### Fichiers modifiés (2)
+| # | Fichier | Modification |
+|---|---------|-------------|
+| 1 | `src/components/TrustGuaranteesSection.tsx` | L.170: icônes garantie `color: '#C9A84C'` → `'#1A1A1A'` |
+| 2 | `src/components/preview/CatalogPreview.tsx` | L.1790-1852: 4 icônes sociales (Instagram, Facebook, TikTok, WhatsApp) unifiées: stroke noir + cercle doré |
+
+### Validations
+- `bun run lint`: 0 erreur, 0 warning ✅
+- `bun run build`: exit 0 ✅
+
+### Branche
+`fix/ui-badges-social-icons` (créée depuis `main@f9eb33b`). **POUSSÉE SUR ORIGIN. EN ATTENTE DU FEU VERT EXPLICITE POUR FUSION.**
+
+---
+Date de mise à jour : 30/08/2026
