@@ -2,9 +2,9 @@
  * Lot 1 — DataLayer Analytics Helper (GA4 / Meta Pixel compatible)
  * ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
  * Centralized, type-safe, SSR-guarded helper for pushing e-commerce events
- * to the GTM dataLayer. All call sites use this helper — no direct
- * `window.dataLayer.push()` elsewhere in the app (except merci/page.tsx
- * `purchase` event which predates Lot 1 and stays untouched per mandate).
+ * to the GTM dataLayer. All call sites use this helper — including
+ * merci/page.tsx `purchase` event (integrated in MANDAT 4P to guarantee
+ * `window.dataLayer` initialization before the push).
  *
  * Pattern (Zaraz + GA4 compatible):
  *   pushDataLayer({ event: 'view_item', ecommerce: { currency, value, items } })

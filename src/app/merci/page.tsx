@@ -4,6 +4,7 @@ import { Suspense, useEffect, useRef, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { CheckCircle2, ArrowLeft, ShieldCheck, ShoppingBag, Truck } from 'lucide-react';
 import { useClientTranslation } from '@/lib/i18n';
+import { pushDataLayer } from '@/lib/analytics';
 
 // ── Order type (matches the Prisma Order model) ──
 interface OrderData {
@@ -88,23 +89,28 @@ function MerciContent() {
       0,
     );
 
-    const dl = (window as unknown as Record<string, unknown[]>).dataLayer;
-    if (dl) {
-      dl.push({
-        event: 'purchase',
-        ecommerce: {
-          transaction_id: order.id,
-          value: numericValue,
-          currency: 'MAD',
-          items: ga4Items,
-        },
-        // Flat fields for Meta Pixel compatibility
+    // MANDAT 4P — Tracking reliability fix:
+    // Previously: `if (dl)` guard meant the purchase event was SILENTLY DROPPED
+    // when `window.dataLayer` was not yet initialized (e.g. GTM/Zaraz snippet
+    // not yet executed, or placeholder GTM-XXXXXXX still in place). This caused
+    // loss of conversion tracking data.
+    // Now: use the centralized `pushDataLayer` helper which explicitly initializes
+    // `window.dataLayer = []` if missing before pushing — guaranteeing the
+    // purchase event is ALWAYS recorded, with try/catch safety + SSR guard.
+    pushDataLayer({
+      event: 'purchase',
+      ecommerce: {
+        transaction_id: order.id,
         value: numericValue,
         currency: 'MAD',
-        transaction_id: order.id,
-        order_id: order.id,
-      });
-    }
+        items: ga4Items,
+      },
+      // Flat fields for Meta Pixel compatibility
+      value: numericValue,
+      currency: 'MAD',
+      transaction_id: order.id,
+      order_id: order.id,
+    });
   }, [order, orderItems]);
 
   // Fetch the real order data for the recap

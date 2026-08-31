@@ -1,8 +1,14 @@
 import type { Metadata } from 'next';
+import { notFound } from 'next/navigation';
 import { db } from '@/lib/db';
 import { LandingPageRender } from '@/components/landing/LandingPageRender';
 
 // ── generateMetadata: SEO for landing pages ──
+// MANDAT 4P — Soft 404 fix:
+// When the slug does not resolve to an active landing page, the page body
+// now calls `notFound()` (strict HTTP 404). Here in generateMetadata we emit
+// a `noindex` robots directive so that even if a crawler reads the metadata
+// before the body executes, the page is excluded from the index.
 export async function generateMetadata({
   params,
 }: {
@@ -12,7 +18,10 @@ export async function generateMetadata({
   const page = await db.landingPage.findUnique({ where: { slug } });
 
   if (!page || !page.active) {
-    return { title: 'Page non trouvée' };
+    return {
+      title: 'Page non trouvée',
+      robots: { index: false, follow: true },
+    };
   }
 
   return {
@@ -36,12 +45,10 @@ export default async function LandingPageRoute({
   const page = await db.landingPage.findUnique({ where: { slug } });
 
   if (!page || !page.active) {
-    return (
-      <div style={{ padding: '4rem', textAlign: 'center', fontFamily: 'system-ui' }}>
-        <h1>404 — Page non trouvée</h1>
-        <p>Cette landing page n'existe pas ou n'est plus active.</p>
-      </div>
-    );
+    // MANDAT 4P: emit a strict HTTP 404 Not Found instead of a 200 OK with
+    // an error message body (Soft 404). Next.js renders the dedicated 404
+    // page and sets the correct status code for crawlers.
+    notFound();
   }
 
   // VG40.2: Null guard — skip Prisma query entirely if productId is null.
