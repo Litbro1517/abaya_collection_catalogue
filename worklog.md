@@ -1194,3 +1194,38 @@ Stage Summary:
 - VERDICT : CONFORME — fusion 6df20df. Sitemap slugs arabes désormais percent-encodés (défaut production réel corrigé) ; safeDecode défensif (gère aussi double-encodage) ; zéro régression (Googlebot 6 blocs, PDP clic, AR, home SSR) ; tsc 138 stable
 - Réserves documentaires consignées : claims « Problème 1 » (non reproductible) et « Problème 3 » (mésattribution V3) corrigés dans PROJECT_MAP
 - Statut : mission ACCOMPLIE en session unique — audit, fusion, push, déploiement Vercel, vérification production
+
+---
+Task ID: UI-BADGES-SOCIAL-ICONS
+Agent: Agent Développeur
+Task: Harmonisation icônes garantie + réseaux sociaux (contour noir + cercle doré)
+
+Work Log:
+- Read PROJECT_MAP.md + inspection TrustGuaranteesSection + CatalogPreview footer social icons
+- Créé branche isolée fix/ui-badges-social-icons depuis main@f9eb33b
+
+CORRECTION 1 — Icônes de garantie (TrustGuaranteesSection.tsx L.170):
+- Avant: Icon color '#C9A84C' (or) → trait doré sur fond glassmorphisme doré → contraste faible
+- Après: Icon color '#1A1A1A' (noir) → trait noir net dans cercle à bordure dorée → contraste maximal
+- Appliqué aux 5 icônes: Truck, Banknote, ShieldCheck, RefreshCw, Headphones
+- Concerné: page d'accueil (non-compact) + page produit (compact)
+
+CORRECTION 2 — Icône Facebook (CatalogPreview.tsx L.1806-1820):
+- Avant: fill="currentColor" (bleu Facebook #1877F2) + hover:bg-[#1877F2] (fond bleu)
+- Après: stroke="#1A1A1A" (noir) + fill="none" + bordure dorée rgba(201,168,76,0.55)
+- SVG lucide-style (path "M18 2h-3a5 5 0 0 0-5 5v3H7v4h3v8h4v-8h3l1-4h-4V7a1 1 0 0 1 1-1h3z")
+
+CORRECTION 3 — Icônes Instagram + TikTok + WhatsApp (unification):
+- Instagram: stroke="#1A1A1A" + bordure dorée (était: gradient purple-pink-orange au hover)
+- TikTok: stroke="#1A1A1A" + bordure dorée (était: gradient cyan-red-black + fill currentColor)
+- WhatsApp: stroke="#1A1A1A" + bordure dorée (était: bg-[#25D366] green + fill currentColor)
+- Toutes les 4 icônes sociales ont maintenant le même style: cercle bg-white/10 + bordure dorée + icône stroke noir
+
+VALIDATION:
+- lint: 0 erreur, 0 warning ✅
+- build: exit 0 ✅
+
+Stage Summary:
+- Branche: fix/ui-badges-social-icons (créée depuis main@f9eb33b)
+- 2 fichiers: TrustGuaranteesSection.tsx (icônes garantie noir), CatalogPreview.tsx (4 icônes sociales unifiées)
+- **AUCUNE FUSION SUR main — en attente du feu vert explicite**
