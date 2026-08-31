@@ -1386,3 +1386,37 @@ Stage Summary:
 - 4 correctifs livrés et vérifiés (lint 0, HTTP 404 strict sur 2 routes, robots noindex sur ?product invalide, dataLayer purchase event confirmé)
 - main NON touché (interdiction PARTIE 1 respectée)
 - **ENGAGEMENT : aucun merge vers main sans feu vert explicite de l'audit (MANDAT ADF)**
+
+---
+Task ID: MANDAT-4P-DEPLOY
+Agent: Main Orchestrator
+Task: MANDAT 4P — Feu vert audit ADF reçu, fusion + push main + vérification production
+
+Work Log:
+- Feu vert explicite reçu de l'audit ADF (validation 100 %)
+- Découvert divergence : local main (25a8789) vs origin/main (964f1ab) — même commit message, arbres différents (origin avait upload/route.ts + assets binaires)
+- Reset local main vers origin/main (964f1ab) comme source de vérité
+- Découvert nouvelle divergence pendant le merge : origin/main avait avancé à 26eb1a7 (V3 social icons merge 200148d poussé séparément par audit sandbox)
+- Reset local main vers 26eb1a7 (dernier origin/main)
+- Merge --no-ff fix/soft404-tracking-merci → 1 conflit worklog.md (les deux branches appendaient des entries) résolu en gardant les DEUX côtés (entries V3 + entry MANDAT-4P)
+- Conflit PROJECT_MAP.md auto-résolu (git auto-merge)
+- Merge commit final : 54b2a29 (parents: 26eb1a7 + db0e796)
+- Lint : 0 erreur, 0 warning ✅
+- Vérification contenu merge : les 4 fichiers fix présents sur main fusionné (pushDataLayer ×3, notFound ×4+3, robotsIndex ×4)
+- Push origin main : 26eb1a7..54b2a29 → succès ✅
+- Vercel build : 2 projets (my-project + abaya-collection-catalogue-9dum) → status "success" / "Deployment has completed" ✅ (via GitHub commit status API)
+- Vérification post-déploiement PRODUCTION (https://abaya-collection-catalogue-9dum.vercel.app) :
+  - TEST 1 — /product-meta/<invalide> → HTTP 404 ✅ (était 200 — Soft 404 corrigé)
+  - TEST 2 — /lp/<invalide> → HTTP 404 ✅ (était 200 — Soft 404 corrigé)
+  - TEST 3 — /?product=<invalide> → `<meta name="robots" content="noindex, follow"/>` ✅ (était index, follow)
+  - TEST 4 — / → `<meta name="robots" content="index, follow"/>` ✅ (non-régression confirmée)
+  - TEST 5 — /merci?order_id=test → HTTP 200, 0 erreur console ✅
+  - TEST 6 — Page 404 brandée : titre "Produit non trouvé — Abaya Collection", corps "404 / Page introuvable / La page que vous recherchez n'existe pas ou a été déplacée / Retour au catalogue" (not-found.tsx custom, pas le 404 Next.js par défaut) ✅
+  - TEST 7 — pushDataLayer dans bundle JS production : chunk 2h566f1xz6qcr.js contient le code minifié `Array.isArray(t.dataLayer)||(t.dataLayer=[]),t.dataLayer.push(e)` — preuve que l'initialisation window.dataLayer=[] si manquant est DÉPLOYÉE en production ✅
+
+Stage Summary:
+- Merge commit : 54b2a29 sur main (pushé sur origin)
+- Vercel : 2/2 projets déployés avec succès
+- Production vérifiée : 7/7 tests passés (4 fixes + non-régression + page 404 brandée + code pushDataLayer dans bundle)
+- Zéro régression (design, SSR, routes valides intacts)
+- Branche fix/soft404-tracking-merci conservée sur origin pour traçabilité (peut être supprimée après archivage)
