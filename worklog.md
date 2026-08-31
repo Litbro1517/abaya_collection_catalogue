@@ -1279,3 +1279,44 @@ Work Log:
 
 Stage Summary:
 - Audit et fusion ACCOMPLIS (main = 47e1898 : merge 8c0803e + docs) ; déploiement Vercel NON OBSERVÉ à la clôture de session — ACTION REQUISE PROPRIÉTAIRE : vérifier dashboard Vercel → Deployments (statut du build déclenché par 868be69/47e1898), puis re-déployer si nécessaire
+Task ID: UI-BADGES-SOCIAL-ICONS-V3-REVERT-FOOTER
+Agent: Agent Développeur
+Task: V3 rectificatif — revert footer social icons (CatalogPreview.tsx) à l'état initial, préservation PDP + garanties
+
+Work Log:
+- Poursuivi sur la branche fix/ui-badges-social-icons (HEAD précédent: 87fb1a2 V2)
+- Mandat reçu: le fond blanc opaque (bg-white) sur footer sombre #1A1A1A ne correspond pas au choix esthétique attendu → revenir à l'état initial du footer
+
+ANALYSE:
+- Lecture des commits V1 (01c0d98) et V2 (87fb1a2) pour identifier exactement l'état initial
+- État initial sur main (f9eb33b) du footer social icons:
+  • Instagram: bg-white/10 + hover gradient purple-500/pink-500/orange-400 + shadow pink-500/30
+  • Facebook: bg-white/10 + hover bg-[#1877F2] + fill=currentColor path FB brand
+  • TikTok: bg-white/10 + hover gradient [#00f2ea]/[#ff0050]/[#000000] + fill=currentColor path TT brand
+  • WhatsApp: bg-white/10 + hover bg-[#25D366] + fill=currentColor path WA brand
+
+ACTION DE REVERT (CatalogPreview.tsx):
+- Utilisé `git checkout f9eb33b -- src/components/preview/CatalogPreview.tsx` pour restaurer le fichier à l'état exact de main
+- Diff: 1 file changed, 15 insertions(+), 20 deletions(-) — uniquement la section footer social icons (L.~1787-1850)
+- Aucune autre partie du fichier affectée
+
+PRÉSERVATION (non touchés par le revert):
+- ProductPage.tsx (PDP social icons): 4 SVG stroke #1A1A1A + fill none + strokeWidth 2 — HARMONISATION CONSERVÉE
+- TrustGuaranteesSection.tsx (garantie badges): Icon color #1A1A1A (black) — CORRECTIF V1 CONSERVÉ
+- globals.css (.pdp-social-circle-btn): border 1.5px gold + svg stroke #1A1A1A + hover bg-white/90 — CORRECTIF V2 CONSERVÉ
+
+VALIDATION:
+- lint: 0 erreur, 0 warning (exit 0) ✅
+- diff stat: 1 fichier modifié (CatalogPreview.tsx uniquement) ✅
+- PDP + garanties + CSS inchangés (vérifié via git diff f9eb33b..HEAD) ✅
+
+COMMIT:
+- Hash: 001ad05
+- Message: "fix(V3): revert footer social icons to initial state (brand colors)"
+- Push: 87fb1a2..001ad05 → origin/fix/ui-badges-social-icons ✅
+
+Stage Summary:
+- Branche: fix/ui-badges-social-icons (V3) — commit 001ad05 poussé sur origin
+- Footer: ÉTAT INITIAL RESTAURÉ (cercles transparents bg-white/10 + couleurs marque hover + SVG paths marque)
+- PDP, garanties, CSS: INTACTS (V1 + V2 conservés)
+- **AUCUNE FUSION SUR main — en attente du feu vert explicite et de l'audit préalable**
