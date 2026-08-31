@@ -1264,3 +1264,18 @@ Work Log:
 
 Stage Summary:
 - Re-déclenchement du déploiement via commit docs ; statut de la promotion à consigner après vérification
+
+---
+Task ID: AUDIT-UI-BADGES-SOCIAL-ICONS-2-DEPLOY-STATUS
+Agent: Agent Auditeur Z.ai
+Task: Statut final déploiement Vercel — fusion 8c0803e
+
+Work Log:
+- Fusion 8c0803e poussée (868be69) à ~01:35, re-trigger docs poussé (47e1898) à ~01:47
+- Polling production ~22 min cumulées (empreinte chunks JS md5, marqueurs sitemap/footer, cache-busting, en-têtes x-vercel) : AUCUNE promotion — production sert toujours le build f9eb33b (sitemap %D8 intact = déploiement du mandat précédent)
+- Comportement ANORMAL : promotions historiques 50 s–2 min après push. 2 pushes sur main sans déploiement → pipeline Vercel probablement en échec/blocage (build error côté Vercel, quota, ou webhook désactivé) — l'auditeur n'a pas d'accès dashboard pour trancher
+- Le code fusionné est identique à la branche auditée : build local exit 0 (arbre isolé), arbre merge ≡ branche — aucune cause de code connue
+- Production actuelle = f9eb33b : SAINNE, ne contient ni V1 ni V2 de la branche UI → aucune régression en ligne ; les correctifs UI prendront effet dès que le pipeline Vercel sera réparé
+
+Stage Summary:
+- Audit et fusion ACCOMPLIS (main = 47e1898 : merge 8c0803e + docs) ; déploiement Vercel NON OBSERVÉ à la clôture de session — ACTION REQUISE PROPRIÉTAIRE : vérifier dashboard Vercel → Deployments (statut du build déclenché par 868be69/47e1898), puis re-déployer si nécessaire
