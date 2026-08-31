@@ -1420,3 +1420,40 @@ Stage Summary:
 - Production vérifiée : 7/7 tests passés (4 fixes + non-régression + page 404 brandée + code pushDataLayer dans bundle)
 - Zéro régression (design, SSR, routes valides intacts)
 - Branche fix/soft404-tracking-merci conservée sur origin pour traçabilité (peut être supprimée après archivage)
+
+---
+Task ID: MANDAT-4P-DEADCODE
+Agent: Main Orchestrator
+Task: MANDAT 4P — Éradication code mort buildConversionLink() dans CatalogPreview.tsx (branche isolée fix/clean-dead-code)
+
+Work Log:
+- Lu worklog.md pour contexte préalable ; vérifié git state : main@fdc1ba7, clean, sync avec origin
+- AUDIT : grep buildConversionLink dans CatalogPreview.tsx → 1 occurrence (définition ligne 644), 0 call sites → fonction morte confirmée
+- AUDIT : la fonction référençait `columns` (ligne 654) comme identifiant libre — aucune variable `columns` dans le scope du composant (existe uniquement comme propriété dans les entrées de `sections[]`)
+- AUDIT baseline tsc : 138 erreurs total (120 dans src/ + 18 dans scripts root)
+- AUDIT spécifique CatalogPreview.tsx : 3 erreurs tsc
+  - L.550 (hors scope) : TS2345 string|undefined → string (pré-existante, non touchée)
+  - L.654 (DANS buildConversionLink) : TS2304 Cannot find name 'columns'
+  - L.662 (DANS buildConversionLink) : TS2739 labels missing greetingA/greetingB
+- Créé branche isolée `fix/clean-dead-code` depuis main@fdc1ba7
+- FIX : suppression chirurgicale de la fonction buildConversionLink() (lignes 644-676, 33 lignes)
+- FIX complémentaire : suppression de l'import devenu orphelin `import { buildWhatsappLink } from '@/lib/whatsapp'` (ligne 24) — buildWhatsappLink n'était référencé QUE dans buildConversionLink ; sans cette suppression, ESLint aurait signalé un import inutilisé
+- Vérification post-fix :
+  - `bun run lint` : 0 erreur, 0 warning ✅ (inchangé)
+  - `npx tsc --noEmit` : 138 → **136** erreurs (-2) ✅
+  - CatalogPreview.tsx : 3 → 1 erreur (seule L.549 reste, hors scope du mandat)
+  - Les 2 erreurs parasitaires (L.654 columns + L.662 labels) sont ÉLIMINÉES ✅
+- Commit `7d0c921` créé sur fix/clean-dead-code (1 file changed, 35 deletions)
+- Push sur origin : succès, branche distante créée
+
+Stage Summary:
+- Branche isolée : `fix/clean-dead-code` (créée depuis main@fdc1ba7)
+- Commit : `7d0c921` (1 file changed, 35 deletions, 0 insertions)
+- Branche distante : https://github.com/Litbro1517/abaya_collection_catalogue/tree/fix/clean-dead-code
+- PR URL : https://github.com/Litbro1517/abaya_collection_catalogue/pull/new/fix/clean-dead-code
+- Portée : exclusivement buildConversionLink() (PARTIE 1 respectée)
+- Lint : 0/0 ✅ ; tsc : 138→136 (-2 erreurs parasitaires éliminées)
+- main NON touché
+- **ENGAGEMENT : aucun merge vers main sans feu vert explicite de l'audit**
+
+Note sur l'objectif "sous 104" : le décompte tsc de base était 138 (et non ~106 comme le mandat le suggérait). La correction chirurgicale a éliminé les 2 erreurs parasitaires de buildConversionLink (138→136). Atteindre le seuil de 104 nécessiterait des mandats additionnels ciblant les ~32 erreurs restantes dans d'autres fichiers (GoogleDrivePicker.tsx, Header.tsx, SettingsPillar.tsx, dictionaries.ts, seed.ts, etc.) — hors du périmètre chirurgical de ce mandat.
