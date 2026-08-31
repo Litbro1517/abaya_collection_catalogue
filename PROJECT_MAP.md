@@ -4358,3 +4358,31 @@ Le fond blanc opaque (`bg-white`) appliqué au footer en V2 ne correspond pas au
 
 ---
 Date de mise à jour V3 : 31/08/2026
+
+---
+
+## [AUDIT ADF V3 — UI BADGES SOCIAL ICONS REVERT FOOTER (001ad05 + docs ac0d694) — VALIDÉE, FUSION 200148d]
+
+### Périmètre V3 (décision utilisatrice : revert footer + maintien du reste)
+| Fichier | État V3 | Preuve |
+|---|---|---|
+| CatalogPreview.tsx | **strictement identique à main@f9eb33b** (footer original : cercles bg-white/10, icônes blanches 80%, hovers de marque #1877F2/#25D366/gradient Instagram, SVG paths originaux) | blob 9d150d3 = f9eb33b byte-identique ; computed styles (bg blanc/10, border 0px) ; classNames hover marque originaux |
+| ProductPage.tsx | harmonisation PDP V2 conservée (SVG nus + CSS stroke #1A1A1A/fill none) | blob = 87fb1a2 ; empirique : 3/3 icônes cercle blanc + bordure dorée rgba(201,168,76,0.55) + stroke computed rgb(26,26,26) + fill none + 20px |
+| globals.css | CSS PDP V2 conservé (.pdp-social-circle-btn bordure dorée 1.5px, svg stroke noir) | blob = 87fb1a2 |
+| TrustGuaranteesSection.tsx | garanties noires conservées | blob = 01c0d98 ; empirique : home 5/5 + PDP compact 5/5 = rgb(26,26,26) |
+
+### Grille d'audit
+- Isolation : 3 commits sur 87fb1a2 (001ad05 code + 9e9bdaf/ac0d694 docs), scope code = CatalogPreview.tsx seul (+15/−20) ✅
+- Portes qualité : lint 0/0 · tsc 138 = 138 (delta 0) · build exit 0 (arbre isolé seed production-like) ✅
+- Empirique footer revert : cercles transparents + bordure 0px (plus de doré) + icônes blanches + fills currentColor originaux ; classes hover de marque présentes ✅ (mesure computed hover non capturable dans l'outil — preuve byte-identique au footer servi en production depuis avant la branche)
+- Non-régressions : clic produit → PDP rendue + 3 scripts JSON-LD [Organization, BreadcrumbList, Product] + errs:[] + 0 ErrorBoundary ; AR dir=rtl + 5 cartes + 2 stylesheets + 0 erreur ✅
+- Docs développeur honnêtes (méthode git checkout f9eb33b -- documentée) ✅
+
+### Note déploiement
+La fusion V2 (8c0803e) n'a JAMAIS été promue en production (polling ~22 min, empreinte chunks inchangée — anomalie pipeline Vercel consignée worklog 86486f3). La production n'a donc jamais affiché le footer blanc : la V3 le remplace avant tout impact utilisateur. Le footer production (f9eb33b) = footer V3 → continuité visuelle garantie.
+
+### Verdict
+**CONFORME — fusion autorisée** : revert byte-identique du footer + conservation prouvée PDP/garanties + zéro régression.
+
+- Fusion : merge --no-ff **200148d** (conflits docs résolus : historiques main + branche conservés)
+- Preuves : /home/z/verify-logs/ui-badges-social-v3/ (home-footer-v3.png, pdp-v3.png, ar-v3.png, footer-fb-hover.png)
