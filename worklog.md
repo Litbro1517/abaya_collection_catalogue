@@ -1134,3 +1134,41 @@ WORK LOG:
 Stage Summary:
 - 3e itération validée : les 3 défauts V2 corrigés + bonus TS2339 éliminé ; zéro régression ; SEO SSR Googlebot 100 % conforme pour slugs arabes
 - Suivi non-bloquant : #418 préexistant (chantier séparé : ssrLocale en props + textes caches-tolerants)
+
+---
+Task ID: ARABIC-SLUG-SSR-ENCODING
+Agent: Agent Développeur
+Task: Correction encodage slug arabe SSR + sitemap Mojibake + JSON-LD conditionnel
+
+Work Log:
+- Read PROJECT_MAP.md + analyse des 3 problèmes constatés (tests PowerShell production)
+- Créé branche isolée fix/arabic-slug-ssr-encoding depuis main@d6c448a
+
+PROBLÈME 1 — SSR searchParams non décodé (page.tsx):
+- Next.js 16 passe searchParams tel quel → Arabic arrive percent-encodé
+- resolveProduct(productSlug) recevait '%D8%B9%D8%A8...' au lieu de 'عباية...'
+- → "Produit non trouvé" pour 100% des slugs arabes en SSR
+- Fix: ajout safeDecode() (decodeURIComponent avec try/catch) appliqué sur params?.product
+
+PROBLÈME 2 — Sitemap Mojibake (sitemap.ts L.80):
+- `url: ${baseUrl}/?product=${product.slug}` concaténait le slug brut (Arabic)
+- → Double encodage UTF-8 lors de la sérialisation XML → Mojibake (Ø¹Ø¨Ø§ÙØ©)
+- Fix: `encodeURIComponent(product.slug)` → percent-encoding propre (%D8%B9%D8%A8%D8%A7...)
+
+PROBLÈME 3 — JSON-LD absent pour slugs arabes:
+- Le JSON-LD BreadcrumbList/Product n'était jamais injecté car le produit n'était pas trouvé
+- Fix: le correctif du problème 1 (safeDecode) fait que resolveProduct trouve le produit
+- → le JSON-LD est maintenant injecté dans le HTML SSR
+
+VALIDATION (tests curl locaux):
+- sitemap.xml: URLs Arabic proprement percent-encodées (%D8%B9... au lieu de Ø¹Ø¨Ø§ÙØ©) ✅
+- page.tsx ?product=عباية-صيفية: product-card présent (pas "Produit non trouvé") ✅
+- page.tsx title: "عباية صيفية — Abaya Collection Chic" (produit trouvé) ✅
+- /product-meta/عباية-صيفية: BreadcrumbList + application/ld+json présents ✅
+- lint: 0 erreur ✅
+- build: exit 0 ✅
+
+Stage Summary:
+- Branche: fix/arabic-slug-ssr-encoding (créée depuis main@d6c448a)
+- 2 fichiers modifiés: page.tsx (safeDecode), sitemap.ts (encodeURIComponent)
+- **AUCUNE FUSION SUR main — en attente du feu vert explicite**

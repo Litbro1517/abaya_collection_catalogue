@@ -4162,3 +4162,48 @@ Date de mise à jour : 30/08/2026
 
 ---
 Date de mise à jour : 30/08/2026 (audit V3 + fusion)
+
+---
+
+## [FIX ARABIC SLUG SSR ENCODING — Décodage searchParams + sitemap Mojibake + JSON-LD]
+
+### Mandat
+Corriger 3 problèmes d'encodage Arabic en SSR: searchParams non décodés, sitemap Mojibake, JSON-LD absent pour slugs arabes. Branche isolée `fix/arabic-slug-ssr-encoding` (créée depuis `main@d6c448a`).
+
+### Corrections appliquées (3 axes)
+
+#### Axe 1 — SSR searchParams decode (page.tsx)
+- Ajout `safeDecode()` (decodeURIComponent avec try/catch)
+- Appliqué sur `params?.product` avant `resolveProduct(productSlug)`
+- Résultat: les slugs arabes percent-encodés sont décodés avant résolution → produit trouvé en SSR
+
+#### Axe 2 — Sitemap Mojibake (sitemap.ts L.80)
+- `url: ${baseUrl}/?product=${product.slug}` → `url: ${baseUrl}/?product=${encodeURIComponent(product.slug)}`
+- Résultat: les caractères arabes sont percent-encodés proprement (%D8%B9...) au lieu du Mojibake (Ø¹Ø¨Ø§ÙØ©)
+
+#### Axe 3 — JSON-LD conditionnel (automatique)
+- Le JSON-LD BreadcrumbList/Product était absent car le produit n'était pas trouvé (problème 1)
+- Le correctif du problème 1 (safeDecode) fait que resolveProduct trouve le produit → le JSON-LD est injecté
+
+### Fichiers modifiés (2)
+| # | Fichier | Modification |
+|---|---------|-------------|
+| 1 | `src/app/page.tsx` | +`safeDecode()`, appliqué sur `params?.product` avant `resolveProduct` |
+| 2 | `src/app/sitemap.ts` | L.80: `product.slug` → `encodeURIComponent(product.slug)` |
+
+### Validations (tests curl locaux)
+| Test | Avant | Après |
+|------|-------|-------|
+| sitemap.xml URLs Arabic | Ø¹Ø¨Ø§ÙØ© (Mojibake) | %D8%B9%D8%A8%D8%A7%D9%8A%D8%A9 (percent-encodé propre) ✅ |
+| page.tsx ?product=عباية-صيفية | "Produit non trouvé" | product-card présent ✅ |
+| page.tsx title | "Abaya Collection Chic — Catalogue" | "عباية صيفية — Abaya Collection Chic" ✅ |
+| /product-meta/عباية-صيفية | Produit non trouvé | BreadcrumbList + ld+json présents ✅ |
+
+- `bun run lint`: 0 erreur, 0 warning ✅
+- `bun run build`: exit 0 ✅
+
+### Branche
+`fix/arabic-slug-ssr-encoding` (créée depuis `main@d6c448a`). **POUSSÉE SUR ORIGIN. EN ATTENTE DU FEU VERT EXPLICITE POUR FUSION.**
+
+---
+Date de mise à jour : 30/08/2026
