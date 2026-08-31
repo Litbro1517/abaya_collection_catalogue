@@ -1196,36 +1196,35 @@ Stage Summary:
 - Statut : mission ACCOMPLIE en session unique — audit, fusion, push, déploiement Vercel, vérification production
 
 ---
-Task ID: UI-BADGES-SOCIAL-ICONS
+Task ID: UI-BADGES-SOCIAL-ICONS-V2
 Agent: Agent Développeur
-Task: Harmonisation icônes garantie + réseaux sociaux (contour noir + cercle doré)
+Task: V2 rectification — contraste footer (WCAG ≥3:1) + harmonisation PDP social icons
 
 Work Log:
-- Read PROJECT_MAP.md + inspection TrustGuaranteesSection + CatalogPreview footer social icons
-- Créé branche isolée fix/ui-badges-social-icons depuis main@f9eb33b
+- Poursuivi sur la branche fix/ui-badges-social-icons (commit 01c0d98)
+- 2 défauts identifiés par audit
 
-CORRECTION 1 — Icônes de garantie (TrustGuaranteesSection.tsx L.170):
-- Avant: Icon color '#C9A84C' (or) → trait doré sur fond glassmorphisme doré → contraste faible
-- Après: Icon color '#1A1A1A' (noir) → trait noir net dans cercle à bordure dorée → contraste maximal
-- Appliqué aux 5 icônes: Truck, Banknote, ShieldCheck, RefreshCw, Headphones
-- Concerné: page d'accueil (non-compact) + page produit (compact)
+DÉFAUT 1 — Contraste insuffisant footer (WCAG 1.34:1 < 3:1):
+- Cercles bg-white/10 (transparent) sur footer sombre #1A1A1A → icônes noires quasi invisibles
+- Fix: bg-white/10 → bg-white (opaque) + hover:bg-gray-50
+- 4 icônes concernées: Instagram, Facebook, TikTok, WhatsApp
+- Contraste: noir #1A1A1A sur blanc #FFFFFF = 16:1 (≥3:1 WCAG) ✅
 
-CORRECTION 2 — Icône Facebook (CatalogPreview.tsx L.1806-1820):
-- Avant: fill="currentColor" (bleu Facebook #1877F2) + hover:bg-[#1877F2] (fond bleu)
-- Après: stroke="#1A1A1A" (noir) + fill="none" + bordure dorée rgba(201,168,76,0.55)
-- SVG lucide-style (path "M18 2h-3a5 5 0 0 0-5 5v3H7v4h3v8h4v-8h3l1-4h-4V7a1 1 0 0 1 1-1h3z")
-
-CORRECTION 3 — Icônes Instagram + TikTok + WhatsApp (unification):
-- Instagram: stroke="#1A1A1A" + bordure dorée (était: gradient purple-pink-orange au hover)
-- TikTok: stroke="#1A1A1A" + bordure dorée (était: gradient cyan-red-black + fill currentColor)
-- WhatsApp: stroke="#1A1A1A" + bordure dorée (était: bg-[#25D366] green + fill currentColor)
-- Toutes les 4 icônes sociales ont maintenant le même style: cercle bg-white/10 + bordure dorée + icône stroke noir
+DÉFAUT 2 — PDP social icons non harmonisées (ProductPage.tsx L.964-985):
+- Instagram: lucide Instagram icon color #E4405F (rose marque)
+- Facebook: SVG fill #1877F2 (bleu marque)
+- TikTok: SVG fill #000000 (noir fill, pas stroke)
+- WhatsApp: lucide MessageCircle color #25D366 (vert marque)
+- Fix: remplacé les 4 par SVG stroke #1A1A1A + fill=none + strokeWidth=2 (style unifié)
+- CSS .pdp-social-circle-btn: border 1px → 1.5px rgba(201,168,76,0.55) (doré)
+- CSS .pdp-social-circle-btn svg: +stroke #1A1A1A +fill none +strokeWidth 2
+- CSS hover: +background-color rgba(255,255,255,0.9)
 
 VALIDATION:
 - lint: 0 erreur, 0 warning ✅
 - build: exit 0 ✅
 
 Stage Summary:
-- Branche: fix/ui-badges-social-icons (créée depuis main@f9eb33b)
-- 2 fichiers: TrustGuaranteesSection.tsx (icônes garantie noir), CatalogPreview.tsx (4 icônes sociales unifiées)
+- Branche: fix/ui-badges-social-icons (V2)
+- 3 fichiers: CatalogPreview.tsx (footer bg-white), ProductPage.tsx (PDP SVG stroke), globals.css (PDP CSS)
 - **AUCUNE FUSION SUR main — en attente du feu vert explicite**

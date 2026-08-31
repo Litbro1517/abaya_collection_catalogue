@@ -3852,7 +3852,7 @@ html.rtl .pdp-social-icons-group {
   height: 40px;
   border-radius: 50%;
   background-color: #FFFFFF;
-  border: 1px solid var(--border-soft, #EAE4DC);
+  border: 1.5px solid rgba(201, 168, 76, 0.55);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -3865,11 +3865,17 @@ html.rtl .pdp-social-icons-group {
 .pdp-social-circle-btn svg {
   width: 20px !important;
   height: 20px !important;
+  stroke: #1A1A1A;
+  fill: none;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
 }
 
 .pdp-social-circle-btn:hover {
   border-color: var(--gold-accent, #C5A059);
   transform: translateY(-2px);
+  background-color: rgba(255, 255, 255, 0.9);
 }
 
 /* ── Guarantees row ── */

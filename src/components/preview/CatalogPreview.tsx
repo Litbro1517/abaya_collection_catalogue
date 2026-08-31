@@ -1794,7 +1794,7 @@ export function CatalogPreview({ onAdminLogin, initialCatalog, initialDatasource
                         target="_blank"
                         rel="noopener noreferrer"
                         aria-label={t('footer.instagram')}
-                        className="group flex items-center justify-center w-9 h-9 rounded-full bg-white/10 hover:bg-white/20 transition-all duration-300 hover:scale-110"
+                        className="group flex items-center justify-center w-9 h-9 rounded-full bg-white hover:bg-gray-50 transition-all duration-300 hover:scale-110"
                         style={{ border: '1.5px solid rgba(201, 168, 76, 0.55)' }}
                       >
                         <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="#1A1A1A" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -1811,7 +1811,7 @@ export function CatalogPreview({ onAdminLogin, initialCatalog, initialDatasource
                         target="_blank"
                         rel="noopener noreferrer"
                         aria-label={t('footer.facebook')}
-                        className="group flex items-center justify-center w-9 h-9 rounded-full bg-white/10 hover:bg-white/20 transition-all duration-300 hover:scale-110"
+                        className="group flex items-center justify-center w-9 h-9 rounded-full bg-white hover:bg-gray-50 transition-all duration-300 hover:scale-110"
                         style={{ border: '1.5px solid rgba(201, 168, 76, 0.55)' }}
                       >
                         <svg className="w-4 h-4 text-white/80 group-hover:text-white transition-colors" viewBox="0 0 24 24" fill="none" stroke="#1A1A1A" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -1826,7 +1826,7 @@ export function CatalogPreview({ onAdminLogin, initialCatalog, initialDatasource
                         target="_blank"
                         rel="noopener noreferrer"
                         aria-label={t('footer.tiktok')}
-                        className="group flex items-center justify-center w-9 h-9 rounded-full bg-white/10 hover:bg-white/20 transition-all duration-300 hover:scale-110"
+                        className="group flex items-center justify-center w-9 h-9 rounded-full bg-white hover:bg-gray-50 transition-all duration-300 hover:scale-110"
                         style={{ border: '1.5px solid rgba(201, 168, 76, 0.55)' }}
                       >
                         <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="#1A1A1A" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -1841,7 +1841,7 @@ export function CatalogPreview({ onAdminLogin, initialCatalog, initialDatasource
                         target="_blank"
                         rel="noopener noreferrer"
                         aria-label={t('footer.whatsapp')}
-                        className="group flex items-center justify-center w-9 h-9 rounded-full bg-white/10 hover:bg-white/20 transition-all duration-300 hover:scale-110"
+                        className="group flex items-center justify-center w-9 h-9 rounded-full bg-white hover:bg-gray-50 transition-all duration-300 hover:scale-110"
                         style={{ border: '1.5px solid rgba(201, 168, 76, 0.55)' }}
                       >
                         <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="#1A1A1A" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
