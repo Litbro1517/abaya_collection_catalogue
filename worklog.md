@@ -965,3 +965,48 @@ Work Log:
 Stage Summary:
 - VERDICT : CONFORME après remédiation typage f8b8102 — 4 niveaux de défense validés empiriquement, plus aucun 500, console client propre, non-régression totale (périmètre limité à la route translate)
 - main = merge 13dad25 + docs ; origin mis à jour ; production vérifiée post-déploiement (voir enregistrement suivant)
+
+---
+Task ID: MANDAT-4P
+Agent: Main Orchestrator
+Task: MANDAT 4P — Fix critique Soft 404 & Tracking /merci (branche isolée, attente feu vert audit)
+
+Work Log:
+- Lu PROJECT_MAP.md et worklog.md pour contexte préalable (obligation PARTIE 1)
+- Vérifié état git : sur main@25a8789, working tree clean, 0 conflit
+- Créé branche isolée `fix/soft404-tracking-merci` depuis main@25a8789 (interdiction de toucher main respectée)
+- AUDIT 4 fichiers cibles :
+  - src/app/merci/page.tsx : `const dl = window.dataLayer; if (dl) { dl.push() }` → l'événement purchase était SILENCIEUSEMENT dropé quand dataLayer non pré-initialisé
+  - src/app/product-meta/[slug]/page.tsx : `if (!product) return <div>...<h1>Produit non trouvé</h1>...</div>` → HTTP 200 + corps HTML = Soft 404
+  - src/app/lp/[slug]/page.tsx : `if (!page || !page.active) return <div>...<h1>404 — Page non trouvée</h1>...</div>` → HTTP 200 + corps HTML = Soft 404
+  - src/app/page.tsx : `robots: { index: true, follow: true }` inconditionnel, même pour ?product=<invalide>
+- FIX 1 (merci/page.tsx) : import `pushDataLayer` depuis `@/lib/analytics` ; remplacement du bloc `if (dl) { dl.push({...}) }` par `pushDataLayer({...})` — le helper initialise explicitement `window.dataLayer = []` si manquant + try/catch + garde SSR
+- FIX 1bis (analytics.ts) : mise à jour du commentaire d'en-tête (merci/page.tsx n'est plus l'exception "stays untouched per mandate")
+- FIX 2 (product-meta/[slug]/page.tsx) : import `notFound` de `next/navigation` ; `if (!product) notFound()` dans le body (HTTP 404 strict) ; generateMetadata retourne `robots: { index: false, follow: true }` quand produit introuvable (défense en profondeur)
+- FIX 3 (lp/[slug]/page.tsx) : import `notFound` de `next/navigation` ; `if (!page || !page.active) notFound()` dans le body (HTTP 404 strict) ; generateMetadata retourne `robots: { index: false, follow: true }` quand LP introuvable/inactive
+- FIX 4 (page.tsx) : nouveau flag `robotsIndex` (défaut true) basculé à false quand ?product=<slug> non résolu ou exception ; `robots: { index: robotsIndex, follow: true }`
+- VALIDATION lint : `bun run lint` → 0 erreur, 0 warning ✅
+- VALIDATION HTTP (curl) :
+  - /product-meta/<invalide> → 404 ✅ (était 200)
+  - /lp/<invalide> → 404 ✅ (était 200)
+  - /?product=<invalide> → 200 + meta noindex ✅
+  - / → 200 + meta index ✅
+  - /merci?order_id=<valide> → 200 ✅
+- VALIDATION navigateur (agent-browser) :
+  - Pages 404 Next.js natives rendues pour /product-meta/<invalide> et /lp/<invalide> (titre "404: This page could not be found."), 0 erreur console
+  - /?product=<invalide> : `<meta name="robots" content="noindex, follow"/>` confirmé
+  - / : `<meta name="robots" content="index, follow"/>` confirmé
+  - /merci?order_id=<valide> (ordre de test créé en DB puis supprimé) : `window.dataLayer` contient l'événement `purchase` avec payload complet (transaction_id, value=290, currency=MAD, items[] avec item_id/sku/item_name/price/quantity/item_variant/item_size + champs plats Meta Pixel) — push réussi même sans snippet GTM pré-chargé
+- Mise à jour PROJECT_MAP.md : nouvelle section [MANDAT 4P — FIX CRITIQUE SOFT 404 & TRACKING /MERCI] documentant les 4 correctifs, 5 fichiers modifiés, validations, et engagement d'attente du feu vert
+- Commit `00ef866` créé sur la branche (6 files changed, 144 insertions, 41 deletions)
+- Push sur origin : `git push origin fix/soft404-tracking-merci` → succès, branche distante créée
+- Nettoyage : ordre de test supprimé de la DB, fichiers temporaires /tmp/*.mjs supprimés
+
+Stage Summary:
+- Branche isolée : `fix/soft404-tracking-merci` (créée depuis main@25a8789)
+- Commit : `00ef866` (6 files changed, 144 insertions, 41 deletions)
+- Branche distante : https://github.com/Litbro1517/abaya_collection_catalogue/tree/fix/soft404-tracking-merci
+- PR URL : https://github.com/Litbro1517/abaya_collection_catalogue/pull/new/fix/soft404-tracking-merci
+- 4 correctifs livrés et vérifiés (lint 0, HTTP 404 strict sur 2 routes, robots noindex sur ?product invalide, dataLayer purchase event confirmé)
+- main NON touché (interdiction PARTIE 1 respectée)
+- **ENGAGEMENT : aucun merge vers main sans feu vert explicite de l'audit (MANDAT ADF)**
