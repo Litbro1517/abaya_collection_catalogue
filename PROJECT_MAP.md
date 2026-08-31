@@ -4278,3 +4278,51 @@ Uniformiser les icônes de garantie (trait noir dans cercle doré) et l'icône F
 
 ---
 Date de mise à jour : 30/08/2026
+
+## [FIX UI BADGES SOCIAL ICONS V2 — Contraste footer WCAG + PDP harmonisation]
+
+### Mandat
+Corriger 2 défauts identifiés par audit de la V1: (1) contraste insuffisant du footer (WCAG 1.34:1 < 3:1) à cause des cercles transparents `bg-white/10` sur fond sombre #1A1A1A ; (2) PDP social icons non harmonisées (couleurs marque FB/IG/TikTok/WA conservées). Commit `87fb1a2` sur la même branche `fix/ui-badges-social-icons`.
+
+### Corrections V2
+1. **Footer (CatalogPreview.tsx)** : `bg-white/10` → `bg-white` (opaque) + `hover:bg-gray-50` — contraste 16:1
+2. **PDP (ProductPage.tsx L.964-985)** : 4 SVG → stroke `#1A1A1A` + fill none + strokeWidth 2 (style unifié lucide)
+3. **CSS (globals.css)** : `.pdp-social-circle-btn` border 1px → 1.5px gold + svg stroke + hover bg-white/90
+
+---
+
+## [FIX UI BADGES SOCIAL ICONS V3 — REVERT FOOTER, PRÉSERVATION PDP + GARANTIES]
+
+### Mandat (RECTIFICATIF V3)
+Le fond blanc opaque (`bg-white`) appliqué au footer en V2 ne correspond pas au choix esthétique attendu. **Revert du footer** à son état initial exact (cercles transparents + couleurs marque + SVG paths marque), tout en **préservant** les correctifs V1 (garanties) et V2 (PDP + CSS). Commit `001ad05` sur la même branche `fix/ui-badges-social-icons`.
+
+### Action de revert (CatalogPreview.tsx)
+- `git checkout f9eb33b -- src/components/preview/CatalogPreview.tsx` — restauration du fichier à l'état exact de `main`
+- Diff: 1 fichier, +15/-20 lignes — **uniquement** la section footer social icons (L.~1787-1850)
+- Aucune autre partie du fichier affectée
+
+### État restauré du footer (sur fond sombre #1A1A1A)
+| # | Icône | bg initial | Hover initial | SVG path |
+|---|-------|-------------|---------------|----------|
+| 1 | Instagram | `bg-white/10` | gradient `purple-500/pink-500/orange-400` + shadow pink-500/30 | lucide rect+circle+line, `stroke="currentColor"` |
+| 2 | Facebook | `bg-white/10` | `bg-[#1877F2]` + shadow blue-500/30 | brand fill path `M24 12.073...`, `fill="currentColor"` |
+| 3 | TikTok | `bg-white/10` | gradient `[#00f2ea]/[#ff0050]/[#000000]` + shadow red-500/30 | brand fill path `M19.59 6.69...`, `fill="currentColor"` |
+| 4 | WhatsApp | `bg-white/10` | `bg-[#25D366]` + shadow green-500/30 | brand fill path `M17.472 14.382...`, `fill="currentColor"` |
+
+### Préservation (NON touchés par le revert)
+| # | Fichier | Correctif | Statut |
+|---|---------|-----------|--------|
+| 1 | `src/components/preview/ProductPage.tsx` | PDP 4 SVG stroke #1A1A1A + gold border circle (V2) | ✅ CONSERVÉ |
+| 2 | `src/components/TrustGuaranteesSection.tsx` | Icon color #1A1A1A dans cercle doré (V1) | ✅ CONSERVÉ |
+| 3 | `src/app/globals.css` | `.pdp-social-circle-btn` border 1.5px gold + svg stroke #1A1A1A + hover bg-white/90 (V2) | ✅ CONSERVÉ |
+
+### Validations V3
+- `bun run lint`: exit 0 (0 erreur, 0 warning) ✅
+- Diff stat: 1 fichier modifié (CatalogPreview.tsx uniquement) ✅
+- PDP + garanties + CSS inchangés (vérifié via `git diff f9eb33b..HEAD`) ✅
+
+### Branche
+`fix/ui-badges-social-icons` (commit `001ad05` + worklog `9e9bdaf`). **POUSSÉE SUR ORIGIN. AUCUNE FUSION SUR main — EN ATTENTE DU FEU VERT EXPLICITE ET DE L'AUDIT PRÉALABLE.**
+
+---
+Date de mise à jour V3 : 31/08/2026
