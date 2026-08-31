@@ -1457,3 +1457,43 @@ Stage Summary:
 - **ENGAGEMENT : aucun merge vers main sans feu vert explicite de l'audit**
 
 Note sur l'objectif "sous 104" : le décompte tsc de base était 138 (et non ~106 comme le mandat le suggérait). La correction chirurgicale a éliminé les 2 erreurs parasitaires de buildConversionLink (138→136). Atteindre le seuil de 104 nécessiterait des mandats additionnels ciblant les ~32 erreurs restantes dans d'autres fichiers (GoogleDrivePicker.tsx, Header.tsx, SettingsPillar.tsx, dictionaries.ts, seed.ts, etc.) — hors du périmètre chirurgical de ce mandat.
+
+---
+Task ID: MANDAT-4P-DEADCODE-DEPLOY
+Agent: Main Orchestrator
+Task: MANDAT 4P dead code — Feu vert audit ADF reçu, fusion + push main + vérification production
+
+Work Log:
+- Feu vert explicite reçu de l'audit ADF (validation 100 %, confirmée par agent Claude)
+- Vérifié état git : local main @ fdc1ba7 ≡ origin/main @ fdc1ba7 (sync 0 behind), working tree clean
+- Merge --no-ff fix/clean-dead-code → main (stratégie 'ort', auto-merge sans conflit)
+  - 2 fichiers modifiés : CatalogPreview.tsx (-35 lignes) + worklog.md (+37 lignes)
+- Merge commit : 515076d (parent : fdc1ba7)
+- Vérification contenu merge sur main :
+  - `buildConversionLink` : 0 occurrence (supprimé) ✅
+  - `buildWhatsappLink` import : 0 occurrence (supprimé) ✅
+- Validation post-merge sur main :
+  - `bun run lint` : 0 erreur, 0 warning ✅
+  - `npx tsc --noEmit` : 136 erreurs (138 → 136, -2 parasitiques éliminées) ✅
+  - CatalogPreview.tsx : 3 → 1 erreur (seule L.549 reste, hors scope mandat)
+  - buildConversionLink/columns parasitic errors : 0 (éliminées) ✅
+- Push origin main : fdc1ba7..515076d → succès ✅
+- Vercel build : 2/2 projets (my-project + abaya-collection-catalogue-9dum) → status "success" / "Deployment has completed" ✅ (via GitHub commit status API)
+- Vérification post-déploiement PRODUCTION (https://abaya-collection-catalogue-9dum.vercel.app) :
+  - TEST 1 — / → HTTP 200 (4.6s) ✅
+  - TEST 2 — Catalogue rendu en SSR : 16 product-card trouvées dans le HTML (classes `.product-card`, `.product-card-action`, `.product-card-image-wrap`) ✅
+  - TEST 3 — /merci → HTTP 200 (pas de crash) ✅
+  - TEST 4 — /product-meta/invalide → HTTP 404 (fix MANDAT 4P précédent préservé) ✅
+  - TEST 5 — Vercel headers : x-vercel-cache MISS (fresh deploy) ✅
+  - TEST 6 — agent-browser : 16 product cards rendues, 0 erreur console, page title "Abaya Collection Chic — Catalogue" ✅
+- Zéro régression : le retrait du code mort n'a aucun impact fonctionnel (buildConversionLink n'avait aucun call site)
+
+Stage Summary:
+- Merge commit : 515076d sur main (pushé sur origin)
+- Vercel : 2/2 projets déployés avec succès
+- Production vérifiée : 6/6 tests passés (homepage, catalogue SSR, /merci, /product-meta 404, Vercel headers, agent-browser)
+- tsc : 138 → 136 (-2 erreurs parasitaires éliminées)
+- lint : 0/0 inchangé
+- Zéro régression (16 product cards rendues, 0 erreur console)
+- Branche fix/clean-dead-code conservée sur origin pour traçabilité
+- Mission MANDAT 4P dead code CLOSC
