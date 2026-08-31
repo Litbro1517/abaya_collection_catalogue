@@ -21,7 +21,6 @@ import { TrustGuaranteesSection } from '@/components/TrustGuaranteesSection';
 import { useCartStore } from '@/lib/cart-store';
 import { CheckoutPage, type CheckoutPayload } from './CheckoutPage';
 import { useClientTranslation } from '@/lib/i18n';
-import { buildWhatsappLink } from '@/lib/whatsapp';
 import { toast } from 'sonner';
 import { computeDiscount, getCompareAtPrice } from '@/lib/discount-utils';
 import { pushDataLayer, buildEcommerceItem, parsePriceToNumber } from '@/lib/analytics';
@@ -640,40 +639,6 @@ export function CatalogPreview({ onAdminLogin, initialCatalog, initialDatasource
 
     return images;
   }, []);
-
-  const buildConversionLink = (row: Row, config: SectionConfig): string => {
-    const title = getCellValue(row, config.titleColumn || '');
-    const price = getCellValue(row, config.priceColumn || '');
-    const phone = s?.whatsappNumber || '';
-
-    // Use resolvedConversionChannel (URL param ?mode= overrides admin setting)
-    if (resolvedConversionChannel === 'whatsapp' && phone) {
-      // Catalog card level: no variant selection yet (color/size/quantity).
-      // The full dynamic link (with variants) is built in ProductPage.tsx when
-      // the user opens the product detail. Here we just pre-fill title + price + image.
-      const cardImages = getCarouselImages(row, config, columns);
-      const imageUrl = cardImages[0] ? resolveDirectImageUrl(cardImages[0], 800) : '';
-      return buildWhatsappLink({
-        phone,
-        title,
-        price,
-        imageUrl,
-        customMessage: s?.conversionMessage || undefined,
-        labels: {
-          greeting: t('whatsapp.message'),
-          priceLabel: t('product.price'),
-          colorLabel: t('product.color'),
-          sizeLabel: t('product.size'),
-          quantityLabel: t('product.quantity'),
-        },
-      });
-    }
-    // Landing mode: no direct external link — the CTA triggers the COD form
-    if (resolvedConversionChannel === 'landing') {
-      return '#cod-form';
-    }
-    return '#';
-  };
 
   // ── Email click handler — Méthode Hybride (DEBT-5 restauré) ──
   // 1. Tente la copie dans le presse-papier SI l'API est disponible
