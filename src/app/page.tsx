@@ -64,6 +64,15 @@ export async function generateMetadata({ searchParams }: PageProps): Promise<Met
   let pageTitle = seo.title;
   let pageDescription = seo.description;
   let ogImage = seo.ogImage;
+  // MANDAT 4P — Meta Robots fallback for invalid ?product= slug:
+  // When a human visitor (or crawler) lands on /?product=<invalide>,
+  // resolveProduct() returns null. Previously the page kept indexing tags
+  // (`robots: { index: true, follow: true }`) — Googlebot would index a
+  // homepage canonical URL under an invalid product query, creating
+  // duplicate / low-quality signals. Now we flip to `noindex` so the
+  // invalid-query variant is excluded from the index, while still
+  // following outbound links.
+  let robotsIndex = true;
   if (productSlug) {
     try {
       const product = await resolveProduct(productSlug);
@@ -71,9 +80,13 @@ export async function generateMetadata({ searchParams }: PageProps): Promise<Met
         pageTitle = `${product.title} — ${seo.title.split(' — ')[0] || 'Catalogue'}`;
         pageDescription = product.description || seo.description;
         if (product.coverUrl) ogImage = product.coverUrl;
+      } else {
+        // Product slug provided but not found in DB → exclude from index
+        robotsIndex = false;
       }
     } catch {
-      // Product not found — fall back to generic SEO metadata
+      // Product lookup errored → exclude from index (defensive)
+      robotsIndex = false;
     }
   }
 
@@ -106,7 +119,7 @@ export async function generateMetadata({ searchParams }: PageProps): Promise<Met
       images: [ogImage],
     },
     robots: {
-      index: true,
+      index: robotsIndex,
       follow: true,
     },
   };

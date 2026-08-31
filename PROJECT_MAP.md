@@ -3969,4 +3969,79 @@ Corriger l'erreur HTTP 500 sur `/api/translate` qui apparaît en production (Ver
 `fix/translate-api-500` (créée depuis `main@ce16a9c`). **POUSSÉE SUR ORIGIN. EN ATTENTE DU FEU VERT EXPLICITE POUR FUSION.**
 
 ---
+
+## [MANDAT 4P — FIX CRITIQUE SOFT 404 & TRACKING /MERCI]
+
+### Mandat
+Correction de 3 défauts critiques identifiés lors des audits SSR et de la validation du tunnel de conversion avant lancement officiel :
+1. **Tracking Purchase** : la page `/merci` échouait silencieusement à envoyer l'événement `purchase` quand `window.dataLayer` n'était pas pré-initialisé.
+2. **Soft 404 SEO** : `product-meta/[slug]/page.tsx` et `lp/[slug]/page.tsx` renvoyaient HTTP 200 OK avec un message d'erreur HTML pour tout slug introuvable → Google Search Console flaguait ces routes en Soft 404.
+3. **Meta Robots** : `/?product=<invalide>` conservait des balises d'indexation (`index, follow`) même quand le produit n'existait pas en base → duplication de signaux SEO.
+
+### Solution technique — 4 correctifs
+
+#### Fix 1 — Tracking `/merci` (`src/app/merci/page.tsx`)
+- **Avant** : `const dl = window.dataLayer; if (dl) { dl.push({...}) }` — le garde `if (dl)` faisait que l'événement `purchase` était **silencieusement dropé** quand `window.dataLayer` n'était pas encore initialisé (GTM/Zaraz snippet non chargé, ou placeholder `GTM-XXXXXXX` toujours en place).
+- **Après** : utilisation du helper centralisé `pushDataLayer()` (de `src/lib/analytics.ts`) qui :
+  1. Initialise explicitement `window.dataLayer = []` si manquant
+  2. Pousse l'événement dans tous les cas
+  3. Wrappé dans `try/catch` (le tracking ne peut jamais casser l'UX)
+  4. Garde SSR `typeof window === 'undefined'` → no-op côté serveur
+- Le payload enrichi (GA4 + Meta Pixel compatible) est préservé : `event`, `ecommerce.{transaction_id, value, currency, items[]}`, et champs plats `value`, `currency`, `transaction_id`, `order_id`.
+- Commentaire du module `analytics.ts` mis à jour pour refléter que `merci/page.tsx` utilise désormais le helper (la note "stays untouched per mandate" est obsolète).
+
+#### Fix 2 — Soft 404 `product-meta/[slug]/page.tsx`
+- **Avant** : `if (!product) return (<div>...<h1>Produit non trouvé</h1>...</div>)` → HTTP 200 OK + corps HTML d'erreur = Soft 404.
+- **Après** : `import { notFound } from 'next/navigation'` ; `if (!product) notFound()` → Next.js émet un **HTTP 404 strict** et rend la page 404 dédiée.
+- `generateMetadata` retourne désormais `robots: { index: false, follow: true }` quand le produit est introuvable (défense en profondeur : même si un crawler lit les meta avant le body, la page est exclue de l'index).
+
+#### Fix 3 — Soft 404 `lp/[slug]/page.tsx`
+- **Avant** : `if (!page || !page.active) return (<div>...<h1>404 — Page non trouvée</h1>...</div>)` → HTTP 200 OK + corps HTML = Soft 404.
+- **Après** : `import { notFound } from 'next/navigation'` ; `if (!page || !page.active) notFound()` → **HTTP 404 strict**.
+- `generateMetadata` retourne `robots: { index: false, follow: true }` quand la landing page est introuvable/inactive.
+
+#### Fix 4 — Meta Robots `src/app/page.tsx`
+- **Avant** : `robots: { index: true, follow: true }` inconditionnel, même quand `?product=<invalide>` était demandé et `resolveProduct()` retournait `null`.
+- **Après** : nouveau flag `robotsIndex` (défaut `true`) basculé à `false` quand :
+  - `productSlug` est fourni ET `resolveProduct()` retourne `null`, OU
+  - `resolveProduct()` lance une exception (défensif)
+- `robots: { index: robotsIndex, follow: true }` → la variante `/?product=<invalide>` émet `noindex, follow` (exclue de l'index, liens sortants toujours suivis).
+
+### Fichiers modifiés (5)
+| # | Fichier | Changement |
+|---|---------|-----------|
+| 1 | `src/app/merci/page.tsx` | Import `pushDataLayer` ; remplacement `if (dl) { dl.push() }` → `pushDataLayer({...})` (init garantie) |
+| 2 | `src/lib/analytics.ts` | Mise à jour du commentaire d'en-tête (merci/page.tsx n'est plus l'exception) |
+| 3 | `src/app/product-meta/[slug]/page.tsx` | Import `notFound` ; `if (!product) notFound()` dans le body + `robots: noindex` dans generateMetadata |
+| 4 | `src/app/lp/[slug]/page.tsx` | Import `notFound` ; `if (!page \|\| !page.active) notFound()` dans le body + `robots: noindex` dans generateMetadata |
+| 5 | `src/app/page.tsx` | Flag `robotsIndex` basculé à `false` si `?product=` non résolu ; `robots.index: robotsIndex` |
+
+### Validations (toutes vérifiées)
+- `bun run lint` : 0 erreur, 0 warning ✅
+- Serveur dev : hot-reload OK, 0 erreur runtime ✅
+- HTTP status codes (curl) :
+  - `/product-meta/<invalide>` → **404** ✅ (était 200)
+  - `/lp/<invalide>` → **404** ✅ (était 200)
+  - `/?product=<invalide>` → **200** (page rendue, meta noindex) ✅
+  - `/` → **200** ✅
+  - `/merci?order_id=<valide>` → **200** ✅
+- Robots meta (curl + agent-browser) :
+  - `/?product=<invalide>` → `<meta name="robots" content="noindex, follow"/>` ✅
+  - `/` → `<meta name="robots" content="index, follow"/>` ✅
+- Pages 404 (agent-browser) :
+  - `/product-meta/<invalide>` → titre "404: This page could not be found." + corps 404 Next.js natif, 0 erreur console ✅
+  - `/lp/<invalide>` → titre "404: This page could not be found." + corps 404 Next.js natif, 0 erreur console ✅
+- Tracking `/merci` (agent-browser + eval `window.dataLayer`) :
+  - Avec un order_id valide en base, `window.dataLayer` contient l'événement `purchase` avec payload complet : `transaction_id`, `value`, `currency: 'MAD'`, `items[]` (item_id, sku, item_name, price, quantity, item_variant, item_size) + champs plats Meta Pixel ✅
+  - Le push réussit même quand `window.dataLayer` n'était pas pré-initialisé par un snippet GTM/Zaraz (preuve que le helper initialise bien le tableau) ✅
+- Non-régression : `?product=<valide>` continue de résoudre le produit et d'émettre `index, follow` ✅
+- Non-régression : page `/merci` sans `order_id` rend sans crash ✅
+
+### Branche
+`fix/soft404-tracking-merci` (créée depuis `main@25a8789`). **POUSSÉE SUR ORIGIN. EN ATTENTE DU FEU VERT EXPLICITE DE L'AUDIT (MANDAT ADF) AVANT TOUTE FUSION VERS MAIN.**
+
+### Engagement
+Conformément à la PARTIE 1 du MANDAT 4P : **aucun merge vers `main` ne sera exécuté sans feu vert explicite de l'audit**. La branche `fix/soft404-tracking-merci` reste isolée jusqu'à validation.
+
+---
 Date de mise à jour : 29/08/2026

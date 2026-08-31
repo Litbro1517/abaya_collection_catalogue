@@ -1,4 +1,5 @@
 import { Metadata } from 'next';
+import { notFound } from 'next/navigation';
 import { resolveProduct } from '@/lib/products';
 
 /**
@@ -12,6 +13,12 @@ import { resolveProduct } from '@/lib/products';
  * The visitor's URL bar always shows /?product=slug — this route is an implementation detail.
  *
  * Product resolution logic is now shared via src/lib/products.ts (resolveProduct).
+ *
+ * MANDAT 4P — Soft 404 fix:
+ * When the slug does not resolve to a product, we now call `notFound()` which
+ * makes Next.js emit a strict HTTP 404 status (instead of a 200 OK with an
+ * error message body). This prevents Google Search Console from flagging
+ * the route as a Soft 404 and consolidates link equity correctly.
  */
 
 // ── Generate metadata for social crawlers ──
@@ -27,17 +34,14 @@ export async function generateMetadata({
   const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'https://abaya-collection-catalogue-9dum.vercel.app';
 
   if (!product) {
+    // MANDAT 4P: previously returned a 200 OK with a generic title, which
+    // Googlebot treated as a Soft 404 (real page answering a non-existent
+    // resource). Now we return a noindex metadata; the page body calls
+    // notFound() which emits a strict HTTP 404.
     return {
       title: 'Produit non trouvé — Abaya Collection',
       description: 'Ce produit n\'existe pas ou a été retiré.',
-      openGraph: {
-        title: 'Abaya Collection',
-        description: 'Découvrez notre collection exclusive d\'abayas, robes et ensembles.',
-        url: baseUrl,
-        siteName: 'Abaya Collection',
-        type: 'website',
-        locale: 'fr_MA',
-      },
+      robots: { index: false, follow: true },
     };
   }
 
@@ -76,12 +80,10 @@ export default async function ProductMetaPage({
   const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'https://abaya-collection-catalogue-9dum.vercel.app';
 
   if (!product) {
-    return (
-      <div style={{ padding: '2rem', fontFamily: 'system-ui, sans-serif' }}>
-        <h1>Produit non trouvé</h1>
-        <p>Ce produit n&apos;existe pas ou a été retiré du catalogue.</p>
-      </div>
-    );
+    // MANDAT 4P: emit a strict HTTP 404 Not Found instead of a 200 OK with
+    // an error message body (Soft 404). Next.js renders the dedicated
+    // 404 page and sets the correct status code for crawlers.
+    notFound();
   }
 
   return (
