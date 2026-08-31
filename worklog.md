@@ -1172,3 +1172,25 @@ Stage Summary:
 - Branche: fix/arabic-slug-ssr-encoding (créée depuis main@d6c448a)
 - 2 fichiers modifiés: page.tsx (safeDecode), sitemap.ts (encodeURIComponent)
 - **AUCUNE FUSION SUR main — en attente du feu vert explicite**
+
+---
+Task ID: AUDIT-ARABIC-SLUG-SSR-ENCODING
+Agent: Agent Auditeur Z.ai (Mandat ADF — Session Unique, Règle Zéro Tolérance)
+Task: Audit préalable de fix/arabic-slug-ssr-encoding (223e91d) vs main@d6c448a — safeDecode searchParams + sitemap encodeURIComponent — fusion conditionnelle
+
+Work Log:
+- Isolation PASS : 1 commit sur d6c448a, 4 fichiers (page.tsx +12/-1, sitemap.ts +7/-1, 2 docs) ; main gelée pendant l'audit
+- Portes qualité : lint 0/0 ; tsc 138 = 138 (delta 0) ; build exit 0 (arbres isolés branche + témoin main, seed distinctif audit-seo-v2.example.com)
+- T1 SITEMAP (livrable réel) : branche = 5/5 <loc> percent-encodés (%D8%B9…) ; témoin main = slugs arabes bruts — défaut confirmé ÉGALEMENT sur production live avant fusion
+- T2 deep-link UA Chrome : title produit + canonical simple-encodé IDENTIQUE branche/main → searchParams arrivent déjà décodés (local Next 16.2.9 + Vercel prod) → prémisse « Problème 1 » non reproductible ; scénario double-encodé (PowerShell) testé : branche résout, main échoue → observation dev expliquée, safeDecode = durcissement défensif
+- T3 Googlebot + slug arabe : 6 blocs JSON-LD, 0 « Produit non trouvé », IDENTIQUE branche/main → claim « Problème 3 JSON-LD réactivé » = mésattribution (mérite V3/aaa52d3 déjà fusionnée)
+- T4 home non-régression : 60 product-card SSR, 3 hreflang, canonical + Organization dynamiques DB (name + sameAs seed distinctifs)
+- T5 clic produit réel navigateur ×2 sessions : PDP rendue, 3 scripts [Organization, BreadcrumbList, Product], 0 ReferenceError, 0 ErrorBoundary, URL client percent-encodée (le défaut fatal V2 ne récidive pas) ; BreadcrumbList : 3 ListItem, baseUrl DB distinctif, URLs encodées
+- T6 AR : dir=rtl, 5 cartes, 2 stylesheets, 0 erreur console, 0 #418
+- DÉCISION : CONFORME — fusion autorisée (zéro bug, zéro régression, défaut production réel corrigé) ; inexactitudes documentaires corrigées dans l'enregistrement d'audit PROJECT_MAP
+- FUSION : merge --no-ff 6df20df (arbre ≡ branche, diff vide) + présent enregistrement docs ; push origin main
+
+Stage Summary:
+- VERDICT : CONFORME — fusion 6df20df. Sitemap slugs arabes désormais percent-encodés (défaut production réel corrigé) ; safeDecode défensif (gère aussi double-encodage) ; zéro régression (Googlebot 6 blocs, PDP clic, AR, home SSR) ; tsc 138 stable
+- Réserves documentaires consignées : claims « Problème 1 » (non reproductible) et « Problème 3 » (mésattribution V3) corrigés dans PROJECT_MAP
+- Statut : mission ACCOMPLIE en session unique — audit, fusion, push, déploiement Vercel, vérification production

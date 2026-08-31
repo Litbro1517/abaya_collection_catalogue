@@ -4207,3 +4207,31 @@ Corriger 3 problèmes d'encodage Arabic en SSR: searchParams non décodés, site
 
 ---
 Date de mise à jour : 30/08/2026
+
+---
+
+## [AUDIT ADF — ARABIC SLUG SSR ENCODING (fix/arabic-slug-ssr-encoding @ 223e91d) — VALIDÉ, FUSION 6df20df]
+
+### Grille d'audit (auditeur, session unique, arbre isolé seed distinctif)
+
+| Contrôle | Résultat |
+|---|---|
+| Isolation : 1 commit 223e91d sur d6c448a, 4 fichiers (2 code + 2 docs) | ✅ |
+| lint 0/0 · tsc 138 = 138 (delta 0, zéro erreur nouvelle) · build exit 0 | ✅ |
+| **Sitemap** : 5/5 URLs produits percent-encodées (%D8%B9…) — témoin main@d6c448a : slugs arabes bruts (défaut confirmé aussi sur production live) | ✅ défaut réel corrigé |
+| Deep-link ?product=<arabe encodé> UA Chrome : title produit + canonical simple-encodé — comportement IDENTIQUE sur main (searchParams arrivent déjà décodés, local Next 16.2.9 et Vercel prod) | ✅ non-régression |
+| Googlebot + slug arabe : 6 blocs JSON-LD (Organization/BreadcrumbList/Product/Brand/Offer/PostalAddress), 0 « Produit non trouvé » — IDENTIQUE main | ✅ non-régression V3 |
+| Home : 60 product-card SSR, 3 hreflang (fr-MA/ar-MA/x-default), canonical + Organization dynamiques DB | ✅ |
+| **Clic produit réel navigateur (×2 sessions)** : PDP rendue, 3 scripts JSON-LD, 0 ReferenceError, 0 ErrorBoundary, URLs percent-encodées | ✅ |
+| Mode AR : dir=rtl, 5 cartes, CSS intact, 0 erreur console | ✅ |
+
+### Réserves documentaires consignées (corrections d'attribution)
+1. **Claim « Problème 1 »** (searchParams systématiquement percent-encodés → « Produit non trouvé » pour 100% des slugs arabes en SSR page.tsx) : **non reproductible** — searchParams arrivent décodés (vérifié production Vercel + arbre isolé local). L'observation du développeur provient d'URLs double-encodées (PowerShell) : testé — branche résout le double-encodé, main échoue. safeDecode = durcissement défensif légitime, no-op dans les flux standards.
+2. **Claim « Problème 3 »** (JSON-LD « réactivé » par ce fix) : **mésattribution** — l'injection JSON-LD pour slugs arabes (ghost-route /product-meta) a été corrigée par V3 (aaa52d3, fusion 2161f4f incluse dans d6c448a). Preuve : Googlebot sur main@d6c448a isolé = 6 blocs identiques à la branche. Ce diff ne modifie AUCUN chemin d'injection JSON-LD.
+3. La ligne « page.tsx ?product=… : product-card présent » du tableau de validation décrit en réalité le comportement de la ghost-route (page.tsx ne rend jamais de product-card conditionnel).
+
+### Verdict
+**CONFORME — fusion autorisée** : zéro bug, zéro régression ; correctif sitemap réel (défaut de production signalé depuis l'audit 360°) ; safeDecode défensif inoffensif. Les inexactitudes documentaires ci-dessus ne constituent pas de régression code (règle zéro tolérance) et sont corrigées par le présent enregistrement.
+
+- Fusion : merge --no-ff **6df20df** (arbre ≡ branche, diff vide)
+- Preuves : /home/z/verify-logs/arabic-slug-enc/ (sitemaps avant/après, deep-links, googlebot, captures navigateur)
