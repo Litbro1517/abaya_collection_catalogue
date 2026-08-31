@@ -1320,3 +1320,25 @@ Stage Summary:
 - Footer: ÉTAT INITIAL RESTAURÉ (cercles transparents bg-white/10 + couleurs marque hover + SVG paths marque)
 - PDP, garanties, CSS: INTACTS (V1 + V2 conservés)
 - **AUCUNE FUSION SUR main — en attente du feu vert explicite et de l'audit préalable**
+
+---
+Task ID: AUDIT-UI-BADGES-SOCIAL-ICONS-3
+Agent: Agent Auditeur Z.ai (Mandat ADF — Session Unique, Règle Zéro Tolérance)
+Task: Audit de la rectification V3 de fix/ui-badges-social-icons (001ad05 + docs ac0d694) vs main@86486f3 — revert footer état initial + maintien PDP/garanties — fusion conditionnelle
+
+Work Log:
+- Isolation : PASS — 3 commits sur 87fb1a2, scope code = CatalogPreview.tsx seul (+15/−20) ; main (86486f3 = V2 fusionnée + docs) gelée pendant l'audit
+- Preuve BYTE-LEVEL du revert : blob CatalogPreview.tsx @001ad05 = 9d150d3 = blob @f9eb33b (footer strictement identique à l'état initial) ; ProductPage.tsx + globals.css @001ad05 = 87fb1a2 (harmonisation PDP V2 conservée) ; TrustGuaranteesSection.tsx = 01c0d98 (garanties noires conservées)
+- Portes qualité : lint 0/0 ; tsc 138 = 138 (delta 0) ; build exit 0 (arbre isolé seed production-like secondaryColor #1A1A1A + handles sociaux)
+- Empirique footer reverté : cercles bg blanc/10 + border 0px (plus de doré) + icônes blanches 80% + fills currentColor originaux ; classNames hover de marque présents (hover:bg-[#1877F2] FB, hover:bg-[#25D366] WA, gradient purple-pink-orange Instagram) ; mesure computed :hover non capturable avec l'outil navigateur — preuve par équivalence byte-identique au footer servi en production depuis avant la branche
+- Empirique PDP maintenue : 3/3 icônes — cercle blanc + bordure dorée rgba(201,168,76,0.55) + stroke computed rgb(26,26,26) + fill none + 20px
+- Empirique garanties maintenues : home 5/5 + PDP compact 5/5 = rgb(26,26,26)
+- Non-régressions : clic produit → PDP + 3 scripts JSON-LD + errs:[] + 0 ErrorBoundary ; AR (retry après échec protocolaire serveur) dir=rtl + 5 cartes + 2 stylesheets + 0 erreur
+- Fusion : merge --no-ff 200148d — conflits docs (PROJECT_MAP/worklog) résolus en conservant les DEUX historiques (audit V2 main + docs V3 branche) ; blobs code post-merge vérifiés conformes
+- Docs d'audit V3 (PROJECT_MAP) + présent enregistrement → d10c59e ; push origin main
+- NOTE DÉPLOIEMENT : la V2 (8c0803e) n'a jamais été promue (anomalie pipeline consignée) → la production n'a jamais affiché le footer blanc ; la V3 le supprime avant tout impact utilisateur ; footer production = footer V3 = continuité visuelle
+
+Stage Summary:
+- VERDICT : CONFORME — fusion 200148d + docs d10c59e. Footer strictement initial (preuve blob), PDP unifiée + garanties noires conservées (preuves blobs + empiriques), zéro régression, docs honnêtes
+- main = origin/main = d10c59e ; déploiement Vercel : à surveiller (anomalie pipeline V2 non résolue à ce jour)
+- Statut : mission ACCOMPLIE en session unique — audit V3, fusion, push, monitoring déploiement
