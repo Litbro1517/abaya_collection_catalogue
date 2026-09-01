@@ -795,7 +795,12 @@ export function ProductPage({
                         <img
                           src={directUrl}
                           alt={`${title} - ${i + 1}`}
+                          // MANDAT 4P PageSpeed fix — explicit width/height (CLS) +
+                          // fetchPriority high on first slide (LCP optimization).
+                          width={1000}
+                          height={1333}
                           loading={Math.abs(i - carouselIdx) <= 1 ? 'eager' : 'lazy'}
+                          fetchPriority={i === 0 ? 'high' : 'auto'}
                           decoding="async"
                           className={cn('product-page-img', imageLoaded.has(i) && 'loaded')}
                           onLoad={() => setImageLoaded(prev => new Set(prev).add(i))}
@@ -930,6 +935,9 @@ export function ProductPage({
                       <img
                         src={thumbUrl}
                         alt={`${title} - ${t('carousel.thumbnail')} ${i + 1}`}
+                        // MANDAT 4P PageSpeed fix — CLS: explicit dimensions on thumbnails
+                        width={80}
+                        height={80}
                         loading="lazy"
                         decoding="async"
                         onError={(e) => {

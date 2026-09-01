@@ -20,6 +20,13 @@ const nextConfig: NextConfig = {
     // (Google Drive, Googleusercontent, Supabase). The previous unoptimized:true
     // was a temporary workaround for unconfigured remote domains — no longer needed.
     unoptimized: false,
+    // MANDAT 4P PageSpeed fix — modern image formats:
+    // Next.js image optimizer will serve AVIF (best compression) then WebP fallback
+    // for any image routed through next/image. Reduces payload ~30-50% vs JPEG/PNG.
+    // Note: product card images currently use raw <img> (Google lh3 already serves
+    // optimized sizes via =w800), so this benefits future next/image migrations.
+    formats: ["image/avif", "image/webp"],
+    minimumCacheTTL: 60 * 60 * 24 * 30, // 30 days — immutable CDN assets
     remotePatterns: [
       {
         protocol: "https",

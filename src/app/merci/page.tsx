@@ -240,7 +240,15 @@ function MerciContent() {
                 <div className="merci-recap-product">
                   {item.productImage ? (
                     <div className="merci-recap-thumb">
-                      <img src={item.productImage} alt={item.productName || ''} loading="lazy" decoding="async" />
+                      <img
+                        src={item.productImage}
+                        alt={item.productName || ''}
+                        // MANDAT 4P PageSpeed fix — CLS: explicit dimensions prevent shift
+                        width={72}
+                        height={72}
+                        loading="lazy"
+                        decoding="async"
+                      />
                     </div>
                   ) : (
                     <div className="merci-recap-thumb merci-recap-thumb--empty">

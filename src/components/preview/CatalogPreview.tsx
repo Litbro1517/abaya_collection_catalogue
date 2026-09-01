@@ -952,6 +952,12 @@ export function CatalogPreview({ onAdminLogin, initialCatalog, initialDatasource
             <img
               src={s.logo}
               alt={catalogName}
+              // MANDAT 4P PageSpeed fix — CLS: explicit width + height prevent layout
+              // shift when the logo image loads (was only height before → width
+              // unknown until image decoded → shift). Width derived from logoHeight
+              // assuming a ~3:1 logo aspect ratio (safe default, w-auto overrides).
+              width={(s.logoHeight || 40) * 3}
+              height={s.logoHeight || 40}
               className="w-auto object-contain shrink-0 lp-logo-mobile"
               style={{ height: `${s.logoHeight || 40}px`, maxHeight: `${s.logoHeight || 40}px` }}
               // VG44 fix: onError fallback chain. If the DB-stored logo URL
@@ -1482,7 +1488,7 @@ export function CatalogPreview({ onAdminLogin, initialCatalog, initialDatasource
 
         {/* Glide-like grid */}
         <div className="catalog-grid catalog-grid-fade">
-          {paginatedProducts.map(({ row, columns, section, config, statut, stockState }) => {
+          {paginatedProducts.map(({ row, columns, section, config, statut, stockState }, idx) => {
             const rawData = row.data as Record<string, unknown>;
             const coverRawVal = config.coverColumn ? rawData[config.coverColumn] : null;
             let coverUrl = '';
@@ -1540,7 +1546,14 @@ export function CatalogPreview({ onAdminLogin, initialCatalog, initialDatasource
                   aria-label={`${t('catalog.viewProduct')} ${title}`}
                 />
 
-                {/* Image: aspect-ratio 4/3, object-fit cover */}
+                {/* Image: aspect-ratio 4/3, object-fit cover.
+                    MANDAT 4P PageSpeed fix — LCP optimization:
+                    First 4 product cards (idx 0-3) are above the fold on mobile.
+                    Previously ALL cards used loading="lazy" → the LCP element
+                    (first product image) was deferred, delaying LCP to 14.3s in prod.
+                    Now: first 4 cards load eager (immediate), rest stay lazy.
+                    First card (idx 0) gets fetchPriority="high" to win the network
+                    queue against other below-fold resources. */}
                 <div className="product-card-image-wrap">
                   {coverUrl ? (
                     <img
@@ -1548,8 +1561,9 @@ export function CatalogPreview({ onAdminLogin, initialCatalog, initialDatasource
                       alt={title}
                       width={400}
                       height={300}
-                      loading="lazy"
-                      decoding="async"
+                      loading={idx < 4 ? 'eager' : 'lazy'}
+                      fetchPriority={idx === 0 ? 'high' : 'auto'}
+                      decoding={idx < 4 ? 'sync' : 'async'}
                       className="product-card-img"
                       onError={(e) => {
                         const el = e.target as HTMLImageElement;
@@ -1778,7 +1792,17 @@ export function CatalogPreview({ onAdminLogin, initialCatalog, initialDatasource
                 }}
               >
                 {s?.logo ? (
-                  <img src={s.logo} alt={catalogName} className="w-auto object-contain" style={{ height: `${Math.round((s.logoHeight || 40) * 0.6)}px`, maxHeight: `${Math.round((s.logoHeight || 40) * 0.6)}px`, filter: 'brightness(0) invert(1)' }} />
+                  // MANDAT 4P PageSpeed fix — CLS: explicit width + height on logo
+                  // prevents layout shift when the logo image loads. Previously only
+                  // height was set → width was unknown until image decoded → shift.
+                  <img
+                    src={s.logo}
+                    alt={catalogName}
+                    width={Math.round((s.logoHeight || 40) * 0.6 * 3)}
+                    height={Math.round((s.logoHeight || 40) * 0.6)}
+                    className="w-auto h-auto object-contain"
+                    style={{ height: `${Math.round((s.logoHeight || 40) * 0.6)}px`, maxHeight: `${Math.round((s.logoHeight || 40) * 0.6)}px`, filter: 'brightness(0) invert(1)' }}
+                  />
                 ) : (
                   <>
                     <div className="w-6 h-6 rounded-md flex items-center justify-center" style={{ background: 'linear-gradient(135deg, #C9A84C, #E8D48B)' }}>
