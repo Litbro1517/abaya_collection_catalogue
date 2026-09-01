@@ -429,6 +429,20 @@ export function DataTable({ columns, rows, dataSourceId, loading, onRefresh, onU
   const [selectedRows, setSelectedRows] = useState<Set<string>>(new Set());
   const [showBulkDeleteDialog, setShowBulkDeleteDialog] = useState(false);
 
+  // ━━ MANDAT 4P — Fix erreur d'hydratation React #418 ━━
+  // Le bouton "Exporter vers le CDN" et le compteur "X ligne(s) sélectionnée(s)"
+  // dépendent de `visibleColumns` et `selectedRows` qui peuvent différer entre
+  // le rendu serveur (SSR) et le rendu client (après hydratation + useEffect
+  // qui restore l'état depuis localStorage/fetch). Ce mismatch provoque
+  // l'erreur React #418 qui détache les event handlers → onClick bloqué.
+  //
+  // Fix : guard `mounted` qui empêche le rendu de la toolbar (bouton CDN +
+  // compteur selectedRows) jusqu'à ce que le composant soit monté côté client.
+  // Le SSR produit une toolbar vide (pas de mismatch), puis après useEffect
+  // la toolbar réelle apparaît avec les event handlers attachés correctement.
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => { setMounted(true); }, []);
+
   // Cell selection mode
   const [selectedCells, setSelectedCells] = useState<Set<string>>(new Set());
 
@@ -1309,6 +1323,12 @@ export function DataTable({ columns, rows, dataSourceId, loading, onRefresh, onU
     const strVal = String(value);
 
     if (col.type === 'IMAGE' || col.type === 'IMAGE_ARRAY') {
+      // ━━ MANDAT 4P — Parsing résistant des cellules IMAGE_ARRAY ━━
+      // Gère 3 formats après réimport Google Sheets :
+      //   (a) Tableau natif JSON : déjà géré par Array.isArray(value) plus haut
+      //   (b) String JSON stringifiée : '["url1","url2"]' → JSON.parse
+      //   (c) String simple : "/api/google/image-proxy?id=X" ou "https://..."
+      //       → traiter comme tableau à 1 élément (badge "1 image")
       if (strVal.startsWith('[')) {
         try {
           const arr = JSON.parse(strVal);
@@ -1318,9 +1338,11 @@ export function DataTable({ columns, rows, dataSourceId, loading, onRefresh, onU
               {arr.length} image{arr.length > 1 ? 's' : ''}
             </Badge>
           );
-        } catch { /* not valid JSON */ }
+        } catch { /* not valid JSON — fall through to string handling */ }
       }
-      if (strVal.startsWith('http')) {
+      // Format (c) : string simple commençant par /api/google/ ou http
+      // → traiter comme une image unique (badge "1 image")
+      if (strVal.startsWith('http') || strVal.startsWith('/api/google/')) {
         return (
           <div className="flex items-center gap-1.5">
             <div className="w-6 h-6 rounded bg-muted flex items-center justify-center shrink-0">
@@ -1556,7 +1578,11 @@ export function DataTable({ columns, rows, dataSourceId, loading, onRefresh, onU
     <TooltipProvider delayDuration={200}>
       <div className="h-full flex flex-col">
         {/* Bulk action bar */}
-        {selectedRows.size > 0 && (
+        {/* Bulk action bar — guarded by `mounted` to prevent React #418 hydration
+            mismatch (selectedRows may differ between SSR and client after
+            localStorage/fetch hydration). The SSR renders no bar (empty Set),
+            then the client shows it after mount → no mismatch, onClick works. */}
+        {mounted && selectedRows.size > 0 && (
           <div className="h-10 border-b border-border bg-[var(--dt-pending-row-bg)] dark:bg-amber-950/20 flex items-center px-3 gap-2 shrink-0">
             <Check className="w-3.5 h-3.5 text-[var(--dt-stock-low-text)]" />
             <span className="text-xs font-medium">{selectedRows.size} ligne(s) sélectionnée(s)</span>
@@ -1588,8 +1614,10 @@ export function DataTable({ columns, rows, dataSourceId, loading, onRefresh, onU
 
             <div className="flex-1" />
 
-            {/* VG33: Bulk CDN export — migrate selected rows' images to CDN */}
-            {visibleColumns.some(c => c.type === 'IMAGE' || c.type === 'IMAGE_ARRAY') && (
+            {/* VG33: Bulk CDN export — migrate selected rows' images to CDN
+                Guarded by `mounted` to prevent React #418 hydration mismatch
+                (visibleColumns may differ between SSR and client). */}
+            {mounted && visibleColumns.some(c => c.type === 'IMAGE' || c.type === 'IMAGE_ARRAY') && (
               <Button
                 variant="outline"
                 size="sm"

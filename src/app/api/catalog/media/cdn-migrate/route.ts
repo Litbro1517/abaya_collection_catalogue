@@ -135,13 +135,54 @@ export async function POST(req: NextRequest) {
 
     for (const row of rows) {
       const data = (row.data as Record<string, unknown>) || {};
-      const cellValue = String(data[columnSlug] || '').trim();
-      if (!cellValue) continue;
+      const rawCell = data[columnSlug];
 
-      // Collect Drive file_ids from the cell
-      const urls = columnType === 'IMAGE_ARRAY'
-        ? cellValue.split(/[,;]\s*/).filter(Boolean)
-        : [cellValue];
+      // ━━ MANDAT 4P — Parsing résistant des cellules IMAGE_ARRAY ━━
+      // La cellule peut arriver sous 3 formats après un réimport Google Sheets :
+      //   (a) Tableau natif JSON : ["url1","url2"]  (format VG33.3 attendu)
+      //   (b) String JSON stringifiée : '["url1","url2"]'  (legacy)
+      //   (c) String simple : "/api/google/image-proxy?id=X&sz=800"  (réimport brut)
+      //       ou "https://drive.google.com/file/d/X/view"
+      //
+      // Avant : `String(rawCell).split(/[,;]\s*/)` cassait le JSON (gardait les
+      // guillemets/crochets dans les URLs) → extractDriveFileId ne matchait pas
+      // → la migration échouait silencieusement (aucune image migrée).
+      //
+      // Maintenant : on détecte le format et on parse correctement.
+      let urls: string[] = [];
+      if (Array.isArray(rawCell)) {
+        // Format (a) : tableau natif
+        urls = rawCell.filter((u: unknown): u is string => typeof u === 'string' && u.trim() !== '');
+      } else if (typeof rawCell === 'string') {
+        const cellValue = rawCell.trim();
+        if (!cellValue) continue;
+        if (columnType === 'IMAGE_ARRAY') {
+          if (cellValue.startsWith('[')) {
+            // Format (b) : JSON stringifié — parser correctement
+            try {
+              const parsed = JSON.parse(cellValue);
+              if (Array.isArray(parsed)) {
+                urls = parsed.filter((u: unknown): u is string => typeof u === 'string' && u.trim() !== '');
+              }
+            } catch {
+              // JSON cassé — fallback : traiter comme string simple
+              urls = [cellValue];
+            }
+          } else {
+            // Format (c) : string simple (/api/google/... ou http...)
+            // → traiter comme un tableau à un élément
+            urls = [cellValue];
+          }
+        } else {
+          // Colonne IMAGE simple → un seul URL
+          urls = [cellValue];
+        }
+      } else {
+        // Type inattendu (number, boolean, null) — skip
+        continue;
+      }
+
+      if (urls.length === 0) continue;
 
       const newUrls: string[] = [];
       let cellChanged = false;
