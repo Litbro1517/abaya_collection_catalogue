@@ -1555,3 +1555,70 @@ Stage Summary:
 - @next/bundle-analyzer installé + configuré (ANALYZE=true pour activer)
 - main NON touché
 - **ENGAGEMENT : aucun merge vers main sans feu vert explicite de l'audit**
+
+---
+Task ID: MANDAT-4P-CLS-HYDRATION-STEP2
+Agent: Main Orchestrator
+Task: MANDAT 4P Étape 2 — Optimisation CLS & Hydratation (branche isolée feat/cls-hydration-opt)
+
+Work Log:
+- Lu PROJECT_MAP.md et worklog.md pour contexte préalable (obligation PARTIE 1)
+- Vérifié état git : sur main@30682e6, sync origin, working tree propre
+- Vérifié identité Git préservée : gotonewjamail@gmail.com / Litbro1517 (PARTIE 1 respectée)
+- Créé branche isolée `feat/cls-hydration-opt` depuis main@30682e6
+- AUDIT CLS 1 — Images cartes produits (CatalogPreview.tsx) :
+  - product-card-image-wrap : `aspect-ratio: 4/3` ✅ déjà en place
+  - product-card-img : `object-fit: cover` ✅ déjà en place
+  - width={400} height={300} sur `<img>` ✅ déjà en place
+  - Placeholder ImageIcon quand pas de coverUrl ✅ déjà en place
+  → cartes produits : CLS déjà géré, pas de correctif nécessaire
+- AUDIT CLS 2 — Carousel ProductPage :
+  - product-page-carousel : `aspect-ratio: 3/4` ✅ déjà en place
+  - product-page-img : `opacity: 0` → `.loaded` `opacity: 1` (fade, pas de shift) ✅
+  - product-page-carousel-placeholder : réservé ✅
+  → carousel PDP : CLS déjà géré
+- AUDIT CLS 3 — Composants lazy-loaded (Step 1 code-splitting) :
+  - ProductPage dynamic : `loading: () => null` ⚠️ PROBLÈME — grid disparaissait avant que le chunk lazy charge
+  - CheckoutPage dynamic : `loading: () => null` ⚠️ MÊME PROBLÈME
+  → SOURCE PRINCIPALE DE CLS identifiée
+- AUDIT hydration 1 — Footer year `new Date().getFullYear()` :
+  - Risque mismatch SSR/CSR près du Nouvel An (UTC vs tz local) ⚠️
+- AUDIT hydration 2 — layout.tsx : `<html suppressHydrationWarning>` déjà en place (themes) ✅
+- AUDIT hydration 3 — typeof window checks : tous dans useEffect/handlers (pas dans render) ✅
+- AUDIT hydration 4 — CartDrawer/GlobalCart : `position: fixed` (overlay, pas de shift) ✅
+- FIX 1 — Skeleton loaders pour ProductPage + CheckoutPage :
+  - Créé ProductPageSkeleton : layout 2-colonnes (carousel aspect-ratio 3/4 + bloc info), min-height 70vh
+  - Créé CheckoutPageSkeleton : layout formulaire (titre + lignes + CTA), min-height 60vh
+  - `loading: () => null` → `loading: () => <ProductPageSkeleton />` (et CheckoutPageSkeleton)
+  - `aria-hidden="true"` sur les skeletons (accessibilité lecteurs d'écran)
+- FIX 2 — Stabilisation hydratation footer year :
+  - `<p>© {year} ...</p>` → `<p><span suppressHydrationWarning>© {year} ...</span></p>`
+  - React skippe le check d'hydratation sur ce sous-arbre (l'année se réaligne sans warning)
+- FIX 3 — CSS skeleton (globals.css, 141 lignes) :
+  - @keyframes cls-skeleton-pulse (opacity 1→0.5→1, 1.5s infinite)
+  - .cls-skeleton-detail (mobile column → desktop row @media min-width:768px)
+  - .cls-skeleton-detail__carousel (aspect-ratio 3/4, max-width 28rem)
+  - .cls-skeleton-detail__info (flex column, gap 0.875rem)
+  - .cls-skeleton-detail__title/price/row/cta (dimensions réservées)
+  - .cls-skeleton-checkout (column, max-width 32rem, min-height 60vh)
+  - @media (prefers-reduced-motion: reduce) : animation désactivée (a11y)
+- VALIDATION lint : 0 erreur, 0 warning ✅
+- VALIDATION build : exit 0 ✅
+- VALIDATION browser (agent-browser) :
+  - Homepage charge : titre "Abaya Collection Chic — Catalogue", header+footer présents ✅
+  - 0 erreur console, 0 warning hydration ✅
+  - Skeleton CSS confirmé dans le bundle production (chunk 0i5dkdhh3dg9n.css, 10 classes cls-skeleton-* présentes) ✅
+  - CLS mesuré via PerformanceObserver({type:'layout-shift', buffered:true}) : **0.0000** ✅ (seuil 'Good' < 0.1)
+  - Footer rend "© 2026 Mon Catalogue" avec wrapper <span> actif ✅
+  - Non-régression : product cards (aspect-ratio 4/3), carousel PDP (aspect-ratio 3/4), header/footer préservés ✅
+- Mise à jour PROJECT_MAP.md : nouvelle section [MANDAT 4P — ÉTAPE 2 : OPTIMISATION CLS & HYDRATATION]
+
+Stage Summary:
+- Branche isolée : `feat/cls-hydration-opt` (créée depuis main@30682e6)
+- Commit : `a5b581f` (2 files changed, 176 insertions, 3 deletions)
+- CLS homepage mesuré : **0.0000** (was non-mesuré / risqué avec loading:null)
+- 2 skeleton loaders (ProductPage + CheckoutPage) remplaçant loading:null
+- Hydratation footer stabilisée (suppressHydrationWarning)
+- Identité Git préservée : gotonewjamail@gmail.com / Litbro1517
+- main NON touché
+- **ENGAGEMENT : aucun merge vers main sans feu vert explicite de l'audit**

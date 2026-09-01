@@ -854,6 +854,147 @@ html[lang="ar"] .catalog-toolbar .btn-filter-sub-inactive {
   background: var(--client-bg-secondary);
 }
 
+/* ━━ MANDAT 4P Étape 2 (CLS & Hydration): Skeleton loaders ━━
+   Reserved-space placeholders rendered during lazy chunk fetch.
+   These prevent Cumulative Layout Shift when ProductPage/CheckoutPage
+   chunks are being downloaded after a user clicks a product / starts checkout.
+   The skeleton mimics the final layout dimensions so the viewport never
+   shifts — only the content fades in once the chunk loads. */
+
+@keyframes cls-skeleton-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}
+
+.cls-skeleton-detail {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+  padding: 1.5rem;
+  max-width: 64rem;
+  margin: 0 auto;
+  width: 100%;
+  min-height: 70vh;
+}
+
+@media (min-width: 768px) {
+  .cls-skeleton-detail {
+    flex-direction: row;
+    align-items: flex-start;
+  }
+}
+
+.cls-skeleton-detail__carousel {
+  width: 100%;
+  aspect-ratio: 3 / 4;
+  max-width: 28rem;
+  flex-shrink: 0;
+  border-radius: var(--radius-glide, 0.75rem);
+  background: var(--client-bg-carousel, #f1ede5);
+  animation: cls-skeleton-pulse 1.5s ease-in-out infinite;
+}
+
+.cls-skeleton-detail__info {
+  display: flex;
+  flex-direction: column;
+  gap: 0.875rem;
+  flex: 1;
+  width: 100%;
+  padding-top: 0.5rem;
+}
+
+.cls-skeleton-detail__title,
+.cls-skeleton-detail__price,
+.cls-skeleton-detail__row,
+.cls-skeleton-detail__cta {
+  height: 1.5rem;
+  border-radius: 0.375rem;
+  background: var(--client-bg-secondary, #ece8e0);
+  animation: cls-skeleton-pulse 1.5s ease-in-out infinite;
+}
+
+.cls-skeleton-detail__title {
+  height: 2rem;
+  width: 75%;
+}
+
+.cls-skeleton-detail__price {
+  height: 1.25rem;
+  width: 40%;
+}
+
+.cls-skeleton-detail__row {
+  height: 1.25rem;
+  width: 90%;
+}
+
+.cls-skeleton-detail__row--short {
+  width: 60%;
+}
+
+.cls-skeleton-detail__cta {
+  height: 2.75rem;
+  width: 100%;
+  margin-top: 1rem;
+  border-radius: 9999px;
+}
+
+.cls-skeleton-checkout {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  padding: 2rem;
+  max-width: 32rem;
+  margin: 0 auto;
+  width: 100%;
+  min-height: 60vh;
+}
+
+.cls-skeleton-checkout__title,
+.cls-skeleton-checkout__row,
+.cls-skeleton-checkout__cta {
+  height: 1.5rem;
+  border-radius: 0.375rem;
+  background: var(--client-bg-secondary, #ece8e0);
+  animation: cls-skeleton-pulse 1.5s ease-in-out infinite;
+}
+
+.cls-skeleton-checkout__title {
+  height: 2rem;
+  width: 60%;
+}
+
+.cls-skeleton-checkout__row {
+  height: 1.25rem;
+  width: 85%;
+}
+
+.cls-skeleton-checkout__row--short {
+  width: 50%;
+}
+
+.cls-skeleton-checkout__cta {
+  height: 2.75rem;
+  width: 100%;
+  margin-top: 1.5rem;
+  border-radius: 9999px;
+}
+
+/* Respect reduced motion: disable pulse animation for users who prefer
+   reduced motion (accessibility). Skeleton still shows as static block. */
+@media (prefers-reduced-motion: reduce) {
+  .cls-skeleton-detail__carousel,
+  .cls-skeleton-detail__title,
+  .cls-skeleton-detail__price,
+  .cls-skeleton-detail__row,
+  .cls-skeleton-detail__cta,
+  .cls-skeleton-checkout__title,
+  .cls-skeleton-checkout__row,
+  .cls-skeleton-checkout__cta {
+    animation: none;
+  }
+}
+
 .product-card-like {
   position: absolute;
   top: 8px;

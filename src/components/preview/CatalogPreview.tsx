@@ -43,13 +43,40 @@ import {
 // Now lazy-loaded via next/dynamic (ssr:false) → split into separate chunks
 // fetched on-demand. This removes ~1900 lines of JS from the First Load JS
 // of the homepage/catalog view.
+//
+// ━━ MANDAT 4P Étape 2 (CLS & Hydration): skeleton loaders ━━
+// Previously loading: () => null caused a layout shift — when the user
+// clicked a product, the catalog grid disappeared (null) before the
+// ProductPage chunk loaded, then the detail view popped in → high CLS.
+// Now: a full-viewport skeleton with reserved space renders immediately
+// during chunk fetch, stabilizing the layout (zero shift).
+const ProductPageSkeleton = () => (
+  <div className="cls-skeleton-detail" aria-hidden="true">
+    <div className="cls-skeleton-detail__carousel" />
+    <div className="cls-skeleton-detail__info">
+      <div className="cls-skeleton-detail__title" />
+      <div className="cls-skeleton-detail__price" />
+      <div className="cls-skeleton-detail__row" />
+      <div className="cls-skeleton-detail__row cls-skeleton-detail__row--short" />
+      <div className="cls-skeleton-detail__cta" />
+    </div>
+  </div>
+);
+const CheckoutPageSkeleton = () => (
+  <div className="cls-skeleton-checkout" aria-hidden="true">
+    <div className="cls-skeleton-checkout__title" />
+    <div className="cls-skeleton-checkout__row" />
+    <div className="cls-skeleton-checkout__row cls-skeleton-checkout__row--short" />
+    <div className="cls-skeleton-checkout__cta" />
+  </div>
+);
 const ProductPage = dynamic(() => import('./ProductPage').then(m => ({ default: m.ProductPage })), {
   ssr: false,
-  loading: () => null,
+  loading: () => <ProductPageSkeleton />,
 });
 const CheckoutPage = dynamic(() => import('./CheckoutPage').then(m => ({ default: m.CheckoutPage })), {
   ssr: false,
-  loading: () => null,
+  loading: () => <CheckoutPageSkeleton />,
 });
 
 // ── Brand Constants removed — all values migrated to CSS pivot variables & global classes ──
@@ -1893,7 +1920,12 @@ export function CatalogPreview({ onAdminLogin, initialCatalog, initialDatasource
           {/* Copyright — bottom, left-aligned */}
           <div className="mt-8 pt-4 text-start" style={{ borderTop: '1px solid rgba(255,255,255,0.12)' }}>
             <p className="text-[11px] text-white/50">
-              &copy; {new Date().getFullYear()} {catalogName}. {t('footer.rights')}.
+              {/* MANDAT 4P Étape 2: suppressHydrationWarning on year — server year may
+                  differ from client year near New Year midnight (UTC vs local tz).
+                  The directive tells React to skip hydration check on this subtree. */}
+              <span suppressHydrationWarning>
+                &copy; {new Date().getFullYear()} {catalogName}. {t('footer.rights')}.
+              </span>
             </p>
           </div>
         </div>
