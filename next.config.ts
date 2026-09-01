@@ -1,4 +1,13 @@
 import type { NextConfig } from "next";
+import bundleAnalyzer from "@next/bundle-analyzer";
+
+// ━━ MANDAT 4P (Bundle Optimization Step 1) ━━
+// Conditionally activate @next/bundle-analyzer when ANALYZE=true is set.
+// This keeps production builds (Vercel) unaffected — the analyzer only runs
+// on-demand for local investigation (ANALYZE=true bun run build).
+const withBundleAnalyzer = bundleAnalyzer({
+  enabled: process.env.ANALYZE === "true",
+});
 
 const nextConfig: NextConfig = {
   typescript: {
@@ -40,4 +49,4 @@ const nextConfig: NextConfig = {
   ],
 };
 
-export default nextConfig;
+export default withBundleAnalyzer(nextConfig);
