@@ -4677,3 +4677,62 @@ Audit du HTML de la production actuelle (`abaya-collection-catalogue-9dum.vercel
 
 ### Engagement
 Conformément à la PARTIE 1 du MANDAT 4P : **aucun merge vers `main` ne sera exécuté sans feu vert explicite de l'audit**. Identité Git préservée (`gotonewjamail@gmail.com` / `Litbro1517`) pour garantir l'automatisation Vercel.
+
+---
+
+## [MANDAT 4P — RÉSOLUTION CDN & CONFIGURATION SEO (NOINDEX)]
+
+### Mandat
+2 objectifs : (1) ajouter la directive SEO noindex, nofollow globalement dans le `<head>` pour empêcher le référencement et le crawling ; (2) corriger la duplication CDN lors de la migration Google Drive → Supabase WebP, en alimentant `image-de-garde` directement depuis `groupe_images[0]` sans re-upload.
+
+### Solution technique — 2 volets
+
+#### Volet 1 — SEO noindex, nofollow global (préalable prioritaire)
+4 points d'insertion pour garantir une couverture absolue :
+
+1. **`src/app/layout.tsx` — `generateMetadata()`** : ajout de `robots: { index: false, follow: false, googleBot: { index: false, follow: false } }` dans l'objet Metadata retourné. Next.js émet `<meta name="robots" content="noindex, nofollow">` + `<meta name="googlebot" content="noindex, nofollow">` automatiquement.
+
+2. **`src/app/layout.tsx` — `<head>` manuel du RootLayout** : ajout direct de `<meta name="robots" content="noindex, nofollow" />` + `<meta name="googlebot" content="noindex, nofollow" />`. Cette balise est présente sur TOUTES les pages, même si une page fille override `generateMetadata()`. Google utilise la directive la plus restrictive quand plusieurs balises coexistent.
+
+3. **`src/app/page.tsx` — `generateMetadata()`** : override neutralisé. L'ancien code retournait `robots: { index: robotsIndex, follow: true }` (où `robotsIndex` pouvait être `true` pour `?product=<valide>`). Remplacé par `robots: { index: false, follow: false }` pour garantir noindex sur la route `/` quelle que soit la query string.
+
+4. **`src/app/robots.ts`** : `allow: '/'` → `disallow: '/'` pour bloquer le crawling de toutes les routes. Complète le meta robots (noindex empêche l'indexation, robots.txt Disallow empêche le crawling — économise le budget crawl Googlebot).
+
+#### Volet 2 — Déduplication CDN (image-de-garde ← groupe_images[0])
+**Problème** : `image-de-garde` (coverColumn) et `groupe_images[0]` font référence au même fichier Drive. Lors de la migration CDN, le système essayait de re-uploader l'image de couverture séparément de la galerie → duplication CDN + erreurs de contrainte d'unicité.
+
+**Solution** : nouveau map `cdnUrlByFileId` dans `src/app/api/catalog/media/cdn-migrate/route.ts` :
+
+1. **Pré-remplissage AVANT la migration** : scanne toutes les colonnes `IMAGE_ARRAY` de toutes les rows, extrait les URLs CDN (Supabase `/uploads/`) déjà présentes, construit `Map<fileId, cdnUrl>` en parsant le nom de fichier (`media/FILE_ID.webp`).
+
+2. **Lookup prioritaire pendant la migration** : pour chaque cellule IMAGE à migrer, AVANT de consulter `MediaAsset`, on cherche le `fileId` dans le map. Si trouvé → réutilisation directe de l'URL CDN (`status: 'skipped'`, ZÉRO re-upload, ZÉRO duplication Supabase).
+
+3. **Enrichissement progressif** : après chaque upload réussi, le map est enrichi (`cdnUrlByFileId.set(fileId, cdnUrl)`) pour que les rows suivantes (et les colonnes IMAGE individuelles traitées dans la même migration bulk) puissent réutiliser l'URL.
+
+4. **Indépendance de MediaAsset** : la table `MediaAsset` peut être vide ou désynchronisée (cas observé en production) — le map est construit directement depuis `Row.data`, donc toujours à jour.
+
+**Logique Phase 1 → Phase 2 respectée** :
+- Phase 1 (Galerie) : migration `groupe_images` → chaque URL Drive convertie en WebP Supabase, map enrichi
+- Phase 2 (Couverture) : migration `image-de-garde` → map lookup → `groupe_images[0]` CDN URL réutilisée (pas de re-upload)
+
+### Fichiers modifiés (4)
+| # | Fichier | Changement |
+|---|---------|-----------|
+| 1 | `src/app/layout.tsx` | `generateMetadata()`: +`robots: { index:false, follow:false, googleBot:{...} }` ; `<head>` manuel: +2 balises meta (robots + googlebot) noindex, nofollow |
+| 2 | `src/app/page.tsx` | `generateMetadata()`: `robots: { index: robotsIndex, follow: true }` → `robots: { index: false, follow: false }` (override neutralisé) |
+| 3 | `src/app/robots.ts` | `allow: '/'` → `disallow: '/'` (bloque crawling global) |
+| 4 | `src/app/api/catalog/media/cdn-migrate/route.ts` | Nouveau map `cdnUrlByFileId` pré-rempli depuis IMAGE_ARRAY columns ; lookup prioritaire avant MediaAsset ; enrichissement après upload |
+
+### Validations
+- `bun run lint` : 0 erreur, 0 warning ✅
+- `next build` : exit 0 ✅
+- Browser (agent-browser) : `<meta name="robots" content="noindex, nofollow"/>` présent, `<meta name="googlebot" content="noindex, nofollow"/>` présent, 0 console error ✅
+- `robots.txt` : `User-Agent: * Disallow: /` ✅
+- 0 occurrence de `index, follow` dans le HTML (override page.tsx neutralisé) ✅
+- Non-régression : la logique cdn-migrate existante (cross-column dedup MediaAsset, conflict check, Sharp WebP, upload Supabase) est préservée — le map est une couche additionnelle ✅
+
+### Branche
+`fix/cdn-deduplication-and-seo-noindex` (créée depuis `main@432726c`). **POUSSÉE SUR ORIGIN. EN ATTENTE DU FEU VERT EXPLICITE DE L'AUDIT AVANT TOUTE FUSION VERS MAIN.**
+
+### Engagement
+Conformément à la PARTIE 1 du MANDAT 4P : **aucun merge vers `main` ne sera exécuté sans feu vert explicite de l'audit**. Identité Git préservée (`gotonewjamail@gmail.com` / `Litbro1517`) pour garantir l'automatisation Vercel.
