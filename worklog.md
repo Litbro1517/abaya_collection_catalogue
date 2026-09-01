@@ -1673,3 +1673,44 @@ Stage Summary:
 - **ENGAGEMENT : aucun merge vers main sans feu vert explicite de l'audit**
 
 Note : Le score PageSpeed exact après-merge ne peut être mesuré que sur la production Vercel (la prod a les vraies images produit + DB Supabase). Les fixes sont vérifiés corrects dans le code et le bundle — la régression LCP 14.3s + CLS 0.295 sera résolue une fois la branche mergée et déployée.
+
+---
+Task ID: MANDAT-4P-CDN-DEDUP-SEO-NOINDEX
+Agent: Main Orchestrator
+Task: MANDAT 4P — Résolution CDN & Configuration SEO noindex (branche isolée fix/cdn-deduplication-and-seo-noindex)
+
+Work Log:
+- Lu PROJECT_MAP.md pour contexte préalable (obligation PARTIE 1)
+- Sync local main vers origin/main @432726c (inclut MANDAT 4P step 3 PageSpeed)
+- Vérifié identité Git : gotonewjamail@gmail.com / Litbro1517 ✅
+- Créé branche isolée `fix/cdn-deduplication-and-seo-noindex` depuis main@432726c
+- PRÉALABLE PRIORITAIRE — SEO noindex, nofollow global :
+  - layout.tsx generateMetadata() : +robots { index:false, follow:false, googleBot:{index:false, follow:false} }
+  - layout.tsx <head> manuel : +<meta name="robots" content="noindex, nofollow"> +<meta name="googlebot" content="noindex, nofollow">
+  - page.tsx generateMetadata() : override neutralisé (robotsIndex → false)
+  - robots.ts : allow:'/' → disallow:'/'
+- VOLET 2 — CDN déduplication (image-de-garde ← groupe_images[0]) :
+  - cdn-migrate/route.ts : nouveau map cdnUrlByFileId pré-rempli en scannant les colonnes IMAGE_ARRAY de toutes les rows
+  - Lookup prioritaire : pour chaque fileId Drive, cherche dans le map AVANT MediaAsset
+  - Si match → réutilisation directe URL CDN (status skipped, 0 re-upload)
+  - Enrichissement progressif : après chaque upload réussi, map.set(fileId, cdnUrl)
+  - Indépendance MediaAsset : le map est construit depuis Row.data (toujours à jour)
+- VALIDATION lint : 0 erreur, 0 warning ✅
+- VALIDATION build : exit 0 ✅
+- VALIDATION browser (agent-browser) :
+  - meta robots = "noindex, nofollow" ✅
+  - meta googlebot = "noindex, nofollow" ✅
+  - 0 console error ✅
+  - 0 occurrence "index, follow" dans le HTML ✅
+- VALIDATION robots.txt : User-Agent: * Disallow: / ✅
+- Mise à jour PROJECT_MAP.md : nouvelle section [MANDAT 4P — RÉSOLUTION CDN & CONFIGURATION SEO (NOINDEX)]
+
+Stage Summary:
+- Branche isolée : `fix/cdn-deduplication-and-seo-noindex` (créée depuis main@432726c)
+- Commit : `df048a3` (4 files changed, 107 insertions, 4 deletions)
+- SEO noindex global : 4 points d'insertion (layout metadata + head manuel + page.tsx override neutralisé + robots.txt Disallow)
+- CDN déduplication : map cdnUrlByFileId pré-rempli + lookup prioritaire + enrichissement progressif
+- Lint 0/0, build exit 0, 0 erreur console, robots.txt Disallow: /
+- Identité Git préservée : gotonewjamail@gmail.com / Litbro1517
+- main NON touché
+- **ENGAGEMENT : aucun merge vers main sans feu vert explicite de l'audit**

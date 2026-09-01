@@ -117,7 +117,8 @@ export async function GET(req: NextRequest) {
         // comma-separated strings (legacy). Handle both formats.
         let urls: string[] = [];
         if (Array.isArray(rawVal)) {
-          urls = rawVal.filter((u): u is string => typeof u === 'string' && u.trim());
+          // MANDAT CADRE B: fix TS2322 — u.trim() returned string|false, must be boolean
+          urls = rawVal.filter((u): u is string => typeof u === 'string' && u.trim() !== '');
         } else {
           const cellValue = String(rawVal || '').trim();
           if (!cellValue) continue;
@@ -127,7 +128,8 @@ export async function GET(req: NextRequest) {
               try {
                 const parsed = JSON.parse(cellValue);
                 if (Array.isArray(parsed)) {
-                  urls = parsed.filter((u): u is string => typeof u === 'string' && u.trim());
+                  // MANDAT CADRE B: fix TS2322 — u.trim() returned string|false, must be boolean
+                  urls = parsed.filter((u): u is string => typeof u === 'string' && u.trim() !== '');
                 }
               } catch {
                 // Not valid JSON — fall back to comma split (legacy)

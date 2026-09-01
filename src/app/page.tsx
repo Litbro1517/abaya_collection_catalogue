@@ -74,15 +74,12 @@ export async function generateMetadata({ searchParams }: PageProps): Promise<Met
   let pageTitle = seo.title;
   let pageDescription = seo.description;
   let ogImage = seo.ogImage;
-  // MANDAT 4P — Meta Robots fallback for invalid ?product= slug:
-  // When a human visitor (or crawler) lands on /?product=<invalide>,
-  // resolveProduct() returns null. Previously the page kept indexing tags
-  // (`robots: { index: true, follow: true }`) — Googlebot would index a
-  // homepage canonical URL under an invalid product query, creating
-  // duplicate / low-quality signals. Now we flip to `noindex` so the
-  // invalid-query variant is excluded from the index, while still
-  // following outbound links.
-  let robotsIndex = true;
+  // MANDAT CADRE B: nettoyage opportuniste du code mort `robotsIndex`.
+  // Suite à la neutralisation de l'override (robots: { index: false } imposé
+  // globalement par le layout), la variable `robotsIndex` n'était plus lue.
+  // Le bloc if(productSlug) reste nécessaire pour résoudre le produit et
+  // mettre à jour pageTitle/pageDescription/ogImage — mais la logique
+  // robotsIndex a été supprimée.
   if (productSlug) {
     try {
       const product = await resolveProduct(productSlug);
@@ -90,13 +87,12 @@ export async function generateMetadata({ searchParams }: PageProps): Promise<Met
         pageTitle = `${product.title} — ${seo.title.split(' — ')[0] || 'Catalogue'}`;
         pageDescription = product.description || seo.description;
         if (product.coverUrl) ogImage = product.coverUrl;
-      } else {
-        // Product slug provided but not found in DB → exclude from index
-        robotsIndex = false;
       }
+      // Product not found or lookup error → page still renders with generic
+      // SEO metadata (no specific product title/description). The global
+      // noindex, nofollow directive covers all cases now.
     } catch {
-      // Product lookup errored → exclude from index (defensive)
-      robotsIndex = false;
+      // Product lookup errored — fall back to generic SEO metadata
     }
   }
 
@@ -136,8 +132,13 @@ export async function generateMetadata({ searchParams }: PageProps): Promise<Met
       images: [ogImage],
     },
     robots: {
-      index: robotsIndex,
-      follow: true,
+      // MANDAT 4P — noindex, nofollow global (préalable prioritaire)
+      // Le layout global impose déjà noindex, nofollow sur toutes les pages.
+      // Cette directive est répétée ici pour empêcher tout override accidentel
+      // par une logique future (ex: ?product=<valide> → index). Tant que le
+      // mandat noindex global est actif, TOUTES les pages doivent être noindex.
+      index: false,
+      follow: false,
     },
   };
 }

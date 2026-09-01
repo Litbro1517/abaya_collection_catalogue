@@ -124,6 +124,19 @@ export async function generateMetadata(): Promise<Metadata> {
     title: `${catalogName} — Catalogue`,
     description: "Découvrez notre collection exclusive d'abayas, robes et ensembles. Commandez via WhatsApp, Messenger et plus.",
     icons,
+    // ━━ MANDAT 4P — SEO noindex, nofollow (préalable prioritaire) ━━
+    // Empêche le référencement et le crawling par les moteurs de recherche.
+    // Next.js émet <meta name="robots" content="noindex, nofollow" /> dans le <head>.
+    // Complété par une balise meta directe dans le <head> manuel du RootLayout
+    // (ci-dessous) pour garantir qu'aucune page fille ne puisse override cette directive.
+    robots: {
+      index: false,
+      follow: false,
+      googleBot: {
+        index: false,
+        follow: false,
+      },
+    },
     // ━━ OG cover image for social sharing (WhatsApp, Facebook, Twitter) ━━
     // Uses /og-cover.jpg (1200×630 JPEG, brand colors) as the default cover.
     // Page-specific openGraph (page.tsx) overrides this for product pages.
@@ -182,6 +195,15 @@ export default async function RootLayout({
   return (
     <html lang={ssrLocale} dir={ssrDir} suppressHydrationWarning>
       <head>
+        {/* ━━ MANDAT 4P — SEO noindex, nofollow (balise meta directe, garantie absolue) ━━
+            Cette balise est ajoutée DIRECTEMENT dans le <head> manuel du RootLayout
+            pour garantir qu'elle soit présente sur TOUTES les pages, même si une
+            page fille override generateMetadata() avec robots: { index: true }.
+            Google utilise la directive la plus restrictive quand plusieurs balises
+            meta robots coexistent — donc cette balise garantit noindex partout.
+            Complète la directive robots dans generateMetadata() ci-dessus. */}
+        <meta name="robots" content="noindex, nofollow" />
+        <meta name="googlebot" content="noindex, nofollow" />
         {/* Audit remediation: Google Tag Manager — container script.
             Only rendered when NEXT_PUBLIC_GTM_ID env var is set to a real ID.
             When unset (empty string), GTM script is skipped entirely — no 404
