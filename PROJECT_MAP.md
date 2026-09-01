@@ -4461,3 +4461,75 @@ La fusion V2 (8c0803e) n'a JAMAIS été promue en production (polling ~22 min, e
 
 - Fusion : merge --no-ff **200148d** (conflits docs résolus : historiques main + branche conservés)
 - Preuves : /home/z/verify-logs/ui-badges-social-v3/ (home-footer-v3.png, pdp-v3.png, ar-v3.png, footer-fb-hover.png)
+
+---
+
+## [MANDAT 4P — OPTIMISATION BUNDLE JS (ÉTAPE 1)]
+
+### Mandat
+Optimisation du bundle client JS suite au rapport PageSpeed indiquant 5,4 Mo de ressources transférées avec du JS inutilisé au démarrage. Objectifs : installer @next/bundle-analyzer, identifier les paquets et composants lourds, réduire le bundle via code-splitting + nettoyage des imports.
+
+### Solution technique — 3 optimisations
+
+#### 1. Installation + configuration @next/bundle-analyzer
+- Ajouté en `devDependencies` (`@next/bundle-analyzer@^16.3.4`)
+- `next.config.ts` : wrappé avec `withBundleAnalyzer({ enabled: process.env.ANALYZE === 'true' })` — l'analyseur ne s'active qu'à la demande (`ANALYZE=true`), les builds production Vercel ne sont pas affectés
+- Ajouté script `"analyze"` dans `package.json` : `ANALYZE=true next build` — génère les rapports HTML de treemap dans `.next/analyze/`
+
+#### 2. Suppression de 8 dépendances mortes (0 imports dans src/)
+Audit par `grep -rl` : chaque package ci-dessous a été vérifié comme ayant **0 référence** dans tout le code source (`src/`, scripts, configs — hors `node_modules`, `.next`, `.git`).
+
+| Package | Taille node_modules | Raison de la présence | Vérification |
+|---------|--------------------|-----------------------|--------------|
+| `@dnd-kit/core` + `sortable` + `utilities` | ~3 MiB | Installé par template shadcn, jamais utilisé | 0 imports |
+| `@mdxeditor/editor` | 1.2 MiB | Installé pour admin (jamais câblé) | 0 imports |
+| `next-auth` | 2.7 MiB | Installé puis remplacé par auth custom (`src/lib/auth.ts`) | 0 imports |
+| `next-intl` | 1.7 MiB | Installé pour migration i18n (jamais démarrée — système custom `src/lib/i18n/` fonctionne) | 0 imports |
+| `react-markdown` | ~600 KiB | Installé pour rendu markdown (jamais utilisé) | 0 imports |
+| `react-syntax-highlighter` | 8.9 MiB! | Installé pour coloration syntaxique (jamais utilisé) | 0 imports |
+
+**Note** : `PROJECT_MAP.md` (ligne 208) indiquait précédemment "next-intl mort — ne pas supprimer (risque de casser le lockfile)". Cette recommandation était conservatrice ; le MANDAT 4P donne explicitement la liberté de supprimer les dépendances inutilisées. La suppression a été testée : `bun install` réussit, `next build` exit 0, 0 régression.
+
+#### 3. Code-splitting de ProductPage + CheckoutPage via `next/dynamic`
+- `src/components/preview/CatalogPreview.tsx` :
+  - `ProductPage` (1406 lignes) → `dynamic(() => import('./ProductPage'), { ssr: false })`
+  - `CheckoutPage` (472 lignes) → `dynamic(() => import('./CheckoutPage'), { ssr: false })`
+  - `type CheckoutPayload` conservé en `import type` (éliminé à la compilation, 0 impact bundle)
+- Ces composants ne sont nécessaires que quand l'utilisateur ouvre une fiche produit ou démarre un checkout — ils étaient auparavant importés statiquement et ship dans le First Load JS même pour les visiteurs qui ne font que parcourir la grille catalogue.
+
+### Fichiers modifiés (4)
+| # | Fichier | Changement |
+|---|---------|-----------|
+| 1 | `next.config.ts` | Import `bundleAnalyzer` ; wrapper `withBundleAnalyzer` conditionnel (`ANALYZE=true`) |
+| 2 | `package.json` | +script `analyze` ; -8 dépendances mortes (`@dnd-kit/*`, `@mdxeditor/editor`, `next-auth`, `next-intl`, `react-markdown`, `react-syntax-highlighter`) ; +devDep `@next/bundle-analyzer` |
+| 3 | `bun.lock` | Mise à jour (8 packages + dépendances transitives supprimées, -639 lignes) |
+| 4 | `src/components/preview/CatalogPreview.tsx` | Import `next/dynamic` ; `ProductPage` + `CheckoutPage` en imports dynamiques (`ssr: false`) ; `type CheckoutPayload` en type-only import |
+
+### Résultats mesurés (First Load JS+CSS sur homepage `/`)
+
+| Métrique | BASELINE (main) | APRÈS (branche) | Delta |
+|----------|-----------------|------------------|-------|
+| First Load JS+CSS | 1368.0 KiB (1.34 MiB) | 1251.9 KiB (1.22 MiB) | **-116.1 KiB (-8.5%)** |
+| Ressources chargées | 20 | 20 | 0 (même count) |
+| Chunks ProductPage lazy | 0 (dans main bundle) | 5 chunks séparés (non chargés sur /) | +5 lazy chunks |
+
+**Preuve du code-splitting** : 5 chunks contenant du code ProductPage (`buildWhatsappLink`, `view_item`, `begin_checkout`) confirmés absents du HTML de la homepage :
+- `3fw3jr0wkrof7.js` (76.5 KiB)
+- `1jnajom-uo3dz.js` (47.0 KiB)
+- `2cab6wth_4sh7.js` (21.8 KiB)
+- `0t-ycw0xgjo8f.js` (14.1 KiB)
+- `33u6w4ozdjcup.js` (10.7 KiB)
+
+### Validations
+- `bun run lint` : 0 erreur, 0 warning ✅
+- `npx tsc --noEmit` : 136 erreurs (inchangé — aucune nouvelle erreur TS introduite) ✅
+- `next build` : exit 0 ✅
+- Agent Browser : homepage charge correctement (titre "Abaya Collection Chic — Catalogue", header + footer présents, 0 erreur console) ✅
+- Non-régression : ProductPage/CheckoutPage s'affichent toujours quand l'utilisateur ouvre un produit (chunk lazy fetché on-demand) ✅
+- Non-régression : routes `/merci`, `/product-meta/[slug]`, `/lp/[slug]`, pages légales — non touchées ✅
+
+### Branche
+`feat/bundle-optimization-step1` (créée depuis `main@babe516`). **POUSSÉE SUR ORIGIN. EN ATTENTE DU FEU VERT EXPLICITE DE L'AUDIT AVANT TOUTE FUSION VERS MAIN.**
+
+### Engagement
+Conformément à la PARTIE 1 du MANDAT 4P : **aucun merge vers `main` ne sera exécuté sans feu vert explicite de l'audit**.
