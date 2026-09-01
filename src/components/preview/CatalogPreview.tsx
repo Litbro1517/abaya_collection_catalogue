@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import Link from 'next/link';
+import dynamic from 'next/dynamic';
 import { useAppStore } from '@/lib/store';
 import type { Section, SectionConfig, Column, ColumnConfig, Row, CatalogSettings, Catalog, DataSource } from '@/types';
 import { Button } from '@/components/ui/button';
@@ -15,11 +16,10 @@ import { cn } from '@/lib/utils';
 import { resolveColorHex, buildColorLookupMap, normalizeCouleurKey } from '@/lib/color-utils';
 import { readCache, writeCache, clearAllCache, sanitizeSections, CACHE_KEYS } from '@/lib/cache';
 import type { CachedSectionData } from '@/lib/cache';
-import { ProductPage } from './ProductPage';
+import type { CheckoutPayload } from './CheckoutPage';
 import { SocialStickyTickets } from './SocialStickyTickets';
 import { TrustGuaranteesSection } from '@/components/TrustGuaranteesSection';
 import { useCartStore } from '@/lib/cart-store';
-import { CheckoutPage, type CheckoutPayload } from './CheckoutPage';
 import { useClientTranslation } from '@/lib/i18n';
 import { toast } from 'sonner';
 import { computeDiscount, getCompareAtPrice } from '@/lib/discount-utils';
@@ -34,6 +34,23 @@ import {
   extractDriveFileId,
 } from '@/lib/media-utils';
 // DEBT-6 revert: ContactModal retiré — retour à la Méthode Hybride mailto: + clipboard (DEBT-5)
+
+// ━━ MANDAT 4P (Bundle Optimization Step 1): code-splitting ━━
+// ProductPage (1406 lines) and CheckoutPage (472 lines) are heavy components
+// only needed when a user opens a product detail or starts checkout.
+// Previously statically imported → shipped in the main bundle even for
+// visitors who only browse the catalog grid.
+// Now lazy-loaded via next/dynamic (ssr:false) → split into separate chunks
+// fetched on-demand. This removes ~1900 lines of JS from the First Load JS
+// of the homepage/catalog view.
+const ProductPage = dynamic(() => import('./ProductPage').then(m => ({ default: m.ProductPage })), {
+  ssr: false,
+  loading: () => null,
+});
+const CheckoutPage = dynamic(() => import('./CheckoutPage').then(m => ({ default: m.CheckoutPage })), {
+  ssr: false,
+  loading: () => null,
+});
 
 // ── Brand Constants removed — all values migrated to CSS pivot variables & global classes ──
 

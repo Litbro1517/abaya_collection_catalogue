@@ -1497,3 +1497,61 @@ Stage Summary:
 - Zéro régression (16 product cards rendues, 0 erreur console)
 - Branche fix/clean-dead-code conservée sur origin pour traçabilité
 - Mission MANDAT 4P dead code CLOSC
+
+---
+Task ID: MANDAT-4P-BUNDLE-OPT-STEP1
+Agent: Main Orchestrator
+Task: MANDAT 4P — Optimisation Bundle JS Étape 1 (branche isolée feat/bundle-optimization-step1)
+
+Work Log:
+- Lu PROJECT_MAP.md et worklog.md pour contexte préalable (obligation PARTIE 1)
+- Vérifié état git : sur main@babe516, sync origin, working tree propre (hors 2 fichiers 0-byte phantom)
+- Créé branche isolée `feat/bundle-optimization-step1` depuis main@babe516
+- AUDIT basé sur le rapport PageSpeed (5,4 Mo ressources transférées, JS inutilisé au démarrage)
+- AUDIT 1 — Inventaire des packages lourds dans node_modules (tailles) :
+  - react-syntax-highlighter: 8.9 MiB | @tanstack: 9.2 MiB | @supabase: 8.6 MiB
+  - framer-motion: 5.8 MiB | recharts: 5.4 MiB | next-auth: 2.7 MiB | next-intl: 1.7 MiB
+- AUDIT 2 — Recherche d'imports (`grep -rl`) pour chaque package lourd dans src/ :
+  - 8 packages avec 0 imports : @dnd-kit/* (3), @mdxeditor/editor, next-auth, next-intl, react-markdown, react-syntax-highlighter
+  - Packages utilisés : recharts (1 fichier: ui/chart.tsx), framer-motion (1: SearchOverlay.tsx), embla-carousel (1: ui/carousel.tsx), react-day-picker (1: ui/calendar.tsx), react-resizable-panels (1: ui/resizable.tsx) — tous admin-only, pas sur le chemin public
+- AUDIT 3 — Chemin public (CatalogPreview → HomeClient) :
+  - HomeClient déjà code-splittait BuilderShell + AdminDashboard + LoginModal via next/dynamic (ssr:false) — admin isolé ✅
+  - CatalogPreview importait STATIQUEMENT ProductPage (1406 lignes) + CheckoutPage (472 lignes) — ship dans First Load même pour visiteurs qui ne font que parcourir la grille
+- OPTIMISATION 1 — Installé + configuré @next/bundle-analyzer :
+  - `bun add -d @next/bundle-analyzer` (v16.3.4)
+  - next.config.ts wrappé avec withBundleAnalyzer({ enabled: process.env.ANALYZE === 'true' })
+  - Ajouté script "analyze" dans package.json (ANALYZE=true next build)
+  - Production builds Vercel non affectés (analyzer disabled par défaut)
+- OPTIMISATION 2 — Supprimé 8 dépendances mortes de package.json :
+  - @dnd-kit/core + @dnd-kit/sortable + @dnd-kit/utilities (DnD jamais utilisé)
+  - @mdxeditor/editor (1.2 MiB node_modules, 0 imports)
+  - next-auth (2.7 MiB, 0 imports — auth custom dans src/lib/auth.ts)
+  - next-intl (1.7 MiB, 0 imports — i18n custom dans src/lib/i18n/)
+  - react-markdown (0 imports)
+  - react-syntax-highlighter (8.9 MiB!, 0 imports)
+  - bun.lock mis à jour (8 packages + transitives, -639 lignes)
+  - Note : PROJECT_MAP L.208 indiquait "next-intl ne pas supprimer (risque lockfile)" — cette note conservatrice est superseded par le MANDAT 4P qui donne liberté de suppression. Vérifié : bun install OK, next build exit 0.
+- OPTIMISATION 3 — Code-splitting dans CatalogPreview.tsx :
+  - `import { ProductPage } from './ProductPage'` → `const ProductPage = dynamic(() => import('./ProductPage').then(m => ({ default: m.ProductPage })), { ssr: false, loading: () => null })`
+  - `import { CheckoutPage } from './CheckoutPage'` → idem dynamic
+  - `import type { CheckoutPayload }` conservé (type-only, 0 bundle impact)
+- MESURE basée (main) : build + next start + curl homepage + sommer tailles chunks référencés
+  - BASELINE : 1368.0 KiB (1.34 MiB) / 20 ressources
+- MESURE après (branche) : même protocole
+  - APRÈS : 1251.9 KiB (1.22 MiB) / 20 ressources
+  - DELTA : -116.1 KiB (-8.5%) sur First Load JS+CSS de la homepage
+- PREUVE code-splitting : 5 chunks contenant code ProductPage confirmés ABSENTS du HTML homepage :
+  - 3fw3jr0wkrof7.js (76.5 KiB), 1jnajom-uo3dz.js (47.0 KiB), 2cab6wth_4sh7.js (21.8 KiB), 0t-ycw0xgjo8f.js (14.1 KiB), 33u6w4ozdjcup.js (10.7 KiB)
+- VALIDATION : bun run lint 0/0 ✅ ; npx tsc --noEmit 136 erreurs (inchangé) ✅ ; next build exit 0 ✅
+- VALIDATION browser (agent-browser) : homepage charge (titre "Abaya Collection Chic — Catalogue", header+footer présents, 0 erreur console) ✅
+- Mise à jour PROJECT_MAP.md : nouvelle section [MANDAT 4P — OPTIMISATION BUNDLE JS (ÉTAPE 1)] documentant les 3 optimisations, tableau des 8 dépendances mortes, résultats mesurés, preuves code-splitting
+
+Stage Summary:
+- Branche isolée : `feat/bundle-optimization-step1` (créée depuis main@babe516)
+- Commit : `ab72a2f` (4 files changed, 58 insertions, 639 deletions)
+- First Load JS+CSS homepage : 1368.0 → 1251.9 KiB (**-116.1 KiB / -8.5%**)
+- 8 dépendances mortes supprimées (~25.7 MiB node_modules éliminés en install propre)
+- ProductPage + CheckoutPage code-splittés (lazy-loaded on-demand)
+- @next/bundle-analyzer installé + configuré (ANALYZE=true pour activer)
+- main NON touché
+- **ENGAGEMENT : aucun merge vers main sans feu vert explicite de l'audit**
