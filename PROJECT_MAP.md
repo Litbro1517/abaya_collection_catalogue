@@ -4736,3 +4736,61 @@ Conformément à la PARTIE 1 du MANDAT 4P : **aucun merge vers `main` ne sera ex
 
 ### Engagement
 Conformément à la PARTIE 1 du MANDAT 4P : **aucun merge vers `main` ne sera exécuté sans feu vert explicite de l'audit**. Identité Git préservée (`gotonewjamail@gmail.com` / `Litbro1517`) pour garantir l'automatisation Vercel.
+
+---
+
+## [MANDAT 4P — ÉTAPE 5 : FIX HYDRATATION REACT #418 + PARSING IMAGE_ARRAY ROBUSTE]
+
+**Statut** : ✅ AUDITÉ & FUSIONNÉ (MANDAT ADF, merge `c7c8574` sur main, Vercel vert)
+**Branche** : `fix/react-hydration-and-cdn-migrate` (commit `54725f3`, créée depuis `main@8469850`)
+
+### Problème 1 — Erreur d'hydratation React #418 (DataTable)
+Le bouton « Exporter vers le CDN » et le compteur « X ligne(s) sélectionnée(s) » dépendent de
+`visibleColumns` et `selectedRows` qui peuvent différer entre SSR et client (restauration
+localStorage/fetch). Ce mismatch provoquait l'erreur React #418 qui **détache les event
+handlers → onClick bloqué**.
+
+**Fix (pattern React idiomatique)** : guard `mounted`
+```tsx
+const [mounted, setMounted] = useState(false);
+useEffect(() => { setMounted(true); }, []);
+// ...dans le JSX :
+{mounted && selectedRows.size > 0 && (/* bulk bar */)}
+{mounted && visibleColumns.some(c => c.type === 'IMAGE' || c.type === 'IMAGE_ARRAY') && (/* bouton CDN */)}
+```
+Le SSR rend une toolbar vide (pas de mismatch), puis le client l'affiche après mount avec les
+handlers attachés.
+
+### Problème 2 — Parsing robuste des cellules IMAGE_ARRAY (cdn-migrate + DataTable)
+Après un réimport Google Sheets, une cellule IMAGE_ARRAY arrive sous 3 formats :
+- **(a)** Tableau natif JSON : `["url1","url2"]` (format VG33.3 attendu)
+- **(b)** String JSON stringifiée : `'["url1","url2"]'` (legacy)
+- **(c)** String simple : `/api/google/image-proxy?id=X&sz=800` ou `https://drive...` (réimport brut)
+
+L'ancien code `String(rawCell).split(/[,;]\s*/)` **cassait le JSON** (guillemets/crochets dans
+les URLs) → `extractDriveFileId` ne matchait pas → migration silencieusement échouée.
+
+**Fix** : détection de format + parsing correct dans les DEUX composants :
+- `cdn-migrate/route.ts` : format (a) via `Array.isArray`, (b) via `JSON.parse`, (c) tableau à 1
+  élément ; types inattendus (number/boolean/null) skippés ; prédicats typés stricts
+  `(u: unknown): u is string => typeof u === 'string' && u.trim() !== ''`
+- `DataTable.tsx` : badge « N images » sur (b) ; string `/api/google/...` traitée comme image
+  unique (badge « 1 image ») — plus de cellule invisible
+
+### Fichiers modifiés (2)
+| # | Fichier | Changement |
+|---|---------|-----------|
+| 1 | `src/components/data/DataTable.tsx` | Guard `mounted` (toolbar + bouton CDN, fix #418) ; parsing IMAGE_ARRAY badge (b)/(c) |
+| 2 | `src/app/api/catalog/media/cdn-migrate/route.ts` | Parsing résistant 3 formats avec prédicats stricts + skip types inattendus |
+
+### Validations (audit ADF indépendant)
+- `bun run lint` : 0 erreur, 0 warning (exit 0 réel) ✅
+- `npx tsc --noEmit` : 134 erreurs = baseline (0 nouvelle) ✅
+- `bun run build` : exit 0, 12.0 s, 60/60 pages ✅
+- Runtime : noindex ×2 + googlebot préservé, robots.txt `Disallow: /` ✅, 3 cartes (local) /
+  16 cartes (prod) ✅, console 0 erreur / 0 hydration ✅, `/admin` HTTP 200 sans crash ✅
+- Vercel : SUCCESS ×2 (abaya-collection-catalogue-9dum + abaya-collection-catalogue) ✅
+- Prod vérifiée : `https://abaya-collection-catalogue-9dum.vercel.app` ✅
+
+### Chaîne d'audits ADF
+`30682e6 → 442d7c7 (bundle) → 880f8a2 (CLS) → 432726c (LCP) → 8469850 (CDN+noindex) → c7c8574 (hydratation+ parsing)`

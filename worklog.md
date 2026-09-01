@@ -1714,3 +1714,26 @@ Stage Summary:
 - Identité Git préservée : gotonewjamail@gmail.com / Litbro1517
 - main NON touché
 - **ENGAGEMENT : aucun merge vers main sans feu vert explicite de l'audit**
+
+---
+Task ID: MANDAT-4P-HYDRATION-CDN-MIGRATE-STEP5
+Agent: Développeur (branche) + Auditeur ADF (validation & fusion)
+Task: MANDAT 4P Étape 5 — Fix hydratation React #418 + parsing IMAGE_ARRAY robuste (branche fix/react-hydration-and-cdn-migrate)
+
+Work Log:
+- Branche isolée `fix/react-hydration-and-cdn-migrate` (commit 54725f3) depuis main@8469850
+- Fix #418 : guard `mounted` sur DataTable (toolbar bulk + bouton CDN export) — SSR rend toolbar
+  vide, client l'affiche après mount → plus de mismatch, handlers attachés
+- Parsing IMAGE_ARRAY 3 formats (a/b/c) dans cdn-migrate + DataTable — prédicats typés stricts
+- AUDIT ADF : topologie ✅ (merge-base 8469850), identité ✅ (Litbro1517), lint 0/0 ✅,
+  tsc 134 = baseline ✅, build exit 0 ✅, runtime noindex/cartes/0-erreur ✅, /admin 200 ✅
+- Épisode d'audit : faux positif d'affichage (séquence « [m » masquée dans les sorties texte,
+  donnant l'illusion `const ounted`) — résolu par autorités formelles (tsc 134 sans erreur de
+  syntaxe + lint exit 0) et relecture bytes-safe du diff → ligne réelle `const [mounted, ...]` valide
+- MERGE --no-ff → c7c8574 ; push 8469850..c7c8574 ; Vercel SUCCESS ×2 ; prod vérifiée ✅
+
+Stage Summary:
+- Verdict : 🟢 CONFORME — fusion exécutée (merge c7c8574)
+- Vercel : vert ×2 ; prod : noindex préservé + 16 cartes + /admin 200
+- Chaîne ADF : 30682e6 → 442d7c7 → 880f8a2 → 432726c → 8469850 → c7c8574
+- Leçons d'audit : les gates (tsc/lint exit codes réels) priment sur les impressions visuelles des diffs
