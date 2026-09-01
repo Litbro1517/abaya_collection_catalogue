@@ -4533,3 +4533,63 @@ Audit par `grep -rl` : chaque package ci-dessous a été vérifié comme ayant *
 
 ### Engagement
 Conformément à la PARTIE 1 du MANDAT 4P : **aucun merge vers `main` ne sera exécuté sans feu vert explicite de l'audit**.
+
+---
+
+## [MANDAT 4P — ÉTAPE 2 : OPTIMISATION CLS & HYDRATATION]
+
+### Mandat
+Élimination du Cumulative Layout Shift (CLS) au chargement des cartes produits et composants dynamiques, stabilisation de l'hydratation React (éviter les mismatches SSR/CSR), amélioration des Core Web Vitals.
+
+### Solution technique — 3 correctifs
+
+#### Fix 1 — Skeleton loaders pour composants lazy-loaded (`CatalogPreview.tsx`)
+- **Avant** : `ProductPage` et `CheckoutPage` (lazy-loaded via `next/dynamic` en Étape 1) utilisaient `loading: () => null` → quand l'utilisateur cliquait un produit, la grille catalogue disparaissait (null) avant que le chunk lazy se charge, puis la vue détail apparaissait d'un coup → **pic CLS**.
+- **Après** : deux composants skeleton (`ProductPageSkeleton`, `CheckoutPageSkeleton`) réservent l'espace final pendant le fetch du chunk :
+  - `ProductPageSkeleton` : layout 2-colonnes (carousel `aspect-ratio: 3/4` + bloc info avec lignes titre/prix/CTA), `min-height: 70vh`
+  - `CheckoutPageSkeleton` : layout formulaire (titre + lignes + CTA), `min-height: 60vh`
+  - `aria-hidden="true"` (skippers par lecteurs d'écran)
+  - `loading: () => <ProductPageSkeleton />` remplace `loading: () => null`
+
+#### Fix 2 — Stabilisation hydratation footer (`CatalogPreview.tsx`)
+- **Avant** : `© {new Date().getFullYear()}` rendu directement dans le `<p>` du footer. Près du passage à minuit du Nouvel An (fuseau serveur UTC vs client local), l'année serveur peut différer de l'année client → **warning hydration mismatch React**.
+- **Après** : wrapper `<span suppressHydrationWarning>` autour de l'année — directive React qui skippe le check d'hydratation sur ce sous-arbre (l'année se réaligne après hydrdatation sans warning).
+
+#### Fix 3 — CSS skeleton (141 lignes, `globals.css`)
+- `@keyframes cls-skeleton-pulse` : opacité 1→0.5→1 (1.5s infinite) — animation subtile signalant le chargement
+- `.cls-skeleton-detail` : flex column mobile → flex row desktop (`@media min-width: 768px`) — correspond aux dimensions finales de ProductPage
+- `.cls-skeleton-detail__carousel` : `aspect-ratio: 3/4` + `max-width: 28rem` — réserve exactement la place du carousel
+- `.cls-skeleton-checkout` : flex column, `max-width: 32rem` — correspond au formulaire CheckoutPage
+- `@media (prefers-reduced-motion: reduce)` : animation désactivée (accessibilité — utilisateurs sensibles au mouvement voient un bloc statique)
+
+### Fichiers modifiés (2)
+| # | Fichier | Changement |
+|---|---------|-----------|
+| 1 | `src/components/preview/CatalogPreview.tsx` | +2 composants skeleton (`ProductPageSkeleton`, `CheckoutPageSkeleton`) ; `loading: () => null` → `loading: () => <Skeleton />` ; footer year wrappé dans `<span suppressHydrationWarning>` |
+| 2 | `src/app/globals.css` | +141 lignes : `@keyframes cls-skeleton-pulse`, 10 classes skeleton (detail + checkout), responsive desktop, `prefers-reduced-motion` |
+
+### Résultats mesurés (production server + agent-browser)
+
+| Métrique | Avant (Étape 1) | Après (Étape 2) |
+|----------|-----------------|------------------|
+| CLS homepage (PerformanceObserver) | non mesuré (loading:null) | **0.0000** ✅ (seuil 'Good' < 0.1) |
+| Layout shift au clic produit | pic (grid→null→detail) | **zéro** (skeleton→detail) ✅ |
+| Hydration warnings footer | risqué près Nouvel An | **éliminé** (suppressHydrationWarning) ✅ |
+| Console errors | 0 | **0** ✅ |
+| Lint | 0/0 | **0/0** ✅ |
+| Build | exit 0 | **exit 0** ✅ |
+
+### Validations
+- `bun run lint` : 0 erreur, 0 warning ✅
+- `next build` : exit 0 ✅
+- Skeleton CSS confirmé dans le bundle production (chunk `0i5dkdhh3dg9n.css`, 10 noms de classes `cls-skeleton-*` présents) ✅
+- CLS mesuré via `PerformanceObserver({type:'layout-shift', buffered:true})` → `0.0000` ✅
+- Footer rend "© 2026 Mon Catalogue" avec wrapper `<span>` actif ✅
+- 0 erreur console, 0 warning hydration ✅
+- Non-régression : product cards (`aspect-ratio: 4/3`), carousel PDP (`aspect-ratio: 3/4`), header/footer — tous préservés ✅
+
+### Branche
+`feat/cls-hydration-opt` (créée depuis `main@30682e6`). **POUSSÉE SUR ORIGIN. EN ATTENTE DU FEU VERT EXPLICITE DE L'AUDIT AVANT TOUTE FUSION VERS MAIN.**
+
+### Engagement
+Conformément à la PARTIE 1 du MANDAT 4P : **aucun merge vers `main` ne sera exécuté sans feu vert explicite de l'audit**. Identité Git préservée (`gotonewjamail@gmail.com` / `Litbro1517`) pour garantir l'automatisation Vercel.
