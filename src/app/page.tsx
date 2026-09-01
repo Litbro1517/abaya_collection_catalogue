@@ -136,8 +136,13 @@ export async function generateMetadata({ searchParams }: PageProps): Promise<Met
       images: [ogImage],
     },
     robots: {
-      index: robotsIndex,
-      follow: true,
+      // MANDAT 4P — noindex, nofollow global (préalable prioritaire)
+      // Le layout global impose déjà noindex, nofollow sur toutes les pages.
+      // Cette directive est répétée ici pour empêcher tout override accidentel
+      // par une logique future (ex: ?product=<valide> → index). Tant que le
+      // mandat noindex global est actif, TOUTES les pages doivent être noindex.
+      index: false,
+      follow: false,
     },
   };
 }

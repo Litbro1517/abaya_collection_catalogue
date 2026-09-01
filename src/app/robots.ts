@@ -28,9 +28,12 @@ export default async function robots(): Promise<MetadataRoute.Robots> {
   return {
     rules: [
       {
+        // MANDAT 4P — noindex, nofollow global : bloquer le crawling de TOUTES
+        // les routes. Complète le meta robots noindex, nofollow du layout.
+        // Le meta robots empêche l'indexation ; le robots.txt Disallow: / empêche
+        // le crawling (économise le budget crawl de Googlebot).
         userAgent: '*',
-        allow: '/',
-        disallow: ['/admin', '/api/'],
+        disallow: '/',
       },
     ],
     sitemap: `${baseUrl}/sitemap.xml`,
