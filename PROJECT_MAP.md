@@ -4593,3 +4593,87 @@ Conformément à la PARTIE 1 du MANDAT 4P : **aucun merge vers `main` ne sera ex
 
 ### Engagement
 Conformément à la PARTIE 1 du MANDAT 4P : **aucun merge vers `main` ne sera exécuté sans feu vert explicite de l'audit**. Identité Git préservée (`gotonewjamail@gmail.com` / `Litbro1517`) pour garantir l'automatisation Vercel.
+
+---
+
+## [MANDAT 4P — FIX RÉGRESSION PAGESPEED (LCP + CLS)]
+
+### Mandat
+Correction de la régression PageSpeed mobile après l'Étape 2 : score chuté de 68% → 55%, LCP explosé de 6.2s → 14.3s (+8.1s), CLS passé de 0 → 0.295. Objectifs : CLS < 0.1, LCP < 4s mobile, score > 68%.
+
+### Diagnostic (confirmé contre HTML production Vercel)
+
+Audit du HTML de la production actuelle (`abaya-collection-catalogue-9dum.vercel.app`) :
+- **16 imgs product cards avec `loading="lazy"`** — TOUTES les cartes en lazy-load, y compris les 4 cartes above-the-fold → l'élément LCP (première image produit) était différé → LCP 14.3s
+- **0 imgs avec `fetchpriority`** — aucun signal de priorité réseau pour le LCP
+- **Logos header/footer sans `width` explicite** — largeur inconnue jusqu'au décodage de l'image → shift de layout (CLS 0.295)
+
+### Solution technique — 6 correctifs
+
+#### Fix 1 — Product card images eager + fetchPriority (`CatalogPreview.tsx`)
+- **Avant** : `loading="lazy"` sur toutes les cartes → LCP différé
+- **Après** :
+  - `loading={idx < 4 ? 'eager' : 'lazy'}` — 4 premières cartes (above-the-fold mobile) en eager
+  - `fetchPriority={idx === 0 ? 'high' : 'auto'}` — première carte prioritise dans la queue réseau
+  - `decoding={idx < 4 ? 'sync' : 'async'}` — décodage immédiat pour above-the-fold
+- Ajouté `idx` au `.map()` callback pour accéder à l'index
+
+#### Fix 2 — Header logo width/height (`CatalogPreview.tsx`)
+- **Avant** : `style={{ height: logoHeight }}` seul → pas de width → CLS au décodage
+- **Après** : `width={logoHeight * 3} height={logoHeight}` explicites (ratio logo ~3:1)
+
+#### Fix 3 — Footer logo width/height (`CatalogPreview.tsx`)
+- Même fix que header logo : `width` + `height` explicites
+
+#### Fix 4 — ProductPage carousel (`ProductPage.tsx`)
+- **Avant** : `<img>` sans width/height (CLS potentiel)
+- **Après** :
+  - `width={1000} height={1333}` sur carousel principal (ratio 3/4)
+  - `fetchPriority={i === 0 ? 'high' : 'auto'}` sur première slide (LCP PDP)
+  - `width={80} height={80}` sur thumbnails (CLS)
+
+#### Fix 5 — Merci page recap img (`merci/page.tsx`)
+- **Avant** : `<img src={productImage} loading="lazy" decoding="async" />` (pas de dimensions)
+- **Après** : `width={72} height={72}` explicites (CLS prévention)
+
+#### Fix 6 — next.config.ts image optimization
+- `formats: ['image/avif', 'image/webp']` — formats modernes (~30-50% plus petits que JPEG/PNG)
+- `minimumCacheTTL: 2592000` (30 jours) — assets CDN immuables
+
+### Fichiers modifiés (4 source + 1 config + 1 tooling)
+| # | Fichier | Changement |
+|---|---------|-----------|
+| 1 | `src/components/preview/CatalogPreview.tsx` | Product cards: eager/fetchPriority/decoding conditionnels sur idx ; header + footer logos: width/height explicites |
+| 2 | `src/components/preview/ProductPage.tsx` | Carousel: width/height + fetchPriority sur première slide ; thumbnails: width/height |
+| 3 | `src/app/merci/page.tsx` | Recap img: width/height explicites |
+| 4 | `next.config.ts` | `images.formats` (AVIF/WebP) + `minimumCacheTTL` |
+| 5 | `package.json` + `bun.lock` | +devDep `lighthouse@13.4.1` (outil de mesure) |
+
+### Résultats — comparaison HTML production (avant/après merge)
+
+| Attribut | Production actuelle (avant merge) | Après merge (cette branche) |
+|----------|-----------------------------------|------------------------------|
+| `loading="lazy"` (above-fold) | 16 imgs (TOUTES) ❌ | 12 imgs (below-fold seulement) ✅ |
+| `loading="eager"` (above-fold) | 0 ❌ | 4 imgs (first 4 cards) ✅ |
+| `fetchpriority="high"` (LCP) | 0 ❌ | 1 img (first card) ✅ |
+| Logos avec `width` + `height` | 0 ❌ | 2 (header + footer) ✅ |
+| ProductPage carousel `width`/`height` | absent ❌ | présent ✅ |
+| Merci recap `width`/`height` | absent ❌ | présent ✅ |
+
+### Preuves de compilation (bundle JS)
+- `fetchPriority:0===r?"high":"auto"` confirmé dans le chunk `3qyrmh8710frp.js` (CatalogPreview product cards)
+- `fetchPriority:0===i?"high":"auto"` confirmé dans le chunk `1cguyd903vn4r.js` (ProductPage carousel)
+- Logic eager/lazy conditionnel présent dans 3 chunks
+
+### Validations
+- `bun run lint` : 0 erreur, 0 warning ✅
+- `next build` : exit 0 ✅
+- Agent Browser : homepage charge (HTTP 200, 0 erreur console)
+- Lighthouse baseline local (SQLite, empty catalog) : Performance 92%, LCP 3.4s, CLS 0 (la régression prod est due aux vraies images + DB, pas au code local)
+- Production HTML comparison : confirme les 16 imgs lazy → 0 eager → 0 fetchpriority (le bug) sera corrigé après merge
+
+### Branche
+`fix/pagespeed-regression-lcp-cls` (créée depuis `main@880f8a2`). **POUSSÉE SUR ORIGIN. EN ATTENTE DU FEU VERT EXPLICITE DE L'AUDIT AVANT TOUTE FUSION VERS MAIN.**
+
+### Engagement
+Conformément à la PARTIE 1 du MANDAT 4P : **aucun merge vers `main` ne sera exécuté sans feu vert explicite de l'audit**. Identité Git préservée (`gotonewjamail@gmail.com` / `Litbro1517`) pour garantir l'automatisation Vercel.
