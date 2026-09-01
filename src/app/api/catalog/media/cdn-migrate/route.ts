@@ -192,10 +192,14 @@ export async function POST(req: NextRequest) {
         }
 
         // Check if this file_id is already attached to ANOTHER row (true conflict)
+        // MANDAT CADRE B: fix TS1117 — duplicate `not` key in object literal.
+        // { not: row.id, not: null } is invalid JS (second `not` overwrites first).
+        // Replaced with { not: row.id } — Prisma interprets `not: row.id` as
+        // "rowId is NOT equal to row.id" (excludes current row, which is the intent).
         const conflictAsset = await db.mediaAsset.findFirst({
           where: {
             fileId,
-            rowId: { not: row.id, not: null },
+            rowId: { not: row.id },
           },
           select: { rowId: true, status: true, cdnUrl: true },
         });
@@ -205,7 +209,10 @@ export async function POST(req: NextRequest) {
             rowId: row.id,
             fileId,
             status: 'conflict',
-            conflictRowId: conflictAsset.rowId,
+            // MANDAT CADRE B: fix TS2322 — conflictAsset.rowId is `string | null`,
+            // but results[].conflictRowId expects `string | undefined`.
+            // Coalesce null → undefined for type compatibility.
+            conflictRowId: conflictAsset.rowId ?? undefined,
           });
           conflictCount++;
           newUrls.push(url); // keep the Drive URL
