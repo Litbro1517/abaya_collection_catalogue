@@ -325,13 +325,27 @@ export async function POST(req: NextRequest) {
         }
 
         // ── Download from Drive (throttled) ──
+        // MANDAT 4P — Correctif anti-bot Google Drive :
+        // fetch() sans User-Agent est rejeté par lh3.googleusercontent.com
+        // (filtre anti-bot heuristique). On ajoute les mêmes headers que le
+        // proxy /api/google/image-proxy (qui réussit) : User-Agent navigateur
+        // + Accept image/*. Sans ces headers, Google renvoie un status non-200
+        // → la migration échoue silencieusement (status: 'failed').
+        const fetchOpts: RequestInit = {
+          redirect: 'follow',
+          headers: {
+            'User-Agent':
+              'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+            Accept: 'image/avif,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8',
+          },
+        };
         await sleep(THROTTLE_MS);
         let downloadUrl = `${DRIVE_DOWNLOAD_BASE}${fileId}=w1200`;
-        let driveRes = await fetch(downloadUrl);
+        let driveRes = await fetch(downloadUrl, fetchOpts);
         if (!driveRes.ok) {
           // Retry with proxy-style URL
           downloadUrl = `${DRIVE_DOWNLOAD_BASE}${fileId}`;
-          driveRes = await fetch(downloadUrl);
+          driveRes = await fetch(downloadUrl, fetchOpts);
         }
         if (!driveRes.ok || !driveRes.body) {
           // MANDAT INVESTIGATION: instrumenter la raison exacte
