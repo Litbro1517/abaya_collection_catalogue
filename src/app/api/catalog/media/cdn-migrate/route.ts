@@ -3,6 +3,15 @@ import { NextRequest, NextResponse } from 'next/server';
 import { extractDriveFileId } from '@/lib/media-utils';
 import { getSupabaseAdmin, STORAGE_BUCKET } from '@/lib/supabase';
 
+// ━━ MANDAT 4P — Étape 1a : maxDuration 60s ━━
+// Plan Hobby = 10s par défaut. La migration d'une colonne complète (264 URLs)
+// prend 3-9 minutes. Sans maxDuration, la fonction est tuée après 10s →
+// migration partielle + erreur silencieuse.
+// 60s est le maximum autorisé sur le plan Hobby (Next.js App Router).
+// Pour les colonnes complètes, l'admin doit utiliser la sélection bulk
+// par sous-ensembles de ~15-20 rows (chaque batch < 60s).
+export const maxDuration = 60;
+
 /**
  * POST /api/catalog/media/cdn-migrate
  * Migrates Google Drive images to the CDN (Supabase Storage → local fallback).
@@ -15,6 +24,9 @@ import { getSupabaseAdmin, STORAGE_BUCKET } from '@/lib/supabase';
  * }
  *
  * Algorithm:
+ * 0. HEAD check: if the CDN URL already exists (public GET 200), skip download
+ *    and reuse the existing CDN URL. This bypasses the 209 WebP files already
+ *    in the bucket from a previous privileged migration run.
  * 1. For each row, extract Drive file_ids from the cell.
  * 2. Uniqueness check: if a file_id is already attached to ANOTHER row
  *    (different rowId) via MediaAsset, BLOCK the migration for that image
@@ -260,6 +272,57 @@ export async function POST(req: NextRequest) {
           continue;
         }
 
+        // ━━ MANDAT 4P — Étape 1b : HEAD check bypass (209 fichiers déjà en bucket) ━━
+        // Avant de télécharger depuis Drive (coûteux, throttled, sujet aux quotas 429),
+        // vérifier si le fichier WebP existe DÉJÀ dans le bucket CDN Supabase.
+        // Le bucket est public — un simple HEAD sur l'URL publique suffit.
+        // Cela bypass les 209 WebP déjà présents (uploadés par une exécution
+        // privilégiée précédente) → migration instantanée sans re-download.
+        const supabaseUrl = process.env.SUPABASE_URL;
+        if (supabaseUrl) {
+          const headFileName = `media/${fileId}.webp`;
+          const publicCdnUrl = `${supabaseUrl}/storage/v1/object/public/${STORAGE_BUCKET}/${headFileName}`;
+          try {
+            const headRes = await fetch(publicCdnUrl, { method: 'HEAD' });
+            if (headRes.ok && (headRes.headers.get('content-type') || '').includes('image/')) {
+              // Fichier déjà présent sur le CDN — skip download + upload
+              // Upsert MediaAsset (l'exécution précédente n'a pas créé MediaAsset
+              // dans la DB prod, donc on le crée maintenant pour la cohérence)
+              await db.mediaAsset.upsert({
+                where: { fileId_columnSlug: { fileId, columnSlug } },
+                update: {
+                  rowId: row.id,
+                  dataSourceId,
+                  cdnUrl: publicCdnUrl,
+                  fileName: headFileName,
+                  mimeType: 'image/webp',
+                  status: 'cdn',
+                },
+                create: {
+                  fileId,
+                  rowId: row.id,
+                  dataSourceId,
+                  columnSlug,
+                  originalUrl: url,
+                  cdnUrl: publicCdnUrl,
+                  fileName: headFileName,
+                  mimeType: 'image/webp',
+                  status: 'cdn',
+                },
+              });
+              newUrls.push(publicCdnUrl);
+              cdnUrlByFileId.set(fileId, publicCdnUrl);
+              results.push({ rowId: row.id, fileId, status: 'migrated', cdnUrl: publicCdnUrl });
+              migratedCount++;
+              cellChanged = true;
+              continue;
+            }
+          } catch {
+            // HEAD échoué (bucket non public, erreur réseau, etc.) —
+            // proceed to download from Drive
+          }
+        }
+
         // ── Download from Drive (throttled) ──
         await sleep(THROTTLE_MS);
         let downloadUrl = `${DRIVE_DOWNLOAD_BASE}${fileId}=w1200`;
@@ -368,10 +431,19 @@ export async function POST(req: NextRequest) {
       }
     }
 
+    // MANDAT 4P — Étape 2 : compter les échecs pour le toast client
+    // Le toast "Aucune image à migrer" masquait les échecs d'upload (RLS, quota,
+    // timeout). Maintenant le client peut distinguer :
+    // - migrated > 0 → succès
+    // - conflicts > 0 → conflits
+    // - failed > 0 → échecs d'upload (message explicite)
+    const failedCount = results.filter(r => r.status === 'failed').length;
+
     return NextResponse.json({
       data: {
         migrated: migratedCount,
         conflicts: conflictCount,
+        failed: failedCount,
         total: results.length,
         results,
       },

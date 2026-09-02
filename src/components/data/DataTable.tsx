@@ -1630,6 +1630,7 @@ export function DataTable({ columns, rows, dataSourceId, loading, onRefresh, onU
                     const imageCols = visibleColumns.filter(c => c.type === 'IMAGE' || c.type === 'IMAGE_ARRAY');
                     let totalMigrated = 0;
                     let totalConflicts = 0;
+                    let totalFailed = 0;
                     for (const col of imageCols) {
                       const res = await fetch('/api/catalog/media/cdn-migrate', {
                         method: 'POST',
@@ -1645,11 +1646,18 @@ export function DataTable({ columns, rows, dataSourceId, loading, onRefresh, onU
                         const json = await res.json();
                         totalMigrated += json.data.migrated || 0;
                         totalConflicts += json.data.conflicts || 0;
+                        // MANDAT 4P — Étape 2 : compter les échecs
+                        totalFailed += json.data.failed || 0;
                       }
                     }
+                    // MANDAT 4P — Étape 2 : Toast différencié (échecs vs "aucune image")
+                    // Avant : "Aucune image à migrer" s'affichait même quand des uploads
+                    // échouaient (RLS, quota, timeout) → masquait le vrai problème.
+                    // Maintenant : si failed > 0, message explicite d'échec.
                     if (totalMigrated > 0) toast.success(`${totalMigrated} image(s) migrée(s) vers le CDN`);
                     if (totalConflicts > 0) toast.error(`${totalConflicts} conflit(s) — image(s) déjà attribuée(s)`);
-                    if (totalMigrated === 0 && totalConflicts === 0) toast.info('Aucune image à migrer');
+                    if (totalFailed > 0) toast.error(`${totalFailed} image(s) ont échoué lors de la migration CDN`);
+                    if (totalMigrated === 0 && totalConflicts === 0 && totalFailed === 0) toast.info('Aucune image à migrer');
                     onRefresh({ forceNetwork: true });
                   } catch {
                     toast.error('Erreur lors de la migration CDN');
@@ -1969,10 +1977,13 @@ export function DataTable({ columns, rows, dataSourceId, loading, onRefresh, onU
                                       });
                                       if (!res.ok) throw new Error('migrate failed');
                                       const json = await res.json();
-                                      const { migrated, conflicts } = json.data;
+                                      // MANDAT 4P — Étape 2 : extraire aussi `failed` pour le toast
+                                      const { migrated, conflicts, failed } = json.data;
                                       if (migrated > 0) toast.success(`${migrated} image(s) migrée(s) vers le CDN`);
                                       if (conflicts > 0) toast.error(`${conflicts} conflit(s) — image(s) déjà attribuée(s) à un autre produit`);
-                                      if (migrated === 0 && conflicts === 0) toast.info('Aucune image à migrer');
+                                      // MANDAT 4P — Étape 2 : message explicite d'échec
+                                      if (failed > 0) toast.error(`${failed} image(s) ont échoué lors de la migration CDN`);
+                                      if (migrated === 0 && conflicts === 0 && failed === 0) toast.info('Aucune image à migrer');
                                       onRefresh({ forceNetwork: true });
                                     } catch {
                                       toast.error('Erreur lors de la migration CDN');
