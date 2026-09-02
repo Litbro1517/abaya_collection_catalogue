@@ -1752,3 +1752,36 @@ HEAD bypass mocké (MediaAsset upsert + cellule réécrite + idempotence) ; 401/
 NON active (scan-bucket totalBucket=0) → requise pour les ~19 fichiers restants ; les 209
 existants migrent sans elle (bypass).
 **Détails** : PROJECT_MAP.md §ÉTAPE 6 ; preuves `verify-logs/adf-cdn-migrate-env-batching/`.
+
+---
+Task ID: MANDAT-4P-UA-FIX
+Agent: Main Orchestrator
+Task: MANDAT 4P — Correctif User-Agent anti-bot Google Drive + clé Supabase corrigée
+
+Work Log:
+- Lu PROJECT_MAP.md et worklog.md (MANDAT PARTIE 1)
+- Sync branche isolée fix/line25-web-tracing depuis main@22e40ce
+- Correctif User-Agent appliqué (cdn-migrate/route.ts L.326-348) :
+  - Ajout fetchOpts avec User-Agent (Mozilla/5.0 Chrome 120) + Accept (image/*)
+  - Appliqué aux 2 fetch() (L.343 + L.347)
+  - Identique au proxy /api/google/image-proxy (qui réussit sur Vercel)
+- DÉCOUVERTE CRITIQUE : SUPABASE_SERVICE_ROLE_KEY sur Vercel était CORROMPUE
+  - Ancienne clé : 984 chars (valeur incorrecte, probablement mal copiée)
+  - Vraie clé Supabase : 219 chars (JWT valide)
+  - Action : ancienne clé supprimée (id: CDjjyfsQUlIAOzqx) + nouvelle clé créée (id: 9soTIIZha87D, target: production+preview)
+- Gates : lint 0/0 ✅, tsc 134 (≤134) ✅, build exit 0 ✅
+- Déploiement Vercel Preview : c32a0f4 READY sur https://abaya-collection-catalogue-9dum-25xhghodf.vercel.app
+- TEST FINAL SUR PREVIEW (avec clé corrigée + User-Agent) :
+  - Reset cellule image-de-garde row 25 vers proxy Drive ✅
+  - Suppression WebP du bucket (forcer download lh3) ✅
+  - POST /api/catalog/media/cdn-migrate → migrated: 1, failed: 0 ✅✅✅
+  - cdnUrl: https://ldvbfsnqgulynwxqwzau.supabase.co/.../1By7Q7Sbhy8h...webp
+- noindex, nofollow : préservé (non touché) ✅
+
+Stage Summary:
+- Branche : fix/line25-web-tracing (c32a0f4, from main@22e40ce)
+- 2 correctifs : User-Agent headers + clé Supabase corrigée (984→219 chars)
+- Test Vercel Preview : migrated: 1 ✅ (was failed: 1)
+- main NON touché (22e40ce)
+- Identité Git : gotonewjamail@gmail.com / Litbro1517
+- **ENGAGEMENT : aucun merge vers main sans feu vert explicite de l'audit**
