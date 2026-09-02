@@ -4866,3 +4866,60 @@ failed = 0`.
 
 ### Chaîne d'audits ADF
 `30682e6 → 442d7c7 (bundle) → 880f8a2 (CLS) → 432726c (LCP) → 8469850 (CDN+noindex) → c7c8574 (hydratation+parsing) → 5b65473 (activation CDN)`
+
+## [MANDAT 4P — ÉTAPE 7 : FIX ANTI-BOT GOOGLE DRIVE — User-Agent + instrumentation reason]
+
+**Statut** : ✅ AUDITÉ & FUSIONNÉ (MANDAT ADF, ré-audit après remédiation, merge `65ed636` sur main)
+**Branche** : `fix/line25-web-tracing` (commits `341fcda…942aad8`, créée depuis `main@22e40ce`)
+
+### Contexte — Ligne 25 (Khimar Haf) bloquée en migration CDN
+Après l'Étape 6, la migration CDN échouait encore sur Vercel pour les fichiers nécessitant un
+download Drive réel (hors HEAD bypass). Investigation en 2 pistes (tranchement sur Preview) :
+- **Piste A** (éliminée) : pas un problème de réponse API
+- **Piste B (CONFIRMÉE)** : `fetch()` sans `User-Agent` rejeté par `lh3.googleusercontent.com`
+  (filtre anti-bot heuristique sur runtime Vercel US) → status non-200 → échec silencieux
+
+Découverte parallèle majeure : `SUPABASE_SERVICE_ROLE_KEY` sur Vercel était **corrompue**
+(984 chars — valeur mal copiée) ; remplacée par la vraie clé JWT (219 chars, scope
+production+preview, ancienne entrée supprimée). → Étape 6 constat « clé non active » RÉSOLU.
+
+### Solution technique (`cdn-migrate/route.ts`, L.326–348)
+- `fetchOpts: RequestInit` = littéraux **statiques** appliqués aux 2 fetch Drive (w1200 + retry) :
+  - `User-Agent: Mozilla/5.0 … Chrome/120.0.0.0 Safari/537.36`
+  - `Accept: image/avif,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8`
+  - Pattern identique au proxy `/api/google/image-proxy` (qui réussit sur Vercel)
+  - Zéro risque d'injection : aucune entrée utilisateur dans les headers
+- Instrumentation : champ `reason` sur les échecs (`download_failed: HTTP <code> | url=…`,
+  `upload_failed: <message> | code=<name>`) + logs env au démarrage (SET/MISSING + longueur,
+  **jamais la valeur des clés**)
+
+### Validation sur Vercel Preview (par la branche, c3e46f4)
+Reset cellule image-de-garde Ligne 25 → suppression WebP du bucket (forcer download lh3) →
+POST cdn-migrate → **`migrated: 1, failed: 0`** avec cdnUrl Supabase réel. Avant fix : failed: 1.
+
+### Audit ADF indépendant (2 tours)
+**Tour 1 (3896677) : 🔴 NON-CONFORME — fusion refusée** : 11 erreurs tsc nouvelles (3 scripts
+diagnostiques non-modulaires → collisions TS2451/TS2393) + mot de passe admin en clair dans
+ces scripts. Le correctif UA lui-même était déjà conforme.
+**Tour 2 (942aad8) : 🟢 CONFORME — GO** : scripts supprimés (−598 lignes), tsc **134 = baseline
+exact** (ensembles normalisés identiques), eslint 0/0, `src/` byte-identique à la version
+validée, zéro credential dans le diff de fusion (les 4 occurrences pwd restantes sont
+pré-existantes sur main hors périmètre — hygiène recommandée en mission future).
+
+### Fichiers fusionnés (2)
+| # | Fichier | Changement |
+|---|---|---|
+| 1 | `src/app/api/catalog/media/cdn-migrate/route.ts` | fetchOpts UA+Accept (2 fetch) ; champ `reason` ; logs env instrumentation |
+| 2 | `worklog.md` | section MANDAT-4P-UA-FIX (découverte clé corrompue + validation Preview) |
+
+### Validations (ré-audit ADF)
+- `npx tsc --noEmit` : **134 = baseline exacte** ✅ · `npx eslint .` : 0/0 exit 0 ✅
+- Runtime :3238 : SSR 200 + noindex ×2 + 401 sans cookie + 405 GET + `reason` vivant
+  (`download_failed: HTTP 400 | url=…` sur fileId factice) ✅
+- Test live headers exacts : fileId réel lh3 → 200 image/png 322 Ko ✅
+- Merge `--no-ff` → `65ed636` ; push `22e40ce..65ed636` ✅
+- Vercel : premier build **bloqué** (limite builds concurrents Hobby — signature « Deployment
+  was blocked », prod restée vivante) → re-déclenchement via commit docs
+
+### Chaîne d'audits ADF
+`30682e6 → 442d7c7 (bundle) → 880f8a2 (CLS) → 432726c (LCP) → 8469850 (CDN+noindex) → c7c8574 (hydratation+parsing) → 5b65473 (activation CDN) → 65ed636 (anti-bot Drive + UA)`

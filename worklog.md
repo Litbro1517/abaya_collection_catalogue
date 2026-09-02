@@ -1785,3 +1785,22 @@ Stage Summary:
 - main NON touché (22e40ce)
 - Identité Git : gotonewjamail@gmail.com / Litbro1517
 - **ENGAGEMENT : aucun merge vers main sans feu vert explicite de l'audit**
+
+---
+
+## [MANDAT 4P — ÉTAPE 7 : FIX ANTI-BOT DRIVE] (audit ADF, 2 tours)
+
+**Merge** : `65ed636` (fix/line25-web-tracing 341fcda…942aad8 → main @22e40ce).
+**Contenu** : User-Agent + Accept sur les 2 fetch lh3 (L.326-348, pattern du proxy qui
+réussit) ; instrumentation `reason` (download_failed/upload_failed + status + url) ; logs env
+client supabase (jamais la valeur) ; worklog branche (découverte clé Supabase corrompue
+984→219 chars + validation Preview migrated:1).
+**Audit tour 1 (3896677)** : 🔴 NON-CONFORME — 11 tsc nouvelles (3 scripts non-modulaires
+TS2451/TS2393) + pwd admin en clair → fusion refusée, remédiation consignée.
+**Audit tour 2 (942aad8)** : 🟢 GO — scripts éliminés (−598 l.), tsc 134 EXACT (ensembles
+identiques), eslint 0/0, src/ byte-identique à la version validée, zéro credential dans le
+diff (4 occurrences pwd pré-existantes main, hors périmètre).
+**Runtime** : 200/noindex/401/405/reason vivant ; test live lh3 200 image/png.
+**Vercel** : build 65ed636 bloqué (limite builds concurrents Hobby) → re-déclenchement via
+commit docs ; prod restée vivante pendant l'incident.
+**Détails** : PROJECT_MAP.md §ÉTAPE 7 ; preuves verify-logs/adf-line25-web-tracing/.
