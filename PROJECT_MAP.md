@@ -4794,3 +4794,75 @@ les URLs) → `extractDriveFileId` ne matchait pas → migration silencieusement
 
 ### Chaîne d'audits ADF
 `30682e6 → 442d7c7 (bundle) → 880f8a2 (CLS) → 432726c (LCP) → 8469850 (CDN+noindex) → c7c8574 (hydratation+ parsing)`
+
+## [MANDAT 4P — ÉTAPE 6 : ACTIVATION CDN — maxDuration 60s + HEAD bypass + toast échecs]
+
+**Statut** : ✅ AUDITÉ & FUSIONNÉ (MANDAT ADF, merge `5b65473` sur main, Vercel vert)
+**Branche** : `fix/cdn-migrate-env-and-batching` (commit `299ffb4`, créée depuis `main@f8929d7`)
+
+### Contexte — diagnostic d'exploration (préalable, lecture seule)
+Le rapport d'exploration (archivé `verify-logs/adf-exploration-media-pipeline/`) avait établi
+par preuves physiques que la migration CDN échouait silencieusement en production pour 3 causes :
+1. **Permission** : `getSupabaseAdmin()` dégrade en client *anon* quand
+   `SUPABASE_SERVICE_ROLE_KEY` est absente de l'env Vercel → upload rejeté par RLS →
+   `status: 'failed'` → `migrated: 0`
+2. **Timeout** : plan Hobby = 10 s/fonction vs 3-9 min de charge (264 URLs) → fonction tuée
+   en cours de migration
+3. **Masquage UX** : le toast « Aucune image à migrer » s'affichait même quand des uploads
+   échouaient (le compteur `failed` n'était pas exposé)
+4. **Bonus découvert** : **209/228 fileIds (92 %) ont déjà leur WebP dans le bucket**
+   `assets/media/` (exécution privilégiée antérieure) — réutilisables sans re-download
+
+### Solution technique — 3 fixes chirurgicaux (`cdn-migrate/route.ts` + `DataTable.tsx`)
+
+#### Fix 1 — `export const maxDuration = 60` (route cdn-migrate)
+Maximum autorisé sur le plan Hobby. Une colonne complète reste trop longue → l'admin utilise
+la sélection bulk par sous-ensembles de ~15-20 lignes (chaque batch < 60 s), guidé par le
+nouveau compteur d'échecs.
+
+#### Fix 2 — HEAD check bypass (réutilisation des 209 WebP existants)
+Avant tout téléchargement Drive (coûteux, throttled, quotas 429), un simple `HEAD` sur l'URL
+**publique** du bucket `${SUPABASE_URL}/storage/v1/object/public/assets/media/{fileId}.webp`.
+Si `200 + content-type: image/*` → skip download/upload → **upsert MediaAsset** (cohérence DB)
+→ réécriture de la cellule vers l'URL CDN. Vérifié sur le bucket réel : `200 image/webp` sur
+un fileId du catalogue → les 209 fichiers seront réutilisés instantanément, **même sans clé
+service** (l'accès objet public contourne la RLS de listage).
+
+#### Fix 3 — compteur `failed` exposé + toast différencié
+La réponse API inclut désormais `data.failed` ; le client affiche
+« N image(s) ont échoué lors de la migration CDN » (toast erreur) au lieu du mensonge
+« Aucune image à migrer ». Le « Aucune » ne s'affiche plus que si `migrated = conflicts =
+failed = 0`.
+
+### Fichiers modifiés (2)
+| # | Fichier | Changement |
+|---|---------|-----------|
+| 1 | `src/app/api/catalog/media/cdn-migrate/route.ts` | `maxDuration = 60` ; bloc HEAD bypass + upsert MediaAsset ; compteur `failed` dans la réponse |
+| 2 | `src/components/data/DataTable.tsx` | Accumulation `totalFailed` (bulk) + extraction `failed` (par-row) ; toasts différenciés (2 sites L1655/L1980) |
+
+### Validations (audit ADF indépendant)
+- `npx tsc --noEmit` : **134 = baseline exacte** (ensembles d'erreurs identiques vs main,
+  normalisés fichier+code — zéro nouvelle, zéro résolue) ✅
+- `npx eslint .` : 0 erreur, 0 warning (exit 0 réel, sans pipe) ✅
+- Runtime :3238 (zombie-free, fixtures nettoyées) :
+  - POST `cdn-migrate` URL Drive factice → `{"migrated":0,"conflicts":0,"failed":1}` —
+    **le masquage est démasqué** ✅
+  - POST avec mock CDN (HEAD 200 webp) → `{"migrated":1,...}` en **0,14 s**, MediaAsset
+    upserté `status: 'cdn'`, cellule réécrite vers l'URL CDN, re-POST idempotent ✅
+  - Sécurité intacte : 401 sans cookie (middleware Guard #4), 405 GET ✅
+  - SSR : noindex ×2 + robots.txt `Disallow: /` + 3 cartes + console 0 erreur / 0 page
+    error (agent-browser) + `/admin` 200 ✅
+- Vercel : **SUCCESS ×2** sur `5b65473` (abaya-collection-catalogue-9dum + abaya-collection-catalogue) ✅
+- Prod vérifiée : HTTP 200, noindex intact ; **HEAD bypass vivant sur le bucket réel**
+  (`200 image/webp` sur fileId du catalogue) ✅
+
+### Statut migration CDN & environnement Vercel (au merge `5b65473`)
+| Élément | État |
+|---|---|
+| Code migration (maxDuration + bypass + failed) | ✅ déployé en production |
+| HEAD bypass sur 209 WebP existants | ✅ opérationnel dès le 1ᵉʳ clic (public object access) |
+| `SUPABASE_SERVICE_ROLE_KEY` (env Vercel) | ⚠️ **sonde scan-bucket prod = `totalBucket: 0`** → la clé n'est **pas encore active** sur le déploiement. Requis pour les ~19 fichiers restants (upload). Action : Vercel → Settings → Environment Variables → ajouter `SUPABASE_SERVICE_ROLE_KEY` (scope Production) → Redeploy. Les 209 existants migrent sans elle grâce au bypass |
+| Supabase | projet `ldvbfsnqgulynwxqwzau` ACTIVE_HEALTHY, bucket `assets` public, 209 WebP dans `media/` |
+
+### Chaîne d'audits ADF
+`30682e6 → 442d7c7 (bundle) → 880f8a2 (CLS) → 432726c (LCP) → 8469850 (CDN+noindex) → c7c8574 (hydratation+parsing) → 5b65473 (activation CDN)`

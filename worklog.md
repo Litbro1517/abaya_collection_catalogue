@@ -1737,3 +1737,18 @@ Stage Summary:
 - Vercel : vert ×2 ; prod : noindex préservé + 16 cartes + /admin 200
 - Chaîne ADF : 30682e6 → 442d7c7 → 880f8a2 → 432726c → 8469850 → c7c8574
 - Leçons d'audit : les gates (tsc/lint exit codes réels) priment sur les impressions visuelles des diffs
+
+---
+
+## [MANDAT 4P — ÉTAPE 6 : ACTIVATION CDN] (audit ADF)
+
+**Merge** : `5b65473` (fix/cdn-migrate-env-and-batching @ `299ffb4` → main) — Vercel SUCCESS ×2.
+**Contenu** : maxDuration 60s ; HEAD bypass bucket public (réutilisation 209 WebP + upsert
+MediaAsset) ; compteur `failed` exposé + toasts différenciés (2 sites DataTable).
+**Gates** : tsc 134 = baseline (ensembles identiques normalisés) ; eslint 0/0 exit 0 réel.
+**Runtime prouvé** : failed:1 sur URL factice (masquage démasqué) ; migrated:1 en 0,14 s via
+HEAD bypass mocké (MediaAsset upsert + cellule réécrite + idempotence) ; 401/405/SSR intacts.
+**Prod** : HEAD bypass vivant sur bucket réel (200 image/webp) ; ⚠️ SUPABASE_SERVICE_ROLE_KEY
+NON active (scan-bucket totalBucket=0) → requise pour les ~19 fichiers restants ; les 209
+existants migrent sans elle (bypass).
+**Détails** : PROJECT_MAP.md §ÉTAPE 6 ; preuves `verify-logs/adf-cdn-migrate-env-batching/`.
