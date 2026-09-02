@@ -426,6 +426,19 @@ function HomeContent({ initialCatalog, initialDatasources, initialBaseUrl }: Hom
       return;
     }
 
+    // MANDAT 4P — Fix CLS : Skip le re-fetch réseau quand les données SSR
+    // sont déjà présentes dans le store Zustand. Le re-fetch causait un
+    // re-render de la grille à ~3.1s → CLS 0.928. Maintenant, si les props
+    // SSR ont été injectées (hasSSRData), on skip le fetch et on garde les
+    // données SSR jusqu'au prochain navigate (cache navigation, pas re-fetch).
+    // Les données seront revalidées au prochain changement de page ou toutes
+    // les 5 minutes via ISR (revalidate=300 dans page.tsx).
+    if (hasSSRData) {
+      setInitializing(false);
+      setLoading(false);
+      return;
+    }
+
     setLoading(true);
     try {
       // Always fetch both — catalog/datasources are admin-modifiable (2min TTL)
@@ -453,7 +466,7 @@ function HomeContent({ initialCatalog, initialDatasources, initialBaseUrl }: Hom
       setLoading(false);
       setInitializing(false);
     }
-  }, [setDataSources, setCatalog, setSettings, setLoading, hasCachedData]);
+  }, [setDataSources, setCatalog, setSettings, setLoading, hasCachedData, hasSSRData]);
 
   useEffect(() => {
     loadData();

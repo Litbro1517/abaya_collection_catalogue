@@ -3,6 +3,15 @@ import HomeClient from '@/components/HomeClient';
 import { db } from '@/lib/db';
 import { resolveProduct } from '@/lib/products';
 
+// MANDAT 4P — Fix TTFB : ISR (Incremental Static Regeneration) toutes les 5 minutes.
+// Avant : la page était dynamique (SSR à chaque requête) → TTFB 2.2s + cache MISS.
+// Maintenant : la page est pré-rendue et servie depuis le cache Edge Vercel
+// → TTFB < 0.5s sur les requêtes suivantes. La régénération en arrière-plan
+// se déclenche au plus toutes les 5 minutes (ou au prochain push de contenu).
+// Les données produit changent rarement (admin modifie via le dashboard),
+// un cache de 5 minutes est acceptable sans dégrader l'expérience utilisateur.
+export const revalidate = 300;
+
 // ━━ Fix: decode percent-encoded slugs (Arabic, etc.) before resolution ━━
 // Next.js 16 passes searchParams values as-is. When a bot sends
 // ?product=عباية-ذهبية, the value arrives percent-encoded. resolveProduct

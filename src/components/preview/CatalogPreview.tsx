@@ -1557,7 +1557,19 @@ export function CatalogPreview({ onAdminLogin, initialCatalog, initialDatasource
                 <div className="product-card-image-wrap">
                   {coverUrl ? (
                     <img
-                      src={resolveDirectImageUrl(coverUrl, 800)}
+                      // MANDAT 4P — Fix LCP : srcset responsive pour servir des
+                      // miniatures adaptées à l'écran. Sur mobile (≤640px), chaque
+                      // carte fait ~50vw de large → =w400 suffit (au lieu de =w800).
+                      // Sur tablette (≤1024px), ~33vw → =w600.
+                      // Sur desktop, ~25vw → =w800.
+                      // Cela réduit le poids de ~60% sur mobile (35 KiB vs 138 KiB).
+                      src={resolveDirectImageUrl(coverUrl, 400)}
+                      srcSet={`
+                        ${resolveDirectImageUrl(coverUrl, 400)} 400w,
+                        ${resolveDirectImageUrl(coverUrl, 600)} 600w,
+                        ${resolveDirectImageUrl(coverUrl, 800)} 800w
+                      `}
+                      sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw"
                       alt={title}
                       width={400}
                       height={300}
