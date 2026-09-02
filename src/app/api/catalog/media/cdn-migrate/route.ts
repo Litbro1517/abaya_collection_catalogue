@@ -83,6 +83,7 @@ export async function POST(req: NextRequest) {
       status: 'migrated' | 'conflict' | 'skipped' | 'failed';
       cdnUrl?: string;
       conflictRowId?: string;
+      reason?: string; // MANDAT INVESTIGATION: instrumenter la raison exacte d'échec
     }> = [];
 
     let migratedCount = 0;
@@ -333,7 +334,8 @@ export async function POST(req: NextRequest) {
           driveRes = await fetch(downloadUrl);
         }
         if (!driveRes.ok || !driveRes.body) {
-          results.push({ rowId: row.id, fileId, status: 'failed' });
+          // MANDAT INVESTIGATION: instrumenter la raison exacte
+          results.push({ rowId: row.id, fileId, status: 'failed', reason: `download_failed: HTTP ${driveRes.status} ${driveRes.statusText} | url=${downloadUrl}` });
           newUrls.push(url);
           continue;
         }
@@ -363,7 +365,8 @@ export async function POST(req: NextRequest) {
               upsert: true,
             });
           if (uploadError) {
-            results.push({ rowId: row.id, fileId, status: 'failed' });
+            // MANDAT INVESTIGATION: instrumenter la raison exacte
+            results.push({ rowId: row.id, fileId, status: 'failed', reason: `upload_failed: ${uploadError.message} | code=${uploadError.name}` });
             newUrls.push(url);
             continue;
           }
