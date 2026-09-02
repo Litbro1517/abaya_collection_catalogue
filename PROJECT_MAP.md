@@ -4923,3 +4923,53 @@ pré-existantes sur main hors périmètre — hygiène recommandée en mission f
 
 ### Chaîne d'audits ADF
 `30682e6 → 442d7c7 (bundle) → 880f8a2 (CLS) → 432726c (LCP) → 8469850 (CDN+noindex) → c7c8574 (hydratation+parsing) → 5b65473 (activation CDN) → 65ed636 (anti-bot Drive + UA)`
+
+## [MANDAT 4P — ÉTAPE 8 : PERFORMANCE LCP+CLS — double-fetch, srcSet responsive, ISR]
+
+**Statut** : ✅ AUDITÉ & FUSIONNÉ (MANDAT ADF, merge `--ff-only` `a1957e7` sur main, Vercel vert ×2)
+**Branche** : `fix/perf-lcp-cls-optimization` (commit unique `a1957e7`, créée depuis `main@7d138be`)
+
+### 3 correctifs (périmètre exact : 3 fichiers, +36/−2)
+
+#### Fix CLS — neutralisation du double-fetch client (`HomeClient.tsx`)
+Le `loadData()` re-fetchait `/api/catalog` + `/api/datasources` même quand les props SSR étaient
+présentes → re-render de la grille à ~3.1 s → CLS 0.928. Nouveau guard : `if (hasSSRData)` →
+skip réseau, garder les données SSR (revalidation via navigation/ISR). Dépendances useEffect
+complétées (`hasSSRData`) ✓. **Preuve navigateur : zéro requête /api/catalog ni /api/datasources
+après chargement** (seuls colormap/categories/rows de section — autres composants).
+
+#### Fix LCP — srcSet/sizes responsive (`CatalogPreview.tsx`)
+Vignettes : `src=w400` + `srcSet 400w/600w/800w` + `sizes="(max-width:640px) 50vw,
+(max-width:1024px) 33vw, 25vw"` (≈ −60 % de poids mobile sur URLs Drive). `width=400 height=300`
+préservés (pas de CLS) + `fetchPriority="high"` `loading="eager"` (élément LCP prioritaire).
+CDN URLs : passthrough (srcSet identiques — inoffensif, WebP CDN déjà optimisé).
+**Preuve SSR : srcSet+sizes présents dans le HTML rendu** (local Drive fixture + prod CDN).
+
+#### Fix TTFB — `export const revalidate = 300` (`page.tsx`) — ⚠️ INERTE (réserve d'audit)
+**Constat mesuré** : la table des routes du build montre `ƒ /` (Dynamic) SANS valeur
+Revalidate — vs `○ /sitemap.xml` Revalidate 1h. Cause racine : `generateMetadata` **attend
+`searchParams`** (canonical/titre par produit) → la route opte en rendu dynamique →
+`revalidate` est ignoré par Next.js. **Le gain TTFB revendiqué (cache Edge < 0.5 s) ne se
+matérialisera PAS en production.** Impact : NUL — pas d'effet de bord, pas de régression,
+comportement inchangé. Pour activer réellement l'ISR : retirer l'accès searchParams de
+generateMetadata (perte du canonical par produit) ou passer par des routes dédiées/[slug].
+Contrôle sémantique du mandat (« n'interfère pas avec generateMetadata ») : **CONFIRMÉ** —
+canonical `?product=` par requête vérifié avant/après (identique).
+
+### Étanchéité SEO (contrôle 100 %)
+Aucun fichier `layout.tsx`/`robots.ts`/meta touché (diff = 3 fichiers exacts) ; noindex ×2 +
+googlebot préservés (local + prod) ; canonical base + per-product intacts ; hreflang/OG/Twitter
+non modifiés.
+
+### Validations (audit ADF indépendant)
+- `bun run lint` : 0/0 exit 0 ✓ · `next build` : exit 0 (route table archivée) ✓
+- `npx tsc --noEmit` : **134 = baseline** (positions décalées +9 lignes page.tsx uniquement,
+  zéro nouvelle — HomeClient/CatalogPreview sans erreur nouvelle) ✓
+- Runtime :3238 (fixtures catalog complet) : 0 console error / 0 page error, cartes rendues,
+  srcSet SSR, zéro double-fetch (network trace), canonical `?product=` OK, 404 préexistant
+  `/api/catalog/settings` (SettingsPillar, hors diff)
+- Prod après déploiement : HTTP 200, noindex ×2, srcSet servi (CDN passthrough), 17 cartes,
+  canonical OK — **nouveau code confirmé déployé**
+
+### Chaîne d'audits ADF
+`…→ 65ed636 (anti-bot Drive) → 7d138be (re-trigger) → a1957e7 (perf LCP+CLS, --ff-only)`

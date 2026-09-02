@@ -1804,3 +1804,21 @@ diff (4 occurrences pwd pré-existantes main, hors périmètre).
 **Vercel** : build 65ed636 bloqué (limite builds concurrents Hobby) → re-déclenchement via
 commit docs ; prod restée vivante pendant l'incident.
 **Détails** : PROJECT_MAP.md §ÉTAPE 7 ; preuves verify-logs/adf-line25-web-tracing/.
+
+---
+
+## [MANDAT 4P — ÉTAPE 8 : PERF LCP+CLS] (audit ADF, ff-only)
+
+**Merge** : `a1957e7` (fix/perf-lcp-cls-optimization → main @7d138be, --ff-only conforme au
+mandat, push 7d138be..a1957e7, Vercel SUCCESS ×2).
+**Contenu** : guard hasSSRData (skip double-fetch loadData → CLS) ; srcSet/sizes responsive
+vignettes (→ LCP) ; revalidate=300 (→ TTFB, réserve).
+**Preuves navigateur** : zéro requête /api/catalog|/api/datasources après load (CLS fix VIVANT) ;
+srcSet+sizes dans le HTML SSR (LCP fix VIVANT) ; canonical ?product= par requête intact.
+**Gates** : bun lint 0/0 ; next build exit 0 ; tsc 134=134 zéro nouvelle.
+**RÉSERVE documentée** : ISR INERTE — `ƒ /` Dynamic sans Revalidate (generateMetadata attend
+searchParams → rendu dynamique, revalidate ignoré par Next.js) ; gain TTFB non réalisé mais
+zéro dommage/zéro régression ; activation réelle = restructuration (routes dédiées ou
+suppression de l'accès searchParams dans generateMetadata).
+**Prod vérifiée** : 200, noindex ×2, srcSet servi (CDN passthrough), 17 cartes, canonical OK.
+**Détails** : PROJECT_MAP.md §ÉTAPE 8 ; preuves verify-logs/adf-perf-lcp-cls/.
