@@ -90,6 +90,11 @@ export async function POST(req: NextRequest) {
     let conflictCount = 0;
     const supabase = getSupabaseAdmin();
 
+    // MANDAT INVESTIGATION: log temporaire pour vérifier l'état du client admin
+    console.log('[cdn-migrate] SUPABASE_URL:', process.env.SUPABASE_URL ? 'SET' : 'MISSING');
+    console.log('[cdn-migrate] SUPABASE_SERVICE_ROLE_KEY:', process.env.SUPABASE_SERVICE_ROLE_KEY ? `SET (${process.env.SUPABASE_SERVICE_ROLE_KEY.length} chars)` : 'MISSING');
+    console.log('[cdn-migrate] supabase client:', supabase ? 'AVAILABLE' : 'NULL');
+
     // ━━ MANDAT 4P — Déduplication CDN (Phase 1 galerie → Phase 2 couverture) ━━
     // Construit un map { fileId → cdnUrl } en scannant DIRECTEMENT les cellules
     // IMAGE_ARRAY de toutes les rows. Cela permet de réutiliser une URL CDN déjà
