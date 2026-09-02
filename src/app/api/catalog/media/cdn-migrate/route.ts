@@ -83,11 +83,17 @@ export async function POST(req: NextRequest) {
       status: 'migrated' | 'conflict' | 'skipped' | 'failed';
       cdnUrl?: string;
       conflictRowId?: string;
+      reason?: string; // MANDAT INVESTIGATION: instrumenter la raison exacte d'échec
     }> = [];
 
     let migratedCount = 0;
     let conflictCount = 0;
     const supabase = getSupabaseAdmin();
+
+    // MANDAT INVESTIGATION: log temporaire pour vérifier l'état du client admin
+    console.log('[cdn-migrate] SUPABASE_URL:', process.env.SUPABASE_URL ? 'SET' : 'MISSING');
+    console.log('[cdn-migrate] SUPABASE_SERVICE_ROLE_KEY:', process.env.SUPABASE_SERVICE_ROLE_KEY ? `SET (${process.env.SUPABASE_SERVICE_ROLE_KEY.length} chars)` : 'MISSING');
+    console.log('[cdn-migrate] supabase client:', supabase ? 'AVAILABLE' : 'NULL');
 
     // ━━ MANDAT 4P — Déduplication CDN (Phase 1 galerie → Phase 2 couverture) ━━
     // Construit un map { fileId → cdnUrl } en scannant DIRECTEMENT les cellules
@@ -324,16 +330,31 @@ export async function POST(req: NextRequest) {
         }
 
         // ── Download from Drive (throttled) ──
+        // MANDAT 4P — Correctif anti-bot Google Drive :
+        // fetch() sans User-Agent est rejeté par lh3.googleusercontent.com
+        // (filtre anti-bot heuristique). On ajoute les mêmes headers que le
+        // proxy /api/google/image-proxy (qui réussit) : User-Agent navigateur
+        // + Accept image/*. Sans ces headers, Google renvoie un status non-200
+        // → la migration échoue silencieusement (status: 'failed').
+        const fetchOpts: RequestInit = {
+          redirect: 'follow',
+          headers: {
+            'User-Agent':
+              'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+            Accept: 'image/avif,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8',
+          },
+        };
         await sleep(THROTTLE_MS);
         let downloadUrl = `${DRIVE_DOWNLOAD_BASE}${fileId}=w1200`;
-        let driveRes = await fetch(downloadUrl);
+        let driveRes = await fetch(downloadUrl, fetchOpts);
         if (!driveRes.ok) {
           // Retry with proxy-style URL
           downloadUrl = `${DRIVE_DOWNLOAD_BASE}${fileId}`;
-          driveRes = await fetch(downloadUrl);
+          driveRes = await fetch(downloadUrl, fetchOpts);
         }
         if (!driveRes.ok || !driveRes.body) {
-          results.push({ rowId: row.id, fileId, status: 'failed' });
+          // MANDAT INVESTIGATION: instrumenter la raison exacte
+          results.push({ rowId: row.id, fileId, status: 'failed', reason: `download_failed: HTTP ${driveRes.status} ${driveRes.statusText} | url=${downloadUrl}` });
           newUrls.push(url);
           continue;
         }
@@ -363,7 +384,8 @@ export async function POST(req: NextRequest) {
               upsert: true,
             });
           if (uploadError) {
-            results.push({ rowId: row.id, fileId, status: 'failed' });
+            // MANDAT INVESTIGATION: instrumenter la raison exacte
+            results.push({ rowId: row.id, fileId, status: 'failed', reason: `upload_failed: ${uploadError.message} | code=${uploadError.name}` });
             newUrls.push(url);
             continue;
           }
