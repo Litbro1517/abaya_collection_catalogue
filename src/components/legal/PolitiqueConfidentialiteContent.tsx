@@ -11,7 +11,7 @@ export default function PolitiqueConfidentialiteContent() {
     <LegalPageLayout>
       <h1
         className="text-2xl sm:text-3xl font-bold mb-8"
-        style={{ color: 'var(--pivot-text)', fontFamily: "'Playfair Display', serif" }}
+        style={{ color: 'var(--pivot-text)', fontFamily: "var(--font-playfair), serif" }}
       >
         {t('privacy.title')}
       </h1>

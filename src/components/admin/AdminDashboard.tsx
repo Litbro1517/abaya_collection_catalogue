@@ -397,7 +397,7 @@ export function AdminDashboard({ admin }: AdminDashboardProps) {
               <LayoutDashboard className="w-5 h-5 text-white" />
             </div>
             <div className="min-w-0">
-              <h1 className="font-bold text-base sm:text-lg truncate" style={{ color: BRAND.noir, fontFamily: "'Playfair Display', serif" }}>
+              <h1 className="font-bold text-base sm:text-lg truncate" style={{ color: BRAND.noir, fontFamily: "var(--font-playfair), serif" }}>
                 {t('admin.dashboard')}
               </h1>
               <p className="text-[11px] sm:text-xs text-gray-500 truncate">

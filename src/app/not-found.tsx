@@ -23,7 +23,7 @@ export default function NotFound() {
       {/* 404 number */}
       <h1
         className="text-6xl sm:text-7xl font-bold mb-4"
-        style={{ color: '#1A3C34', fontFamily: "'Playfair Display', serif" }}
+        style={{ color: '#1A3C34', fontFamily: "var(--font-playfair), serif" }}
       >
         404
       </h1>

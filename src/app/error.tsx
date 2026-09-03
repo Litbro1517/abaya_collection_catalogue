@@ -37,7 +37,7 @@ export default function Error({
       {/* Error message */}
       <h1
         className="text-4xl sm:text-5xl font-bold mb-4"
-        style={{ color: '#1A3C34', fontFamily: "'Playfair Display', serif" }}
+        style={{ color: '#1A3C34', fontFamily: "var(--font-playfair), serif" }}
       >
         Une erreur est survenue
       </h1>
