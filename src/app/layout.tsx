@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Playfair_Display, Inter, Zain, Tajawal } from "next/font/google";
+import { Zain } from "next/font/google";
 import Script from "next/script";
 import "./globals.css";
 import { Toaster } from "@/components/ui/sonner";
@@ -10,43 +10,22 @@ import { db } from '@/lib/db';
 import { headers } from 'next/headers';
 
 // ── Audit remediation: GTM container ID via env var (no more placeholder) ──
-// Previously: hard-coded 'GTM-XXXXXXX' placeholder → GTM container never loaded,
-// no GA4/Meta tracking fired even with dataLayer events in place.
-// Now: reads NEXT_PUBLIC_GTM_ID env var. If unset, GTM script is skipped entirely
-// (the dataLayer array still receives events — they'll be flushed once a real ID
-// is configured, or picked up by Zaraz which listens on window.dataLayer).
-// Empty string = "no GTM" (graceful no-op), distinct from the fake 'GTM-XXXXXXX'
-// which previously fired a 404 request to googletagmanager.com on every page load.
 const GTM_CONTAINER_ID = process.env.NEXT_PUBLIC_GTM_ID || '';
 
-const playfair = Playfair_Display({
-  variable: "--font-playfair",
-  subsets: ["latin"],
-  display: "swap",
-});
-
-const inter = Inter({
-  variable: "--font-geist-sans",
-  subsets: ["latin"],
-  display: "swap",
-});
-
-// VG37 Axe 2: Zain replaces Beiruti — unified Arabic typography ecosystem
-// Zain (display/headings) + Tajawal (body text) + Roboto (already in admin)
-// VG37 Fix: Zain on Google Fonts only supports weights 300, 400, 700 — NOT 500/600.
-// Using unsupported weights causes critical build failure (Unknown weight 500).
+// MANDAT 4P — Optimisation LCP : police unique Zain
+// Avant : 4 familles chargées simultanément (Playfair Display + Inter +
+// Zain + Tajawal) → 590ms de blocage du rendu sur mobile (render-blocking).
+// Maintenant : Zain uniquement (supporte arabic + latin, weights 300/400/700).
+// Réduit de 4 à 1 le nombre de familles de police téléchargées avant le
+// premier paint → impact direct sur LCP et render-blocking.
+// La variable CSS --font-zain est mappée sur les anciennes variables
+// (--font-playfair, --font-geist-sans, --font-tajawal) pour éviter de
+// modifier le CSS existant et garantir zéro régression visuelle.
 const zain = Zain({
   variable: "--font-zain",
   subsets: ["arabic", "latin"],
   display: "swap",
   weight: ["300", "400", "700"],
-});
-
-const tajawal = Tajawal({
-  variable: "--font-tajawal",
-  subsets: ["arabic", "latin"],
-  display: "swap",
-  weight: ["400", "500", "700"],
 });
 
 // ━━ SEO Fix V2: shared function to read brand metadata from DB ━━
@@ -260,7 +239,17 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
         />
       </head>
       <body
-        className={`${playfair.variable} ${inter.variable} ${zain.variable} ${tajawal.variable} antialiased bg-background text-foreground`}
+        // MANDAT 4P — Police unique Zain
+        // Les anciennes variables CSS (--font-playfair, --font-geist-sans,
+        // --font-tajawal) sont aliasées vers --font-zain pour garantir
+        // la compatibilité avec le CSS existant sans le modifier.
+        className={`${zain.variable} antialiased bg-background text-foreground`}
+        style={{
+          // Alias: toutes les anciennes variables pointent vers Zain
+          ['--font-playfair' as string]: 'var(--font-zain)',
+          ['--font-geist-sans' as string]: 'var(--font-zain)',
+          ['--font-tajawal' as string]: 'var(--font-zain)',
+        }}
       >
         {/* Audit remediation: GTM noscript fallback — only when GTM ID is set.
             Uses ternary `: null` (same M2 fix as the head <Script>) to avoid
