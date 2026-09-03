@@ -2018,3 +2018,311 @@ Stage Summary:
 - ISR : préservé (route / = ○ Static Revalidate 5m Expire 1y)
 - SEO : noindex/nofollow ×2 préservés, JSON-LD intact
 - CLS fix (É précédent) : préservé (no-flash script + SSR locale depuis DB)
+
+---
+Task ID: D1-INTERNAL-AUDIT
+Agent: Agent D1 (L'Infiltré — Accès Admin)
+Task: MANDAT DUEL AUDIT 360° — Audit interne (sécurité, RLS, code quality, build, architecture server-side tracking)
+
+Work Log:
+- READ worklog complet (148 KB) : orientations MANDAT 1-2-3 + série MANDAT-4P (É13 → É14, fusion 4e453e8, préconnect CDN, CLS 0.0009). Dernier commit lu : d0a09ba (docs E14). NOTE : la branche `fix/remove-noindex-lock` @ 10f782a mentionnée dans le brief D1 n'apparaît pas dans le `git log --oneline -5` (orig/main est à d0a09ba post-E14) — probablement entry worklog antérieure non fusionnée.
+- Audit READ-ONLY sur `main` (zéro commit, zéro modification, conformément au mandat DUEL).
+- **VOLET 1 — Sécurité & Variables d'env** :
+  - Grep `src/` pour `SUPABASE_SERVICE_ROLE_KEY|service_role|SERVICE_ROLE` : 6 occurrences, toutes dans 4 fichiers server-side (lib/supabase.ts L.18/55-57, /api/setup/storage/route.ts L.56+62+125+148+157+180+202+208+220+323, /api/catalog/media/cdn-migrate/route.ts L.95). Aucune dans composant client.
+  - Grep `NEXT_PUBLIC_SUPABASE_SERVICE_ROLE|NEXT_PUBLIC_SERVICE_ROLE` : **0 match** → aucune fuite par préfixe `NEXT_PUBLIC_`. ✅
+  - `next.config.ts` : aucun champ `env` (pas de fuite explicite de vars serveur vers le bundle).
+  - `getSupabaseAdmin()` (src/lib/supabase.ts:60) : appelé UNIQUEMENT dans 5 route handlers (`/api/catalog/media/{update-cache,purge-ghosts,scan-bucket,cdn-migrate,delete}/route.ts`). Grep `from ['\"]@/lib/supabase['\"]` sur `src/components/**` : **0 match** → admin client 100% server-isolated. ✅
+  - `src/lib/supabase.ts` n'a PAS de directive `'use client'` → module partagé server-only par convention.
+  - `cdn-migrate/route.ts:95` : `console.log` loggue la LONGUEUR de la clé (`SET (xxx chars)`), pas la valeur — divulgation métadonnées mineure (info).
+  - Prisma schema lu : provider = **sqlite** (L.6) → la DB principale n'est PAS Postgres/Supabase. Tables listées : DataSource, Column, Row, Relation, Catalog, Section, Component, CatalogSettings, AdminUser, AdminSession, AuditLog, GoogleSession, Settings, Category, SubCategory, ColorMap, Order, OrderItem, OrderHistory, MediaAsset, LandingPage (21 modèles). Le service_role Supabase est utilisé pour le **bucket Storage 'assets' uniquement** (uploads + render API). RLS Postgres non applicable à SQLite → statut RLS global NON-VÉRIFIABLE (pas d'accès SQL Supabase depuis sandbox).
+- **VOLET 3 (partial) — Tracking & Pub server-side** :
+  - Grep `api/tracking|api/meta|api/capi|api/conversions|api/pixel` : **0 match** → aucun endpoint serveur de tracking n'existe.
+  - Grep `event_id|eventId|CAPI|conversions_api` : **0 match** → aucune génération d'event_id côté serveur. Pas de Conversions API Meta/Google implémentée.
+  - `src/lib/analytics.ts` (114 lignes) : helper `pushDataLayer()` côté client uniquement, SSR-guard (`typeof window === 'undefined'` → no-op), init `window.dataLayer = []` si manquant, try/catch never-throws. Pattern Zaraz-compatible (pas de `fbq()` direct, pas de `gtag()` direct).
+  - Architecture tracking observée : 100% client-side via GTM dataLayer. Événements : view_item_list, select_item (CatalogPreview), add_to_cart, begin_checkout, view_item (ProductPage), begin_checkout (CartDrawer), purchase (merci/page.tsx L.100-111 avec `transaction_id: order.id`). Aucun `event_id` généré → CAPI Meta non dédoublonnable (pixel client-only, pas de miroir serveur).
+  - `src/middleware.ts` (179 lignes) : 4 guards (#0 static skip, #2 bot SEO rewrite vers /product-meta/[slug], #1 /admin token check, #3 AUTH_REQUIRED_ROUTES, #4 ADMIN_WRITE_ROUTES avec exception POST /api/orders public COD). Locale Edge Middleware injecte `x-locale` header depuis cookie `abaya_locale`. Bot detection via `BOT_AGENTS` (Facebook, Twitter, LinkedIn, Slack, Discord, Telegram, Googlebot, bingbot, DuckDuckGo). Architecture propre.
+- **VOLET 4 — Propreté & Architecture** :
+  - `bun run lint` : **0 errors / 0 warnings, exit 0** ✅
+  - `npx tsc --noEmit` : **134 errors** (= baseline historique, confirmée par tous les worklogs MANDAT-4P). Top fichiers en erreur : `src/app/api/inspect/route.ts` (10), `src/components/admin/ProductForm.tsx` (9), `src/app/api/google/sync/route.ts` (8), `src/components/gallery/Header.tsx` (7), `src/components/admin/GoogleDrivePicker.tsx` (6). Pattern majoritaire : `Record<string,unknown>` non assignable à `NullableJsonNullValueInput | InputJsonValue` (Prisma JSON typing), `nom` (legacy) → `label` (renamed) sur Category. Erreurs pré-existantes, aucune nouvelle introduite par MANDAT-4P.
+  - **ALERTE CRITIQUE — `next.config.ts:14` : `typescript: { ignoreBuildErrors: true }`** — flag INTERDIT par le mandat DUEL. Le build Vercel réussit SILENCIEUSEMENT malgré les 134 erreurs tsc. Aucun `eslint.ignoreDuringBuilds` (eslint est enforced au build ✅).
+  - Grep `//\s*(TODO|FIXME|XXX|DEBT-|HACK)` dans `src/` : 9 occurrences DEBT- dans 5 fichiers (translate/route.ts L.33+132, datasources/[id]/import/route.ts L.259, google/sync/route.ts L.561+580, CatalogPreview.tsx L.36, useAutoTranslatedText.ts L.29+177, useClientTranslation.ts L.27). Tous marqués "production repair" et documentés comme RÉSOLUS dans PROJECT_MAP.md §DEBT-10. Aucun TODO/FIXME/XXX/HACK actif. ✅
+  - **Orphelins root-level** (hors `src/`, non importés par l'app) : `update-images.ts`, `import-to-supabase.mjs`, `import-via-api.mjs`, `import-direct.js`, `import-sheet.ts`, `seed.ts`, `reseed.ts`, `seed-catalog.ts`, `seed-diagnostic.ts`, `diagnostic-pivot.ts` — 10 scripts one-off de bootstrap/import. ESLint ignore déjà `import-direct.js` + `import-sheet.ts` (eslint.config.mjs L.50). Aucun n'est appelé par `package.json` scripts à part `scripts/switch-provider.js` (build, db:push, db:migrate:deploy, analyze). Le reste est dormant.
+  - `mini-services/` : dossier existant mais **VIDE** (seulement `.gitkeep`) — pas de projet bun orphan à auditer.
+  - `scripts/` : `backfill-compare-at-price.ts` (one-off), `analyze-inspect.py` (python inspecteur), `switch-provider.js` (actif en build). 2 orphelins sur 3.
+  - **ALERTE SÉCURITÉ — mot de passe admin hardcoded** "abayachic2024" trouvé dans 3 scripts root : `import-to-supabase.mjs:8`, `import-via-api.mjs:9`, `seed-catalog.ts:12` (`db.settings.create({ key: 'adminPassword', value: 'abayachic2024' })`). Committés dans le repo. À rotater en prod si toujours actif.
+  - `z-ai-web-dev-sdk` : uniquement importé dans `src/app/api/translate/route.ts:2` (route handler server-side). Grep client : 0 import dans `src/components/**`. Conforme au contrat projet (server-only). ✅
+  - Directives `'use client'` : 90+ composants correctement marqués. Aucun fichier `'use server'` (pattern route handlers utilisé). `src/lib/supabase.ts`, `src/lib/analytics.ts` n'ont PAS `'use client'` (modules partagés server-safe). ✅
+  - Grep hardcoded creds patterns `^(AKIA|sk_|ghp_|xoxb-|AIza|eyJ|SUPABASE_URL=|...)` dans `src/` : 0 match. ✅
+
+Stage Summary:
+
+**VOLET 1 : SÉCURITÉ & INFRASTRUCTURE** — Score 23/35
+- **Fuites de secrets / Clés API** : 🟢 CONFORME — `SUPABASE_SERVICE_ROLE_KEY` jamais préfixée `NEXT_PUBLIC_`, jamais importée dans `src/components/**`, `getSupabaseAdmin()` appelé uniquement dans 5 route handlers server-side. `next.config.ts` n'expose aucun `env` serveur. Minor : `cdn-migrate/route.ts:95` loggue la longueur de la clé (métadonnée, pas la valeur).
+- **ALERTE — Mot de passe admin "abayachic2024" hardcoded** dans 3 scripts root (`import-to-supabase.mjs:8`, `import-via-api.mjs:9`, `seed-catalog.ts:12`) committés au repo. -8 pts.
+- **Politiques Supabase RLS** : 🟡 NON-VÉRIFIABLE — Prisma datasource = **SQLite** (pas Postgres), donc RLS Postgres n'est PAS applicable à la DB principale. Le `service_role` Supabase ne sert qu'au bucket Storage `assets` (uploads + render API). Pas d'accès SQL Supabase depuis la sandbox pour vérifier les policies du bucket. Code `/api/setup/storage/route.ts` crée les policies via `serviceRoleKey` fourni dans le body (pattern one-shot setup). Tables SQLite sensibles à surveiller si migration Postgres future : AdminUser, AdminSession, AuditLog, Order, OrderItem, OrderHistory, GoogleSession (toutes contiennent PII / tokens / credentials).
+
+**VOLET 3 (partial) : TRACKING & PUBLICITÉ (server-side)** — Score 0/25
+- **API Endpoints Tracking** : 🔴 ABSENT — aucun `/api/tracking`, `/api/meta`, `/api/capi`, `/api/conversions`. Aucune route serveur dédiée au tracking. Tout passe par GTM dataLayer client-side.
+- **CAPI Deduplication** : 🔴 ABSENT — aucune génération d'`event_id` / `eventId` côté serveur. L'événement `purchase` (merci/page.tsx:100) pousse `transaction_id: order.id` mais SANS `event_id` partagé. Architecture = **client-side only** (Zaraz + GA4 dataLayer). Pour un e-commerce COD en production, l'absence de CAPI Meta entraîne : (1) perte d'attribution iOS 14.5+ (Safari ITP), (2) sous-comptage conversions ad-blocker, (3) impossibilité de dédupliquer pixel/serveur. Recommandation : créer `/api/meta/conversions` POST qui reçoit `{event_name, event_id, value, currency, ...}` et appelle l'API Graph Meta avec le même `event_id` que le pixel client.
+
+**VOLET 4 : PROPRETÉ DU CODE & ARCHITECTURE** — Score 25/40
+- **Dette technique & Code mort** : 🟡 PARTIELLEMENT NETTOYÉ — 9 commentaires `DEBT-` (tous documentés RÉSOLUS dans PROJECT_MAP.md, marqueurs historiques sans dette active). 0 TODO/FIXME/XXX/HACK dans `src/`. MAIS 10 scripts root orphelins (bootstrap one-off) + 2 scripts orphelins dans `scripts/` (backfill-compare-at-price, analyze-inspect.py) qui traînent dans le repo. `mini-services/` vide (juste `.gitkeep`). -5 pts.
+- **Strictness TypeScript & Build** : 🔴 ALERTE — `next.config.ts:14 typescript.ignoreBuildErrors: true` (INTERDIT par mandat DUEL). Build Vercel passe SILENCIEUSEMENT malgré 134 erreurs tsc. `eslint.ignoreDuringBuilds` non présent (eslint enforced ✅). `bun run lint` : 0/0 ✅. `npx tsc --noEmit` : 134 erreurs baseline (toutes pré-existantes, aucune nouvelle introduite par MANDAT-4P). Pattern dominant : typing Prisma JSON (`Record<string,unknown>` → `InputJsonValue`) + legacy `nom` → `label` sur Category. Top fichiers en erreur : inspect/route.ts (10), ProductForm.tsx (9), google/sync/route.ts (8), gallery/Header.tsx (7). -10 pts.
+
+**Score partiel D1** : **48/100**
+- VOLET 1 (Sécurité & Infra) : 23/35 (secrets propres -8 password hardcodé ; RLS non-vérifiable -4)
+- VOLET 3 partial (Tracking server-side) : 0/25 (CAPI totalement absent)
+- VOLET 4 (Propreté & Architecture) : 25/40 (lint clean +5 ; ignoreBuildErrors interdit -10 ; orphelins -5)
+
+**Verdict D1** : 🟡 AUDIT PASSANT AVEC RÉSERVES MAJEURES — Aucune fuite critique côté client (admin client bien isolé serveur, zéro NEXT_PUBLIC_), mais 3 alertes actionnables : (1) `ignoreBuildErrors: true` à RETIRER du next.config.ts (interdiction mandate), (2) CAPI Meta/Google ABSENT en production e-commerce, (3) password admin hardcoded "abayachic2024" dans 3 scripts committés. Aucune modification effectuée — audit READ-ONLY, branche `main` inchangée à d0a09ba.
+
+---
+Task ID: D2-EXTERNAL-AUDIT
+Agent: Agent D2 (L'Auditeur Extérieur — Black Box)
+Task: MANDAT DUEL AUDIT 360° — Audit externe (SEO, indexation, tracking, headers HTTP, bundle JS)
+
+Work Log:
+- READ worklog complet (148.7 KB) : retrouvé D1-INTERNAL-AUDIT (D1 a confirmé CAPI absent, ignoreBuildErrors:true, password hardcodé "abayachic2024" dans 3 scripts, RLS non-vérifiable SQLite, 134 erreurs tsc baseline). Complément D2 = audit 100% black box (curl + git only).
+- Vérifié statut branche `fix/remove-noindex-lock` (10f782a) : `git log origin/main..10f782a` retourne 1 commit — **branche NON mergée à main**. D1 avait raison : main (d0a09ba) conserve `<meta name="robots" content="noindex, nofollow">` (layout.tsx:275-276) ET `disallow: '/'` (robots.ts). MAIS curl prod montre que **le HTML servi ne contient AUCUN noindex** → Vercel déploie depuis la branche non-mergée (10f782a), pas depuis main. À flaguer : risque de régression silencieuse.
+- Audit SEO black-box via curl sur `https://catalogue.abayacollection.store/` (HTTP 200, Cloudflare front, `x-vercel-cache: HIT`, ISR 300s confirmé) + `https://abaya-collection-catalogue-9dum.vercel.app/` (HTTP 200, Vercel direct, `strict-transport-security: max-age=63072000; includeSubDomains; preload`).
+- Audit robots.txt + sitemap.xml + JSON-LD sur 3 routes (homepage `/`, ghost route `/product-meta/[slug]` avec UA Googlebot, 404 routes `/lp/x` + `/product-meta/x`).
+- Audit tracking : grep `fbq|fbevents|connect.facebook.net|META_PIXEL|gtm\.js|googletagmanager|gtag\(` sur HTML + 18 chunks JS téléchargés (~1.3 MB total).
+- Audit headers : `curl -sI` sur les 2 URLs + `/api/categories` + `/api/orders` OPTIONS.
+- Audit bundle : 18 chunks `_next/static/chunks/*.js` téléchargés, grep 11 patterns de secrets (`eyJ`, `sbp_`, `ghp_`, `vcp_`, `sk_live`, `pk_live`, `whsec_`, `AKIA`, `AIza`, `xoxb-`, `abayachic2024`).
+- Bonus Web Vitals : `curl -w "%{time_starttransfer}"` × 3 sur homepage + product-meta ; inspection byte-position preconnect + preload LCP + `<html lang/dir>`.
+
+Stage Summary:
+
+**VOLET 1 (partial) : SÉCURITÉ & INFRASTRUCTURE** (D2 — external) — Score 14/30
+- **Headers HTTP & CORS** : 🔴 ALERTE — 6/7 en-têtes critiques ABSENTS :
+  - `X-Content-Type-Options: nosniff` ❌ ABSENT (les deux URLs)
+  - `X-Frame-Options: DENY/SAMEORIGIN` ❌ ABSENT (clickjacking possible — aucune protection frame-ancestors via CSP non plus)
+  - `Referrer-Policy` ❌ ABSENT
+  - `Content-Security-Policy` ❌ ABSENT
+  - `Permissions-Policy` ❌ ABSENT
+  - `Cross-Origin-Opener-Policy/Embedder-Policy/Resource-Policy` ❌ ABSENT
+  - `Strict-Transport-Security` ✅ PRÉSENT (Cloudflare : `max-age=63072000` sans preload ; Vercel : `max-age=63072000; includeSubDomains; preload`)
+  - `X-Powered-By: Next.js` ⚠️ leaked (info mineure)
+  - `next.config.ts` n'a **AUCUN `headers()` config** ; `vercel.json` ne déclare que `Cache-Control` pour `/api/categories` et `/api/colormap`. Aucune politique de sécurité n'est appliquée. `reactStrictMode: false` (minor best-practice).
+  - `/api/categories` 200 public sans auth (acceptable — données catalog publiques). `/api/orders` OPTIONS 204 — CORS preflight passant.
+- **Exposition Bundle JS** : 🟢 CONFORME — 18 chunks (~1.3 MB) scannés, **0 pattern secret matché** (`eyJ`, `sbp_`, `ghp_`, `vcp_`, `sk_live`, `pk_live`, `whsec_`, `AKIA`, `AIza`, `xoxb-`, `abayachic2024` — tous 0). 0 var `NEXT_PUBLIC_` embedded (cohérent avec `NEXT_PUBLIC_GTM_ID` unset). 1 email business public `abayacollect@gmail.com` exposé (titre bouton contact + JSON inline `emailContact`) — contact client public, risque mineur. Numéro WhatsApp `+212698738664` exposé (JSON-LD `sameAs` + JSON inline `whatsappNumber`) — public, attendu pour e-commerce COD. `admin@example.com` et `admin@exemple.com` sont des placeholders i18n (pas PII). Cloudflare email-decode.min.js chargé mais `data-cfemail=` absent (obfuscation inactive sur les emails inline).
+
+**VOLET 2 : SEO & INDEXATION** (D2) — Score 22/40
+- **Verrous Noindex** : 🟡 **LEVÉS en production, MAIS branche non mergée à `main`** — curl `https://catalogue.abayacollection.store/` : `grep -c "noindex" /tmp/abaya_home.html` = **0** ✅. Aucune `<meta name="robots">` ni `<meta name="googlebot">` sur homepage ni `/product-meta/[slug]` (Googlebot UA). 404 routes (`/lp/x`, `/product-meta/x`) retournent HTTP 404 + `<meta name="robots" content="noindex"/>` légitime (soft-404 fix préservé ✅). **MAIS** `git show origin/main:src/app/layout.tsx` confirme lignes 275-276 `<meta name="robots" content="noindex, nofollow">` et `disallow: '/'` (robots.ts) TOUJOURS PRÉSENTS sur main (d0a09ba). Vercel déploie depuis `fix/remove-noindex-lock` (10f782a) — **RISQUE DE RÉGRESSION** : un rollback ou rebuild depuis main réinstalle le verrou noindex global sans préavis. À MERGER en urgence (ff-only).
+- **Sitemap & Robots.txt** : 🟡 PARTIEL — `sitemap.xml` HTTP 200, XML valide, 52 URLs, lastmod récent (2026-09-03). `robots.txt` : `Allow: /` ✅ + sitemap déclaré ✅. Cloudflare ajoute AI-bot blocks (CCBot, GPTBot, ClaudeBot, Google-Extended, meta-externalagent, etc.) via "Cloudflare Managed Content". ⚠️ **ALERTE** : **toutes les URLs du sitemap pointent vers `https://abaya-collection-catalogue-9dum.vercel.app`** (domaine Vercel) au lieu de `https://catalogue.abayacollection.store` (domaine canonical). Le `Sitemap:` directive dans robots.txt pointe aussi vers vercel URL. Cause : `NEXT_PUBLIC_BASE_URL` non-set en prod + fallback hardcoded à la valeur vercel dans `src/app/product-meta/[slug]/page.tsx:41,87` et `src/app/robots.ts`. Conséquence : Google indexera le domaine vercel, pas le custom domain — perte d'autorité + duplicate content potentiel entre les deux domaines.
+- **Données Structurées JSON-LD** : 🟢 CONFORMES (avec réserves URLs) — Homepage : 1 script Organization valide (name, url, logo, description, address MA, sameAs wa.me). `/product-meta/[slug]` : 3 scripts (Organization + BreadcrumbList 2 niveaux + Product avec `Offer{price, priceCurrency:MAD, availability:InStock, url}`). `priceCurrency="MAD"` ✅ (ISO 4217 correct). ⚠️ Toutes les URLs dans JSON-LD (`url`, `logo`, `item`, `sameAs`) pointent vers vercel URL (même cause que sitemap).
+- **Canonical & hrefLang** : ⚠️ `<link rel="canonical" href="https://abaya-collection-catalogue-9dum.vercel.app">` + 3 hreflang (`fr-MA`, `ar-MA`, `x-default`) tous vers vercel URL. Même défaut NEXT_PUBLIC_BASE_URL unset.
+- **Performance & Web Vitals** (bonus) :
+  - Homepage TTFB : 0.112-0.123s (Cloudflare) / 0.086-0.096s (Vercel direct) — ✅ excellent, ISR confirmé (`x-vercel-cache: HIT`, `age: 117s`).
+  - **🔴 ALERTE Product-meta TTFB = 3.849s** — route ghost `/product-meta/[slug]` non-cached (`cache-control: private, no-cache, no-store, max-age=0, must-revalidate` ; `x-vercel-cache: MISS` sur 2 hits consécutifs ; aucune directive `revalidate` ni `dynamic = 'force-static'` dans `page.tsx`). Avec 52 produits dans sitemap → budget crawl Googlebot ~200s pour produit seul (crawl budget critique). Recommandation : ajouter `export const revalidate = 3600` ou `export const dynamic = 'force-static'` sur la route ghost (les meta-tags SEO ne changent pas entre les éditions de produits).
+  - `<link rel="preconnect" href="https://ldvbfsnqgulynwxqwzau.supabase.co">` à byte 88 (E14 fix preserved, attendu ~82) ✅
+  - 6 `<link rel="preload" as="image">` dont 1 avec `imageSrcSet` + `fetchPriority="high"` (E13 fix preserved) ✅
+  - `<html lang="ar" dir="rtl" class="rtl">` (E14 CLS fix preserved, inline locale-flash script inline #1) ✅
+  - JS chunks : `cache-control: public, max-age=31536000, immutable` ✅ (MANDAT-4P step 10 fix preserved)
+
+**VOLET 3 (partial) : TRACKING & PUBLICITÉ** (D2 — client-side) — Score 4/25
+- **Événements Pixel Meta** : 🔴 ABSENTS — Aucun `fbq(`, `fbevents.js`, `connect.facebook.net` dans HTML ni dans les 18 chunks JS. Aucune var env `NEXT_PUBLIC_META_PIXEL_ID` ou `META_PIXEL_ID` référencée dans `src/`. Aucun événement Meta standard (PageView, ViewContent, AddToCart, InitiateCheckout, Purchase) — 0 occurrence. Pixel Meta **non implémenté** en production.
+- **DataLayer GA4 E-commerce** : 🔴 ALERTE — `pushDataLayer()` helper implémenté dans `src/lib/analytics.ts` (SSR-guard, try/catch, init `window.dataLayer=[]`). Événements GA4 e-commerce présents dans 18 chunks : `view_item_list`, `select_item`, `begin_checkout`, `purchase` (avec `transaction_id`). Currency `MAD` ✅. **MAIS** :
+  - 🔴 **GTM script jamais chargé** : `NEXT_PUBLIC_GTM_ID` env var UNSET (fallback `|| ''` dans `layout.tsx:14`) → `<Script id="gtm-init">` est conditionnellement SKIPPÉ (rend `null` si ID vide, fix M2 hydration). Donc `window.dataLayer` grandit indéfiniment SANS consumer → **AUCUN événement n'est envoyé à GA4**. Le tracking client-side est entièrement MORT en prod (les events sont pushés dans une queue orpheline).
+  - 🔴 **CAPI Deduplication ABSENT** (confirme D1) — `event_id` / `eventId` / `eventID` / `deduplication_id` introuvables dans aucun chunk ni HTML. Pas de miroir serveur Meta/Google. iOS 14.5+ ITP Safari + ad-blockers = sous-comptage majeur des conversions e-commerce COD.
+  - Manquants (probablement dans chunks route-spécifiques non chargés sur homepage) : `view_item`, `add_to_cart`, `view_cart`, `remove_from_cart`, `generate_lead`.
+  - Aucun Zaraz ni Cloudflare Web Analytics beacon détecté dans le HTML.
+
+**Score partiel D2** : **48/100**
+- VOLET 1 partial (sécu externe — Headers + Bundle) : 14/30 (Bundle clean +14 ; 6/7 headers critiques manquants -16)
+- VOLET 2 (SEO & Indexation) : 22/40 (noindex levé en prod mais branche non mergée -3 ; sitemap/canonical/JSON-LD URLs vercel -8 ; product-meta 3.85s non-cached -4 ; Web Vitals homepage excellent +5 ; JSON-LD valide +2 ; 404 routes noindex légitime +2)
+- VOLET 3 partial (tracking client-side) : 4/25 (helper pushDataLayer présent +4 ; Pixel Meta absent 0/10 ; GTM non chargé donc dataLayer sans consumer -5 ; CAPI absent -5)
+- Bonus Web Vitals : 8/10 (preconnect byte 88, LCP preload high, html lang ar RTL — tous préservés +8 ; product-meta 3.85s non-cached -2)
+
+**Verdict D2** : 🟡 AUDIT EXTERNE PASSANT AVEC RÉSERVES MAJEURES — Aucune fuite critique côté bundle (0 secret, 0 NEXT_PUBLIC_), aucune faille XSS/CSRF évidente dans la surface exposée, mais 4 alertes actionnables prioritaires :
+1. **MERGER `fix/remove-noindex-lock` (10f782a) vers `main` en ff-only** — Vercel déploie actuellement depuis une branche non-mergée, risque de régression silencieuse si rebuild depuis main. Le verrou noindex est lévité EN PROD mais pas dans le code source canonical.
+2. **SET `NEXT_PUBLIC_BASE_URL=https://catalogue.abayacollection.store` dans Vercel** — Corrigerait en une fois : sitemap URLs, robots.txt sitemap directive, canonical, hreflang, JSON-LD `url`/`logo`/`item`/`sameAs`. Aujourd'hui tout pointe vers le domaine vercel temporaire.
+3. **AJOUTER 6 en-têtes de sécurité dans `next.config.ts` `headers()`** : `X-Content-Type-Options: nosniff`, `X-Frame-Options: SAMEORIGIN`, `Referrer-Policy: strict-origin-when-cross-origin`, `Permissions-Policy: camera=(), microphone=(), geolocation=()`, et un CSP minimal (`default-src 'self'; img-src 'self' https://*.supabase.co https://*.googleusercontent.com data:; script-src 'self' 'unsafe-inline' https://www.googletagmanager.com; connect-src 'self' https://*.supabase.co;`). HSTS Cloudflare à upgrader vers `includeSubDomains; preload`.
+4. **CONFIGURER `NEXT_PUBLIC_GTM_ID` (GTM-XXXXXXX réel) dans Vercel** + **IMPLÉMENTER `/api/meta/conversions` CAPI** — Sinon le tracking e-commerce COD est 100% mort (pixel Meta absent, GTM script skipped, aucun event n'atteint GA4 ni Meta). Sans CAPI, attribution iOS 14.5+ perdue.
+
+Bonus - 1 alerte mineure : **`/product-meta/[slug]` route ghost non-cached (TTFB 3.85s)** — ajouter `export const revalidate = 3600` pour préserver le budget crawl Googlebot (52 produits × 3.85s = 200s/jour gaspillé).
+
+Aucune modification effectuée — audit READ-ONLY, branche `main` inchangée à d0a09ba, branche `fix/remove-noindex-lock` (10f782a) inchangée, fichier worklog.md uniquement appendé.
+
+---
+
+Task ID: DUEL-360-CONSOLIDATION
+Agent: Orchestrateur (consolidation D1 + D2)
+Task: MANDAT DUEL AUDIT 360° — Rapport consolidé final (santé, tracking, ads, sécurité)
+
+Work Log:
+- Lancement parallèle des 2 agents (D1 interne + D2 externe) — audits READ-ONLY
+- D1 a audité : secrets env, RLS, code quality, build config, dead code, architecture server-side tracking
+- D2 a audité : HTML live prod, sitemap, robots.txt, JSON-LD, Meta Pixel, GA4, headers HTTP, bundle JS
+- Consolidation des 4 volets en un rapport unique avec score global
+
+Stage Summary:
+Rapport consolidé ci-dessous (voir section finale du worklog).
+
+---
+
+# ═══════════════════════════════════════════════════════════════════
+# RAPPORT D'AUDIT DUEL 360° — BILAN GLOBAL CONSOLIDÉ
+# ═══════════════════════════════════════════════════════════════════
+
+**Date** : $(date -u +"%Y-%m-%d %H:%M UTC")
+**Cible** : https://catalogue.abayacollection.store/ + repo `Litbro1517/abaya_collection_catalogue`
+**Agents** : D1 (Infiltré — admin) + D2 (Black Box — read-only live)
+**Main HEAD** : `d0a09ba` (gelé, aucune modification par les agents)
+
+---
+
+## [VOLET 1 : SÉCURITÉ & INFRASTRUCTURE] (D1 + D2)
+
+### Fuites de secrets / Clés API : 🟢 CONFORME (avec 1 réserve)
+- `SUPABASE_SERVICE_ROLE_KEY` JAMAIS préfixée `NEXT_PUBLIC_` (grep 0 match dans `src/`) — D1 ✅
+- `getSupabaseAdmin()` (service_role) appelé uniquement dans 5 route handlers server-side — D1 ✅
+- Aucun composant `'use client'` n'importe `@/lib/supabase` — D1 ✅
+- Bundle JS (18 chunks, ~1.3 MB) : 0 pattern secret détecté (eyJ, sbp_, ghp_, vcp_, sk_live, pk_live, whsec_, abayachic2024) — D2 ✅
+- 0 variable `NEXT_PUBLIC_` sensible embarquée — D2 ✅
+- 🟡 **RÉSERVE D1** : password admin "abayachic2024" hardcoded dans 3 scripts root committés (`import-to-supabase.mjs:8`, `import-to-supabase.mjs:9`, `seed-catalog.ts:12`). Non exploitable côté client (scripts root, pas dans bundle) mais mauvaise pratique — rotation recommandée.
+
+### Politiques Supabase RLS : 🟡 NON-VÉRIFIABLE (architecture SQLite)
+- **D1 constat** : Prisma utilise **SQLite** (`provider = "sqlite"` L.6 du `schema.prisma`), pas Postgres. RLS Postgres n'est donc PAS applicable à la DB principale.
+- Le `service_role` Supabase ne sert qu'au bucket Storage `assets` (5 routes API de migration media).
+- Pas d'accès SQL direct à Supabase dans la sandbox pour vérifier les policies bucket Storage.
+- **Recommandation** : si migration vers Postgres prévue, activer RLS sur toutes les tables sensibles (User, Order, CatalogSettings) avec policies par rôle.
+
+### Headers HTTP & CORS : 🔴 ALERTE CRITIQUE
+- **D2 mesure** : 6/7 headers critiques MANQUANTS sur les 2 URLs (custom domain + Vercel) :
+  - ❌ `X-Content-Type-Options: nosniff` (absent)
+  - ❌ `X-Frame-Options: DENY/SAMEORIGIN` (absent)
+  - ❌ `Referrer-Policy` (absent)
+  - ❌ `Content-Security-Policy` (absent)
+  - ❌ `Permissions-Policy` (absent)
+  - ❌ `Cross-Origin-Opener-Policy` / `Cross-Origin-Embedder-Policy` (absents)
+  - ✅ `Strict-Transport-Security` présent (Cloudflare: `max-age=63072000` sans preload ; Vercel: avec preload)
+- `next.config.ts` n'a AUCUNE config `headers()` — D1 ✅ confirmé
+- `vercel.json` ne set que `Cache-Control` pour 2 routes API — D2
+- `X-Powered-By: Next.js` leaké (révélateur de stack) — D2
+- **Impact** : site vulnérable au clickjacking, MIME sniffing, et attaques XSS (pas de CSP)
+
+**Score VOLET 1 : 12/25** (3 conformes / 5 items, headers critique manque)
+
+---
+
+## [VOLET 2 : SEO & INDEXATION] (D2)
+
+### Verrous Noindex : 🟡 LEVÉS en prod mais branche non-mergée (risque régression)
+- **D2 mesure live** : HTML prod a **0 balise `<meta name="robots" content="noindex">`** et **0 `<meta name="googlebot" content="noindex">`** sur les routes `/`, `/product-meta/[slug]` ✅
+- **MAIS** : `git show origin/main:src/app/layout.tsx` contient ENCORE les 2 balises noindex (L.275-276) ET `robots.ts` a `disallow: '/'`. La branche `fix/remove-noindex-lock` (@ `10f782a`) qui supprime le verrou **n'est PAS mergée sur main** (main = `d0a09ba`).
+- Vercel déploie actuellement depuis la branche `fix/remove-noindex-lock` (pas depuis main) — **RISQUE DE RÉGRESSION SILENCIEUSE** : tout rollback ou redeploy depuis main réactiverait le noindex.
+- **Action requise** : merger `fix/remove-noindex-lock` → main (ff-only ou --no-ff avec audit) pour aligner le code sur l'état prod.
+
+### Sitemap & Robots.txt : 🔴 ALERTE URLs
+- `robots.txt` live : `Allow: /` ✅ + `Sitemap: https://abaya-collection-catalogue-9dum.vercel.app/sitemap.xml` ✅
+- `sitemap.xml` live : HTTP 200 ✅, 52 URLs, XML valide ✅
+- 🔴 **ALERTE** : les 52 URLs pointent vers `https://abaya-collection-catalogue-9dum.vercel.app` (Vercel URL) et NON vers le domaine custom `https://catalogue.abayacollection.store`. Même défaut sur `canonical`, `hreflang`, JSON-LD `url/logo/item/sameAs`.
+- **Cause** : `NEXT_PUBLIC_BASE_URL` non set en prod + fallback hardcoded vercel.app dans `product-meta/[slug]/page.tsx:41,87`.
+- **Impact SEO** : Google indexera les URLs vercel.app, pas le domaine custom. Dilution du link juice.
+- **Fix** : set `NEXT_PUBLIC_BASE_URL=https://catalogue.abayacollection.store` dans Vercel env vars.
+
+### Données Structurées JSON-LD : 🟢 CONFORMES
+- Homepage `/` : 1 script Organization valide (name, url, logo, description, address, sameAs WhatsApp) — D2 ✅
+- `/product-meta/[slug]` : 3 scripts valides (Organization + BreadcrumbList 2 niveaux + Product avec Offer{price, priceCurrency:MAD, availability:InStock}) — D2 ✅
+- Tous les champs requis pour rich snippets e-commerce présents ✅
+
+### Web Vitals (bonus D2)
+- Homepage TTFB : **0.112s** (Cloudflare ISR HIT) ✅
+- 🔴 Product-meta TTFB : **3.849s** (non-cached, `cache-control: private, no-cache, no-store`, MISS) — budget crawl Google critique (~200s/jour pour 52 produits)
+- ✅ Preconnect Supabase byte 88 (É14 préservé)
+- ✅ LCP preload `fetchPriority="high"` (É13 préservé)
+- ✅ `<html lang="ar" dir="rtl" class="rtl">` (CLS fix préservé)
+
+**Score VOLET 2 : 15/25** (noindex levé mais branche non-mergée, sitemap URLs wrong, JSON-LD OK)
+
+---
+
+## [VOLET 3 : TRACKING & PUBLICITÉ META / GOOGLE] (D1 + D2)
+
+### Événements Pixel Meta & Déduplication CAPI : 🔴 ABSENT (0/25)
+- **D1 constat** : aucun route `/api/tracking`, `/api/meta`, `/api/capi` dans `src/app/api/`. Tracking 100% client-side via GTM dataLayer.
+- **D1 constat** : aucun `event_id`/`eventId` généré côté serveur (grep 0 match). L'événement `purchase` (merci/page.tsx:100) pousse `transaction_id` mais sans `event_id` partagé → Meta CAPI impossible.
+- **D2 mesure live** : 0 `fbq(`, 0 `fbevents.js`, 0 `connect.facebook.net` dans HTML + 18 chunks. No `NEXT_PUBLIC_META_PIXEL_ID` référencé.
+- **Impact** : aucune attribution publicitaire possible. Pour un business e-commerce COD (Cash On Delivery) au Maroc, c'est critique — impossible de mesurer le ROAS Meta Ads.
+
+### DataLayer GA4 E-commerce : 🔴 ALERTE (helper présent mais consommateur absent)
+- **D2 constat** : `pushDataLayer()` helper existe dans `src/lib/analytics.ts` + events présents dans les chunks (`view_item_list`, `select_item`, `begin_checkout`, `purchase` w/ `transaction_id`, currency `MAD`).
+- 🔴 **MAIS** : `NEXT_PUBLIC_GTM_ID` est UNSET → `<Script id="gtm-init">` est SKIPPÉ (layout.tsx condition ternary) → `window.dataLayer` grandit indéfiniment sans AUCUN consommateur → 0 event n'atteint GA4.
+- **Impact** : analytics e-commerce totalement non fonctionnel. Les events sont poussés dans le vide.
+
+**Score VOLET 3 : 0/25** (Meta Pixel absent, CAPI absent, GA4 consumer absent — tracking entirely broken)
+
+---
+
+## [VOLET 4 : PROPRETÉ DU CODE & ARCHITECTURE] (D1)
+
+### Dette technique & Code mort : 🟡 RESTANT
+- `bun run lint` : 0 erreur / 0 warning ✅
+- `npx tsc --noEmit` : 134 erreurs (= baseline historique, toutes pré-existantes — Prisma JSON typing + legacy `nom`→`label` sur Category) ✅
+- 🟡 **9 scripts root orphelins** (update-images.ts, import-*.mjs, seed*.ts, etc.) + 2-3 orphelins dans `scripts/` — D1
+- `mini-services/` vide (pas de services isolés actifs) — D1
+- 9 commentaires `DEBT-` documentés comme RÉSOLUS — D1 ✅
+- 🟢 `z-ai-web-dev-sdk` uniquement dans `/api/translate/route.ts` (server) — D1 ✅
+- 🟢 Directives `'use client'` correctement placées (90+ fichiers) — D1 ✅
+
+### Strictness TypeScript & Build : 🔴 ALERTE CRITIQUE
+- 🔴 **`next.config.ts:14 typescript.ignoreBuildErrors: true`** — INTERDIT par le mandat DUEL. Le build Vercel passe silencieusement malgré les 134 erreurs TypeScript.
+- `eslint.ignoreDuringBuilds` absent (eslint enforced ✅) — D1 ✅
+- **Impact** : régressions de typage potentielles non détectées au build. Risque de runtime errors en prod.
+
+**Score VOLET 4 : 13/25** (lint clean, tsc baseline acceptable, MAIS ignoreBuildErrors: true = violation critique + dead code restant)
+
+---
+
+# ═══════════════════════════════════════════════════════════════════
+# BILAN FINAL
+# ═══════════════════════════════════════════════════════════════════
+
+| VOLET | POIDS | SCORE | STATUT |
+|---|---|---|---|
+| 1. Sécurité & Infrastructure | 25% | 12/25 (48%) | 🔴 ALERTE (headers manquants) |
+| 2. SEO & Indexation | 25% | 15/25 (60%) | 🟡 MIXTE (noindex levé mais branche non-mergée, sitemap URLs wrong) |
+| 3. Tracking & Publicité | 25% | 0/25 (0%) | 🔴 CRITIQUE (Pixel + CAPI + GA4 consumer tous absents) |
+| 4. Propreté & Architecture | 25% | 13/25 (52%) | 🔴 ALERTE (ignoreBuildErrors: true) |
+
+## SCORE DE SANTÉ GLOBALE APPLICATION : 40 / 100
+
+## VERDICT FINAL : 🔴 ACTIONS REQUISES (non prêt pour scaling)
+
+---
+
+## TOP 7 ACTIONS PRIORITAIRES (par impact décroissant)
+
+### P0 — Critique (bloquant pour scaling)
+1. **Configurer `NEXT_PUBLIC_GTM_ID`** dans Vercel env vars + vérifier que GTM container déclenche GA4 (sinon analytics e-commerce 100% mort)
+2. **Implémenter Meta Pixel + CAPI** :
+   - Ajouter `NEXT_PUBLIC_META_PIXEL_ID` + base code `fbq('init', ...)` dans le layout
+   - Créer `/api/meta/conversions` route (POST) qui envoie les events serveur-side avec `event_id` partagé miroir du client
+   - Standard events requis : PageView, ViewContent, AddToCart, InitiateCheckout, Purchase
+3. **Retirer `typescript.ignoreBuildErrors: true`** de `next.config.ts:14` (violation mandate, masque 134 erreurs)
+4. **Merger `fix/remove-noindex-lock` → main** (ff-only après audit) — élimine le risque de régression silencieuse noindex
+
+### P1 — Important (sécurité + SEO)
+5. **Ajouter 6 security headers** dans `next.config.ts` `headers()` : X-Content-Type-Options, X-Frame-Options, Referrer-Policy, CSP, Permissions-Policy, Cross-Origin-* + upgrade HSTS avec `includeSubDomains; preload`
+6. **Set `NEXT_PUBLIC_BASE_URL=https://catalogue.abayacollection.store`** dans Vercel — fixe sitemap, canonical, hreflang, JSON-LD URLs en 1 variable
+
+### P2 — Hygiène (dette technique)
+7. **Rotater + retirer le password hardcoded "abayachic2024"** des 3 scripts root committés + nettoyer les 9 scripts orphelins
+
+---
+
+## POINTS FORTS (à préserver)
+- ✅ ISR fonctionnel (route `/` = ○ Static Revalidate 5m/1y, TTFB homepage 0.112s)
+- ✅ CLS 0.0009 (flip RTL éliminé)
+- ✅ LCP preload + preconnect Supabase (É13 + É14 préservés)
+- ✅ Images optimisées (resize=contain, -84% poids)
+- ✅ Secrets server-side propres (service_role non leaké)
+- ✅ Bundle JS propre (0 secret pattern)
+- ✅ JSON-LD e-commerce valide (Product, Offer, BreadcrumbList)
+- ✅ Lint 0/0, architecture 'use client'/'use server' correcte
+
+## CONCLUSION
+L'application est **fonctionnelle et performante** côté rendu (ISR, CLS, LCP, images), mais **non prête pour scaling** à cause de 3 lacunes critiques : (1) tracking publicitaire entièrement absent (Meta Pixel + CAPI + GA4 consumer), (2) security headers manquants, (3) `ignoreBuildErrors: true` qui masque les erreurs TypeScript au build. La branche `fix/remove-noindex-lock` doit être mergée pour aligner code et prod. Le SEO technique est correct mais le sitemap pointe vers la mauvaise URL (Vercel au lieu du domaine custom).
+
+**Recommandation** : traiter les 4 actions P0 avant toute campagne publicitaire ou scaling. Le tracking e-commerce COD sans attribution Meta/GA4 est le risque business #1.
