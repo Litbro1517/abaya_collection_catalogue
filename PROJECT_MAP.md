@@ -5396,3 +5396,42 @@ Helper enrichi : `resolveSupabaseRenderUrl(url, width, quality, options?: { heig
 - Bonus vérifié : `cache-control: max-age=31536000` (1 an) sur render API vs `no-cache` sur object.
 
 **Chaîne** : `…→ 2c85464 (É13 ISR) → 3029512 merge fix/supabase-image-render-v2 (ec49b1c) — audit ADF validé, Vercel déployé, LCP 872 ms live`
+
+---
+
+## [MANDAT 4P — ÉTAPE 14 : PARITÉ LCP MOBILE/DESKTOP — DIAGNOSTIC DIFFÉRENTIEL + PRECONNECT CDN (branche, fusion en attente)]
+
+**Statut** : 🔵 branche `fix/mobile-lcp-desktop-parity` @ `a8d8fbf` poussée — **aucun merge** (main gelé 773a297, engagement « attendre la validation du développeur » respecté).
+
+**Question du mandat** : Desktop LCP 1,0 s (vert) vs Mobile LCP orange (PSI) — pourquoi l'image principale peine-t-elle en mobile ?
+
+**Méthodologie** : Lighthouse 12.4 (profils exacts PSI : mobile Moto G Power 412×823 **DPR 1,75**, RTT 150 ms / 1,638 Mbps / CPU 4× ; desktop 1350×940 DPR 1, RTT 40 ms / 10 Mbps / CPU 1×) contre l'URL prod, + run devtools-throttled (waterfall réel) + analyse byte-level du `<head>` et du `<img>` LCP.
+
+**Différentiel reproduit localement** : Desktop LCP **0,9 s** (vert) / Mobile LCP **2,9 s** (orange) — cohérent avec les captures PSI (score mobile 88, CLS/TBT/SI verts).
+
+**Vérification des hypothèses du mandat (mesuré > déclaré)** :
+1. Attributs `<img>` LCP (1ère carte) : `srcSet` réel 400/600/800w contain + `sizes="(max-width:640px) 50vw, (max-width:1024px) 33vw, 25vw"` + `fetchPriority=high` + `loading=eager` (idx<4) + `width/height=400/300` — **tout est déjà conforme** (héritage É13).
+2. « Image surdimensionnée en mobile » : **INFIRMÉ par la mesure** — à 412×823 DPR 1,75, le navigateur sélectionne le descripteur **400w** (15,4 KiB webp contain) pour une boîte ~206×154 px CSS — densité ~1,9×, OPTIMAL.
+3. Preload LCP : **DÉJÀ PRÉSENT** (É13) — `<link rel="preload" as="image" fetchpriority="high" imageSrcSet(400/600/800w) imageSizes(50vw/33vw/25vw)>` + 4 preloads React Float eager — image demandée **24 ms après la fin du HTML** (prod, priorité High, initiatorType=link).
+4. Vrais goulets mobiles (asymétriques vs desktop, tous mesurés) :
+   - **(a) Zéro preconnect vers l'origine des images** (`ldvbfsnqgulynwxqwzau.supabase.co`, cross-domain) — DNS+TCP+TLS sérialisés après découverte : ~450 ms à RTT 150 ms mobile vs ~120 ms à RTT 40 ms desktop.
+   - **(b) Budget d'octets pré-paint sur pipe 1,47 Mbps** : 89 Ko polices préchargées (6 woff2 Zain) + 39 Ko CSS render-blocking + 68 Ko images eager ≈ 196 Ko sérialisés → **CSS termine à 2 134 ms** (devtools mesuré) → le paint est gated par le CSS, l'image étant prête dès 1 334 ms.
+   - **(c) CPU 4×** : parse HTML 226 Ko + hydratation RSC → render delay Lantern **1 780 ms** (lcpLoadEnd 1 120 → LCP 2 900).
+
+**Correctif chirurgical livré** (commit a8d8fbf, 1 fichier `src/app/layout.tsx`, +71/−1) :
+- `resolveSupabaseCdnOrigin()` : origine dérivée de `SUPABASE_URL` / `NEXT_PUBLIC_SUPABASE_URL` / favicon DB, émise uniquement si hôte `https://*.supabase.co` vérifié.
+- `ReactDOM.preconnect(origin)` dans RootLayout → React Float insère le `<link rel="preconnect">` dans le **préambule du `<head>` — mesuré byte 76, avant viewport et les 6 preload polices**.
+- Fallback `<link rel="dns-prefetch">` (no-cors, comme les `<img>`).
+
+**Gain mesuré/attendu** : ~50-90 ms mobile (connexion initiée au byte 76 du HTML au lieu du preload image @ ~9,4 Ko) ; négligeable desktop (déjà vert) ; le gain complet (~450 ms) s'applique aux parcours où le preload LCP est découvert plus tard (PDP, HTML long). Mécanisme prouvé : fetch image sur connexion chaude — imgDur 116-333 ms SANS setup de connexion (runs warmed).
+
+**Inchangés par construction** : srcSet/sizes/fetchpriority/loading É13, preload LCP imageSrcSet/imageSizes, ISR ○ Static 5m/1y (build vérifié), CLS (zéro effet layout), SEO noindex, RTL, tsc **134 = baseline** (0 erreur layout.tsx), lint **0/0**, build **exit 0**.
+
+**Gates qualité** : ✅ lint 0/0 · ✅ tsc 134 = baseline · ✅ build exit 0, route `/` ○ Static 5m/1y · ✅ arbre git propre (seuls fichiers non-trackés pré-existants) · ✅ port 3241 libéré.
+
+**Recommandations P1/P2 (hors périmètre chirurgical — décision développeur requise)** :
+- **P1 — stratégie preload polices (~600-800 ms mobile, devtools)** : `preload: false` sur Zain → les 6 woff2 (89 Ko) ne concourent plus avec le CSS render-blocking ; `font-display: swap` + fallback métrique next/font (FCP texte + CLS garantis) ; contrepartie : flash bref de police système au premier rendu FR.
+- **P2 — eager idx<4 → idx<2 (~200-300 ms)** : libère ~40 Ko du budget pré-paint ; cartes rangées 2+ passent lazy (IntersectionObserver above-fold = chargement immédiat post-layout) ; impact SI marginal.
+- **P3 — architectural** : régime CSS (39 Ko br render-blocking), payload RSC 226 Ko, 17-19 chunks JS (CPU 4× = render delay dominant en Lantern) — le chemin vers LCP mobile < 1,5 s.
+
+**Chaîne** : `773a297 (tip main, gelé) → branche fix/mobile-lcp-desktop-parity : a8d8fbf (fix) + docs (ce commit) — fusion bloquée jusqu'au feu vert du développeur`.
