@@ -522,7 +522,7 @@ function HomeContent({ initialCatalog, initialDatasources, initialBaseUrl }: Hom
   // V2 Fix: pass SSR props (initialCatalog/initialDatasources) to CatalogPreview
   // so it can initialize sections synchronously from props (not Zustand store,
   // which is invisible during SSR due to useSyncExternalStore.getServerSnapshot).
-  return <CatalogPreview onAdminLogin={() => setShowLogin(true)} initialCatalog={initialCatalog} initialDatasources={initialDatasources} initialBaseUrl={initialBaseUrl} />;
+  return <CatalogPreview onAdminLogin={() => setShowLogin(true)} initialCatalog={initialCatalog} initialDatasources={initialDatasources} initialBaseUrl={initialBaseUrl} initialSettings={initialCatalog?.settings || undefined} />;
 }
 
 export default function HomeClient(props: HomeClientProps = {}) {

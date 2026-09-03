@@ -1,6 +1,5 @@
 import type { Metadata } from "next";
 import { Playfair_Display, Inter, Zain, Tajawal } from "next/font/google";
-import { cookies } from "next/headers";
 import Script from "next/script";
 import "./globals.css";
 import { Toaster } from "@/components/ui/sonner";
@@ -8,6 +7,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { ThemeInjector } from "@/components/ThemeInjector";
 import { GlobalCart } from "@/components/GlobalCart";
 import { db } from '@/lib/db';
+import { headers } from 'next/headers';
 
 // ── Audit remediation: GTM container ID via env var (no more placeholder) ──
 // Previously: hard-coded 'GTM-XXXXXXX' placeholder → GTM container never loaded,
@@ -172,15 +172,20 @@ export default async function RootLayout({
   // ━━ SEO Fix V2: read brand metadata once (shared with generateMetadata) ━━
   const { catalogName, whatsappNumber, metadataBaseUrl } = await getBrandMetadata();
 
-  // ── SSR: resolve visitor locale from cookie, fallback to DB default, then 'fr' ──
+  // ── MANDAT 4P — Fix TTFB : lire la locale depuis le header middleware ──
+  // Avant : `await cookies()` forçait Next.js en rendu 100% dynamique,
+  // neutralisant l'ISR (revalidate=300 dans page.tsx) → TTFB 2.2s.
+  // Maintenant : le middleware injecte `x-locale` dans le header →
+  // `headers()` est une fonction synchrone (pas de Dynamic API) →
+  // Next.js peut pré-rendre la page (ISR actif) → TTFB < 0.5s.
   let ssrLocale = 'fr';
   try {
-    const cookieStore = await cookies();
-    const cookieLocale = cookieStore.get('abaya_locale')?.value;
-    if (cookieLocale && ['fr', 'en', 'ar'].includes(cookieLocale)) {
-      ssrLocale = cookieLocale;
+    const headerList = await headers();
+    const xLocale = headerList.get('x-locale');
+    if (xLocale && ['fr', 'en', 'ar'].includes(xLocale)) {
+      ssrLocale = xLocale;
     } else {
-      // No cookie yet (first visit) — check DB default
+      // No header (first visit or build) — check DB default
       const settings = await db.catalogSettings.findFirst();
       const dbDefault = settings?.defaultCatalogLanguage;
       if (dbDefault && ['fr', 'en', 'ar'].includes(dbDefault)) {
@@ -188,7 +193,7 @@ export default async function RootLayout({
       }
     }
   } catch {
-    // DB or cookies unavailable — use 'fr'
+    // DB or headers unavailable — use 'fr'
   }
   const ssrDir = ssrLocale === 'ar' ? 'rtl' : 'ltr';
 

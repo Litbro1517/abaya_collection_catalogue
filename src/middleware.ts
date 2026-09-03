@@ -142,7 +142,17 @@ export async function middleware(req: NextRequest) {
     );
   }
 
-  return NextResponse.next();
+  // ━━ MANDAT 4P — Fix TTFB : injecter la locale via header ━━━━━━━━━━━━
+  // Le middleware (Edge) lit le cookie `abaya_locale` et l'injecte dans le
+  // header `x-locale` de la requête. Le Server Component layout.tsx lit
+  // ce header au lieu d'appeler `cookies()` → Next.js peut pré-rendre la
+  // page (ISR actif, revalidate=300) → TTFB < 0.5s.
+  const res = NextResponse.next();
+  const localeCookie = req.cookies.get('abaya_locale')?.value;
+  if (localeCookie && ['fr', 'en', 'ar'].includes(localeCookie)) {
+    res.headers.set('x-locale', localeCookie);
+  }
+  return res;
 }
 
 // ── Bot detection helper ──

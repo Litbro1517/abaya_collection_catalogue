@@ -260,6 +260,14 @@ interface CatalogPreviewProps {
   initialDatasources?: DataSource[];
   /** Base URL from SSR — passed to ProductPage for JSON-LD without typeof window (fixes #418). */
   initialBaseUrl?: string;
+  /** MANDAT 4P — Fix CLS : settings SSR directes pour éviter le saut du logo.
+   *  Avant : settings n'était lu que depuis le store Zustand (hydraté
+   *  après coup) → le logo passait de 32px (badge fallback) à 40-51px
+   *  (logo réel) à l'hydratation → CLS 0.928.
+   *  Maintenant : settings est transmis en prop SSR directe → le logo
+   *  a sa bonne hauteur dès le premier rendu serveur → pas de saut.
+   */
+  initialSettings?: CatalogSettings | null;
 }
 
 // ━━ DEBT-10 repair : sous-composant pour traduction auto du titre carte produit ━━
@@ -276,7 +284,7 @@ function ProductCardTitle({ title, locale }: { title: string; locale: string }) 
 // now handles the cart button globally on ALL routes. This prevents double-render
 // conflict and ensures the cart is always visible.
 
-export function CatalogPreview({ onAdminLogin, initialCatalog, initialDatasources, initialBaseUrl }: CatalogPreviewProps) {
+export function CatalogPreview({ onAdminLogin, initialCatalog, initialDatasources, initialBaseUrl, initialSettings }: CatalogPreviewProps) {
   const { catalog, settings, isAdmin, adminUser, setView } = useAppStore();
   const { t, formatPrice, rtl, locale, resolveTranslation: resolveT } = useClientTranslation();
 
@@ -394,7 +402,12 @@ export function CatalogPreview({ onAdminLogin, initialCatalog, initialDatasource
     loadCategories();
   }, []);
 
-  const s = settings || catalog?.settings;
+  // MANDAT 4P — Fix CLS : utiliser initialSettings en priorité pour éviter
+  // le saut du logo à l'hydratation. Avant, settings n'était lu que depuis
+  // le store Zustand (qui se remplit après hydratation) → le logo passait
+  // de 32px (badge fallback) à 40-51px (logo réel) → CLS.
+  // Maintenant : initialSettings (prop SSR) est utilisé au premier rendu.
+  const s = initialSettings || settings || catalog?.settings;
   const primaryColor = s?.primaryColor || '#C9A84C';
   const secondaryColor = s?.secondaryColor || '#1A3C34';
   const accentColor = s?.accentColor || '#F5F0E8';
