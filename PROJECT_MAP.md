@@ -4973,3 +4973,62 @@ non modifiés.
 
 ### Chaîne d'audits ADF
 `…→ 65ed636 (anti-bot Drive) → 7d138be (re-trigger) → a1957e7 (perf LCP+CLS, --ff-only)`
+
+---
+
+## [MANDAT 4P — ÉTAPE 9 : PERFORMANCE MOBILE GLOBALE — x-locale Edge Middleware + initialSettings SSR]
+
+**Branche** `fix/perf-mobile-refactor-global` → fusionnée `--ff-only` en **b380f5a** (adf121c →
+b380f5a), auteur/commetteur certifiés `Litbro1517 <gotonewjamail@gmail.com>`, Vercel SUCCESS ×2,
+prod vérifiée. Diff : **4 fichiers exacts** (layout.tsx, middleware.ts, HomeClient.tsx,
+CatalogPreview.tsx) +40/−12.
+
+### Pattern 1 — Edge Middleware `x-locale` (lecture locale sans `cookies()`)
+Le middleware lit `abaya_locale` côté Edge et l'injecte en header `x-locale` sur le
+`NextResponse.next()` ; `layout.tsx` remplace `await cookies()` par `await headers().get('x-locale')`
+(fallback DB → `'fr'`). **Validé par mesure en local ET en prod Vercel** : cookie
+`abaya_locale=en` → `<html lang="en" dir="ltr">` ; sans cookie → `lang="ar"` (défaut DB réel) ;
+aucune régression de résolution de locale. ⚠️ Note technique : le commentaire in-code
+(« headers() est synchrone, pas une Dynamic API ») est **inexact** — `headers()` reste une
+Dynamic API en Next.js 16 ; le canal middleware→Server Component fonctionne néanmoins
+(mesuré). Le couple `x-admin-id`/`x-admin-role` (préexistant L108-110) utilise le même canal.
+
+### Pattern 2 — `initialSettings` SSR (fix CLS logo)
+`page.tsx` incluait déjà `settings: true` (Prisma) dans `initialCatalog` ;
+`HomeClient` transmet désormais `initialSettings={initialCatalog?.settings}` et
+`CatalogPreview` consomme `initialSettings || settings || catalog?.settings` → le logo est
+rendu **dès le SSR** avec dimensions réservées (`width={logoHeight*3}`, `height`,
+`style height/maxHeight`) au lieu d'apparaître à l'hydratation. **Preuve A/B mesurée** :
+main = 0 `<img>` logo au SSR (URL uniquement dans le flight JSON) ; branche = `<img … width
+height style>` complet au SSR. **Prod confirmée** : logo Supabase rendu au SSR
+(`width="153" height="51"`), fin du saut 32px→51px à l'hydratation. Cohérence hydratation :
+le store est seedé au premier rendu client (ref guard, HomeClient L176-190) et la prop
+reste prioritaire → rendu identique serveur/client.
+
+### Réserve documentée — ISR toujours inerte (héritage Étape 8)
+Route `/` = **ƒ (Dynamic)** sur main ET branche (build A/B mesuré). Causes cumulées :
+(1) `await headers()` dans RootLayout (Dynamic API — cf. Pattern 1), (2) `await searchParams`
+dans `generateMetadata` de page.tsx (hors périmètre du diff). `revalidate = 300` reste sans
+effet ni dommage ; TTFB inchangé (SSR dynamique ~2,7-4,5 s avec round-trip DB, cache MISS).
+Pour libérer réellement l'ISR : routes dédiées `[slug]` ou PPR/cacheComponents.
+
+### Étanchéité SEO (contrôle 100 %)
+Diff = 4 fichiers exacts ; `robots.ts`/`sitemap.ts` **non touchés** ; bloc `generateMetadata`
+de layout (L<172) non modifié (hunks uniquement dans RootLayout + import) ; noindex ×2 +
+googlebot préservés (local + prod) ; JSON-LD ×2 vivants ; robots.txt `Disallow: /` intact ;
+locale SSR (`lang`/`dir`) fonctionnelle (DB défaut + cookie via edge).
+
+### Validations (audit ADF indépendant)
+- `bun run lint` : 0/0 exit 0 ✓ · `next build` : exit 0 ×2 (main adf121c + branche b380f5a) ✓
+- `npx tsc --noEmit` : **134 = 134**, signatures normalisées identiques (215=215), unique
+  delta = bruit d'ordre d'affichage TS ; l'erreur CatalogPreview 593→606 = préexistante
+  (décalage +13 lignes du diff) ✓
+- Runtime :3238 (fixtures Catalog+CatalogSettings logo=44px) : Tests A/B/C/D — cookie en →
+  `lang="en"`, sans cookie → `lang="fr"`, logo `<img height=44 style>` au SSR, header
+  `x-locale: en` présent dans la réponse ✓ ; serveur arrêté, /tmp db nettoyée
+- Prod après déploiement : HTTP 200 (no-cache), noindex ×2, logo SSR réel, `lang` suit le
+  cookie à travers l'edge Vercel — **nouveau code confirmé déployé**
+
+### Chaîne d'audits ADF
+`…→ 7d138be → a1957e7 (perf LCP+CLS, ff-only) → ccfeaaf (docs) → 5bdefa9 → adf121c
+(re-trigger) → b380f5a (perf mobile globale x-locale + initialSettings, ff-only)`
