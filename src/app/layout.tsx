@@ -35,11 +35,15 @@ async function getBrandMetadata() {
   let whatsappNumber = "";
   let metadataBaseUrl = 'https://abaya-collection-catalogue-9dum.vercel.app';
   let dbFavicon: string | null = null;
+  let defaultCatalogLanguage = 'fr';
 
   try {
     const settings = await db.catalogSettings.findFirst();
     if (settings?.favicon) dbFavicon = settings.favicon;
     if (settings?.whatsappNumber) whatsappNumber = settings.whatsappNumber;
+    if (settings?.defaultCatalogLanguage && ['fr', 'en', 'ar'].includes(settings.defaultCatalogLanguage)) {
+      defaultCatalogLanguage = settings.defaultCatalogLanguage;
+    }
     if (settings) {
       const catalog = await db.catalog.findFirst({
         where: { id: settings.catalogId },
@@ -57,7 +61,7 @@ async function getBrandMetadata() {
     }
   } catch { /* DB unavailable — use default */ }
 
-  return { catalogName, whatsappNumber, metadataBaseUrl, dbFavicon };
+  return { catalogName, whatsappNumber, metadataBaseUrl, dbFavicon, defaultCatalogLanguage };
 }
 
 export async function generateMetadata(): Promise<Metadata> {
@@ -149,21 +153,48 @@ export default async function RootLayout({
   children: React.ReactNode;
 }>) {
   // ━━ SEO Fix V2: read brand metadata once (shared with generateMetadata) ━━
-  const { catalogName, whatsappNumber, metadataBaseUrl } = await getBrandMetadata();
+  const { catalogName, whatsappNumber, metadataBaseUrl, defaultCatalogLanguage } = await getBrandMetadata();
 
   // MANDAT 4P v2 — Fix TTFB : supprimer await headers() du layout racine.
   // `await headers()` est une Dynamic API sous Next 16 → force TOUTES les
   // routes en rendu dynamique (ƒ) → ISR inopérant → TTFB 2.2-5.7s.
-  // Solution : la locale est gérée par LocaleDirectionSync (Client Component)
-  // qui lit le cookie après hydratation. Le layout racine redevient statique
-  // → ISR actif → x-vercel-cache: HIT → TTFB < 0.5s.
-  // Le html a lang="fr" dir="ltr" par défaut au SSR (valeur la plus courante).
-  const ssrLocale = 'fr';
-  const ssrDir = 'ltr';
+  // Le layout racine reste statique → ISR actif → x-vercel-cache: HIT.
+  //
+  // ━━ MANDAT 4P — FIX CLS (post-É12) : locale SSR depuis le défaut BDD ━━
+  // Problème mesuré (audit CLS, prod + local) : le HTML statique était TOUJOURS
+  // `lang="fr" dir="ltr"` alors que le défaut BDD est `ar` (defaultCatalogLanguage).
+  // Pour tout visiteur SANS préférence (PSI/first-visit), HomeClient seedait
+  // clientLocale='ar' après hydratation → ThemeInjector basculait dir=rtl →
+  // la grille produit swapait ses colonnes → CLS 0,61 local / 0,31 mobile +
+  // 0,68 desktop (PSI). Régression apparue avec É12 (suppression du fallback
+  // BDD server-side qui pré-existait via `await headers()`).
+  // Correctif chirurgical (parité avec le comportement PRE-É12, ISR préservé) :
+  //   1. Le layout lit le défaut BDD via getBrandMetadata (MÊME requête Prisma
+  //      que favicon/name — zéro requête supplémentaire) → SSR `lang`/`dir`
+  //      corrects dès le HTML initial. Valeur figée au build (ISR 300s) — même
+  //      contrat de fraîcheur que les données catalogue.
+  //   2. Script inline no-flash dans <head> (pattern next-themes) : applique la
+  //      PRÉFÉRENCE visiteur (localStorage abaya_clientLocale > cookie abaya_locale)
+  //      AVANT le premier paint → retour visiteur = zéro flip visible.
+  //   3. LocaleDirectionSync (post-hydration) reste le filet de sécurité — ses
+  //      valeurs sont alignées (même priorité) → idempotent, zéro re-flip.
+  // LCP/ISR intacts : aucun headers()/cookies() server-side, script ~450B
+  // non bloquant, prerender inchangé.
+  const ssrLocale = defaultCatalogLanguage;
+  const ssrDir = ssrLocale === 'ar' ? 'rtl' : 'ltr';
+  // Script no-flash : priorité identique au store client (localStorage > cookie),
+  // n'agit QUE si la préférence diffère du défaut SSR (déjà correct sinon).
+  const localeNoFlashScript = `(function(){try{var V=['fr','en','ar'];var l=null;try{var ls=localStorage.getItem('abaya_clientLocale');if(ls&&V.indexOf(ls)>=0)l=ls}catch(e){}if(!l){var m=document.cookie.match(/(?:^|;\\s*)abaya_locale=([^;]+)/);if(m&&V.indexOf(m[1])>=0)l=m[1]}var D=${JSON.stringify(ssrLocale)};if(!l||l===D)return;var r=l==='ar';var h=document.documentElement;h.setAttribute('lang',l);h.setAttribute('dir',r?'rtl':'ltr');if(r)h.classList.add('rtl');else h.classList.remove('rtl');}catch(e){}})();`;
 
   return (
-    <html lang={ssrLocale} dir={ssrDir} suppressHydrationWarning>
+    <html lang={ssrLocale} dir={ssrDir} className={ssrDir === 'rtl' ? 'rtl' : undefined} suppressHydrationWarning>
       <head>
+        {/* ━━ MANDAT 4P — FIX CLS : script no-flash locale (pre-paint) ━━
+            Doit être le PREMIER enfant du <head> : applique la préférence
+            visiteur (localStorage/cookie) avant tout paint → élimine le flip
+            RTL post-hydration (CLS 0,31/0,68 mesuré en prod PSI). ~450B,
+            synchrone, non bloquant (aucun fetch). */}
+        <script dangerouslySetInnerHTML={{ __html: localeNoFlashScript }} />
         {/* ━━ MANDAT 4P — SEO noindex, nofollow (balise meta directe, garantie absolue) ━━
             Cette balise est ajoutée DIRECTEMENT dans le <head> manuel du RootLayout
             pour garantir qu'elle soit présente sur TOUTES les pages, même si une

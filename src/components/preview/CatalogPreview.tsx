@@ -2041,7 +2041,16 @@ export function CatalogPreview({ onAdminLogin, initialCatalog, initialDatasource
   // ── MAIN RENDER ──
   // ═══════════════════════════════════════════════════════════════════════
   return (
-    <div className="min-h-screen flex flex-col w-full max-w-full overflow-x-clip" style={{ backgroundColor: '#FAF8F5' }} dir={rtl ? 'rtl' : 'ltr'}>
+    <div className="min-h-screen flex flex-col w-full max-w-full overflow-x-clip" style={{ backgroundColor: '#FAF8F5' }}>
+      {/* ━━ MANDAT 4P — FIX CLS : plus d'attribut dir explicite sur ce conteneur ━━
+          Avant : dir={rtl ? 'rtl' : 'ltr'} — le SSR (prerender, store module-init
+          = 'fr' côté serveur) rendait dir="ltr" puis le seed locale (clientLocale
+          'fr'→'ar' post-hydration) le basculait en 'rtl' → la grille produit
+          swapait ses colonnes → CLS 0,29-0,61 (PSI mobile 0,31 / desktop 0,68).
+          Maintenant : la direction est HÉRITÉE de <html> (dir posé par le layout
+          SSR depuis le défaut BDD + script no-flash pour la préférence visiteur)
+          → direction correcte dès le premier paint, zéro flip post-hydration.
+          Les CSS [dir="rtl"] et html.rtl continuent de matcher (via <html>). */}
       {/* ━━ MANDAT 4P ÉTAPE 13 — LCP Preload (first product image) ━━
           React 19 hoiste automatiquement ce <link> vers le <head> du document.
           Sans ce preload, la 1ère image produit concourt sur le réseau contre

@@ -57,7 +57,6 @@ export function TrustGuaranteesSection({ variant = 'full' }: { variant?: 'full' 
     <section
       className={isCompact ? 'w-full py-0' : 'w-full py-10 sm:py-12'}
       style={{ backgroundColor: 'transparent' }}
-      dir={rtl ? 'rtl' : 'ltr'}
       aria-label={t('trust.livraison.title') ? 'Trust guarantees' : undefined}
     >
       <div className={isCompact ? 'w-full' : 'mx-auto px-4'} style={isCompact ? undefined : { maxWidth: 1270 }}>
@@ -139,8 +138,9 @@ function TrustCard({
           border: '1px solid rgba(201, 168, 76, 0.3)',
           color: '#3D3D3D',
         }}
-        dir={rtl ? 'rtl' : 'ltr'}
       >
+        {/* FIX CLS : direction héritée de <html> (SSR défaut BDD + no-flash) —
+            l'attribut explicite dir={rtl...} causait un flip post-hydration. */}
         {desc}
         {/* Arrow pointing down */}
         <div
