@@ -5582,3 +5582,34 @@ La ligne de blocage d'indexation `<meta name="robots" content="noindex, nofollow
 
 ### Engagement écrit
 L'agent développeur s'engage formellement à **ne pas merger `fix/remove-noindex-lock` vers `main` sans feu vert explicite d'un audit de contre-visite**. La branche est prête pour audit ; les preuves brutes sont consignées.
+
+## [MANDAT ADF — FUSION fix/remove-noindex-lock (suppression du verrou noindex SEO)]
+
+**Branche** : `fix/remove-noindex-lock` @ `10f782a` (1 commit, base `d0a09ba` = tip main, zéro rebase nécessaire).
+**Merge** : `ccbcd40` (merge --no-ff, parents `d0a09ba` + `10f782a`, arbre byte-identique à la branche `c232498`, auteur `Litbro1517 <gotonewjamail@gmail.com>`, push origin/main ✅, Vercel LIVE ~80 s).
+
+### Audit ADF — contre-visite 100% conforme (contrôles mesurés, mesuré > déclaré)
+
+| Contrôle | Résultat |
+|---|---|
+| Diff chirurgical | ✅ 3 fichiers code (`layout.tsx`, `page.tsx`, `robots.ts`) + docs — uniquement le verrou noindex ; zéro autre modification |
+| noindex global supprimé | ✅ HTML local **et PROD** : `noindex`=0, `<meta name="robots">`=0, `<meta name="googlebot">`=0 (était noindex ×2) |
+| robots.txt | ✅ `User-Agent: *` → `Allow: /` + directive Sitemap (prod vérifié) |
+| noindex légitimes 404 | ✅ `lp/[slug]` : 404 + noindex ×2 ; `product-meta/[slug]` : 404 + noindex ×2 (local + prod) |
+| SEO préservé | ✅ canonical ×1, JSON-LD ×2, sitemap 200 (52 URLs), OG intact |
+| Perf préservée (É13/É14) | ✅ LCP preload image ×5-6, preconnect CDN byte 82, route `/` = `○ Static Revalidate 5m / Expire 1y` (ISR intact) |
+| Fix CLS préservé | ✅ `<html lang="ar" dir="rtl" class="rtl">` en SSR (local + prod) |
+| Catalogue E13-v2 | ✅ 16 produits prod (80 URLs `storage/v1/render` contain), 12 produits fixture locale |
+| TypeScript | ✅ tsc 134 = baseline, ensemble d'erreurs strictement identique (seul delta : `page.tsx(245,7)→(247,7)`, décalage prouvé par le diff de la branche) |
+| Linting | ✅ lint 0 erreur / 0 warning |
+| Build | ✅ exit 0 ×2 (avec et sans env Supabase) |
+
+### Production vérifiée (Vercel, déploiement LIVE ~80 s après push)
+- `https://abaya-collection-catalogue-9dum.vercel.app/` : noindex=0 ; robots.txt `Allow: /` ; lp/product-meta 404 + noindex ×2 ; canonical + JSON-LD + sitemap 52 URLs ; preconnect@82 ; `lang="ar" dir="rtl"`.
+- Score SEO PageSpeed attendu : **100/100** (le verrou noindex était la seule déduction du score 69/100).
+
+### Réserve mineure (recommandation follow-up, non bloquante)
+- `robots.ts` ne restaure pas les `disallow: ['/admin', '/api/']` de l'état pré-verrou (`f0ec683`) — règles perdues collatéralement lors de la pose du verrou (`df048a3`), non retirées par cette branche (vs base main). `/admin` sert 200 (page login) en anonyme. Recommandation : commit follow-up du développeur ajoutant ces deux disallows (hygiène crawl + budget Googlebot). Aucun impact sur l'indexation ni le fonctionnement — hors matrice du mandat, ne bloque pas la conformité.
+
+### Preuves brutes
+`/home/z/verify-logs/adf-noindex/` : tsc-branch.txt, build-branch.log, build2-env.log, home.html/home2/home3 (sondes SSR locales), prod-home.html, prod-lp404.html, prod-pm404.html, server logs.
