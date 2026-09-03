@@ -28,12 +28,13 @@ export default async function robots(): Promise<MetadataRoute.Robots> {
   return {
     rules: [
       {
-        // MANDAT 4P — noindex, nofollow global : bloquer le crawling de TOUTES
-        // les routes. Complète le meta robots noindex, nofollow du layout.
-        // Le meta robots empêche l'indexation ; le robots.txt Disallow: / empêche
-        // le crawling (économise le budget crawl de Googlebot).
+        // ━━ MANDAT 4P — Suppression du verrou noindex (fix/remove-noindex-lock) ━━
+        // La maintenance est terminée — le verrou Disallow: / (qui bloquait le
+        // crawling de TOUTES les routes) est supprimé. Les robots d'exploration
+        // peuvent à nouveau crawler et indexer le site. Le sitemap.xml est
+        // déclaré pour guider le crawling.
         userAgent: '*',
-        disallow: '/',
+        allow: '/',
       },
     ],
     sitemap: `${baseUrl}/sitemap.xml`,
