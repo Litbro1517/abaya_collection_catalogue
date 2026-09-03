@@ -5192,3 +5192,46 @@ génériques pour les requêtes ?product= non-bot.
 
 ### Chaîne d'audits ADF
 `…→ a4da2b4 (police unique Zain) → 12246ba (docs É11) → 503af8f (perf v2, merge --no-ff)`
+
+---
+
+## [MANDAT 4P — ÉTAPE 13 : DÉBLOCAGE ISR — retrait searchParams de generateMetadata (ee48ebe → merge 8bd0454)]
+
+**Branche** : `fix/isr-unblock-searchparams` @ `ee48ebe` (1 commit, 1 fichier :
+`src/app/page.tsx`, +27/−75) — fusion `--no-ff` → **`8bd0454`** (arbre byte-identique),
+Vercel déployé. **Levée de la RÉSERVE MAJEURE de l'ÉTAPE 12.**
+
+### Changement
+- `generateMetadata()` ne prend plus `searchParams` (l'`await searchParams`
+  inconditionnel était LE verrou Dynamic API restant — causalité prouvée É12 par
+  build témoin /tmp). Métadonnées génériques statiques (seo cache 300 s).
+- Supprimés avec : import `resolveProduct`, helper `safeDecode`, logique
+  canonical/OG/twitter par produit dans la page racine.
+- Conservés intégralement : **noindex,nofollow** (robots), **hrefLang** fr-MA/ar-MA/
+  x-default, canonical base, OG/Twitter, JSON-LD.
+
+### Architecture des métadonnées produit (décision É12 actée)
+- Requêtes `?product=` **non-bot** → HTML statique générique (ISR) + **PDP rendue
+  côté client** (URLSearchParams ×4 — mesuré : deeplink AR réel
+  `?product=%D8%A7%D9%86…` → PDP complète au chargement).
+- **Crawlers** (facebookexternalhit, Twitterbot, Googlebot…) → middleware rewrite
+  `/product-meta/[slug]` (route INTACTE, non touchée par le diff) → métadonnées
+  produit spécifiques (mesuré : `انصومبل دوبياس | Mon Catalogue` + og:title).
+- Site en noindex global + robots.txt Disallow → perte canonique/OG produit sur
+  la racine = sans impact indexing ; previews sociales préservées via product-meta.
+
+### Preuves brutes (mesuré > déclaré)
+- **Build** : `┌ ○ /  Revalidate 5m  Expire 1y` (exigence du mandat) + exit 0.
+- **ISR local** (`next start`) : `x-nextjs-cache: HIT` ×3.
+- **ISR production** : `x-vercel-cache: HIT` + `age: 126` + **TTFB 0,096 s**
+  (vs 1,9-3,6 s pré-fusion — ~20-40×). Deeplink ?product= servi par le MÊME
+  cache HIT (le query string n'invalide pas le cache ISR).
+- **Portes** : lint 0/0 · tsc **134 = 134** signatures identiques (2 TS2322
+  préexistantes décalées L276→L245).
+- **SEO** : noindex ×2, hrefLang ×3, canonical, JSON-LD — intacts (HTML + bot).
+- **FR/AR** : fr/ltr FR complet ; ar/rtl + .rtl-class + catalogue arabe intégral ;
+  React #418 = mécanisme de transition pré-existant (0-4 selon état, aucune
+  nouvelle — le diff ne touche aucun texte de body).
+
+### Chaîne d'audits ADF
+`…→ 503af8f (perf v2) → 650c6d7 (docs É12) → 8bd0454 (déblocage ISR, merge --no-ff)`
