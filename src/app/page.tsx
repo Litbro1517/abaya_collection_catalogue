@@ -46,9 +46,10 @@ async function getSeoMetadata() {
 // (?product=slug) sont gérées par la route dédiée /product-meta/[slug]
 // (déjà fonctionnelle pour les crawlers via le middleware bot interception).
 //
-// Le site étant en noindex,nofollow global, les métadonnées SEO dynamiques
-// par produit ne sont utiles que pour les previews sociales (WhatsApp, FB)
-// qui passent déjà par /product-meta/[slug].
+// ━━ MANDAT 4P — Suppression du verrou noindex (fix/remove-noindex-lock) ━━
+// Le verrou noindex/nofollow global a été levé (maintenance terminée). Le site
+// est à nouveau indexable — les métadonnées SEO par produit (?product=slug)
+// servent désormais à la fois pour les previews sociales et l'indexation.
 //
 // generateMetadata ne prend plus searchParams en paramètre → la route /
 // peut être pré-rendue statiquement (ISR avec revalidate=300).
@@ -89,10 +90,10 @@ export async function generateMetadata(): Promise<Metadata> {
       description: seo.description,
       images: [seo.ogImage],
     },
-    robots: {
-      index: false,
-      follow: false,
-    },
+    // ━━ MANDAT 4P — Suppression du verrou noindex (fix/remove-noindex-lock) ━━
+    // Le robots: { index: false, follow: false } (qui dupliquait le verrou global
+    // du layout) est supprimé. La maintenance est terminée — le site est à nouveau
+    // indexable. PageSpeed SEO attendu : 100/100.
   };
 }
 

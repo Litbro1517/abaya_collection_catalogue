@@ -5540,3 +5540,45 @@ Helper enrichi : `resolveSupabaseRenderUrl(url, width, quality, options?: { heig
 
 ### Mécanisme
 `ReactDOM.preconnect(supabaseCdnOrigin)` émet le `<link rel="preconnect">` via l'API React Float, qui l'insère dans le **préambule du `<head>`** (avant les preload de polices next/font et le viewport). Le preloader scanner découvre le preconnect dans les premiers octets du HTML streaming → DNS+TCP+TLS vers Supabase s'ouvrent **en parallèle** du téléchargement HTML/CSS → l'image LCP part sur une connexion déjà chaude. Gain attendu : ~50-450ms sur le chemin critique mobile (RTT 150ms).
+
+## [MANDAT 4P — Suppression du verrou noindex (fix/remove-noindex-lock)]
+
+**Branche** : `fix/remove-noindex-lock` (depuis main @ `d0a09ba`, 1 commit à venir).
+**Conformité mandat** : branche isolée dédiée ✅, zéro commit sur main ✅, attente feu vert audit ✅.
+
+### Conjoncture
+La ligne de blocage d'indexation `<meta name="robots" content="noindex, nofollow" />` avait été insérée temporairement pendant la maintenance. La maintenance étant terminée, cette ligne bloquait artificiellement le score SEO à 69/100 sur PageSpeed Insights.
+
+### Action chirurgicale (3 fichiers, exclusivement noindex)
+- `src/app/layout.tsx` :
+  - Supprimé `robots: { index: false, follow: false, googleBot: { index: false, follow: false } }` du `generateMetadata`
+  - Supprimé `<meta name="robots" content="noindex, nofollow" />` du `<head>`
+  - Supprimé `<meta name="googlebot" content="noindex, nofollow" />` du `<head>`
+  - Supprimé les blocs de commentaires associés (remplacés par un commentaire documentant la suppression)
+- `src/app/page.tsx` :
+  - Supprimé `robots: { index: false, follow: false }` du `generateMetadata` (doublon du layout)
+  - Mis à jour le commentaire stale mentionnant "Le site étant en noindex,nofollow global"
+- `src/app/robots.ts` :
+  - Remplacé `disallow: '/'` par `allow: '/'` (débloque le crawling)
+
+### Préservation (légitime)
+- `src/app/lp/[slug]/page.tsx` : `robots: { index: false, follow: true }` conservé (404 soft pour landing pages inexistantes)
+- `src/app/product-meta/[slug]/page.tsx` : `robots: { index: false, follow: true }` conservé (404 soft pour produits inexistants)
+- Sitemap.xml, canonical URL, hrefLang, JSON-LD, OG metadata, preconnect Supabase, LCP preload — tous préservés
+
+### Preuves (localhost:3000)
+- `noindex` / `nofollow` count dans HTML = **0** (supprimé)
+- `<meta name="robots">` count = **0**
+- `<meta name="googlebot">` count = **0**
+- robots.txt : `Allow: /` (était `Disallow: /`)
+- canonical préservé, JSON-LD ×2, OG title, preconnect Supabase, LCP preload (fetchPriority=high) — tous préservés
+- 4/4 images loaded, 0 erreur console
+- FR↔AR switch fonctionne, CLS=0.0009 (< 0.0012), ISR préservé (route / = ○ Static 5m/1y)
+
+### Gates qualité
+- `bun run lint` → **0 erreur / 0 warning** ✅
+- `npx tsc --noEmit` → **134 erreurs** = baseline (0 nouvelle) ✅
+- `bun run build` → **exit 0** ✅, route `/` = `○ (Static) Revalidate 5m / Expire 1y`
+
+### Engagement écrit
+L'agent développeur s'engage formellement à **ne pas merger `fix/remove-noindex-lock` vers `main` sans feu vert explicite d'un audit de contre-visite**. La branche est prête pour audit ; les preuves brutes sont consignées.
