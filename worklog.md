@@ -1971,3 +1971,50 @@ Stage Summary:
 - LCP preload : préservé (imageSrcSet 3 URLs resize=contain, fetchPriority=high)
 - ISR : préservé (route / = ○ Static Revalidate 5m Expire 1y)
 - SEO : noindex/nofollow préservé, JSON-LD intact
+
+---
+
+Task ID: MANDAT-ADF-E14-FUSION
+Agent: dev-agent (audit ADF + fusion conditionnelle)
+Task: Audit ADF de la branche fix/mobile-lcp-desktop-parity (commits a8d8fbf + 71a8363) et fusion conditionnelle sur main si 100% conforme.
+
+Work Log:
+- Fetch origin/fix/mobile-lcp-desktop-parity (2 commits : a8d8fbf fix + 71a8363 docs)
+- Sync local main avec origin/main (9e9502c — post-CLS merge)
+- Découverte clé : la branche est basée sur 773a297 (PRE-CLS merge), main a avancé à 9e9502c (post-CLS merge 8fe631d). Conflits 3-way attendus sur layout.tsx (destructure getBrandMetadata) + PROJECT_MAP.md (sections append).
+- Audit diff complet : 2 fichiers modifiés (layout.tsx +71/-1, PROJECT_MAP.md +39)
+  - resolveSupabaseCdnOrigin(dbFaviconUrl) : valide https + .supabase.co strictement
+  - ReactDOM.preconnect(supabaseCdnOrigin) : émet <link rel=preconnect> en préambule <head>
+  - <link rel=dns-prefetch> fallback dans <head> JSX
+- Control 1 (resolveSupabaseCdnOrigin + ReactDOM.preconnect) : ✅ validation stricte https + .supabase.co, preconnect en préambule du <head> (byte 82 mesuré)
+- Control 2 (TypeScript) : ✅ tsc 134 baseline, 0 erreur sur layout.tsx
+- Control 3 (Linting) : ✅ lint 0/0
+- Control 4 (noindex + ISR) : ✅ noindex/nofollow ×2 préservés, route / = ○ Static Revalidate 5m Expire 1y
+- Control 5 (build) : ✅ exit 0
+- Conflits de merge résolus :
+  - layout.tsx : destructure combiné {dbFavicon, defaultCatalogLanguage} (CLS + É14), preconnect + no-flash script + dns-prefetch tous présents dans <head>
+  - PROJECT_MAP.md : sections CLS + É14 conservées côte à côte
+- Agent Browser verification (localhost:3000, SUPABASE_URL env set) :
+  - preconnect_present=true (href=https://ldvbfsnqgulynwxqwzau.supabase.co/)
+  - dns_prefetch_present=true
+  - preload_present=true, fetchpriority=high
+  - html lang=ar dir=rtl class=rtl (CLS fix preserved)
+  - CLS=0.0009 (< 0.0012)
+  - 4/4 images loaded, 0 erreur console
+  - FR↔AR language selector fonctionne (اللغة→Langue, lang/dir appliqués)
+- CAS A déclenché : 100% conforme → merge --no-ff + push origin/main.
+- Merge commit : 4e453e8 (merge --no-ff, conflits résolus, 2 commits intégrés).
+- Push origin/main : 9e9502c..4e453e8 ✅.
+- Vercel deployment : dpl_yJyHS3CL READY, prod vérifiée (preconnect@byte82 + dns-prefetch + no-flash script + LCP preload + resize=contain + noindex).
+
+Stage Summary:
+- Verdict : 🟢 CAS A — 100% CONFORME, fusion exécutée, Vercel déployé
+- Merge commit : 4e453e8 (merge --no-ff avec résolution de conflits)
+- Production : https://abaya-collection-catalogue-9dum.vercel.app/ (200 OK)
+- Preconnect : byte 82 (avant viewport, preload polices, et preload LCP image)
+- DNS+TCP+TLS vers Supabase : ouverts en parallèle du HTML/CSS dès le premier segment TCP
+- CLS : 0.0009 (préservé, < 0.0012)
+- LCP preload : préservé (imageSrcSet 3 URLs resize=contain, fetchPriority=high)
+- ISR : préservé (route / = ○ Static Revalidate 5m Expire 1y)
+- SEO : noindex/nofollow ×2 préservés, JSON-LD intact
+- CLS fix (É précédent) : préservé (no-flash script + SSR locale depuis DB)

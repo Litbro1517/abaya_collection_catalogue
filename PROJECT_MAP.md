@@ -5507,3 +5507,36 @@ Helper enrichi : `resolveSupabaseRenderUrl(url, width, quality, options?: { heig
 - **P3 — architectural** : régime CSS (39 Ko br render-blocking), payload RSC 226 Ko, 17-19 chunks JS (CPU 4× = render delay dominant en Lantern) — le chemin vers LCP mobile < 1,5 s.
 
 **Chaîne** : `773a297 (tip main, gelé) → branche fix/mobile-lcp-desktop-parity : a8d8fbf (fix) + docs (ce commit) — fusion bloquée jusqu'au feu vert du développeur`.
+
+## [MANDAT ADF — FUSION fix/mobile-lcp-desktop-parity (É14 preconnect CDN)]
+
+**Branche** : `fix/mobile-lcp-desktop-parity` @ `a8d8fbf` (fix) + `71a8363` (docs).
+**Merge** : `4e453e8` (merge --no-ff sur main @ `9e9502c`, conflits résolus, push origin/main ✅, Vercel READY `dpl_yJyHS3CL`).
+
+### Audit ADF 100% conforme (5 contrôles validés)
+
+| Contrôle | Résultat |
+|---|---|
+| 1. resolveSupabaseCdnOrigin + ReactDOM.preconnect | ✅ validation stricte https + .supabase.co, preconnect en préambule <head> (byte 82) |
+| 2. TypeScript | ✅ tsc 134 baseline, 0 erreur sur layout.tsx |
+| 3. Linting | ✅ lint 0/0 |
+| 4. noindex + ISR | ✅ noindex/nofollow ×2 préservés, route / = ○ Static Revalidate 5m Expire 1y |
+| 5. Build | ✅ exit 0 |
+
+### Conflits de merge résolus (branche basée sur 773a297, main post-CLS merge 8fe631d)
+- `layout.tsx` : destructure combiné `{dbFavicon, defaultCatalogLanguage}` (CLS + É14), preconnect + no-flash script + dns-prefetch tous présents dans `<head>`
+- `PROJECT_MAP.md` : sections CLS + É14 conservées côte à côte
+
+### Preuves production (Vercel)
+- URL : https://abaya-collection-catalogue-9dum.vercel.app/
+- Deployment : `dpl_yJyHS3CL` READY
+- HTML prod vérifié :
+  - `<html lang="ar" dir="rtl" class="rtl">` (CLS fix preserved)
+  - `<link rel="preconnect" href="https://ldvbfsnqgulynwxqwzau.supabase.co"/>` à byte 82
+  - `<link rel="dns-prefetch" href="https://ldvbfsnqgulynwxqwzau.supabase.co"/>` à byte 8082
+  - No-flash script présent
+  - LCP preload présent (imageSrcSet 3 URLs resize=contain, fetchPriority=high)
+  - noindex, nofollow ×2 préservés
+
+### Mécanisme
+`ReactDOM.preconnect(supabaseCdnOrigin)` émet le `<link rel="preconnect">` via l'API React Float, qui l'insère dans le **préambule du `<head>`** (avant les preload de polices next/font et le viewport). Le preloader scanner découvre le preconnect dans les premiers octets du HTML streaming → DNS+TCP+TLS vers Supabase s'ouvrent **en parallèle** du téléchargement HTML/CSS → l'image LCP part sur une connexion déjà chaude. Gain attendu : ~50-450ms sur le chemin critique mobile (RTT 150ms).
