@@ -5192,3 +5192,106 @@ génériques pour les requêtes ?product= non-bot.
 
 ### Chaîne d'audits ADF
 `…→ a4da2b4 (police unique Zain) → 12246ba (docs É11) → 503af8f (perf v2, merge --no-ff)`
+
+## [MANDAT 4P — ÉTAPE 13 : OPTIMISATION LCP & IMAGES SUPABASE — render API + vrais srcSet + preload LCP]
+
+**Branche** : `fix/supabase-image-render` (depuis main @ `650c6d7`, 1 commit à venir, arbre propre).
+**Conformité mandat** : branche isolée dédiée ✅, zéro commit sur main ✅, attente feu vert audit ✅.
+
+### Conjoncture & problématique (héritée du rapport ADF main @ 2c85464)
+- LCP mobile mesuré : **5,4 s** (objectif < 1,5 s).
+- Poids/image mesuré : **35 → 441 KiB** (médiane ~100 KiB) pour cartes rendues **174×131 px** (ratio ~7× en aire).
+- `srcSet` factice : les 3 descripteurs (400w/600w/800w) pointaient vers la **même URL HD d'origine** — `resolveHybridImageUrl(url, size)` ignorait le paramètre `size` pour les URLs Supabase (passthrough pur).
+- Aucun `<link rel="preload" as="image">` pour la première image LCP → découverte via scanner HTML en concurrence avec 17 chunks JS (~1 MB) sur le réseau 4G.
+- Volume total fold mesuré : **2,26 MB** (mobile) → 4,53 MB (scroll) → 5,76 MB (capture utilisateur).
+- Test décisif ADF sur endpoint render Supabase : `?width=400&quality=75&format=webp` → 52 170 B vs 142 082 B = **-63 %**.
+
+### Solution technique appliquée (Piste B — Méthode Chirurgicale)
+
+#### 1. Helper `resolveSupabaseRenderUrl` (`src/lib/media-utils.ts`)
+```ts
+// Regex couvre /object/public/ ET /render/image/public/
+const SUPABASE_STORAGE_REGEX = /^(https?:\/\/[^/]+\/storage\/v1\/(?:object|render\/image)\/public\/)([^/]+)\/(.+)$/;
+
+export function resolveSupabaseRenderUrl(url, width=400, quality=75): string {
+  const match = url.match(SUPABASE_STORAGE_REGEX);
+  if (!match) return url; // Drive/externe → passthrough
+  const [, base, bucket, path] = match;
+  const renderBase = base.replace('/storage/v1/object/public/', '/storage/v1/render/image/public/');
+  return `${renderBase}${bucket}/${path}?width=${width}&quality=${quality}&format=webp`;
+}
+```
+
+#### 2. `resolveHybridImageUrl` enrichi (`src/lib/media-utils.ts`)
+- Drive URLs : `https://lh3.googleusercontent.com/d/${fileId}=w${size}` (inchangé — déjà optimal)
+- **Supabase URLs : render API** (nouveau) — `resolveSupabaseRenderUrl(url, size, 75)`
+- Autres URLs : passthrough (inchangé)
+
+#### 3. Vrais srcSet distincts (`src/components/preview/CatalogPreview.tsx` L1579-1583)
+Le JSX existant `srcSet={400w/600w/800w}` produit désormais 3 URLs RÉELLEMENT distinctes (vérifié Agent Browser) :
+```
+https://xxxx.supabase.co/storage/v1/render/image/public/.../image.webp?width=400&quality=75&format=webp 400w,
+https://xxxx.supabase.co/storage/v1/render/image/public/.../image.webp?width=600&quality=75&format=webp 600w,
+https://xxxx.supabase.co/storage/v1/render/image/public/.../image.webp?width=800&quality=75&format=webp 800w
+```
+
+#### 4. LCP Preload injecté (`src/components/preview/CatalogPreview.tsx` L880-905 + L2051-2060)
+- `useMemo` calcule les 3 URLs du 1er produit de la 1ère page (idx 0 = LCP element).
+- `<link rel="preload" as="image" href={url400} imageSrcSet={3 URLs} imageSizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw" fetchPriority="high">` rendu en tête du main return.
+- **React 19 hoisting** : le `<link>` est automatiquement déplacé vers le `<head>` du document — vérifié en prod-like (Agent Browser : `preload_in_head=true`).
+
+#### 5. Fallback onError préservé (filet de sécurité)
+- `onError` existe déjà (L1593-1608) : 1er échec → `resolveProxyImageUrl` (passthrough URL ORIGINALE — non transformée), 2e échec → placeholder SVG.
+- Si l'API render Supabase échoue (quota, bucket privé, format non supporté), la `<img>` retombe sur l'URL HD originale — dégradation douce = état pré-ÉTAPE 13 exact, zéro rupture visuelle.
+
+### Preuves A/B mesurées (avant → après)
+
+| Image | HD originale | w400 render API | Réduction |
+|---|---|---|---|
+| 16icElwWL…webp | 142 082 B | 52 170 B | **-63,3 %** |
+| 16xHUkBw8…webp | 56 978 B | 14 596 B | **-74,4 %** |
+| 1SOt5GbVL…webp | 177 064 B | 44 238 B | **-75,0 %** |
+| 1CJCTKRKW…webp | 43 178 B | 17 812 B | **-58,7 %** |
+| **Moyenne** | **102,4 KiB** | **31,4 KiB** | **-69,3 %** |
+| **17 images (prod)** | **1,70 MB** | **0,52 MB** | **-1,18 MB** |
+
+Bonus : `cache-control` render API = `max-age=31536000` (1 an) vs `no-cache` sur l'URL originale. Les images optimisées sont désormais éligibles au cache CDN Cloudflare (cf-cache-status: HIT après 1er MISS).
+
+### Preuves Agent Browser (localhost:3000, DB seedée 4 produits Supabase réels)
+
+- ✅ **Page rend 4 `<img class="product-card-img">`** (SSR/ISR intact, pas de Chargement…)
+- ✅ **`<link rel="preload" as="image" imageSrcSet=3-URLs-distinctes imageSizes=... fetchPriority="high">`** dans `<head>` (preload_in_head=true, preload_fetchpriority=high, preload_uses_render_api=true)
+- ✅ **First `<img>`** : src=render API URL, srcSet=3 URLs distinctes, loading=eager, fetchPriority=high, decoding=sync (LCP attrs preserved), naturalWidth > 0 (loaded OK)
+- ✅ **`initiatorType: "link"`** (PerformanceObserver) — image découverte via preload, pas via scanner HTML → ~10-100 ms gagnés sur le LCP
+- ✅ **4/4 images loaded successfully** (img.complete=true, naturalWidth>0)
+- ✅ **FR → AR switch** : `html lang=ar dir=rtl` appliqué, UI entièrement traduite (عرض، مفضل، اللغة…), preload + images toujours chargées (render API URL inchangée en mode RTL)
+- ✅ **AR → FR reverse** : `html lang=fr dir=ltr`, layout LTR correct
+- ✅ **Footer sticky** : `footer_present=true`, `body 1923px > viewport 844px` → footer pushé naturellement (sticky pattern `min-h-screen flex flex-col mt-auto`)
+- ✅ **SEO étanche** : `noindex, nofollow` ×2 + 3 JSON-LD scripts + canonical URL + hrefLang fr-MA/ar-MA/x-default
+- ✅ **0 erreur console** (uniquement HMR/DevTools info messages)
+
+### Gates finaux (lint/tsc/build)
+- `bun run lint` → **0 erreur / 0 warning** ✅
+- `npx tsc --noEmit` → **134 erreurs** = baseline 134 (0 nouvelle). Seule erreur CatalogPreview L.606 pré-existante sur main (vérifiée par stash + compare)
+- `bun run build` → **exit 0** ✅, route `/` reste `ƒ (Dynamic)` — CONFORME au mandat (préservation ISR actuel, `await searchParams` dans generateMetadata hors périmètre ÉTAPE 13 = LCP images uniquement)
+
+### Décisions d'arbitrage technique (conformes au mandat)
+
+- **Piste B privilégiée sur Option A (`next/image`)** : conformément au verdict ADF. Le markup SSR `<img>` doit rester byte-exact (fondation des gains CLS/É12) ; `next/image` changerait le markup (wrapper, srcset auto via `/_next/image`). L'architecture hybride Drive+Supabase+proxy onError n'a pas d'équivalent direct en `next/image`. Piste B = zéro régression visuelle, URLs seules changent.
+- **`useMemo` plutôt que serveur-side preload dans `page.tsx`** : évite de dupliquer la logique de walk `catalog.sections → datasources → row.data[coverColumn]` côté serveur. Le `<link>` est rendu côté Client Component, React 19 hoiste vers `<head>` — vérifié en prod-like.
+- **`imagesrcset` + `imagesizes` plutôt que `href` simple** : permet au navigateur de préloader UNIQUEMENT la meilleure taille (1 URL) selon le viewport, pas les 3 — économie de bande passante desktop/mobile.
+- **Qualité 75 (et non 60)** : équilibre mesuré ADF (-63% vs -71% pour q60) — visuel identique en dense mobile, q60 introduisait un artefact perceptible sur les motifs brodés.
+- **Aucune modification de `next.config.ts`** : `unoptimized: false` (next/image natif) reste actif mais inutilisé pour les cartes (paradoxe de config hérité, non-périmètre ÉTAPE 13).
+- **Aucune modification de `generateMetadata`** dans `page.tsx` : `await searchParams` reste la cause de `ƒ (Dynamic)` sur `/`, mais le mandat ÉTAPE 13 est LCP-only. Déblocage ISR complet = décision d'architecture future (suggested : P2, hors périmètre).
+- **`onError` fallback conservé intact** : filet de sécurité ultime — si l'API render Supabase change/quota explose, l'URL passthrough originale est servie (dégradation douce = état pré-ÉTAPE 13 exact, zéro rupture).
+
+### Anomalies bénignes documentées
+- `<link>` preload rendu depuis un Client Component (CatalogPreview) — React 19 hoisting fonctionne en App Router Next 16, mais un Server Component aurait été plus pur. Choix motivé par : (1) accès direct à `paginatedProducts[0]` sans duplication de logique de walk, (2) re-render automatique si la pagination/filtre change (preload suit la 1ère carte visible).
+- Sur catalog vide/filtre exclude-all, `lcpPreload=null` → pas de `<link>` injecté (la 1ère `<img>` LCP devient le placeholder SVG inline, déjà dans le HTML, pas besoin de preload).
+- L'image 4 a une réduction plus faible (-58.7%) car son HD original est déjà petit (43 KiB) — le rendu w400 ne peut pas compresser davantage un WebP déjà optimisé.
+
+### Chaîne d'audits ADF
+`…→ 503af8f (perf v2, merge --no-ff) → 650c6d7 (docs É12) → fix/supabase-image-render (É13, à merger après audit)`
+
+### Engagement écrit
+L'agent développeur s'engage formellement à **ne pas merger `fix/supabase-image-render` vers `main` sans feu vert explicite d'un audit ADF complet**. La branche est prête pour audit ; les preuves brutes sont consignées ci-dessus (mesures curl, vérifications Agent Browser, gates lint/tsc/build).

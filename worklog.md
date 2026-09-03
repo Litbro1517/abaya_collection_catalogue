@@ -1867,3 +1867,58 @@ identique au pattern historique).
 obsolètes en prod, 401 login) ; preuve historique = migration 209/228 (#5/#6b) + SUCCESS ×2.
 **Étanchéité SEO** : diff 2 fichiers API exacts ; prod : 200, noindex ×2, robots.txt intact.
 **Détails** : PROJECT_MAP.md §ÉTAPE 10 ; preuves verify-logs/adf-cdn-cache-control/.
+
+---
+
+Task ID: MANDAT-4P-ETAPE-13
+Agent: dev-agent (fix/supabase-image-render)
+Task: MANDAT 4P — OPTIMISATION LCP & ARCHITECTURE DU CHARGEMENT DES IMAGES (Piste B chirurgicale — Supabase render API + vrais srcSet + preload LCP)
+
+Work Log:
+- Branche isolée `fix/supabase-image-render` créée depuis main @ 650c6d7 (zéro commit sur main, conformément au mandat)
+- Lecture du rapport d'investigation ADF (axes 1-5) : LCP mobile 5,4s, srcSet factice (3 descripteurs → même URL HD), zéro preload LCP, 142-441 KiB/image rendue 174×131 px
+- `src/lib/media-utils.ts` : ajout de `resolveSupabaseRenderUrl(url, width, quality)` qui rewrite les URLs Supabase Storage en `/storage/v1/render/image/public/...?width=&quality=&format=webp`. Regex `SUPABASE_STORAGE_REGEX` couvre /object/public/ ET /render/image/public/. Helper `isSupabaseStorageUrl()` exposé. `resolveHybridImageUrl` enrichi : Drive → `=w{size}` (inchangé), Supabase → render API (nouveau), autre → passthrough (inchangé)
+- `src/components/preview/CatalogPreview.tsx` : ajout d'un `useMemo` (`lcpPreload`) qui calcule les 3 URLs RÉELLEMENT distinctes (400w/600w/800w) du 1er produit de la 1ère page. Le `<link rel="preload" as="image" imageSrcSet=... imageSizes=... fetchPriority="high">` est rendu en tête du main return — React 19 hoiste automatiquement vers le `<head>`. La logique onError (fallback proxy → placeholder) reste 100% intacte (filet de sécurité ultime)
+- Aucune autre modification : SSR markup byte-identique (seules les URLs dans src/srcSet changent), CLS=0 préservé, ISR/ƒ inchangé (await searchParams hors-périmètre — mandat 4P ÉTAPE 13 = LCP uniquement)
+- Test helper local : Supabase URL → 3 URLs distinctes (width=400/600/800&quality=75&format=webp), Drive URL → =w400/=w600/=w800, externe → passthrough
+- Test endpoint live (curl direct, no-cache) : 
+  - 16icElwWL…webp HD=142 082 B → w400=52 170 B (-63.3%)
+  - 16xHUkBw8…webp HD=56 978 B → w400=14 596 B (-74.4%)
+  - 1SOt5GbVL…webp HD=177 064 B → w400=44 238 B (-75.0%)
+  - 1CJCTKRKW…webp HD=43 178 B → w400=17 812 B (-58.7%)
+- Agent Browser (localhost:3000, DB seedé 4 produits Supabase réels) :
+  - Page rend 4 `<img class="product-card-img">` (vs 0 avant seed)
+  - `<link rel="preload" as="image" fetchPriority="high" imageSrcSet=3-URLs-distinctes imageSizes=(max-width:640px) 50vw...>` IS dans `<head>` (preload_in_head=true)
+  - First `<img>` : src + srcSet utilisent render API, loading=eager, fetchPriority=high, decoding=sync (LCP attrs preserved), naturalWidth/Height > 0 (image loaded OK)
+  - Initiator type = `link` (image découverte via preload, pas via scanner HTML → gagne ~10-100ms sur le LCP)
+  - 4/4 images loaded successfully (img.complete=true, naturalWidth>0)
+  - FR→AR switch : `html lang=ar dir=rtl` appliqué, UI entièrement traduite (عرض، مفضل، اللغة…), preload + images toujours chargées (render API URL)
+  - AR→FR reverse : `html lang=fr dir=ltr`, layout LTR correct
+  - Footer sticky (footer_present=true, body 1923px > viewport 844px → footer pushé naturellement)
+  - SEO étanche : noindex/nofollow ×2, 3 JSON-LD scripts, canonical URL intacte
+  - 0 erreur console (uniquement HMR/DevTools info)
+- Gates finaux :
+  - `bun run lint` → 0 erreur / 0 warning ✅
+  - `npx tsc --noEmit` → 134 erreurs (= baseline 134, 0 nouvelle). Seule erreur CatalogPreview L.606 pré-existante sur main (vérifiée par stash/compare)
+  - `bun run build` → exit 0 ✅, route `/` reste `ƒ (Dynamic)` — CONFORME au mandat (préservation de l'ISR actuel, await searchParams hors périmètre)
+- État final branche : propre, 1 commit à venir, prête pour audit ADF avant merge
+
+Stage Summary:
+- Branche : `fix/supabase-image-render` (depuis main @ 650c6d7)
+- 2 fichiers modifiés : `src/lib/media-utils.ts` (+128/-8), `src/components/preview/CatalogPreview.tsx` (+67/0)
+- LCP preload ajouté : `<link rel=preload as=image imageSrcSet=3-URLs-distinctes imageSizes=... fetchPriority=high>` dans `<head>` (React 19 hoisting)
+- srcSet corrigé : 3 URLs RÉELLEMENT distinctes (400w/600w/800w render API pour Supabase, =w400/600/800 pour Drive)
+- Poids mesuré (avant→après, mobile w400) :
+  - Image 1 : 142 082 → 52 170 B (-63.3%) ← audit prédisait -63%
+  - Image 2 : 56 978 → 14 596 B (-74.4%)
+  - Image 3 : 177 064 → 44 238 B (-75.0%)
+  - Image 4 : 43 178 → 17 812 B (-58.7%)
+  - Estimation 17 images (prod) : 1.70 MB → 0.52 MB (-69%)
+- Cache-control render API : `max-age=31536000` (vs `no-cache` sur URL originale) — bonus cache CDN
+- onError fallback préservé : URL passthrough originale servie si render API échoue (quota, bucket privé, format non supporté)
+- SEO : noindex/nofollow ×2 + 3 JSON-LD + canonical + hrefLang — étanche
+- RTL/FR/AR : zéro régression — lang/dir switchent, traduction live OK, layout stable
+- Footer sticky : préservé (flex-col + mt-auto)
+- Gates : lint 0/0, tsc 134=134 baseline, build exit 0
+- Aucun merge vers main — **engagement d'attendre le feu vert d'audit ADF avant toute intégration**
+
