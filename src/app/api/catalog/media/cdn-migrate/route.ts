@@ -377,11 +377,17 @@ export async function POST(req: NextRequest) {
 
         if (supabase) {
           // Upload to Supabase Storage
+          // MANDAT 4P — Fix cache HTTP : ajouter cacheControl explicite.
+          // Avant : pas de cacheControl → Supabase applique max-age=3600 (1h)
+          // → Lighthouse signale 1859 KiB de cache inefficace.
+          // Maintenant : max-age=31536000 (1 an) + immutable → cache navigateur
+          // permanent pour les images statiques (jamais modifiées après upload).
           const { error: uploadError } = await supabase.storage
             .from(STORAGE_BUCKET)
             .upload(fileName, webpBuffer, {
               contentType: 'image/webp',
               upsert: true,
+              cacheControl: '31536000',
             });
           if (uploadError) {
             // MANDAT INVESTIGATION: instrumenter la raison exacte
