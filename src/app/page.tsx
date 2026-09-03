@@ -1,4 +1,5 @@
 import type { Metadata } from 'next';
+import { unstable_cache } from 'next/cache';
 import HomeClient from '@/components/HomeClient';
 import { db } from '@/lib/db';
 import { resolveProduct } from '@/lib/products';
@@ -39,16 +40,7 @@ const SEO_DEFAULTS = {
 
 async function getSeoMetadata() {
   try {
-    const row = await db.settings.findUnique({ where: { key: '__seo_metadata__' } });
-    if (row?.value) {
-      const parsed = JSON.parse(row.value);
-      return {
-        title: parsed.title || SEO_DEFAULTS.title,
-        description: parsed.description || SEO_DEFAULTS.description,
-        ogImage: parsed.ogImage || SEO_DEFAULTS.ogImage,
-        canonicalUrl: parsed.canonicalUrl || SEO_DEFAULTS.canonicalUrl,
-      };
-    }
+    return await getCachedSeoMetadata();
   } catch {
     // DB not available or JSON parse error — use static defaults
   }
@@ -191,29 +183,20 @@ function withTimeout<T>(promise: Promise<T>, ms: number, label: string): Promise
   ]);
 }
 
-async function getInitialCatalogData() {
-  try {
-    // Race the catalog query against the SSR timeout — if the DB is slow/cold,
-    // we bail out and let the client fetch instead of blocking the SSR response.
-    const catalog = await withTimeout(
-      db.catalog.findFirst({
-        include: {
-          sections: {
-            orderBy: { order: 'asc' },
-            include: {
-              components: { orderBy: { order: 'asc' } },
-            },
-          },
-          settings: true,
-        },
-      }),
-      SSR_DB_TIMEOUT_MS,
-      'catalog.findFirst',
-    );
+// MANDAT 4P v2 — Cache BDD : unstable_cache avec revalidation 300s
+// Avant : 11-12 appels BDD par hit serveur sans cache → TTFB variable
+// Maintenant : les fonctions lourdes sont cachées au niveau Data Cache
+// → les hits suivants (dans les 5 min) ne frappent plus la BDD
 
-    if (!catalog) return { catalog: null, datasources: [] };
-
-    // SQLite returns JSON fields as strings — parse them for client compat
+const getCachedCatalogData = unstable_cache(
+  async () => {
+    const catalog = await db.catalog.findFirst({
+      include: {
+        sections: { orderBy: { order: 'asc' }, include: { components: { orderBy: { order: 'asc' } } } },
+        settings: true,
+      },
+    });
+    if (!catalog) return { catalog: null, datasources: [] as Awaited<ReturnType<typeof db.dataSource.findMany>> };
     const parsedCatalog = {
       ...catalog,
       sections: catalog.sections.map(section => ({
@@ -225,57 +208,92 @@ async function getInitialCatalogData() {
         })),
       })),
     };
-
-    // Datasources: needed by CatalogPreview for column resolution.
-    // Also wrapped in the timeout — if the catalog succeeded but datasources
-    // are slow, we still return the catalog (client will fetch datasources).
-    let datasources: Awaited<ReturnType<typeof db.dataSource.findMany>> = [];
-    try {
-      datasources = await withTimeout(
-        db.dataSource.findMany({
-          include: {
-            columns: { orderBy: { order: 'asc' } },
-            rows: { orderBy: { order: 'asc' } },
-          },
-        }),
-        SSR_DB_TIMEOUT_MS,
-        'dataSource.findMany',
-      );
-    } catch {
-      // Datasources timeout — return catalog only, client will fetch datasources
-      datasources = [];
-    }
-
+    const datasources = await db.dataSource.findMany({
+      include: { columns: { orderBy: { order: 'asc' } }, rows: { orderBy: { order: 'asc' } } },
+    });
     return { catalog: parsedCatalog, datasources };
-  } catch {
-    // DB not available, timed out, or error — client will fetch from /api/catalog
-    return { catalog: null, datasources: [] };
-  }
-}
+  },
+  ['catalog-data-v2'],
+  { revalidate: 300, tags: ['catalog'] }
+);
 
-// ━━ Fix #418 + BreadcrumbList SSR: pass baseUrl to HomeClient → CatalogPreview → ProductPage ━━
-// This eliminates typeof window checks in JSON-LD (which cause SSR/client mismatch → React #418)
-async function getBaseUrl() {
-  try {
+const getCachedSeoMetadata = unstable_cache(
+  async () => {
+    const row = await db.settings.findUnique({ where: { key: '__seo_metadata__' } });
+    if (row?.value) {
+      const parsed = JSON.parse(row.value);
+      return {
+        title: parsed.title || SEO_DEFAULTS.title,
+        description: parsed.description || SEO_DEFAULTS.description,
+        ogImage: parsed.ogImage || SEO_DEFAULTS.ogImage,
+        canonicalUrl: parsed.canonicalUrl || SEO_DEFAULTS.canonicalUrl,
+      };
+    }
+    return SEO_DEFAULTS;
+  },
+  ['seo-metadata-v2'],
+  { revalidate: 300, tags: ['seo'] }
+);
+
+const getCachedBaseUrl = unstable_cache(
+  async () => {
     const seoRow = await db.settings.findUnique({ where: { key: '__seo_metadata__' } });
     if (seoRow?.value) {
       const parsed = JSON.parse(seoRow.value);
       if (parsed.canonicalUrl) return parsed.canonicalUrl;
     }
-  } catch { /* DB unavailable */ }
-  return 'https://abaya-collection-catalogue-9dum.vercel.app';
+    return 'https://abaya-collection-catalogue-9dum.vercel.app';
+  },
+  ['base-url-v2'],
+  { revalidate: 300, tags: ['seo'] }
+);
+
+const getCachedCategories = unstable_cache(
+  async () => {
+    return await db.category.findMany({
+      where: { visible: true },
+      orderBy: { ordre: 'asc' },
+      include: {
+        subCategories: {
+          where: { visible: true },
+          orderBy: { ordre: 'asc' },
+        },
+      },
+    });
+  },
+  ['categories-v2'],
+  { revalidate: 300, tags: ['categories'] }
+);
+
+async function getInitialCatalogData() {
+  try {
+    return await getCachedCatalogData();
+  } catch {
+    return { catalog: null, datasources: [] };
+  }
+}
+
+// ━━ Fix #418 + BreadcrumbList SSR: pass baseUrl to HomeClient → CatalogPreview → ProductPage ━━
+async function getBaseUrl() {
+  try {
+    return await getCachedBaseUrl();
+  } catch {
+    return 'https://abaya-collection-catalogue-9dum.vercel.app';
+  }
 }
 
 export default async function HomePage() {
-  const [ { catalog, datasources }, baseUrl ] = await Promise.all([
+  const [ { catalog, datasources }, baseUrl, categories ] = await Promise.all([
     getInitialCatalogData(),
     getBaseUrl(),
+    getCachedCategories().catch(() => []),
   ]);
   return (
     <HomeClient
       initialCatalog={catalog}
       initialDatasources={datasources}
       initialBaseUrl={baseUrl}
+      initialCategories={categories}
     />
   );
 }

@@ -140,12 +140,13 @@ if (typeof window !== 'undefined' && !_cacheHydrated) {
 interface HomeClientProps {
   initialCatalog?: Catalog | null;
   initialDatasources?: DataSource[];
-  /** Base URL from SSR (settings.__seo_metadata__.canonicalUrl) — passed to CatalogPreview → ProductPage
-   *  for JSON-LD generation without typeof window checks (fixes React #418). */
+  /** Base URL from SSR — passed to CatalogPreview → ProductPage */
   initialBaseUrl?: string;
+  /** MANDAT 4P v2 — Categories SSR : transmises depuis page.tsx via unstable_cache */
+  initialCategories?: unknown[];
 }
 
-function HomeContent({ initialCatalog, initialDatasources, initialBaseUrl }: HomeClientProps) {
+function HomeContent({ initialCatalog, initialDatasources, initialBaseUrl, initialCategories }: HomeClientProps) {
   const {
     view,
     isAdmin,
@@ -522,7 +523,7 @@ function HomeContent({ initialCatalog, initialDatasources, initialBaseUrl }: Hom
   // V2 Fix: pass SSR props (initialCatalog/initialDatasources) to CatalogPreview
   // so it can initialize sections synchronously from props (not Zustand store,
   // which is invisible during SSR due to useSyncExternalStore.getServerSnapshot).
-  return <CatalogPreview onAdminLogin={() => setShowLogin(true)} initialCatalog={initialCatalog} initialDatasources={initialDatasources} initialBaseUrl={initialBaseUrl} initialSettings={initialCatalog?.settings || undefined} />;
+  return <CatalogPreview onAdminLogin={() => setShowLogin(true)} initialCatalog={initialCatalog} initialDatasources={initialDatasources} initialBaseUrl={initialBaseUrl} initialSettings={initialCatalog?.settings || undefined} initialCategories={initialCategories} />;
 }
 
 export default function HomeClient(props: HomeClientProps = {}) {

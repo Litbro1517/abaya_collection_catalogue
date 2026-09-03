@@ -6,8 +6,8 @@ import { Toaster } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { ThemeInjector } from "@/components/ThemeInjector";
 import { GlobalCart } from "@/components/GlobalCart";
+import { LocaleDirectionSync } from "@/components/LocaleDirectionSync";
 import { db } from '@/lib/db';
-import { headers } from 'next/headers';
 
 // ── Audit remediation: GTM container ID via env var (no more placeholder) ──
 const GTM_CONTAINER_ID = process.env.NEXT_PUBLIC_GTM_ID || '';
@@ -151,30 +151,15 @@ export default async function RootLayout({
   // ━━ SEO Fix V2: read brand metadata once (shared with generateMetadata) ━━
   const { catalogName, whatsappNumber, metadataBaseUrl } = await getBrandMetadata();
 
-  // ── MANDAT 4P — Fix TTFB : lire la locale depuis le header middleware ──
-  // Avant : `await cookies()` forçait Next.js en rendu 100% dynamique,
-  // neutralisant l'ISR (revalidate=300 dans page.tsx) → TTFB 2.2s.
-  // Maintenant : le middleware injecte `x-locale` dans le header →
-  // `headers()` est une fonction synchrone (pas de Dynamic API) →
-  // Next.js peut pré-rendre la page (ISR actif) → TTFB < 0.5s.
-  let ssrLocale = 'fr';
-  try {
-    const headerList = await headers();
-    const xLocale = headerList.get('x-locale');
-    if (xLocale && ['fr', 'en', 'ar'].includes(xLocale)) {
-      ssrLocale = xLocale;
-    } else {
-      // No header (first visit or build) — check DB default
-      const settings = await db.catalogSettings.findFirst();
-      const dbDefault = settings?.defaultCatalogLanguage;
-      if (dbDefault && ['fr', 'en', 'ar'].includes(dbDefault)) {
-        ssrLocale = dbDefault;
-      }
-    }
-  } catch {
-    // DB or headers unavailable — use 'fr'
-  }
-  const ssrDir = ssrLocale === 'ar' ? 'rtl' : 'ltr';
+  // MANDAT 4P v2 — Fix TTFB : supprimer await headers() du layout racine.
+  // `await headers()` est une Dynamic API sous Next 16 → force TOUTES les
+  // routes en rendu dynamique (ƒ) → ISR inopérant → TTFB 2.2-5.7s.
+  // Solution : la locale est gérée par LocaleDirectionSync (Client Component)
+  // qui lit le cookie après hydratation. Le layout racine redevient statique
+  // → ISR actif → x-vercel-cache: HIT → TTFB < 0.5s.
+  // Le html a lang="fr" dir="ltr" par défaut au SSR (valeur la plus courante).
+  const ssrLocale = 'fr';
+  const ssrDir = 'ltr';
 
   return (
     <html lang={ssrLocale} dir={ssrDir} suppressHydrationWarning>
@@ -266,6 +251,7 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
           </noscript>
         ) : null}
         <ThemeInjector />
+        <LocaleDirectionSync />
         <TooltipProvider>
           {children}
           <GlobalCart />
