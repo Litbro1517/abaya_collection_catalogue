@@ -5135,3 +5135,60 @@ en polices système — VLM : « dégradation nette »). Correctif chirurgical +
 ### Chaîne d'audits ADF
 `…→ 3a2ee88 (CDN cache-control) → 3c66f16 (docs) → b38970e (ci re-deploy) → a4da2b4
 (police unique Zain + Canal B, merge --no-ff)`
+
+---
+
+## [MANDAT 4P — ÉTAPE 12 : PERF GLOBALE V2 — unstable_cache + catégories SSR + anti-CLS (88a5bc1 → merge 503af8f)]
+
+**Branche** : `fix/perf-optimization-v2` @ `88a5bc1` (1 commit, 6 fichiers, +157/−99) —
+fusion `--no-ff` → **`503af8f`** (arbre byte-identique à la branche), Vercel déployé.
+
+### Contenu audité & mesuré
+- `src/app/layout.tsx` : suppression de `await headers()` (Dynamic API → forcait TOUTES
+  les routes en ƒ). Locale SSR = `fr`/`ltr` statique ; sync client via nouveau
+  `LocaleDirectionSync.tsx` ('use client', lit cookie `abaya_locale` — nom cohérent avec
+  store.ts/middleware —, applique `lang`/`dir` sur `<html>` post-hydratation, retourne null).
+  La classe `.rtl` reste gérée par ThemeInjector (inchangé) — aucun conflit.
+- `src/app/page.tsx` : 4 wrappers `unstable_cache` (revalidate 300s + tags `catalog`/`seo`/
+  `categories`) — catalog+datasources, seo-metadata, baseUrl, categories (visible=true
+  uniquement, cohérent avec le filtre `.filter(cat => cat.visible)` du rendu).
+- `HomeClient` → `CatalogPreview` : prop `initialCategories` → `useState` lazy initializer
+  → **barre de filtres rendue au SSR**.
+- `globals.css` : `min-height: 56px` (.catalog-header) + `min-height: 38.4px`
+  (.product-card-title, 2 lignes réservées).
+
+### Preuves A/B (mesuré > déclaré)
+- **Chips SSR** : main = 1 chip (« Tout ») dans le HTML initial → branche = **6 chips**
+  (Tout+5 catégories) — fix CLS vérifié ; produits identiques des deux côtés.
+- **SEO étanche** : noindex ×2, hrefLang fr-MA/ar-MA/x-default, canonical (+ canonique
+  produit `?product=`), JSON-LD, interception bots (facebookexternalhit → /product-meta) —
+  tous mesurés intacts.
+- **FR/AR** : visiteur FR = SSR `lang="fr" dir="ltr"` + catalogue FR complet ; visiteur AR
+  (cookie/localStorage) = `ar/rtl` + `.rtl` class + catalogue arabe intégral (الكل/أنصومبل/
+  عباية…) — 0 erreur page.
+- **Hydratation #418** : pré-existantes (main local 4× ; branche 3× ; prod parfois 0× selon
+  timing/locale) — mécanisme transition fr→ar post-hydratation, **aucune nouvelle**.
+- Portes : lint 0/0 · tsc **134 = 134** signatures identiques · build exit 0 ×3.
+
+### ⚠️ RÉSERVE MAJEURE (audit, mesurée en prod)
+L'objectif « Déblocage complet de l'ISR » n'est **PAS atteint** : la route `/` reste
+**ƒ (Dynamic)**. Preuve : table de routage du build ; **causalité isolée** — le
+`await searchParams` inconditionnel dans `generateMetadata` (métadonnées canoniques/OG
+produit) reste une Dynamic API ; build témoin (copie /tmp, ce seul await neutralisé) →
+**○ Static + Revalidate 5m + Expire 1y**. En prod : `x-vercel-cache: MISS`, `age: 0`,
+TTFB 1,9-3,6 s mesurés. Les gains TTFB réels de cette étape proviennent du **Data Cache**
+(unstable_cache), pas d'un cache Edge HTML. Débloquer l'ISR exigerait une décision
+d'architecture : retirer searchParams de generateMetadata (les bots sont déjà interceptés
+vers /product-meta/[slug] — voir middleware BOT_AGENTS) et accepter des métadonnées
+génériques pour les requêtes ?product= non-bot.
+
+### Anomalies bénignes documentées
+- `withTimeout`/`SSR_DB_TIMEOUT_MS` = code mort (plus consommé) — lint silencieux.
+- min-height titre 38,4px vs 31,2px réels en mobile (13px font) — sur-réservation ~7px,
+  cosmétique, CLS fixé.
+- Middleware `x-locale` (header réponse, jamais lu côté requête) = résidu inerte de l'ÉTAPE 9.
+- @font-face passées en CSS externe (chunk `0nvwc7-me3b1i.css` : 6× Zain + Fallback —
+  architecture Zain #10 intacte, non touchée par cette branche).
+
+### Chaîne d'audits ADF
+`…→ a4da2b4 (police unique Zain) → 12246ba (docs É11) → 503af8f (perf v2, merge --no-ff)`
