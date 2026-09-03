@@ -5089,3 +5089,49 @@ HTTP 200, noindex ×2, robots.txt `Disallow: /` intacts.
 ### Chaîne d'audits ADF
 `…→ adf121c → b380f5a (perf mobile globale) → 7e731c2 (docs) → 3a2ee88 (CDN cache-control,
 merge --no-ff)`
+
+---
+
+## [MANDAT 4P — ÉTAPE 11 : POLICE UNIQUE ZAIN — fin du blocage polices (LCP)]
+
+**Branche** `feat/font-optimization-lcp` (eee212b + 320472c) → fusionnée `--no-ff` en
+**a4da2b4** sur main@b38970e, auteur/commetteur `Litbro1517 <gotonewjamail@gmail.com>`,
+Vercel SUCCESS ×2, prod vérifiée navigateur (Zain chargé). Diff cumulé : **12 fichiers**
+(+43/−54) — `layout.tsx` (eee212b) + 11 fichiers Canal B (320472c).
+
+### Pattern 1 — Zain unique (eee212b)
+Suppression Playfair_Display/Inter/Tajawal de `next/font` ; Zain conservé (arabic+latin,
+300/400/700, display swap). Body = `zain.variable` seul + **alias inline** :
+`--font-playfair` / `--font-geist-sans` / `--font-tajawal` → `var(--font-zain)`.
+**Gains mesurés** : @font-face 27→7 faces (4 familles→1) ; hints preload woff2 14→6 ;
+poids polices 226 Ko→86 Ko (**−62 %**) ; CSS polices −68 % ; les 6 hashs Zain
+**byte-identiques à la prod** (cache navigateur compatible).
+
+### Pattern 2 — Canal B : littéraux → var() (320472c, correctif d'audit)
+La typographie du site fonctionne sur **deux canaux** : variables CSS (couvertes par les
+alias) et **noms littéraux** `'Inter'`/`'Playfair Display'` qui, sur main, matchaient les
+faces next/font. 1er passage ADF = 🔴 BLOQUÉ (corps FR et titres légaux/checkout tombaient
+en polices système — VLM : « dégradation nette »). Correctif chirurgical +22/−22 :
+- `globals.css` : L295 body `'Inter',…` → `var(--font-geist-sans),…` ; L301 h1-h3
+  `'Playfair Display', serif` → `var(--font-playfair), serif` ; + 8 classes checkout/merci/cod
+  (`.checkout-title`, `.checkout-recap-*`, `.cod-form-*`, `.merci-recap-*`, `.product-page-*`)
+- 11 inline TSX `fontFamily: "'Playfair Display', serif"` → `var(--font-playfair), serif`
+  (4 pages légales + LegalHelpers, CheckoutPage L215, CodForm L134, error.tsx, not-found.tsx,
+  AdminDashboard L400)
+- Résidus inerts documentés : label UI SettingsPillar (select admin), 1 commentaire, 2
+  fallbacks post-var, Amiri L2382 **pré-existant identique sur main** (jamais de webface)
+
+### Validations (re-audit ADF, session unique)
+- `bun run lint` 0/0 · `npx tsc --noEmit` **134 = 134** signatures identiques (pre/post-merge)
+  · `next build` exit 0 (6 faces Zain + Fallback seulement)
+- **Runtime mesuré (local :3241 + prod)** : computed body/h1/h2/h3/inputs/PDP/lp/404 =
+  pile Zain ; `Zain:400`+`Zain:700` **loaded** (preuve d'usage réel) ; mode arabe = Zain
+  cohérent (cookie x-locale) ; 0 erreur console/page
+- **VLM** (mentions-légales, prod-main vs branche) : « police unique délibérée, homogène,
+  aucune rupture de layout, dégradation précédente TOTALEMENT ÉLIMINÉE »
+- **Prod post-déploiement** : 6 woff2 Zain seulement, body = alias live, noindex ×2 +
+  googlebot, robots.txt `Disallow: /`, sitemap 200, JSON-LD Org, canonical — intacts
+
+### Chaîne d'audits ADF
+`…→ 3a2ee88 (CDN cache-control) → 3c66f16 (docs) → b38970e (ci re-deploy) → a4da2b4
+(police unique Zain + Canal B, merge --no-ff)`
