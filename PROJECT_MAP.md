@@ -5396,3 +5396,40 @@ Helper enrichi : `resolveSupabaseRenderUrl(url, width, quality, options?: { heig
 - Bonus vérifié : `cache-control: max-age=31536000` (1 an) sur render API vs `no-cache` sur object.
 
 **Chaîne** : `…→ 2c85464 (É13 ISR) → 3029512 merge fix/supabase-image-render-v2 (ec49b1c) — audit ADF validé, Vercel déployé, LCP 872 ms live`
+
+---
+
+## [MANDAT 4P — FIX CLS : élimination du flip RTL post-hydration (fix/cls-locale-noflash @ bb68b72)]
+
+**Contexte** : PSI post-É13-v2 → CLS 0,313 (mobile) / 0,681 (desktop) alors que LCP/SI s'étaient améliorés (ISR + images). Audit demandé : identifier la cause et restaurer CLS ≈ 0 sans perdre LCP/SI.
+
+### Diagnostic (mesuré, preuves indépendantes)
+- **Prod live (profil frais)** : CLS 0,2862 — UNE seule entrée t=587ms — sources = `article.product-card.group` en **swap de colonnes (x=16↔200)** = flip de direction LTR→RTL post-hydration.
+- **Reproduction locale contrôlée** (fixture defaultCatalogLanguage='ar', URLs images prod) : CLS **0,6148** mobile ET desktop, shift t=713ms, même signature (swap colonnes).
+- **Chaîne causale** (fouille git) :
+  1. **É12 (merge 503af8f)** a supprimé le fallback BDD de `layout.tsx` (`await headers()` → LocaleDirectionSync cookie-only) pour débloquer l'ISR → le HTML statique est devenu TOUJOURS `lang="fr" dir="ltr"`.
+  2. Prod : `defaultCatalogLanguage="ar"` (payload statique vérifié) → HomeClient L194-208 seed `clientLocale` fr→ar après hydratation.
+  3. ThemeInjector applique `dir=rtl` + **l'attribut `dir={rtl?'rtl':'ltr'}` explicite du conteneur racine CatalogPreview (SSR=ltr)** fait swapper la grille → CLS.
+  4. Pre-É12 (12246ba) : le layout SSR résolvait la locale server-side (x-locale header → fallback BDD `db.catalogSettings.findFirst()`) → dir correct dès le HTML → CLS ≈ 0. **La régression = É12, révélée par le PSI post-v2** (v2 images innocent — LCP 872ms live confirmé).
+- Le flip touchait AUSSI les visiteurs de retour avec préférence (cookie fr → flip inverse) et tout visiteur sans préférence quand le défaut ≠ fr.
+
+### Correctif chirurgical (4 fichiers, bb68b72) — zéro perte LCP/ISR
+1. **`src/app/layout.tsx`** : `ssrLocale` lu depuis `defaultCatalogLanguage` (via `getBrandMetadata` — MÊME requête Prisma que favicon/name, zéro requête supp) → SSR `<html lang dir class="rtl">` correct dès le HTML. **Script inline no-flash** en tête de `<head>` (~450B, pattern next-themes) : applique la préférence visiteur (localStorage `abaya_clientLocale` > cookie `abaya_locale`) AVANT le premier paint. ISR intact (aucun headers()/cookies() server-side) — route `/` reste ○ Static 5m/1y (vérifié build).
+2. **`src/components/preview/CatalogPreview.tsx`** : suppression de l'attribut `dir` explicite du conteneur racine → direction HÉRITÉE de `<html>` (les CSS `[dir="rtl"]`/`html.rtl` matchent toujours via html).
+3. **`src/components/TrustGuaranteesSection.tsx`** : idem ×2 (section sous la grille, visible desktop 1280×800).
+4. **`src/components/ThemeInjector.tsx`** : garde **first-run only** — au premier run (hydratation), si la locale effective est encore l'init `'fr'` du store mais que le SSR a posé une autre langue, ne pas écraser (le seed corrige) ; les runs suivants (sélecteur utilisateur, seed, admin) s'appliquent TOUJOURS. **`src/components/LocaleDirectionSync.tsx`** : priorité alignée (localStorage > cookie) + no-op sans préférence (le SSR tient déjà la bonne valeur).
+
+### Validation A/B mesurée (fixture ar, viewport mobile 390×844 + desktop 1280×800)
+| Métrique | Avant (main 773a297) | Après (bb68b72) |
+|---|---|---|
+| CLS mobile | 0,6148 | **0,0012** (résidu = traduction texte « 680 درهم », pré-É12-parité) |
+| CLS desktop | 0,6148 | **0,0012** (résidu = traduction CTA « اطلب ») |
+| CLS visiteur FR avec préférence | flip (non mesuré séparément) | **0,0000 exact**, dir=ltr dès t=0 (no-flash) |
+| LCP mobile | ~732ms | **732ms** (image contain-400 preloadée, initiatorType=link) |
+| LCP desktop | ~512ms | **512ms** |
+| html SSR (curl, sans JS) | `lang="fr" dir="ltr"` | **`lang="ar" dir="rtl" class="rtl"`** + script no-flash |
+| Toggle FR↔AR (menu langues) | — | fonctionnel bidirectionnel (fr→ltr appliqué, ar→rtl, 12/12 images) |
+| Gates | — | lint 0/0, tsc 134 = baseline identique, build exit 0, `/` ○ Static 5m/1y |
+| Console | — | 0 erreur, 0 warning hydration |
+
+**Statut** : branche poussée `fix/cls-locale-noflash` (bb68b72) — prête pour audit ADF/merge (main gelé 773a297 en attendant le feu vert). Aucune régression réseau/image : les gains LCP (872ms live) et ISR (HIT, TTFB 0,09-0,37s) sont préservés par construction (aucune modification des URLs images, preload, ou caching).
