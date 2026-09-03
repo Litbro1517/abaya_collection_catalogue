@@ -1822,3 +1822,26 @@ zéro dommage/zéro régression ; activation réelle = restructuration (routes d
 suppression de l'accès searchParams dans generateMetadata).
 **Prod vérifiée** : 200, noindex ×2, srcSet servi (CDN passthrough), 17 cartes, canonical OK.
 **Détails** : PROJECT_MAP.md §ÉTAPE 8 ; preuves verify-logs/adf-perf-lcp-cls/.
+
+---
+
+## [MANDAT ADF #8 — fix/perf-mobile-global-refactor @ b380f5a → main (ff-only)]
+
+**Verdict : 🟢 CONFORME — fusion --ff-only adf121c..b380f5a, push ✓, Vercel SUCCESS ×2, prod vérifiée.**
+**Contenu** : x-locale Edge Middleware (cookies→headers, TTFB visé) ; initialSettings SSR (CLS logo).
+**Preuves mesurées (fixtures :3238 + prod)** : cookie abaya_locale=en → `<html lang="en">` (local
+ET prod — canal middleware→Server Component validé) ; sans cookie → lang= défaut DB ; **logo
+rendu au SSR** avec dimensions réservées (A/B : main=0 `<img>` logo au SSR / branche=`<img width
+height style>` complet ; prod : logo réel Supabase `width=153 height=51`) → fin du saut
+hydratation logo.
+**Gates** : bun lint 0/0 exit 0 ; next build exit 0 ×2 (main+branche) ; tsc 134=134 signatures
+normalisées identiques (215=215, bruit d'ordre TS uniquement ; erreur CatalogPreview 593→606
+préexistante décalée +13).
+**Étanchéité SEO** : diff 4 fichiers exacts, robots/sitemap intouchés, noindex ×2 + JSON-LD ×2
++ robots.txt Disallow vérifiés en prod.
+**RÉSERVE documentée (héritage Étape 8)** : ISR INERTE — `ƒ /` Dynamic sur main ET branche
+(headers() reste une Dynamic API en Next 16 + generateMetadata/searchParams hors diff) ; TTFB
+inchangé (~2,7-4,5 s SSR dynamique) ; zéro dommage/zéro régression. Commentaire in-code
+« headers() synchrone, pas une Dynamic API » = inexact (canal fonctionne néanmoins, mesuré).
+**Prod vérifiée** : 200 (no-cache), noindex ×2, logo SSR vivant, lang suit le cookie via edge.
+**Détails** : PROJECT_MAP.md §ÉTAPE 9 ; preuves verify-logs/adf-mobile-global-refactor/.
