@@ -260,14 +260,10 @@ interface CatalogPreviewProps {
   initialDatasources?: DataSource[];
   /** Base URL from SSR — passed to ProductPage for JSON-LD without typeof window (fixes #418). */
   initialBaseUrl?: string;
-  /** MANDAT 4P — Fix CLS : settings SSR directes pour éviter le saut du logo.
-   *  Avant : settings n'était lu que depuis le store Zustand (hydraté
-   *  après coup) → le logo passait de 32px (badge fallback) à 40-51px
-   *  (logo réel) à l'hydratation → CLS 0.928.
-   *  Maintenant : settings est transmis en prop SSR directe → le logo
-   *  a sa bonne hauteur dès le premier rendu serveur → pas de saut.
-   */
   initialSettings?: CatalogSettings | null;
+  /** MANDAT 4P v2 — Categories SSR : transmises depuis page.tsx via unstable_cache.
+   *  Évite le chargement différé (useEffect → fetch /api/categories) qui cause CLS. */
+  initialCategories?: unknown[];
 }
 
 // ━━ DEBT-10 repair : sous-composant pour traduction auto du titre carte produit ━━
@@ -284,7 +280,7 @@ function ProductCardTitle({ title, locale }: { title: string; locale: string }) 
 // now handles the cart button globally on ALL routes. This prevents double-render
 // conflict and ensures the cart is always visible.
 
-export function CatalogPreview({ onAdminLogin, initialCatalog, initialDatasources, initialBaseUrl, initialSettings }: CatalogPreviewProps) {
+export function CatalogPreview({ onAdminLogin, initialCatalog, initialDatasources, initialBaseUrl, initialSettings, initialCategories }: CatalogPreviewProps) {
   const { catalog, settings, isAdmin, adminUser, setView } = useAppStore();
   const { t, formatPrice, rtl, locale, resolveTranslation: resolveT } = useClientTranslation();
 
@@ -362,7 +358,11 @@ export function CatalogPreview({ onAdminLogin, initialCatalog, initialDatasource
   const [activeMicroFilter, setActiveMicroFilter] = useState<string>('all'); // subcategory slug or 'all'
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false); // mobile burger drawer state
   // ━━━ Categories: useState starts empty (SSR can't read localStorage) ━━━
-  const [dynamicCategories, setDynamicCategories] = useState<DynamicCategory[]>([]);
+  const [dynamicCategories, setDynamicCategories] = useState<DynamicCategory[]>(
+    () => (initialCategories && initialCategories.length > 0)
+      ? (initialCategories as DynamicCategory[])
+      : []
+  );
   // ━━━ Cache-first categories sync ━━━
   // CRITICAL: Do NOT use isCacheStale() — with FROZEN_MODE it blocks loading after SSR.
   useEffect(() => {

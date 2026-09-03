@@ -425,6 +425,8 @@ html.rtl input[type="tel"] {
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
   transition: box-shadow 0.2s ease;
+  /* MANDAT 4P v2 — Fix CLS : réserver la hauteur du header */
+  min-height: 56px;
 }
 
 .catalog-header-inner {
@@ -1022,6 +1024,8 @@ html[lang="ar"] .catalog-toolbar .btn-filter-sub-inactive {
   display: -webkit-box;
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
+  /* MANDAT 4P v2 — Fix CLS : réserver la hauteur de 2 lignes */
+  min-height: 38.4px; /* 16px × 1.2 × 2 lignes */
 }
 
 /* ── Product Card: Price Row with inline status ── */
