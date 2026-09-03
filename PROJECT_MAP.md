@@ -5368,3 +5368,31 @@ Helper enrichi : `resolveSupabaseRenderUrl(url, width, quality, options?: { heig
 
 ### Engagement écrit
 **Aucun merge vers main sans feu vert explicite d'un audit ADF complet.**
+
+---
+
+## [MANDAT 4P — ÉTAPE 13-v2 : AUDIT ADF FINAL — CONFORMITÉ 100% + FUSION (merge 3029512)]
+
+**Verdict audit** : 🟢 CONFORME — séquence fusion/déploiement exécutée.
+
+**Résolution de l'anomalie bloquante É13-v1** (crop colonne centrale, ratio 0,75→0,25) :
+- `resolveSupabaseRenderUrl` intègre `resize=contain` (option `{ mode: 'contain' }`) — appliqué aux 10 sites d'appel (grille, preload, PDP carrousel w=1000, miniatures w=200, JSON-LD, panier w=150, médiathèque, ImagePicker).
+- Mesures live (bucket réel) : **16/16 images ratio préservé** (400×533, 400×711, 400×543…), bande passante **-83,9 %** (2 348 978 B → 377 894 B pour 16 images).
+
+**Preuves visuelles** :
+- PSNR carte prod-originale vs carte branche : **30,43 dB** (vs 11,76 dB en v1) — cadrage identique, différence compression seule.
+- Verdict VLM (side-by-side) : *« framing, zoom, crop IDENTICAL… no visible artifacts… visually acceptable equivalent »*.
+- Navigateur : naturalWidth/naturalHeight ratio 0,753 = ratio original (v1 : 0,25).
+
+**Gates** : lint 0/0 ✅ ; tsc 134 = baseline (0 nouvelle, signature identique — seul décalage n° ligne pré-existant) ✅ ; build exit 0 ✅ ; merge 3-way : page.tsx de main conservé (ISR ○ Static 5m/1y intact, vérifié post-merge build) ✅ ; conflit PROJECT_MAP résolu (sections É12/É13/É13-v2 combinées) ✅.
+
+**Runtime local** (fixture 12 produits, URLs prod réelles) : 12/12 images contain chargées ; LCP local 684 ms ; preload hoisté `<head>` (imageSrcSet 3 URLs contain + fetchpriority=high, initiatorType="link") ; RTL FR↔AR 12/12 images, 0 erreur console ; PDP carrousel contain ratio 0,75 ; footer pushé naturellement.
+
+**Production Vercel** (post-push 3029512, auteur Litbro1517) :
+- Déploiement live : 16/16 `src` render API `resize=contain&quality=75&format=webp` dans le HTML prod ; 0 image produit sur object URL (seul le logo branding PNG 13 Ko reste object — comportement pré-existant).
+- Cache : `x-vercel-cache: HIT` + `age>0` + TTFB stable **0,09-0,37 s** (ISR préservé).
+- **LCP live mesuré : 872 ms** (image produit 22 707 px², viewport 390×844) vs 5,4 s baseline.
+- Preloads image dans `<head>` : 5 (4 auto React Float eager + 1 manuel LCP fp=high — même URL, dédup navigateur).
+- Bonus vérifié : `cache-control: max-age=31536000` (1 an) sur render API vs `no-cache` sur object.
+
+**Chaîne** : `…→ 2c85464 (É13 ISR) → 3029512 merge fix/supabase-image-render-v2 (ec49b1c) — audit ADF validé, Vercel déployé, LCP 872 ms live`
