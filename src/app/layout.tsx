@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Zain } from "next/font/google";
 import Script from "next/script";
+import ReactDOM from "react-dom";
 import "./globals.css";
 import { Toaster } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -27,6 +28,49 @@ const zain = Zain({
   display: "swap",
   weight: ["300", "400", "700"],
 });
+
+// ━━ MANDAT 4P ÉTAPE 14 — Preconnect CDN Supabase (parité LCP mobile/desktop) ━━
+// Audit ADF mobile (Lighthouse 12.4 Lantern, Moto G Power 412×823 DPR 1.75,
+// RTT 150ms / 1,638 Mbps / CPU 4× — profil identique à PageSpeed Insights) :
+//   - LCP desktop 0,9s (vert) vs LCP mobile 2,9s (orange) — différentiel
+//     reproduit et mesuré sur la prod (abaya-collection-catalogue-9dum).
+//   - L'élément LCP (1ère image produit) est servi depuis Supabase
+//     (ldvbfsnqgulynwxqwzau.supabase.co) — une origine CROSS-DOMAIN distincte
+//     du document HTML (vercel.app).
+//   - AUCUN <link rel="preconnect"> vers cette origine n'existe dans le <head>
+//     mesuré : le navigateur découvre le preload de l'image LCP en parsant le
+//     <head>, puis DOIT ouvrir une connexion (DNS + TCP + TLS) SÉRIALISÉE
+//     après cette découverte. À 150ms de RTT mobile, c'est ~450ms perdus sur
+//     le chemin critique ; à 40ms de RTT desktop (~120ms), l'impact est
+//     négligeable — c'est l'asymétrie exacte Bureau/Mobile constatée sur PSI.
+// Fix chirurgical : émettre preconnect + dns-prefetch en tête de <head>
+// (découverts dans les premiers octets du HTML streaming par le preloader
+// scanner) → DNS+TCP+TLS vers Supabase s'ouvrent EN PARALLÈLE du téléchargement
+// HTML/CSS → l'image LCP part sur une connexion déjà chaude. Standard web.dev
+// « Preconnect to required origins » (optimize-lcp, éliminer le resource load
+// delay cross-origin).
+// Garde-fous :
+//   - Origine dérivée de SUPABASE_URL / NEXT_PUBLIC_SUPABASE_URL / favicon DB
+//   - Un lien n'est émis QUE si l'hôte est un hôte Supabase vérifié (.supabase.co)
+//   - Zéro effet de mise en page (aucun rendu visuel) — CLS inchangé par
+//     construction ; les preloads/preload LCP existants (É13) sont inchangés.
+function resolveSupabaseCdnOrigin(dbFaviconUrl: string | null): string {
+  const candidates = [
+    process.env.SUPABASE_URL,
+    process.env.NEXT_PUBLIC_SUPABASE_URL,
+    dbFaviconUrl,
+  ];
+  for (const c of candidates) {
+    if (!c) continue;
+    try {
+      const u = new URL(c);
+      if (u.protocol === 'https:' && u.hostname.endsWith('.supabase.co')) {
+        return u.origin;
+      }
+    } catch { /* pas une URL absolue — candidat ignoré */ }
+  }
+  return '';
+}
 
 // ━━ SEO Fix V2: shared function to read brand metadata from DB ━━
 // Used by both generateMetadata and RootLayout to avoid duplicate DB queries.
@@ -149,7 +193,24 @@ export default async function RootLayout({
   children: React.ReactNode;
 }>) {
   // ━━ SEO Fix V2: read brand metadata once (shared with generateMetadata) ━━
-  const { catalogName, whatsappNumber, metadataBaseUrl } = await getBrandMetadata();
+  const { catalogName, whatsappNumber, metadataBaseUrl, dbFavicon } = await getBrandMetadata();
+
+  // ━━ MANDAT 4P ÉTAPE 14 — Preconnect CDN Supabase (parité LCP mobile/desktop) ━━
+  // Voir commentaire resolveSupabaseCdnOrigin ci-dessus. Résolu au rendu (build
+  // pour les routes statiques/ISR) à partir de l'env + favicon DB — zéro requête
+  // supplémentaire (getBrandMetadata est déjà appelé pour les métadonnées).
+  const supabaseCdnOrigin = resolveSupabaseCdnOrigin(dbFavicon);
+
+  // Émission via l'API React Float ReactDOM.preconnect() : React insère le
+  // <link rel="preconnect"> dans le PREAMBULE du <head> (avant les preload
+  // de polices next/font et tout autre enfant du head) — position la plus
+  // précoce possible pour le preloader scanner → DNS+TCP+TLS vers l'origine
+  // des images démarrent dès les premiers octets du HTML streaming.
+  // (Un <link> manuel dans le JSX <head> serait rendu APRÈS les preload de
+  // polices — mesuré : position ~5,6 KB dans le head au lieu du préambule.)
+  if (supabaseCdnOrigin) {
+    ReactDOM.preconnect(supabaseCdnOrigin);
+  }
 
   // MANDAT 4P v2 — Fix TTFB : supprimer await headers() du layout racine.
   // `await headers()` est une Dynamic API sous Next 16 → force TOUTES les
@@ -164,6 +225,15 @@ export default async function RootLayout({
   return (
     <html lang={ssrLocale} dir={ssrDir} suppressHydrationWarning>
       <head>
+        {/* ━━ MANDAT 4P ÉTAPE 14 — fallback dns-prefetch (anciens navigateurs).
+            Le <link rel="preconnect"> principal est émis via
+            ReactDOM.preconnect() dans le préambule du head (voir ci-dessus) —
+            React le rend AVANT les preload de polices. dns-prefetch reste ici
+            en filet de sécurité, sans crossorigin : les <img> sont des fetches
+            no-cors (contrairement aux polices). */}
+        {supabaseCdnOrigin ? (
+          <link rel="dns-prefetch" href={supabaseCdnOrigin} />
+        ) : null}
         {/* ━━ MANDAT 4P — SEO noindex, nofollow (balise meta directe, garantie absolue) ━━
             Cette balise est ajoutée DIRECTEMENT dans le <head> manuel du RootLayout
             pour garantir qu'elle soit présente sur TOUTES les pages, même si une
