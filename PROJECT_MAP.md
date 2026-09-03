@@ -5032,3 +5032,60 @@ locale SSR (`lang`/`dir`) fonctionnelle (DB défaut + cookie via edge).
 ### Chaîne d'audits ADF
 `…→ 7d138be → a1957e7 (perf LCP+CLS, ff-only) → ccfeaaf (docs) → 5bdefa9 → adf121c
 (re-trigger) → b380f5a (perf mobile globale x-locale + initialSettings, ff-only)`
+
+---
+
+## [MANDAT 4P — ÉTAPE 10 : CDN CACHE-CONTROL 1 AN + ENDPOINT RÉTROACTIF update-cache]
+
+**Branche** `fix/cdn-cache-control` → fusionnée `--no-ff` en **3a2ee88** (7e731c2 → 3a2ee88),
+auteur/commetteur `Litbro1517 <gotonewjamail@gmail.com>`, Vercel SUCCESS ×2, prod vérifiée.
+Diff : **2 fichiers exacts** (+145) — `cdn-migrate/route.ts` (+6) et `update-cache/route.ts`
+(nouveau, 139 lignes).
+
+### Pattern 1 — `cacheControl: '31536000'` sur les uploads Supabase
+`cdn-migrate` injecte désormais `cacheControl: '31536000'` dans les options
+`supabase.storage.from().upload()` (avec `upsert: true`, `contentType: 'image/webp'`).
+**Tout objet migré après cette fusion sera servi avec `Cache-Control: max-age=31536000`** →
+élimine la source du warning Lighthouse « 1 859 KiB de cache HTTP inefficace » pour les
+nouveaux fichiers. Note doc : le commentaire in-code évoque « max-age=3600 par défaut » —
+la mesure réelle sur les objets existants donne **`cache-control: no-cache`** (Supabase
+défaut), pas 3600. La direction du fix reste correcte (cacheControl explicite = override).
+
+### Pattern 2 — Endpoint rétroactif `POST /api/catalog/media/update-cache`
+- `maxDuration = 60` (Hobby) ✓ · POST-only (GET → 405 mesuré) ✓
+- **Verrou middleware confirmé par mesure (local + prod)** : POST sans `admin_token` →
+  `401 {"error":"Non authentifié"}` (Guard #4, ADMIN_WRITE_ROUTES `/api/catalog`) — même
+  niveau de protection que cdn-migrate certifié
+- Algo : list `media/` (limit 1000) → filtre `.webp` → download URL publique → re-upload
+  `upsert:true + cacheControl:'31536000'` · dryRun supporté (comptage sans mutation)
+- Fail-safe mesuré : sans env Supabase → `500 "Supabase admin client not available"` (aucun crash)
+- Filtre `(f.id ?? '').indexOf('/') !== 0` : inopérant mais inoffensant (croisé avec
+  scan-bucket certifié : `id` = chemin complet `media/foo.webp` → indexOf('/')=5≠0 → fichiers
+  conservés) ; l'exclusion des dossiers repose de facto sur `name.endsWith('.webp')`
+
+### État AVANT/APRÈS mesuré en prod (5/5 objets échantillonnés)
+- **AVANT** : `assets/media/*.webp` existants → `cache-control: no-cache` (warning PageSpeed vivant)
+- **APRÈS fusion** : la capacité est déployée ; les ~209 objets existants restent `no-cache`
+  **jusqu'à l'exécution rétroactive par l'admin** (login → POST update-cache). ⚠️ Estimation :
+  ~209 fichiers × ~0,5-2 s = 105-420 s > maxDuration 60 s → **exécution en 2-3 passes
+  recommandée** (l'endpoint est idempotent, upsert) ; vérifier ensuite par HEAD
+  (`cache-control: max-age=31536000` attendu)
+- Clé `SUPABASE_SERVICE_ROLE_KEY` : non re-testable depuis le sandbox (pas de session admin
+  valide — identifiants constants obsolètes en prod) ; preuve fonctionnelle historique = migration
+  209/228 objets réussie en #5/#6b avec la clé 219 chars corrigée + déploiements SUCCESS
+
+### Étanchéité SEO
+Diff = 2 fichiers API exacts ; robots.txt/sitemap/meta **non touchés** ; prod vérifiée :
+HTTP 200, noindex ×2, robots.txt `Disallow: /` intacts.
+
+### Validations (audit ADF indépendant)
+- `bun run lint` : 0/0 exit 0 ✓ · `next build` : exit 0, route `update-cache` compilée ✓
+- `npx tsc --noEmit` : **134 = 134 baseline**, signatures normalisées identiques (215=215) ;
+  3 erreurs cdn-migrate préexistantes (L129/L136 identiques, L452→L458 décalage +6) ✓
+- Runtime :3239 (fixtures AdminUser+AdminSession) : 401 sans token · 405 GET · 500 fail-safe
+  avec token valide (sans env Supabase) · même comportement avec token invalide (présence
+  seule vérifiée par le middleware — identique à cdn-migrate certifié)
+
+### Chaîne d'audits ADF
+`…→ adf121c → b380f5a (perf mobile globale) → 7e731c2 (docs) → 3a2ee88 (CDN cache-control,
+merge --no-ff)`

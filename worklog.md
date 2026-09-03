@@ -1845,3 +1845,25 @@ inchangé (~2,7-4,5 s SSR dynamique) ; zéro dommage/zéro régression. Commenta
 « headers() synchrone, pas une Dynamic API » = inexact (canal fonctionne néanmoins, mesuré).
 **Prod vérifiée** : 200 (no-cache), noindex ×2, logo SSR vivant, lang suit le cookie via edge.
 **Détails** : PROJECT_MAP.md §ÉTAPE 9 ; preuves verify-logs/adf-mobile-global-refactor/.
+
+---
+
+## [MANDAT ADF #9 — fix/cdn-cache-control @ 9052111 → main (merge --no-ff 3a2ee88)]
+
+**Verdict : 🟢 CONFORME — fusion --no-ff, push ✓, Vercel SUCCESS ×2, prod vérifiée.**
+**Contenu** : cacheControl '31536000' sur uploads cdn-migrate (+6) ; endpoint rétroactif
+update-cache (139 lignes, maxDuration=60, POST-only).
+**Gates** : lint 0/0 exit 0 ; tsc 134=134 signatures identiques (3 erreurs cdn-migrate
+préexistantes, L452→L458 décalage +6) ; build exit 0 (route update-cache compilée).
+**Sécurité mesurée (local :3239 + prod)** : POST sans token → 401 (verrou middleware Guard #4
+confirmé en prod) ; GET → 405 ; fail-safe 500 sans env Supabase ; niveau de protection =
+cdn-migrate certifié (middleware vérifie la présence du token, handler sans re-vérification —
+identique au pattern historique).
+**Mesure AVANT/APRÈS (5/5 objets prod)** : média existants servent `cache-control: no-cache`
+(source du warning Lighthouse 1859 KiB) ; la fusion déploie la capacité (nouveaux uploads =
+1 an) mais les ~209 objets existants attendent l'exécution rétroactive admin (estimation
+105-420 s > maxDuration 60 → passes multiples idempotentes recommandées).
+**Clé SUPABASE_SERVICE_ROLE_KEY** : non re-testable depuis sandbox (identifiants constants
+obsolètes en prod, 401 login) ; preuve historique = migration 209/228 (#5/#6b) + SUCCESS ×2.
+**Étanchéité SEO** : diff 2 fichiers API exacts ; prod : 200, noindex ×2, robots.txt intact.
+**Détails** : PROJECT_MAP.md §ÉTAPE 10 ; preuves verify-logs/adf-cdn-cache-control/.
