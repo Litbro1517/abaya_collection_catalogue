@@ -96,7 +96,7 @@ export function ImagePickerModal({ open, onClose, onSelect }: ImagePickerModalPr
           ) : (
             <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-3">
               {filtered.map(img => {
-                const url = img.cdnUrl || resolveHybridImageUrl(img.originalUrl, 300);
+                const url = img.cdnUrl || resolveHybridImageUrl(img.originalUrl, 300, { mode: 'contain' });
                 return (
                   <button
                     key={img.id}

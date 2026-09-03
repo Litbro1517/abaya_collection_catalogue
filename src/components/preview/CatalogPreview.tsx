@@ -896,9 +896,9 @@ export function CatalogPreview({ onAdminLogin, initialCatalog, initialDatasource
     }
     if (!coverUrl) return null;
     // Construit 3 URLs RÉELLEMENT distinctes (ÉTAPE 13 — was factice avant)
-    const url400 = resolveDirectImageUrl(coverUrl, 400);
-    const url600 = resolveDirectImageUrl(coverUrl, 600);
-    const url800 = resolveDirectImageUrl(coverUrl, 800);
+    const url400 = resolveDirectImageUrl(coverUrl, 400, { mode: 'contain' });
+    const url600 = resolveDirectImageUrl(coverUrl, 600, { mode: 'contain' });
+    const url800 = resolveDirectImageUrl(coverUrl, 800, { mode: 'contain' });
     const srcSet = `${url400} 400w, ${url600} 600w, ${url800} 800w`;
     const sizes = '(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw';
     return { srcSet, sizes, href: url400 };
@@ -1626,11 +1626,11 @@ export function CatalogPreview({ onAdminLogin, initialCatalog, initialDatasource
                       // Sur tablette (≤1024px), ~33vw → =w600.
                       // Sur desktop, ~25vw → =w800.
                       // Cela réduit le poids de ~60% sur mobile (35 KiB vs 138 KiB).
-                      src={resolveDirectImageUrl(coverUrl, 400)}
+                      src={resolveDirectImageUrl(coverUrl, 400, { mode: 'contain' })}
                       srcSet={`
-                        ${resolveDirectImageUrl(coverUrl, 400)} 400w,
-                        ${resolveDirectImageUrl(coverUrl, 600)} 600w,
-                        ${resolveDirectImageUrl(coverUrl, 800)} 800w
+                        ${resolveDirectImageUrl(coverUrl, 400, { mode: 'contain' })} 400w,
+                        ${resolveDirectImageUrl(coverUrl, 600, { mode: 'contain' })} 600w,
+                        ${resolveDirectImageUrl(coverUrl, 800, { mode: 'contain' })} 800w
                       `}
                       sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw"
                       alt={title}

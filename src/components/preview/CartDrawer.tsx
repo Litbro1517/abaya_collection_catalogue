@@ -124,7 +124,7 @@ export function CartDrawer({ onCheckout }: Props) {
                   <div className="w-16 h-16 rounded-lg overflow-hidden shrink-0 bg-muted/30">
                     {item.image && (
                       <img
-                        src={resolveHybridImageUrl(item.image, 150)}
+                        src={resolveHybridImageUrl(item.image, 150, { mode: 'contain' })}
                         alt={item.title}
                         className="w-full h-full object-cover"
                         loading="lazy"

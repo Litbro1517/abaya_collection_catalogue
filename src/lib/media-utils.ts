@@ -118,16 +118,23 @@ export function isSupabaseStorageUrl(url: string): boolean {
  * @param quality Qualité 1-100 (défaut 75 — équilibre poids/visuel)
  * @returns URL optimisée ou passthrough si non-Supabase
  */
+export type SupabaseResizeMode = 'cover' | 'contain';
+
+export interface SupabaseRenderOptions {
+  height?: number;
+  mode?: SupabaseResizeMode;
+}
+
 export function resolveSupabaseRenderUrl(
   url: string,
   width = 400,
   quality = 75,
+  options?: SupabaseRenderOptions,
 ): string {
   if (!url) return '';
 
   const match = url.match(SUPABASE_STORAGE_REGEX);
   if (!match) {
-    // Pas une URL Supabase Storage publique → passthrough (Drive, externe…)
     return url;
   }
 
@@ -136,14 +143,21 @@ export function resolveSupabaseRenderUrl(
     '/storage/v1/object/public/',
     '/storage/v1/render/image/public/',
   );
-  // encodeURIComponent OK pour le path ; Supabase gère les slashes encodés.
-  // On conserve les paramètres supplémentaires (resize, etc.) en les écrasant.
-  const params = new URLSearchParams({
+
+  const params: Record<string, string> = {
     width: String(width),
     quality: String(quality),
     format: 'webp',
-  });
-  return `${renderBase}${bucket}/${path}?${params.toString()}`;
+  };
+
+  if (options?.mode === 'contain') {
+    params.resize = 'contain';
+  } else if (options?.height && options.height > 0) {
+    params.height = String(options.height);
+  }
+
+  const query = new URLSearchParams(params).toString();
+  return `${renderBase}${bucket}/${path}?${query}`;
 }
 
 /**
@@ -163,7 +177,11 @@ export function resolveSupabaseRenderUrl(
  * @param url URL d'origine
  * @param size Largeur cible (défaut 1200 — historique, surcharge par 400/600/800 dans CatalogPreview)
  */
-export function resolveHybridImageUrl(url: string, size = 1200): string {
+export function resolveHybridImageUrl(
+  url: string,
+  size = 1200,
+  options?: SupabaseRenderOptions,
+): string {
   if (!url) return '';
 
   const fileId = extractDriveFileId(url);
@@ -171,15 +189,10 @@ export function resolveHybridImageUrl(url: string, size = 1200): string {
     return `https://lh3.googleusercontent.com/d/${fileId}=w${size}`;
   }
 
-  // ━━ MANDAT 4P ÉTAPE 13 : Supabase → render API (resize + webp) ━━
-  // Si c'est une URL Supabase Storage publique, on génère l'URL d'API de rendu
-  // avec width={size}&quality=75&format=webp. Sinon, passthrough.
-  // Qualité 75 = équilibre mesuré (audit) : -63% poids, visuel identique.
   if (isSupabaseStorageUrl(url)) {
-    return resolveSupabaseRenderUrl(url, size, 75);
+    return resolveSupabaseRenderUrl(url, size, 75, options);
   }
 
-  // CDN local / unknown — passthrough
   return url;
 }
 

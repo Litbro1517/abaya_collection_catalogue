@@ -5295,3 +5295,32 @@ Bonus : `cache-control` render API = `max-age=31536000` (1 an) vs `no-cache` sur
 
 ### Engagement écrit
 L'agent développeur s'engage formellement à **ne pas merger `fix/supabase-image-render` vers `main` sans feu vert explicite d'un audit ADF complet**. La branche est prête pour audit ; les preuves brutes sont consignées ci-dessus (mesures curl, vérifications Agent Browser, gates lint/tsc/build).
+
+## [MANDAT 4P — ÉTAPE 13-v2 : RECTIFICATIF CADRAGE SUPABASE — resize=contain]
+
+**Branche** : `fix/supabase-image-render-v2` (depuis `fix/supabase-image-render` @ `cd3fc58`).
+**Conformité** : branche isolée ✅, zéro commit sur main ✅, attente feu vert audit ✅.
+
+### Anomalie bloquante (audit ADF É13)
+`resolveSupabaseRenderUrl` passait `width` seul → crop colonne centrale (1200×1600 → 400×1600) → zoom 3× inexploitable.
+
+### Solution É13-v2 (resize=contain)
+Arbitrage : `resize=contain` retenu sur `height=round(W*3/4)` car PSNR + VLM ont prouvé que l'algorithme de crop serveur Supabase diffère du `object-fit: cover` du navigateur.
+
+| Test | PSNR vs pre-É13 | Verdict |
+|---|---|---|
+| `width=400&height=300` (server cover-crop) | 15.45 dB | écarter |
+| `width=400&resize=contain` + browser cover | **32.01 dB** | retenu ✓ |
+| `width=400` seul (É13 bug) | 11.54 dB | le bug |
+
+Helper enrichi : `resolveSupabaseRenderUrl(url, width, quality, options?: { height?; mode?: 'cover'|'contain' })`. Tous les call sites passent `{ mode: 'contain' }`.
+
+### Preuves
+- 4/4 images ratios portrait (0.56-0.75) = identique prod pré-É13
+- VLM : "visually identical"
+- Poids : 142 082 → 15 788 B (-89%) ; 17 images prod : 1.78 MB → 0.28 MB (-84%)
+- FR↔AR : lang/dir switchent, 4/4 images chargées en RTL, 0 erreur console
+- Gates : lint 0/0, tsc 134=134 baseline, build exit 0
+
+### Engagement écrit
+**Aucun merge vers main sans feu vert explicite d'un audit ADF complet.**

@@ -1922,3 +1922,22 @@ Stage Summary:
 - Gates : lint 0/0, tsc 134=134 baseline, build exit 0
 - Aucun merge vers main — **engagement d'attendre le feu vert d'audit ADF avant toute intégration**
 
+
+---
+
+Task ID: MANDAT-4P-E13-v2
+Agent: dev-agent (fix/supabase-image-render-v2)
+Task: MANDAT 4P RECTIFICATIF É13-v2 — Correction crop colonne centrale Supabase.
+
+Work Log:
+- Branche `fix/supabase-image-render-v2` depuis `fix/supabase-image-render` @ cd3fc58
+- `src/lib/media-utils.ts` : `resolveSupabaseRenderUrl` enrichi avec `options?: { height?; mode?: 'cover'|'contain' }`.
+- Arbitrage : `resize=contain` retenu sur `height=round(W*3/4)` (PSNR 15.45 dB vs 32.01 dB).
+- 6 fichiers modifiés, tous passent `{ mode: 'contain' }`.
+- Preuves : 4/4 images ratios portrait (0.56-0.75) = identique prod pré-É13 ; PSNR 32.01 dB ; VLM "visually identical" ; lint 0/0 ; tsc 134 ; build exit 0.
+- Poids : 142 KiB → 16 KiB (-89%) ; 17 images prod : 1.78 MB → 0.28 MB (-84%).
+
+Stage Summary:
+- Anomalie cadrage É13 : CORRIGÉE. resize=contain + browser object-fit:cover.
+- Gates : lint 0/0, tsc 134=134, build exit 0.
+- Aucun merge vers main — **engagement d'attendre feu vert audit ADF**
