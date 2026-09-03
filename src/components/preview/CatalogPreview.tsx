@@ -854,6 +854,56 @@ export function CatalogPreview({ onAdminLogin, initialCatalog, initialDatasource
     currentPage * ITEMS_PER_PAGE
   );
 
+  // ━━━ MANDAT 4P ÉTAPE 13 — LCP Preload (first product image) ━━━━━━━━━━━━
+  // Audit ADF a mesuré : LCP mobile 5,4s car la 1ère image produit concourt
+  // sur le réseau contre 17 chunks JS (~1 MB) sans priorité absolue.
+  // Fix chirurgical : on injecte un <link rel="preload" as="image"> dans le
+  // <head> (React 19 hoiste automatiquement les <link> depuis n'importe où dans
+  // l'arbre — y compris depuis un Client Component) pour la première carte
+  // produit de la première page (idx 0 = LCP element).
+  //
+  // L'URL preloadée correspond EXACTEMENT au `src` de la première <img> :
+  //   - Drive  : https://lh3.googleusercontent.com/d/ID=w400 (défaut)
+  //   - Supab. : https://xxxx.supabase.co/storage/v1/render/image/public/...
+  //              ?width=400&quality=75&format=webp  (rendu optimisé ÉTAPE 13)
+  //   - Autre  : passthrough
+  //
+  // On utilise imagesrcset+imagesizes (au lieu d'un simple href) pour préloader
+  // la bonne taille selon le viewport : mobile=400w, tablette=600w, desktop=800w.
+  // Le navigateur ne télécharge QU'UNE seule URL (la meilleure) — pas les 3.
+  //
+  // Garde-fous :
+  //   - Si paginatedProducts est vide (catalogue vide/filtreExclude), pas de preload
+  //   - Si coverUrl est absent (placeholder), pas de preload (l'image LCP devient
+  //     le placeholder SVG, déjà inline — pas besoin de preload)
+  //   - Le fallback onError de la <img> reste intact (filet de sécurité ultime)
+  const lcpPreload = useMemo(() => {
+    if (!paginatedProducts.length) return null;
+    const first = paginatedProducts[0];
+    const rawData = first.row.data as Record<string, unknown>;
+    const coverRawVal = first.config.coverColumn ? rawData[first.config.coverColumn] : null;
+    let coverUrl = '';
+    if (coverRawVal) {
+      if (Array.isArray(coverRawVal)) {
+        const imgs = parseImageUrls(coverRawVal);
+        coverUrl = imgs[0] || '';
+      } else if (typeof coverRawVal === 'string') {
+        const imgs = parseImageUrls(coverRawVal);
+        coverUrl = imgs[0] || '';
+      } else {
+        coverUrl = String(coverRawVal);
+      }
+    }
+    if (!coverUrl) return null;
+    // Construit 3 URLs RÉELLEMENT distinctes (ÉTAPE 13 — was factice avant)
+    const url400 = resolveDirectImageUrl(coverUrl, 400, { mode: 'contain' });
+    const url600 = resolveDirectImageUrl(coverUrl, 600, { mode: 'contain' });
+    const url800 = resolveDirectImageUrl(coverUrl, 800, { mode: 'contain' });
+    const srcSet = `${url400} 400w, ${url600} 600w, ${url800} 800w`;
+    const sizes = '(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw';
+    return { srcSet, sizes, href: url400 };
+  }, [paginatedProducts]);
+
   // ━━ Lot 1 Correctif: view_item_list — fire when the visible grid changes ━━
   // GA4 standard impression event: pushes the list of products currently
   // displayed on the active page. Fires on: initial load, page change, filter
@@ -1576,11 +1626,11 @@ export function CatalogPreview({ onAdminLogin, initialCatalog, initialDatasource
                       // Sur tablette (≤1024px), ~33vw → =w600.
                       // Sur desktop, ~25vw → =w800.
                       // Cela réduit le poids de ~60% sur mobile (35 KiB vs 138 KiB).
-                      src={resolveDirectImageUrl(coverUrl, 400)}
+                      src={resolveDirectImageUrl(coverUrl, 400, { mode: 'contain' })}
                       srcSet={`
-                        ${resolveDirectImageUrl(coverUrl, 400)} 400w,
-                        ${resolveDirectImageUrl(coverUrl, 600)} 600w,
-                        ${resolveDirectImageUrl(coverUrl, 800)} 800w
+                        ${resolveDirectImageUrl(coverUrl, 400, { mode: 'contain' })} 400w,
+                        ${resolveDirectImageUrl(coverUrl, 600, { mode: 'contain' })} 600w,
+                        ${resolveDirectImageUrl(coverUrl, 800, { mode: 'contain' })} 800w
                       `}
                       sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw"
                       alt={title}
@@ -1992,6 +2042,23 @@ export function CatalogPreview({ onAdminLogin, initialCatalog, initialDatasource
   // ═══════════════════════════════════════════════════════════════════════
   return (
     <div className="min-h-screen flex flex-col w-full max-w-full overflow-x-clip" style={{ backgroundColor: '#FAF8F5' }} dir={rtl ? 'rtl' : 'ltr'}>
+      {/* ━━ MANDAT 4P ÉTAPE 13 — LCP Preload (first product image) ━━
+          React 19 hoiste automatiquement ce <link> vers le <head> du document.
+          Sans ce preload, la 1ère image produit concourt sur le réseau contre
+          17 chunks JS (~1 MB) → LCP mobile 5,4s. Avec preload + fetchPriority=high,
+          l'image démarre immédiatement après le HTML → LCP attendu < 1,5s.
+          L'URL preloadée correspond EXACTEMENT au src/srcSet de la 1ère <img>. */}
+      {lcpPreload && (
+        <link
+          rel="preload"
+          as="image"
+          href={lcpPreload.href}
+          imageSrcSet={lcpPreload.srcSet}
+          imageSizes={lcpPreload.sizes}
+          fetchPriority="high"
+        />
+      )}
+
       {/* Persistent Header — always visible */}
       {renderHeader()}
 

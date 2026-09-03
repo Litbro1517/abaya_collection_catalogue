@@ -501,7 +501,7 @@ export function MediaLibrary({ dataSourceId, onRefresh }: Props) {
                     )}
                   >
                     <img
-                      src={resolveHybridImageUrl(img.url, 150)}
+                      src={resolveHybridImageUrl(img.url, 150, { mode: 'contain' })}
                       alt=""
                       className="w-full h-full object-cover"
                       loading="lazy"

@@ -428,7 +428,7 @@ export function ProductPage({
   // générer un aperçu de lien côté récepteur.
   // Placeholders supportés via `conversionMessage` admin : {product} {color} {size} {quantity} {price} {image}
   const productImageDirectUrl = useMemo(
-    () => resolveDirectImageUrl(carouselImages[0] || '', 800),
+    () => resolveDirectImageUrl(carouselImages[0] || '', 800, { mode: 'contain' }),
     [carouselImages],
   );
   const whatsappLink = useMemo(
@@ -787,7 +787,7 @@ export function ProductPage({
               >
                 {carouselImages.map((rawUrl, i) => {
                   const isVisible = Math.abs(i - carouselIdx) <= 2;
-                  const directUrl = isVisible ? resolveDirectImageUrl(rawUrl, 1000) : '';
+                  const directUrl = isVisible ? resolveDirectImageUrl(rawUrl, 1000, { mode: 'contain' }) : '';
                   const proxyUrl = isVisible ? resolveProxyImageUrl(rawUrl, 1000) : '';
                   return (
                     <div key={i} className="product-page-carousel-slide">
@@ -923,7 +923,7 @@ export function ProductPage({
               </button>
               <div className="pdp-thumbnail-row">
                 {carouselImages.map((rawUrl, i) => {
-                  const thumbUrl = resolveDirectImageUrl(rawUrl, 200);
+                  const thumbUrl = resolveDirectImageUrl(rawUrl, 200, { mode: 'contain' });
                   const thumbProxy = resolveProxyImageUrl(rawUrl, 200);
                   return (
                     <button
@@ -1386,7 +1386,7 @@ export function ProductPage({
             "@type": "Product",
             "name": title,
             "description": description || title,
-            "image": carouselImages.length > 0 ? [resolveDirectImageUrl(carouselImages[0], 800)] : [],
+            "image": carouselImages.length > 0 ? [resolveDirectImageUrl(carouselImages[0], 800, { mode: 'contain' })] : [],
             "brand": { "@type": "Brand", "name": catalogName },
             "offers": {
               "@type": "Offer",
