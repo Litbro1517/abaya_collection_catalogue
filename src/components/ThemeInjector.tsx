@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { ThemeProvider } from '@/components/ThemeProvider';
 import { THEME_DEFAULTS } from '@/lib/theme.config';
 import type { ThemePivots, ThemeExceptions } from '@/lib/theme.config';
@@ -69,6 +69,8 @@ export function ThemeInjector() {
   // for admin views, use the admin settings.language.
   const clientLocale = useAppStore(s => s.clientLocale);
   const view = useAppStore(s => s.view);
+  // ━━ MANDAT 4P — FIX CLS : marqueur du premier run (fenêtre pré-seed) ━━
+  const firstDirRunRef = useRef(true);
 
   useEffect(() => {
     // Determine which locale to use:
@@ -80,9 +82,30 @@ export function ThemeInjector() {
       ? (clientLocale as Locale) || 'fr'
       : (themeData?.language as Locale) || 'fr';
 
+    const html = document.documentElement;
+
+    // ━━ MANDAT 4P — FIX CLS : garde pré-seed ━━
+    // Depuis le fix CLS, le layout SSR rend `lang`/`dir` depuis le défaut BDD
+    // (defaultCatalogLanguage, ex. 'ar') et un script inline no-flash applique
+    // la préférence visiteur avant le premier paint. Pour un visiteur SANS
+    // préférence, le store démarre encore à clientLocale='fr' (module-init) et
+    // le seed HomeClient ne le passera à 'ar' qu'après hydratation. Si cet
+    // effet tournait AVANT le seed avec la valeur d'init 'fr', il écraserait
+    // le dir=rtl SSR → double flip → CLS. Garde : si la locale effective est
+    // encore la valeur d'init 'fr' MAIS que le SSR a posé une autre langue
+    // (html.lang ≠ 'fr'), on n'écrase pas — le seed (ou la préférence réelle)
+    // déclenchera le re-run de cet effet avec la valeur correcte.
+    // IMPORTANT : cette garde ne s'applique qu'au PREMIER run (hydratation).
+    // Les runs suivants = interactions utilisateur réelles (sélecteur de langue,
+    // seed, admin) → toujours appliquées — sinon la sélection FR d'un visiteur
+    // sur une page SSR-ar serait bloquée (régression fonctionnelle).
+    if (firstDirRunRef.current) {
+      firstDirRunRef.current = false;
+      if ((!isAdmin || view === 'preview') && effectiveLocale === 'fr' && html.lang !== 'fr') return;
+    }
+
     const rtl = isRTL(effectiveLocale);
 
-    const html = document.documentElement;
     html.setAttribute('dir', rtl ? 'rtl' : 'ltr');
     html.setAttribute('lang', effectiveLocale);
 
