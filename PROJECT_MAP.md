@@ -5433,3 +5433,40 @@ Helper enrichi : `resolveSupabaseRenderUrl(url, width, quality, options?: { heig
 | Console | — | 0 erreur, 0 warning hydration |
 
 **Statut** : branche poussée `fix/cls-locale-noflash` (bb68b72) — prête pour audit ADF/merge (main gelé 773a297 en attendant le feu vert). Aucune régression réseau/image : les gains LCP (872ms live) et ISR (HIT, TTFB 0,09-0,37s) sont préservés par construction (aucune modification des URLs images, preload, ou caching).
+
+## [MANDAT ADF — FUSION fix/cls-locale-noflash (CLS 0.61→0.001)]
+
+**Branche** : `fix/cls-locale-noflash` @ `bb68b72` (audit) + `a61bd87` (docs).
+**Merge** : `8fe631d` (merge --no-ff sur main @ `773a297`, push origin/main ✅, Vercel READY `dpl_CfJzi9JK`).
+
+### Audit ADF 100% conforme (4 contrôles validés)
+
+| Contrôle | Résultat |
+|---|---|
+| 1. CLS / Anti-Flash | ✅ script inline no-flash dans <head>, CLS first-visit=0.0009, return-visit=0.0000, language selector FR↔AR fonctionne |
+| 2. LCP & Images | ✅ resize=contain intact (7 occ. CatalogPreview), <link rel=preload as=image fetchPriority=high imageSrcSet=3 URLs> dans <head>, 4/4 images loaded |
+| 3. Quality Gates | ✅ lint 0/0, tsc 134 baseline, build exit 0, route / = ○ Static Revalidate 5m Expire 1y |
+| 4. Git identity | ✅ Litbro1517 <gotonewjamail@gmail.com> |
+
+### Changes (6 fichiers, +139/−24)
+- `src/app/layout.tsx` : SSR locale depuis `defaultCatalogLanguage` (DB, via `getBrandMetadata` — zéro requête supplémentaire) + script inline no-flash dans `<head>` (priorité localStorage > cookie, pre-paint, ~450B non bloquant). HTML rend `lang="ar" dir="rtl" class="rtl"` dès le SSR quand DB défaut = `ar`.
+- `src/components/LocaleDirectionSync.tsx` : priorité alignée avec le store (localStorage `abaya_clientLocale` > cookie `abaya_locale`). Idempotent avec le script no-flash — zéro re-flip.
+- `src/components/ThemeInjector.tsx` : garde pré-seed (`firstDirRunRef`) — si la locale effective est encore `'fr'` (module-init) MAIS que le SSR a posé une autre langue (`html.lang !== 'fr'`), n'écrase pas le dir → le seed (ou la préférence réelle) déclenchera le re-run.
+- `src/components/TrustGuaranteesSection.tsx` : retire attribut `dir` explicite (hérite de `<html>`).
+- `src/components/preview/CatalogPreview.tsx` : retire attribut `dir` explicite sur le conteneur principal (`<div>` racine).
+- `PROJECT_MAP.md` : section MANDAT-4P CLS ajoutée.
+
+### Preuves A/B mesurées (Agent Browser, localhost:3000, DB default=ar)
+- **HTML SSR** : `<html lang="ar" dir="rtl" class="rtl">` (dès le premier byte, pas de flip)
+- **CLS first-visit** (fresh browser, no preference) : **0.0009** (< 0.0012 seuil)
+- **CLS return-visit** (localStorage=ar) : **0.0000** (zéro flip, no-flash script applique avant paint)
+- **Language selector** : FR↔AR switch fonctionne (اللغة→Langue, lang/dir appliqués correctement)
+- **LCP preload** : préservé (`preload_in_head=true`, `fetchPriority=high`, `imageSrcSet` 3 URLs `resize=contain`)
+- **ISR** : route `/` = `○ (Static) Revalidate 5m Expire 1y` (build)
+- **0 erreur console**
+
+### Production (Vercel)
+- URL : https://abaya-collection-catalogue-9dum.vercel.app/
+- Deployment : `dpl_CfJzi9JK` READY
+- HTML prod vérifié : `<html lang="ar" dir="rtl" class="rtl">` + no-flash script + LCP preload + resize=contain
+- `x-vercel-cache: PRERENDER` (ISR actif en prod)

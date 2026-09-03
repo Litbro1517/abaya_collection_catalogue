@@ -1941,3 +1941,33 @@ Stage Summary:
 - Anomalie cadrage É13 : CORRIGÉE. resize=contain + browser object-fit:cover.
 - Gates : lint 0/0, tsc 134=134, build exit 0.
 - Aucun merge vers main — **engagement d'attendre feu vert audit ADF**
+
+---
+
+Task ID: MANDAT-ADF-CLS-FUSION
+Agent: dev-agent (audit ADF + fusion conditionnelle)
+Task: Audit ADF de la branche fix/cls-locale-noflash (commit bb68b72) et fusion conditionnelle sur main si 100% conforme.
+
+Work Log:
+- Fetch origin/fix/cls-locale-noflash (2 commits : bb68b72 fix + a61bd87 docs)
+- Sync local main avec origin/main (773a297)
+- Audit diff complet : 6 fichiers modifiés (layout.tsx, LocaleDirectionSync.tsx, ThemeInjector.tsx, TrustGuaranteesSection.tsx, CatalogPreview.tsx, PROJECT_MAP.md)
+- Control 1 (CLS/Anti-Flash) : script inline no-flash dans <head> (pre-paint), priorité localStorage > cookie > SSR défaut BDD. CLS mesuré first-visit=0.0009, return-visit=0.0000. Language selector FR↔AR fonctionne (AR→FR→AR testé).
+- Control 2 (LCP & Images) : resize=contain intact (7 occurrences CatalogPreview), <link rel=preload as=image fetchPriority=high imageSrcSet=3 URLs distinctes> dans <head>, 4/4 images loaded.
+- Control 3 (Quality Gates) : bun run lint 0/0, npx tsc --noEmit 134 (=baseline), bun run build exit 0, route / = ○ Static Revalidate 5m Expire 1y (ISR préservé).
+- Control 4 (Git identity) : Litbro1517 <gotonewjamail@gmail.com> ✅
+- Agent Browser verification : first-visit CLS=0.0009 (< 0.0012), lang/dir=ar/rtl dès le premier paint (pas de flip), 4/4 images loaded, 0 erreur console.
+- CAS A déclenché : 100% conforme → merge --no-ff + push origin/main.
+- Merge commit : 8fe631d (merge --no-ff, 2 commits intégrés).
+- Push origin/main : 773a297..8fe631d ✅.
+- Vercel deployment : dpl_CfJzi9JK READY, prod vérifiée (HTML <html lang="ar" dir="rtl" class="rtl">, no-flash script présent, LCP preload présent, resize=contain présent).
+
+Stage Summary:
+- Verdict : 🟢 CAS A — 100% CONFORME, fusion exécutée, Vercel déployé
+- Merge commit : 8fe631dc5728a2dd6da249d8a9ce1601752af619
+- Production : https://abaya-collection-catalogue-9dum.vercel.app/ (200 OK, x-vercel-cache: PRERENDER)
+- CLS first-visit : 0.0009 (< 0.0012 seuil)
+- CLS return-visit : 0.0000 (zéro flip)
+- LCP preload : préservé (imageSrcSet 3 URLs resize=contain, fetchPriority=high)
+- ISR : préservé (route / = ○ Static Revalidate 5m Expire 1y)
+- SEO : noindex/nofollow préservé, JSON-LD intact
