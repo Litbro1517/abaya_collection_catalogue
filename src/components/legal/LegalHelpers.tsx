@@ -24,7 +24,7 @@ function SectionTitle({ k }: { k: string }) {
   return (
     <h2
       className="text-lg font-semibold mb-4"
-      style={{ color: 'var(--pivot-brand)', fontFamily: "'Playfair Display', serif" }}
+      style={{ color: 'var(--pivot-brand)', fontFamily: "var(--font-playfair), serif" }}
     >
       {t(k)}
     </h2>

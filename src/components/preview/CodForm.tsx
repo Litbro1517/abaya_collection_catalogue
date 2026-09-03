@@ -131,7 +131,7 @@ export function CodForm({ productId, productName, productPrice, quantity = 1, se
     return (
       <div className="cod-form-success" dir={rtl ? 'rtl' : 'ltr'}>
         <CheckCircle2 className="w-10 h-10" style={{ color: BRAND.vertFonce }} />
-        <h3 style={{ fontSize: 18, fontWeight: 700, color: BRAND.vertFonce, fontFamily: "'Playfair Display', serif" }}>{t('order.sent')}</h3>
+        <h3 style={{ fontSize: 18, fontWeight: 700, color: BRAND.vertFonce, fontFamily: "var(--font-playfair), serif" }}>{t('order.sent')}</h3>
         <p style={{ fontSize: 14, color: BRAND.grisMoyen }}>{t('order.redirecting')}</p>
       </div>
     );
