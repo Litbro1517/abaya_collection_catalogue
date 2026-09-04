@@ -2326,3 +2326,35 @@ Rapport consolidé ci-dessous (voir section finale du worklog).
 L'application est **fonctionnelle et performante** côté rendu (ISR, CLS, LCP, images), mais **non prête pour scaling** à cause de 3 lacunes critiques : (1) tracking publicitaire entièrement absent (Meta Pixel + CAPI + GA4 consumer), (2) security headers manquants, (3) `ignoreBuildErrors: true` qui masque les erreurs TypeScript au build. La branche `fix/remove-noindex-lock` doit être mergée pour aligner code et prod. Le SEO technique est correct mais le sitemap pointe vers la mauvaise URL (Vercel au lieu du domaine custom).
 
 **Recommandation** : traiter les 4 actions P0 avant toute campagne publicitaire ou scaling. Le tracking e-commerce COD sans attribution Meta/GA4 est le risque business #1.
+
+---
+
+# MANDAT 4P — RECTIFICATIONS AUDIT 360° (P0/P1/P2) — BRANCHE fix/audit-360-p0-p1
+
+**Date** : session MANDAT-4P audit-360 · **Base** : main @ b4f1126 · **Commit** : c0f765d (57 fichiers, +861/−2922) · **Statut** : poussée, en attente feu vert ADF.
+
+## Exécution (résumé opératoire)
+
+- Lecture préalable PROJECT_MAP + worklog (règle Partie 1) ; fetch — nouveau tip b4f1126 = rapport DUEL 360° (docs seul) → branche créée depuis tip, 0 commit sur main.
+- Exploration ciblée : 10 sites vercel.app codés en dur, next.config (ignoreBuildErrors L14, 0 headers(), X-Powered-By leak), 134 erreurs tsc classées (39 code mort legacy AppState/@types disparu, 18 scripts/démos hors app, ~77 live), secrets 'abayachic2024' ×3 (+ 4e découvert dans src/lib/constants.ts), GTM présent & conditionnel, 0 Pixel/CAPI.
+- P0-3 assainissement : helper `toPrismaJson` + 20+ sites JSON Prisma ; tableaux never[] typés ; narrowings (f.id !=null, const titleCol avant closure, pickerApi capturé) ; doublons dictionaries ×3 + NATIVE_SLUG_MAP ; bug latent delta (input Prisma inconnu isVisible/isAvailable/quantityInStock → slugs natifs __disponibilite__/__stock__) ; suppression 12 fichiers morts (gallery ×7, ProductForm, ProductTable, RelationManager, api/products ×2 = routes cassées db.product inexistant, 0 appelant) ; tsconfig excludes scripts/démos.
+- P0-2 tracking : layout (Pixel base + PageView event_id partagé + noscript) ; /api/meta/conversions (whitelist, rate limit, timeout, graceful 200 sans env) ; meta-tracking.ts miroir pushDataLayer (choke point unique) ; garde format GTM.
+- P1-5 : 6 en-têtes via headers() + poweredByHeader:false.
+- P1-6 : site-url.ts (env validée sinon catalogue.abayacollection.store) → 10 sites remplacés.
+- P2-7 : 4 sites secrets → ADMIN_PASSWORD env + rotation recommandée.
+
+## Preuves (mesuré > déclaré)
+
+- Gates : lint 0/0 exit 0 ; **tsc 0 erreur exit 0 (baseline 134 → 0)** ; build exit 0 **SANS ignoreBuildErrors** ; ISR / ○ 5m/1y intact.
+- Runtime 3241 : 6/6 headers sécurité (aussi sur /api/*) ; sitemap 17/17 officiel + 0 vercel.app dans HTML home + robots.txt Sitemap officiel ; Pixel init + fbevents + PageView eventID + fetch CAPI dans HTML servi ; noscript ×2 ; noindex=0 ; lang/dir ar/rtl ; preconnect byte 82 + preload ×5 ; 12 articles/64 render.
+- CAPI endpoint : GET `{"configured":false}` (sans secret) ; POST sans env → 200 `meta_capi_not_configured` ; event non whitelisté → 400 ; JSON invalide → 400 ; event_id court → 400.
+- **E2E navigateur (golden path)** : spy fetch+fbq → clic `button.product-card-action` → view_item GA4 → fbq `ViewContent` + POST `/api/meta/conversions` → **event_id client === event_id serveur (true)**, custom_data {value:450, currency:MAD, content_ids×1}, 0 erreur console.
+- Anomalies corrigées en cours : doublon accentué 'sous-catégorie' restauré (comportement matching en-têtes) ; apostrophes non échappées scripts (lint parse) ; commentaire JSX en position attribut (syntaxe) ; fixtures d'audit (prisma/seed-audit.ts, set-ar.ts) exclues du commit par amend.
+
+## Non-régressions
+
+E13/E13-v2 (images contain, preload LCP), E14 (preconnect CDN), CLS fix (lang/dir SSR + no-flash), E15 (noindex=0, robots Allow) — tous vérifiés présents en runtime. dataLayer GA4 intact.
+
+## Livrables & attente
+
+Branche `fix/audit-360-p0-p1` poussée (c0f765d + docs). **Engagement écrit : AUCUN merge vers main sans feu vert explicite du Mandat ADF.** Vars Vercel à poser côté ops pour activer le tracking prod : NEXT_PUBLIC_GTM_ID, NEXT_PUBLIC_META_PIXEL_ID, META_CAPI_ACCESS_TOKEN, NEXT_PUBLIC_BASE_URL (recommandée = https://catalogue.abayacollection.store), META_PIXEL_ID (optionnel).
