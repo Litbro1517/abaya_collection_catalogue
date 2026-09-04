@@ -152,13 +152,23 @@ export function GoogleDrivePicker({
         check();
       });
 
-      const view = new window.google.picker.View();
+      // MANDAT 4P — tsc : narrowing de window.google.picker APRÈS la
+      // résolution de la promesse (TS18048 ×6 : l'optionnel chaîné dans le
+      // poll ci-dessus ne narrow pas le type pour le code qui suit).
+      // Capture locale + garde explicite — runtime identique (la promesse
+      // n'est résolue QUE si window.google.picker est déjà présent).
+      const pickerApi = window.google?.picker;
+      if (!pickerApi) {
+        throw new Error('Picker API indisponible.');
+      }
+
+      const view = new pickerApi.View();
       view.setMimeTypes('image/png,image/jpeg,image/jpg,image/webp,image/gif');
 
-      const builder = new window.google.picker.PickerBuilder()
+      const builder = new pickerApi.PickerBuilder()
         .addView(view)
         .setOAuthToken(accessToken)
-        .enableFeature(window.google.picker.Feature.MULTISELECT_ENABLED)
+        .enableFeature(pickerApi.Feature.MULTISELECT_ENABLED)
         .setMaxItems(50)
         .setCallback((data: PickerData) => {
           if (data.action === 'picked' && data.docs) {

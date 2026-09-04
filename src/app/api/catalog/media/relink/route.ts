@@ -1,3 +1,4 @@
+import { toPrismaJson } from '@/lib/prisma-json';
 import { db } from '@/lib/db';
 import { NextRequest, NextResponse } from 'next/server';
 
@@ -115,7 +116,7 @@ export async function POST(req: NextRequest) {
         data[asset.columnSlug] = existingUrls.join(', ');
         await db.row.update({
           where: { id: originalRow.id },
-          data: { data },
+          data: { data: toPrismaJson(data) ?? {} }, // MANDAT 4P — tsc : narrowing JSON
         });
 
         // Restore the link

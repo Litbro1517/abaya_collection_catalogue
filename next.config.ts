@@ -9,11 +9,66 @@ const withBundleAnalyzer = bundleAnalyzer({
   enabled: process.env.ANALYZE === "true",
 });
 
-const nextConfig: NextConfig = {
-  typescript: {
-    ignoreBuildErrors: true,
+// ━━ MANDAT 4P — RECTIFICATIONS AUDIT 360° (P1 Sécurité) ━━
+// En-têtes HTTP de sécurité — audit DUEL 360° VOLET 1 : 6/7 en-têtes
+// critiques manquants sur la prod (clickjacking, MIME sniffing, XSS sans
+// CSP). Injectés via headers() pour TOUTES les routes (statiques, ISR,
+// API). Adaptés à la stack réelle :
+//   - GTM (googletagmanager.com) + GA (google-analytics.com, analytics.google.com)
+//   - Meta Pixel (connect.facebook.net, facebook.com/tr) + CAPI (graph.facebook.com)
+//   - Images produit : Supabase CDN (*.supabase.co) + Google (lh3/googleusercontent)
+//   - next/font : polices self-hostées (pas de fonts.googleapis.com)
+//   - Scripts d'hydratation Next.js : inline → 'unsafe-inline' requis
+//     (baseline obligatoire tant que les nonces par requête ne sont pas
+//     mis en place — Next 16 require nonce via middleware pour durcir)
+//   - 'unsafe-eval' : requis par GTM preview + le runtime dev de Next.js
+const SECURITY_HEADERS = [
+  { key: "X-Content-Type-Options", value: "nosniff" },
+  { key: "X-Frame-Options", value: "DENY" },
+  { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
+  {
+    key: "Permissions-Policy",
+    value: "camera=(), microphone=(), geolocation=(), payment=(), usb=(), interest-cohort=()",
   },
+  {
+    key: "Strict-Transport-Security",
+    value: "max-age=63072000; includeSubDomains; preload",
+  },
+  {
+    key: "Content-Security-Policy",
+    value: [
+      "default-src 'self'",
+      // Next.js bootstrap/hydration inline + GTM container + Meta Pixel snippet
+      "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://www.googletagmanager.com https://connect.facebook.net https://www.google-analytics.com",
+      "style-src 'self' 'unsafe-inline'",
+      // Images produit Supabase/Google + trackers (img pixel) + data URLs
+      "img-src 'self' data: blob: https: http:",
+      // CAPI serveur passe par notre route API (same-origin) ; GTM/GA/Meta
+      // téléchargent leurs configs depuis ces origines
+      "connect-src 'self' https://www.googletagmanager.com https://www.google-analytics.com https://analytics.google.com https://*.supabase.co https://connect.facebook.net https://graph.facebook.com",
+      "font-src 'self' data:",
+      // GTM preview (mode debug) — sinon aucun frame nécessaire
+      "frame-src 'self' https://www.googletagmanager.com",
+      "object-src 'none'",
+      "base-uri 'self'",
+      "form-action 'self'",
+      "frame-ancestors 'none'",
+    ].join("; "),
+  },
+];
+
+const nextConfig: NextConfig = {
+  // ━━ MANDAT 4P — RECTIFICATIONS AUDIT 360° (P0 Build TypeScript) ━━
+  // `typescript.ignoreBuildErrors: true` RETIRÉ (audit DUEL 360° VOLET 4 :
+  // violation critique — le build Vercel passait silencieusement malgré 134
+  // erreurs TypeScript, dont des routes cassées au runtime, masquées).
+  // La baseline a été assainie sur la branche : correction des erreurs src/
+  // + exclusion des scripts ops/démos hors application du tsconfig.
+  // Next.js typechecke désormais à CHAQUE build — zéro régression de typage
+  // ne peut plus passer inaperçue.
   reactStrictMode: false,
+  // Audit DUEL 360° VOLET 1 : X-Powered-By: Next.js leaké la stack → retiré.
+  poweredByHeader: false,
   images: {
     // VG37.2 Axe 2: Re-enabled Next.js image optimization (was unoptimized: true).
     // The remotePatterns below are already configured for all image sources
@@ -54,6 +109,15 @@ const nextConfig: NextConfig = {
     "21.0.8.64",
     "21.0.8.205",
   ],
+  async headers() {
+    return [
+      {
+        // En-têtes de sécurité sur toutes les routes de l'application
+        source: "/:path*",
+        headers: SECURITY_HEADERS,
+      },
+    ];
+  },
 };
 
 export default withBundleAnalyzer(nextConfig);

@@ -1,5 +1,6 @@
 import type { MetadataRoute } from 'next';
 import { db } from '@/lib/db';
+import { getPublicBaseUrl } from '@/lib/site-url';
 
 // ═══════════════════════════════════════════════════════════════════════
 // ROBOTS.TXT — Dynamic generation via Prisma
@@ -7,7 +8,10 @@ import { db } from '@/lib/db';
 // Reads the canonical base URL from Settings.__seo_metadata__ or uses
 // the default production URL.
 
-const DEFAULT_BASE_URL = 'https://abaya-collection-catalogue-9dum.vercel.app';
+// MANDAT 4P — RECTIFICATIONS AUDIT 360° (P1 SEO) : le fallback hardcodé
+// vercel.app (DEFAULT_BASE_URL) est remplacé par getPublicBaseUrl() —
+// NEXT_PUBLIC_BASE_URL si définie, sinon domaine officiel
+// https://catalogue.abayacollection.store. L'override admin DB garde la priorité.
 
 async function getBaseUrl(): Promise<string> {
   try {
@@ -19,7 +23,7 @@ async function getBaseUrl(): Promise<string> {
   } catch {
     // DB not available — use default
   }
-  return DEFAULT_BASE_URL;
+  return getPublicBaseUrl();
 }
 
 export default async function robots(): Promise<MetadataRoute.Robots> {

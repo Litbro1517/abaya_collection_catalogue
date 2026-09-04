@@ -57,7 +57,7 @@ function DataQualityIcon({ value, field }: { value: unknown; field: string }) {
     return (
       <AlertCircle
         className="w-3 h-3 text-amber-500 inline-block ml-1 shrink-0"
-        title={t('adminOrder.dataQualityEmpty')}
+        aria-label={t('adminOrder.dataQualityEmpty')}
       />
     );
   }
@@ -67,7 +67,7 @@ function DataQualityIcon({ value, field }: { value: unknown; field: string }) {
       return (
         <AlertTriangle
           className="w-3 h-3 text-red-500 inline-block ml-1 shrink-0"
-          title={t('adminOrder.dataQualityZero')}
+          aria-label={t('adminOrder.dataQualityZero')}
         />
       );
     }
@@ -75,7 +75,7 @@ function DataQualityIcon({ value, field }: { value: unknown; field: string }) {
       return (
         <AlertTriangle
           className="w-3 h-3 text-orange-500 inline-block ml-1 shrink-0"
-          title={t('adminOrder.dataQualityLow')}
+          aria-label={t('adminOrder.dataQualityLow')}
         />
       );
     }
@@ -106,7 +106,8 @@ export function OrdersTable({
 }: OrdersTableProps) {
   const { t, locale } = useTranslation();
   const [searchInput, setSearchInput] = useState(search);
-  const searchTimer = useRef<ReturnType<typeof setTimeout>>();
+  // MANDAT 4P — tsc : useRef requiert un argument initial (React 19 types)
+  const searchTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
 
   // Sync local searchInput when parent resets search (tab/filter change)
   useEffect(() => {

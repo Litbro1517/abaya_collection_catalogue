@@ -1045,7 +1045,8 @@ export function DataPillar() {
                   <div className="flex items-center gap-1">
                     <p className="text-sm font-medium truncate">{ds.name}</p>
                     {ds.sheetId && (
-                      <Sheet className="w-3 h-3 text-green-600 shrink-0" title="Google Sheets" />
+                      // MANDAT 4P — tsc : LucideProps n'expose pas `title` → aria-label
+                      <Sheet className="w-3 h-3 text-green-600 shrink-0" aria-label="Google Sheets" />
                     )}
                   </div>
                   <p className="text-[10px] text-muted-foreground">
@@ -1971,10 +1972,12 @@ export function DataPillar() {
       </AlertDialog>
 
       {/* Import CSV Dialog */}
+      {/* MANDAT 4P — tsc : dataSourceId attend string (activeDataSourceId est
+          string|null) — fallback '' identique au patron ColumnEditorDialog */}
       <ImportCSVDialog
         open={showImportModal}
         onOpenChange={setShowImportModal}
-        dataSourceId={activeDataSourceId}
+        dataSourceId={activeDataSourceId || ''}
         onImported={() => { loadDataSourceData(); loadDataSources(); }}
       />
 
@@ -1990,39 +1993,13 @@ export function DataPillar() {
       />
 
       {/* Google Sheets Browser */}
+      {/* MANDAT 4P — tsc : l'API de GoogleSheetsBrowser n'expose plus `onSelect`
+          (import géré en interne par le composant qui appelle /api/google/sync
+          lui-même — le callback externe était du câblage mort : jamais invoqué).
+          Prop retiré — zéro changement runtime. */}
       <GoogleSheetsBrowser
         open={showGoogleSheetsBrowser}
         onOpenChange={setShowGoogleSheetsBrowser}
-        onSelect={async (sheetId, name) => {
-          setSyncStatus('syncing');
-          setSyncMessage('Importation en cours...');
-          try {
-            const res = await fetch('/api/google/sync', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ sheetId, dataSourceName: name }),
-            });
-            if (res.ok) {
-              setSyncStatus('success');
-              setSyncMessage('Données importées');
-              toast.success('Google Sheet importé avec succès');
-              setShowGoogleSheetsBrowser(false);
-              loadDataSources();
-              setTimeout(() => setSyncStatus('idle'), 3000);
-            } else {
-              const json = await res.json();
-              setSyncStatus('error');
-              setSyncMessage(json.error || 'Erreur d\'importation');
-              toast.error(json.error || 'Erreur d\'importation');
-              setTimeout(() => setSyncStatus('idle'), 5000);
-            }
-          } catch {
-            setSyncStatus('error');
-            setSyncMessage('Erreur de connexion');
-            toast.error('Erreur de connexion');
-            setTimeout(() => setSyncStatus('idle'), 5000);
-          }
-        }}
       />
 
       {/* Manual URL Import Dialog */}

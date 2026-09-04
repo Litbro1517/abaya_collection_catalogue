@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { toPrismaJson } from '@/lib/prisma-json';
 import { db } from '@/lib/db';
 
 /**
@@ -70,7 +71,7 @@ export async function POST(
             }
             await db.row.update({
               where: { id: row.id },
-              data: { data: updatedData },
+              data: { data: toPrismaJson(updatedData) ?? {} }, // MANDAT 4P — tsc : narrowing JSON
             });
             updated++;
           }
@@ -121,7 +122,7 @@ export async function POST(
           }
           await db.row.update({
             where: { id: row.id },
-            data: { data: updatedData },
+            data: { data: toPrismaJson(updatedData) ?? {} }, // MANDAT 4P — tsc : narrowing JSON
           });
           updated++;
         }

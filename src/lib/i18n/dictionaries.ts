@@ -287,7 +287,9 @@ export const dictionaries: Record<Locale, TranslationDict> = {
     'order.required': '*',
 
     // ── Checkout / Finalisation Page ──
-    'checkout.title': 'Finaliser la commande',
+    // MANDAT 4P — tsc : 'checkout.title' dupliqué (TS1117). L'occurrence
+    // de tête est retirée — la valeur runtime (dernière occurrence, ligne
+    // ~785) est identique, comportement inchangé.
     'checkout.back': 'Retour au produit',
     'checkout.recapTitle': 'Récapitulatif de la commande',
     'checkout.formTitle': 'Vos coordonnées de livraison',
@@ -1072,7 +1074,9 @@ export const dictionaries: Record<Locale, TranslationDict> = {
     'order.required': '*',
 
     // ── Checkout / Finalisation Page ──
-    'checkout.title': 'Finalize your order',
+    // MANDAT 4P — tsc : 'checkout.title' dupliqué (TS1117). Occurrence de
+    // tête retirée — la valeur runtime effective est celle de la seconde
+    // occurrence (~1570 : 'Complete your order'), comportement inchangé.
     'checkout.back': 'Back to product',
     'checkout.recapTitle': 'Order Summary',
     'checkout.formTitle': 'Your delivery details',
@@ -1857,7 +1861,8 @@ export const dictionaries: Record<Locale, TranslationDict> = {
     'order.required': '*',
 
     // ── Checkout / Finalisation Page ──
-    'checkout.title': 'إتمام الطلب',
+    // MANDAT 4P — tsc : 'checkout.title' dupliqué (TS1117). Occurrence de
+    // tête retirée — valeurs identiques, comportement inchangé.
     'checkout.back': 'العودة إلى المنتج',
     'checkout.recapTitle': 'ملخص الطلب',
     'checkout.formTitle': 'بيانات التوصيل الخاصة بك',

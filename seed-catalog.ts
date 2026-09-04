@@ -1,14 +1,22 @@
 import { db } from './src/lib/db';
 import * as fs from 'fs';
 
+// MANDAT 4P — P2 hygiène secrets : mot de passe admin depuis l'env (plus de
+// clair dans le repo). Le script refuse de s'exécuter sans la variable.
+const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || '';
+if (!ADMIN_PASSWORD) {
+  console.error('❌ ADMIN_PASSWORD manquant — exportez-le avant d’exécuter ce script.');
+  process.exit(1);
+}
+
 async function seed() {
   console.log('🌱 Seeding database...');
 
   // 1. Ensure admin password exists
   const existingPwd = await db.settings.findUnique({ where: { key: 'adminPassword' } });
   if (!existingPwd) {
-    await db.settings.create({ data: { key: 'adminPassword', value: 'abayachic2024' } });
-    console.log('✅ Admin password set: abayachic2024');
+    await db.settings.create({ data: { key: 'adminPassword', value: ADMIN_PASSWORD } }); // MANDAT 4P — P2 : secret env, pas en clair
+    console.log('✅ Admin password set (from ADMIN_PASSWORD env)');
   }
 
   // 2. Check if data source already exists
@@ -230,7 +238,7 @@ wb.close()
   console.log('\n🎉 Seed complete!');
   console.log(`   Data Source ID: ${ds.id}`);
   console.log(`   Rows: ${rowsCreated}`);
-  console.log(`   Admin password: abayachic2024`);
+  console.log(`   Admin password: via ADMIN_PASSWORD env (jamais affiché)`);
 }
 
 seed()

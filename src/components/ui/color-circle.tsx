@@ -39,8 +39,9 @@ export function ColorCircle({
         width: size,
         height: size,
         backgroundColor: hex,
-        ringColor: selected ? '#2D2D2D' : undefined,
-        // For very light colors, add a subtle border
+        // MANDAT 4P — tsc : la propriété `ringColor` n'existe pas dans
+        // CSSProperties (concept Tailwind, pas CSS) — React la ignorait avec
+        // un warning → ligne morte supprimée, zéro changement visuel.
         ...(isLightColor(hex) ? { border: '1px solid rgba(0,0,0,0.12)' } : {}),
       }}
       onClick={onClick}

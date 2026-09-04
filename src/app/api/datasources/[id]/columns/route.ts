@@ -1,6 +1,7 @@
 import { db } from '@/lib/db';
 import { NextRequest, NextResponse } from 'next/server';
 import { STATUS_OPTIONS } from '@/lib/status-config';
+import { toPrismaJson } from '@/lib/prisma-json';
 
 // ── 7 native columns that MUST always exist for every DataSource ──
 // If any are missing from DB (e.g. DataSource created via admin UI without
@@ -38,7 +39,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
             name: nc.name,
             type: nc.type,
             order: nc.order,
-            config: nc.config as Record<string, unknown>,
+            config: toPrismaJson(nc.config as Record<string, unknown>) ?? {},
             visible: true,
             required: false,
           },

@@ -18,7 +18,16 @@ export async function GET() {
     const relationColumns = allColumns.filter(c => c.type === 'RELATION');
 
     // ═══ 2. For each RELATION column, find the target table columns ═══
-    const relationInspections = [];
+    // MANDAT 4P — tsc : tableau explicitement typé (était `[]` → never[],
+    // TS2345 sur le push).
+    const relationInspections: {
+      relationColumn: { id: string; name: string; slug: string; dataSourceId: string; config: unknown };
+      targetTableId: string;
+      targetColumnsCount: number;
+      targetColumns: { slug: string; name: string; type: string; visible: boolean; order: number }[];
+      effectivePivotSlug: string;
+      pivotSource: string;
+    }[] = [];
 
     for (const relCol of relationColumns) {
       const config = (relCol.config as Record<string, unknown>) || {};
@@ -66,9 +75,12 @@ export async function GET() {
 
     // ═══ 4. Extract sample Row.data from the main datasource ═══
     const mainDs = dataSources[0];
-    let sampleRow = null;
-    let sampleRows = null;
-    let targetSampleRows = null;
+    // MANDAT 4P — tsc : `let x = null` inférait le type `null` → TS2322 sur
+    // les affectations suivantes. Types explicites.
+    type DbRow = Awaited<ReturnType<typeof db.row.findMany>>[number];
+    let sampleRow: { id: string; dataSourceId: string; data: unknown } | null = null;
+    let sampleRows: DbRow[] | null = null;
+    let targetSampleRows: DbRow[] | null = null;
 
     if (mainDs) {
       sampleRows = await db.row.findMany({
@@ -99,7 +111,13 @@ export async function GET() {
     }
 
     // ═══ 5. Simulate relationLookupMap for the first RELATION column ═══
-    let lookupSimulation = null;
+    let lookupSimulation: {
+      effectivePivotSlug: string;
+      lookupMapPreview: Record<string, string>;
+      sourceCellValues: { rawValue: unknown; resolved: string }[];
+      matchCount: number;
+      totalChecked: number;
+    } | null = null;
     if (relationColumns.length > 0) {
       const relCol = relationColumns[0];
       const config = (relCol.config as Record<string, unknown>) || {};

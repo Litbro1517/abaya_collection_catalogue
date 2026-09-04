@@ -602,9 +602,13 @@ export function CatalogPreview({ onAdminLogin, initialCatalog, initialDatasource
     for (const { section, columns, rows } of sections) {
       const config = section.config as SectionConfig;
       if (!config.titleColumn) continue;
+      // MANDAT 4P — tsc : narrowing capturé AVANT la closure (les accès
+      // propriété ne survivent pas dans les callbacks find()).
+      const titleCol: string = config.titleColumn;
       const match = rows.find(row => {
-        const title = String(getCellValue(row, config.titleColumn) || '');
-        return slugify(title) === productSlug;
+        const title = String(getCellValue(row, titleCol) || '');
+        // MANDAT 4P — tsc : slugify peut retourner undefined → normalisé
+        return (slugify(title) ?? '') === productSlug;
       });
       if (match) {
         setSelectedProduct({ row: match, columns, section });

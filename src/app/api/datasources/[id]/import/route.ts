@@ -2,6 +2,7 @@ import { db } from '@/lib/db';
 import { NextRequest, NextResponse } from 'next/server';
 import { STATUS_OPTIONS } from '@/lib/status-config';
 import { extractDriveFileId } from '@/lib/media-utils';
+import { toPrismaJson } from '@/lib/prisma-json';
 
 function parseCSV(text: string): string[][] {
   const lines: string[][] = [];
@@ -113,7 +114,6 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
       'category': '__category__',
       'sous_categorie': '__sub_category__',
       'sous-categorie': '__sub_category__',
-      'sous_categorie': '__sub_category__',
       'sous-catégorie': '__sub_category__',
       'subcategory': '__sub_category__',
       'disponibilite': '__disponibilite__',
@@ -184,7 +184,13 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     }
 
     // Create columns
-    const columnsToCreate = [];
+    // MANDAT 4P — tsc : tableau explicitement typé (était `[]` → never[],
+    // TS2345 sur les push suivants). config en Record<string,unknown> puis
+    // narrowé via toPrismaJson au point d'insertion Prisma.
+    const columnsToCreate: {
+      name: string; slug: string; type: string; order: number;
+      visible: boolean; required: boolean; config: Record<string, unknown>;
+    }[] = [];
     const columnsToSkip = new Set<number>();
 
     if (imageGroupIndices.length > 1) {
@@ -248,6 +254,8 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
       await db.column.create({
         data: {
           ...col,
+          // MANDAT 4P — tsc : narrowing JSON-safe → InputJsonObject
+          config: toPrismaJson(col.config) ?? {},
           dataSourceId: id,
         },
       });
@@ -360,7 +368,8 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
       await db.row.create({
         data: {
           dataSourceId: id,
-          data: rowData,
+          // MANDAT 4P — tsc : narrowing JSON-safe → InputJsonObject
+          data: toPrismaJson(rowData) ?? {},
           order: i,
         },
       });

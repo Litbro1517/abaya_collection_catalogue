@@ -1,3 +1,4 @@
+import { toPrismaJson } from '@/lib/prisma-json';
 import { db } from '@/lib/db';
 import { NextRequest, NextResponse } from 'next/server';
 import { extractDriveFileId } from '@/lib/media-utils';
@@ -68,7 +69,7 @@ export async function POST(req: NextRequest) {
           ...urls,
         ];
         data[columnSlug] = allUrls.join(', ');
-        await db.row.update({ where: { id: row.id }, data: { data } });
+        await db.row.update({ where: { id: row.id }, data: { data: toPrismaJson(data) ?? {} } }); // MANDAT 4P — tsc
         injectedCount += urls.length;
         for (const url of urls) {
           const fileId = extractDriveFileId(url);
@@ -85,7 +86,7 @@ export async function POST(req: NextRequest) {
         if (!existing) {
           const url = urlQueue.shift()!;
           data[columnSlug] = url;
-          await db.row.update({ where: { id: row.id }, data: { data } });
+          await db.row.update({ where: { id: row.id }, data: { data: toPrismaJson(data) ?? {} } }); // MANDAT 4P — tsc
           injectedCount++;
           const fileId = extractDriveFileId(url);
           if (fileId) assetRecords.push({ fileId, rowId: row.id, originalUrl: url });

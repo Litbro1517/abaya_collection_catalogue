@@ -4,7 +4,10 @@
  */
 
 const BASE_URL = 'https://abaya-collection-catalogue.vercel.app';
-const PASSWORD = 'abayachic2024';
+// MANDAT 4P — P2 hygiène secrets : mot de passe en clair retiré (audit DUEL 360° réserve D1).
+// Rotation recommandée côté prod — l'ancien valeur ne doit PLUS être considérée sûre.
+const PASSWORD = process.env.ADMIN_PASSWORD || '';
+if (!PASSWORD) { console.error('❌ ADMIN_PASSWORD manquant — exportez-le avant de lancer ce script.'); process.exit(1); }
 const SHEET_ID = '12R09MIIyYtH8Jovdqsk_sSmUGyeGFINcbztLDl1Iu6c';
 const GID = '2087043853';
 const CSV_URL = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/export?format=csv&gid=${GID}`;

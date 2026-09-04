@@ -30,7 +30,10 @@ import {
 } from 'lucide-react';
 
 // ── Column type visual config ──────────────────────────────────────────────
-const COLUMN_TYPES: { value: ColumnType; label: string; description: string; icon: React.ReactNode }[] = [
+// MANDAT 4P — tsc : `frozen?: boolean` ajouté au type — l'entrée RELATION
+// porte ce marqueur (consommé ligne ~334 via `'frozen' in ct && ct.frozen`)
+// mais le type du tableau ne le déclarait pas (TS2353).
+const COLUMN_TYPES: { value: ColumnType; label: string; description: string; icon: React.ReactNode; frozen?: boolean }[] = [
   { value: 'TEXT', label: 'Texte', description: 'Texte simple, une ligne', icon: <Type className="w-4 h-4" /> },
   { value: 'NUMBER', label: 'Nombre', description: 'Valeur numérique', icon: <Hash className="w-4 h-4" /> },
   { value: 'CURRENCY', label: 'Prix', description: 'Valeur monétaire', icon: <Banknote className="w-4 h-4" /> },

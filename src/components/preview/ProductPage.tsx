@@ -3,6 +3,7 @@
 import { useState, useRef, useCallback, useEffect, useMemo } from 'react';
 import type { Section, SectionConfig, Column, ColumnConfig, Row } from '@/types';
 import { resolveColorHex, buildColorLookupMap, normalizeCouleurKey } from '@/lib/color-utils';
+import { getPublicBaseUrl } from '@/lib/site-url';
 import {
   resolveHybridImageUrl as resolveDirectImageUrl,
   resolveProxyUrl as resolveProxyImageUrl,
@@ -239,7 +240,9 @@ export function ProductPage({
   // ━━ Fix V3: productUrl must be declared AFTER title (TDZ fix) ━━
   // V2 placed this before title was declared → ReferenceError at runtime.
   // Now: ssrBaseUrl + slugify(title) → same URL on SSR and client (no #418 mismatch).
-  const ssrBaseUrl = baseUrl || 'https://abaya-collection-catalogue-9dum.vercel.app';
+  // MANDAT 4P — RECTIFICATIONS AUDIT 360° (P1 SEO) : fallback vercel.app →
+  // domaine officiel (getPublicBaseUrl) pour le JSON-LD/BreadcrumbList client.
+  const ssrBaseUrl = baseUrl || getPublicBaseUrl();
   const productSlug = slugify(title || 'produit');
   const productUrl = `${ssrBaseUrl}/?product=${encodeURIComponent(productSlug)}`;
   const price = config.priceColumn ? getCellValue(config.priceColumn) : '';

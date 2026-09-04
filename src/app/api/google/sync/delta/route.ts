@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { fetchPrivateSheetData, fetchPublicSheetAsCsv, generateSlug } from '@/lib/google/sheets';
 import { getValidAccessToken } from '@/lib/google/auth';
 import { resolveImageUrl } from '@/lib/google/drive-images';
+import { toPrismaJson } from '@/lib/prisma-json';
 
 /**
  * POST /api/google/sync/delta
@@ -263,13 +264,19 @@ export async function POST(req: NextRequest) {
       (a, b) => sheetHashOrder[a.hashValue] - sheetHashOrder[b.hashValue]
     );
 
+    // MANDAT 4P — tsc : les champs d'auto-initialisation (isVisible/
+    // isAvailable/quantityInStock) étaient posés sur l'INPUT Prisma —
+    // RowCreateManyInput ne les connaît pas → rejet strict Prisma
+    // (PrismaClientValidationError) sur ce chemin à l'exécution. Reportés
+    // dans row.data via leurs slugs natifs (__disponibilite__/__stock__),
+    // conformément aux conventions du sync complet (cf. sync/route.ts
+    // §« Native columns ») et à l'intention des commentaires d'origine.
+    // (La « visibilité » ligne n'existe pas dans le schéma Row — supprimée,
+    // sans effet possible.)
     const rowsToCreate: {
       dataSourceId: string;
       data: Record<string, unknown>;
       order: number;
-      isVisible: boolean;
-      isAvailable: boolean;
-      quantityInStock: number;
     }[] = [];
 
     for (let idx = 0; idx < sortedNewRows.length; idx++) {
@@ -307,14 +314,14 @@ export async function POST(req: NextRequest) {
       // Statut: "Courant"
       rowDataObj.__statut__ = 'Courant';
       rowDataObj.__statut_locked__ = false;
+      // MANDAT 4P — tsc : cf. commentaire rowsToCreate ci-dessus — slugs natifs
+      rowDataObj.__disponibilite__ = 'false'; // Switch OFF (Stock 0 = Épuisé)
+      rowDataObj.__stock__ = 0;               // Stock = 0
 
       rowsToCreate.push({
         dataSourceId,
         data: rowDataObj,
         order: maxOrder + 1 + idx, // Append after existing rows
-        isVisible: true,            // 👁️ Visible
-        isAvailable: false,         // Switch OFF (Stock 0 = Épuisé)
-        quantityInStock: 0,         // Stock = 0
       });
     }
 
@@ -323,7 +330,8 @@ export async function POST(req: NextRequest) {
     let insertedCount = 0;
     for (let i = 0; i < rowsToCreate.length; i += batchSize) {
       const batch = rowsToCreate.slice(i, i + batchSize);
-      await db.row.createMany({ data: batch });
+      // MANDAT 4P — tsc : narrowing JSON-safe → InputJsonObject
+      await db.row.createMany({ data: batch.map((b) => ({ ...b, data: toPrismaJson(b.data) ?? {} })) });
       insertedCount += batch.length;
     }
 
