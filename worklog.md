@@ -2438,3 +2438,15 @@ Stage Summary:
 - main : gelé à 047caa8 (inchangé, statu quo maintenu)
 - Aucune action supplémentaire sur le dépôt
 - Fin d'intervention
+
+---
+## MANDAT-EXPLORATION-PERF-POST-DEPLOY — fix/post-deploy-deep-audit
+Diagnostic du score mobile 68 post-déploiement. Branche créée depuis origin/main 497426b (main + docs d'audit, AUCUN changement de code — le code est blanchi par la mesure).
+- Les 2 derniers commits main = docs-only (047caa8 rapport erreur + 497426b annulation fusion) — diff code VIDE, zéro dommage collatéral ; le revert GTM vit sur fix/audit-perf-gtm-restore NON fusionnée.
+- PROD LIVE mesurée : 0 fbq/fbevents/gtm-init/CAPI/noscript — HTML 100% propre (env vars absentes du déploiement). Wrapper GTM passif revue code : zéro listener, zéro requête, zéro re-render.
+- Chaîne LCP prod intacte : preconnect@88 + preload imageSrcSet+fetchPriority=high + eager idx<4 (balises multi-lignes).
+- ISR HIT confirmé live (x-nextjs-prerender:1, age 332, stale-time 300) — les headers sécurité ne bloquent pas l'edge.
+- Mesures : D prod live = 69 (reproduit PSI 68 ; LCP 4,8s + TBT 410ms + ScriptEval 1103ms). Expérience E×3 code pré-4P état +90 : 66/80/75 avec ScriptEval ~1s → CODE 4P BLANCHI (coût identique avant/après). Mesures E14 (TBT 0ms) = artefacts non reproductibles.
+- Coupable du 68 : TBT structurel d'hydratation (~1,1s ScriptEval, inchangé depuis l'état +90) + LCP réseau images Supabase cross-origin ; la fenêtre 63-75 passée = env vars Meta actives (cause prouvée, corrigeable par merge de fix/audit-perf-gtm-restore).
+- Gates : lint 0/0, tsc 0, build 0. Branche poussée en attente de feu vert — AUCUN merge.
+- Preuves : /home/z/verify-logs/perf-gtm-restore/ (lh-D-prod-live, lh-E-pre4p-×3, lh-C, HTML prod/local).

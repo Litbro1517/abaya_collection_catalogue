@@ -5660,3 +5660,40 @@ La branche `fix/audit-360-p0-p1` est poussée et **mise en attente explicite de 
 
 ### Preuves brutes
 `/home/z/verify-logs/adf-noindex/` : `tsc-audit360.txt` (0 erreur), `build-audit360.log`, `build-final.log`, `home-audit360.html` (headers/SEO/tracking), `server-audit360*.log`, batteries navigateur E2E (fbq/CAPI event_id).
+
+---
+
+## [MANDAT-EXPLORATION-PERF-POST-DEPLOY — DIAGNOSTIC POST-DÉPLOIEMENT (fix/post-deploy-deep-audit @ 497426b+)]
+
+**Code mission** : `MANDAT-EXPLORATION-PERF-POST-DEPLOY` · **Branche isolée** : `fix/post-deploy-deep-audit` (base `origin/main 497426b`) · **Statut : poussée, EN ATTENTE de feu vert — AUCUN merge vers main.**
+
+### Constat initial — la prémisse du mandat corrigée par les faits
+Les « 2 dernières opérations sur main » ne sont PAS (revert GTM + merge). Ce sont :
+- `047caa8` — docs-only : rapport d'erreur ADF (branche restore introuvable à l'heure de contrôle) ;
+- `497426b` — docs-only : **additif d'annulation définitive** du mandat de fusion par une session ADF parallèle.
+**Preuve : `git diff 497426b~2..497426b -- ':!worklog.md'` = VIDE** (zéro fichier de code touché, zéro dommage collatéral possible — pas de priority/preconnect/props Image altérés). Le revert GTM n'est **pas sur main** : il vit sur la branche poussée `fix/audit-perf-gtm-restore` (ef80e90), fusion annulée.
+
+### 1. Verdict pureté GTM (mesuré, pas déclaré)
+**PROD LIVE** (`https://catalogue.abayacollection.store/`, fetch direct) : `gtm-init=0 · fbevents=0 · fbq=0 · api/meta/conversions=0 · facebook.com/tr=0` — **zéro script, zéro listener, zéro requête réseau, zéro noscript**. Le HTML servi est 100 % propre (les env vars ne sont pas posées sur le déploiement actuel). Idem sur le build local main sans env (run C). Revue de code du wrapper : `<Script>` conditionnel (no hook, no listener), `pushDataLayer` event-driven (aucun appel à l'hydratation), `trackMetaFromGa4` no-op sans env (retour immédiat avant tout travail) → **aucun re-render ni calcul synchrone induit**. Résidus CODE inerts sur main : `src/lib/meta-tracking.ts` + route fantôme `/api/meta/conversions` (0 appel dans le HTML, GET renvoie configured:false) — éliminés par la branche restore en attente de fusion.
+
+### 2. Chaîne critique LCP (vérifiée sur le HTML prod live, multi-lignes)
+`preconnect` CDN Supabase @ byte 88 · preload LCP `as="image"` avec `imageSrcSet` 400/600/800w + `imageSizes` + **`fetchPriority="high"`** ×5 produits + logo · 1ère image produit : **`loading="eager"` + `fetchPriority="high"`** · eager idx<4 confirmé · 6 preloads polices (budget E14). **Rien n'a été perdu.**
+
+### 3. CDN / ISR (en-têtes live)
+`x-nextjs-prerender: 1` · `x-nextjs-stale-time: 300` · `age: 332` → Vercel sert la page **pré-rendue (HIT)**, PAS de re-rendu dynamique par test PSI. `cache-control: public, max-age=0, must-revalidate` = politique edge ISR standard ; les 6 en-têtes sécurité (CSP etc.) **ne bloquent pas** le cache edge (mesuré + déjà prouvé au runtime 3241 : `x-nextjs-cache: HIT`).
+
+### 4. Coupable principal du score 68 — isolé par mesure
+- **D (prod live, Lighthouse 13.4.1 Lantern)** : **score 69** — reproduit le PSI 68 de l'utilisateur. Déficits : **LCP 4,8 s** + **TBT 410 ms** ; main-thread : **Script Evaluation 1 103 ms** (dont chunk `0q8x9wi9idlb6.js` 71 Ko → 655 ms script+parse) ; chaîne réseau : doc 34 Ko@663ms + images Supabase cross-origin ~240 Ko + CSS 38 Ko@680ms.
+- **Expérience décisive E×3 (back-to-back, même rig, même version)** : build du code **pré-4P 952e079 (l'état « +90 »)** → scores **66 / 80 / 75** (LCP 5,1/4,1/3,6 s ; TBT 610/320/620 ms ; ScriptEval 1 050/941/1 582 ms) vs code actuel **C=64** (LCP 5,5 s, TBT 610 ms). **Le code 4P et les 2 commits docs sont BLANCHIS : le coût CPU/réseau est identique avant/après.** Le chunk le plus coûteux (`0q8x9wi9idlb6.js`) est présent À L'IDENTIQUE dans le HTML prod pré-4P archivé (E15).
+- **Les mesures E14 historiques (TBT 0 ms, ScriptEval 37-54 ms) ne sont pas reproductibles** sur le rig actuel pour le même code → artefacts de la session E14 (Lighthouse 12.4/trace). Le différentiel PSI +90→68 s'explique par : (a) la **fenêtre d'activation des env vars Meta** (63-75, cause PROUVÉE par A/B 55 vs 80 — corrigée par merge de la branche restore), (b) le **TBT structurel d'hydratation** (~1,1 s ScriptEval, inchangé depuis l'état +90 sur le même rig — révélé par les versions Lighthouse/PSI actuelles), (c) la latence réseau réelle vers le CDN Supabase cross-origin pour le LCP.
+
+### 5. Recommandations (décision développeur)
+1. **Merger `fix/audit-perf-gtm-restore`** (déjà poussée, gates verts) : immunise la prod contre toute réactivation des env vars Meta (la seule cause PROUVÉE de régression) ;
+2. TBT structurel (si 90+ visé) : chantier architectural — E14 P1 (preload polices false, ~600-800 ms), P2 (eager 4→2, ~200-300 ms), P3 (régime RSC/JS) ;
+3. LCP : origine images cross-origin Supabase — options : domain CDN dédié même-orgine, ou priorisation durcie.
+
+### Gates (branche = main + docs)
+`bun run lint` **0/0 exit 0** · `bunx tsc --noEmit` **0 erreur** · `bun run build` **exit 0** (typecheck actif sans ignoreBuildErrors).
+
+### Preuves brutes
+`/home/z/verify-logs/perf-gtm-restore/` : `lh-D-prod-live.json` (69, reproduction PSI), `lh-E-pre4p-{1,2,3}.json` (code +90 blanchi), `lh-C-main-noenv.json` (64), `prod-live-post-deploy.html` (pureté + LCP chain), `home-main-noenv-C.html`.
