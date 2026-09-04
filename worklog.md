@@ -2159,3 +2159,25 @@ Stage Summary:
 - ISR : préservé (route / = ○ Static 5m/1y)
 - NEXT_PUBLIC_BASE_URL : catalogue.abayacollection.store (déjà configuré)
 - Supabase branding PNG Cache-Control : no-cache (limitation free tier, non-bloquant — 13 KiB)
+
+---
+
+Task ID: MANDAT-ADF-LCP-ALIGNMENT-V2
+Agent: dev-agent (audit ADF + fusion conditionnelle)
+Task: MANDAT ADF — Audit, Alignement Architectural & Fusion Production (fix/mobile-lcp-desktop-parity-v2)
+
+Work Log:
+- Branche fix/mobile-lcp-desktop-parity-v2 créée depuis main 59bd88c (était local-only sur le rig auditeur, recréée par l'agent développeur)
+- Fix 1 (polices) : bug critique découvert par l'auditeur dans le split 2-instances Zain (zainArabic+zainLatin partageant --font-zain) → @font-face dupliquées à URLs divergentes (.p. infix pour preloads vs non-.p. pour @font-face) → double fetch 15.8 KiB + preloads morts. CORRIGÉ : instance unique `subsets:["arabic"]`, weight ["400","700"], preload:true → 4 woff2 (vs 6), zéro doublon, preloads matchés par @font-face.
+- Fix 2 (PDP) : ProductPage.tsx carousel image principale fixe à 1000w sans srcSet → surdimensionnée sur mobile (412px viewport). CORRIGÉ : srcSet 400/600/800/1000w + sizes "(max-width: 768px) 100vw, 480px" + image ACTIVE utilise 600w (au lieu de 1000w) + vignette active partage la MÊME URL 600w (dedup : 1 téléchargement réseau au lieu de 2).
+- Gates : lint 0/0, tsc 134 baseline (0 nouvelle), build exit 0, ISR ○ Static 5m/1y
+- Preuves Agent Browser : 4/4 images chargées, font preloads 2 (zéro doublon), PDP main_img has srcSet+sizes, currentSrc=width=600 (vs 1000 avant), CLS=0.0000, html lang=ar dir=rtl, 0 erreur console
+- CAS A déclenché : 100% conforme → merge --no-ff + push
+
+Stage Summary:
+- Verdict : 🟢 CAS A — 100% CONFORME, fusion exécutée
+- Bug double-fetch polices : CORRIGÉ (4 woff2, zéro doublon, preloads matchés)
+- PDP double fetch 1000w+200w : CORRIGÉ (dedup 600w unique + srcSet responsive)
+- CLS : 0.0000 (zéro régression)
+- RTL/Arabic : préservé
+- ISR : préservé (route / = ○ Static 5m/1y)

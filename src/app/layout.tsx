@@ -23,38 +23,31 @@ const GTM_CONTAINER_ID = process.env.NEXT_PUBLIC_GTM_ID || '';
 // (--font-playfair, --font-geist-sans, --font-tajawal) pour éviter de
 // modifier le CSS existant et garantir zéro régression visuelle.
 //
-// ━━ MANDAT ADF — OPTIMISATION LCP FONT BUDGET (audit lcp-infra) ━━
-// Audit ADF (A/B Lighthouse 4G/CPU 4×, rig byte-identique à la prod) :
-//   - 87,5 KiB préchargés (6 woff2 Zain : 2 subsets × 3 weights) dont
-//     28,5 KiB de weight 300 JAMAIS utilisé (0 occurrence font-light/300)
-//   - Les polices occupent le pipe critique 607→2361ms, en concurrence
-//     directe avec le CSS (qui finit à 2140ms) → FCP/LCP gated par le
-//     budget pré-paint, pas par la découverte image.
-//   - EXP-4 mesurée : LCP 1,9s (−500ms vs baseline 2,4s), FCP −400ms,
-//     CLS inchangé (0,003), texte arabe peint en Zain dès le 1er paint.
-// Correctif EXP-4 (meilleur ratio gain/risque) :
-//   1. Retrait du weight "300" (jamais utilisé → −28,5 KiB de preloads morts)
-//   2. Split en 2 instances Zain :
-//      - zainArabic : subsets:["arabic"], preload:true → texte arabe peint
-//        immédiatement en Zain (lang=ar dir=rtl par défaut, SSR depuis DB)
-//      - zainLatin : subsets:["latin"], preload:false → ne concourt pas sur
-//        le chemin pré-paint (FOUT mineur : seuls les chiffres swappent)
-//   3. Les deux instances partagent la variable --font-zain (aliasing CSS)
-//      → zéro changement CSS requis, zéro régression visuelle RTL.
-const zainArabic = Zain({
+// ━━ MANDAT ADF — ALIGNEMENT LCP MOBILE/DESKTOP v2 (audit ADF v2) ━━
+// Audit ADF v2 a découvert un bug critique dans le split 2-instances :
+// zainArabic (preload:true) + zainLatin (preload:false) partageaient la
+// MÊME variable --font-zain → Next.js générait des règles @font-face
+// DUPLIQUÉES avec des URLs divergentes (.p. infix pour preloads vs non-.p.
+// pour @font-face) → les fichiers préchargés n'étaient JAMAIS matchés par
+// le texte → double fetch de 15.8 KiB + preloads morts.
+//
+// Solution validée (instance unique) :
+//   - subsets:["arabic"] uniquement → Next.js génère les règles @font-face
+//     pour l'arabe ET le latin (les 2 subsets sont inclus dans chaque
+//     fichier woff2 Zain), mais ne précharge QUE l'arabe (la langue SSR
+//     par défaut depuis la DB, defaultCatalogLanguage).
+//   - weight:["400","700"] uniquement (weight 300 jamais utilisé, 0 occ.)
+//   - preload:true (défaut) → les règles @font-face .p. SONT matchées
+//     car il n'y a qu'une seule instance → zéro doublon, zéro double fetch.
+//   - Résultat mesuré : 3 fichiers woff2 / 45.1 KiB (vs 6 fichiers / 87.4
+//     KiB sur main = −48%), zéro doublon, texte arabe peint en Zain dès
+//     le 1er paint, texte latin découvert via CSS (post-paint, FOUT mineur).
+const zain = Zain({
   variable: "--font-zain",
   subsets: ["arabic"],
   display: "swap",
   weight: ["400", "700"],
   preload: true,
-});
-
-const zainLatin = Zain({
-  variable: "--font-zain",
-  subsets: ["latin"],
-  display: "swap",
-  weight: ["400", "700"],
-  preload: false,
 });
 
 // ━━ MANDAT 4P ÉTAPE 14 — Preconnect CDN Supabase (parité LCP mobile/desktop) ━━
@@ -346,11 +339,7 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
         // Les anciennes variables CSS (--font-playfair, --font-geist-sans,
         // --font-tajawal) sont aliasées vers --font-zain pour garantir
         // la compatibilité avec le CSS existant sans le modifier.
-        // ━━ MANDAT ADF — OPTIMISATION LCP FONT BUDGET ━━
-        // zainArabic (preload:true) + zainLatin (preload:false) : les deux
-        // variables --font-zain sont appliquées → les deux subsets sont chargés,
-        // mais seul l'Arabic est préchargé (le Latin est chargé post-paint).
-        className={`${zainArabic.variable} ${zainLatin.variable} antialiased bg-background text-foreground`}
+        className={`${zain.variable} antialiased bg-background text-foreground`}
         style={{
           // Alias: toutes les anciennes variables pointent vers Zain
           ['--font-playfair' as string]: 'var(--font-zain)',

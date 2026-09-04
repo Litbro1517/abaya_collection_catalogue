@@ -787,13 +787,33 @@ export function ProductPage({
               >
                 {carouselImages.map((rawUrl, i) => {
                   const isVisible = Math.abs(i - carouselIdx) <= 2;
-                  const directUrl = isVisible ? resolveDirectImageUrl(rawUrl, 1000, { mode: 'contain' }) : '';
-                  const proxyUrl = isVisible ? resolveProxyImageUrl(rawUrl, 1000) : '';
+                  // ━━ MANDAT ADF v2 — PDP responsive srcSet + dedup thumbnail ━━
+                  // Avant : image principale fixée à 1000w sans srcSet → surdimensionnée
+                  // sur mobile (412px viewport, DPR 1 → 1000w = 2.4× trop large).
+                  // Fix : srcSet 400w/600w/800w/1000w + sizes adapté au layout PDP
+                  // (mobile=100vw, desktop=480px). Le navigateur sélectionne la bonne
+                  // largeur → -85% poids image sur mobile.
+                  // Dedup : l'image ACTIVE (carouselIdx === i) partage la MÊME URL que
+                  // sa vignette (thumbnail) → un seul téléchargement réseau pour 2
+                  // éléments visuels (avant : 1000w + 200w simultanés = double fetch).
+                  const isActive = carouselIdx === i;
+                  const mainW = isActive ? 600 : 1000;
+                  const directUrl = isVisible ? resolveDirectImageUrl(rawUrl, mainW, { mode: 'contain' }) : '';
+                  const proxyUrl = isVisible ? resolveProxyImageUrl(rawUrl, mainW) : '';
+                  const srcSet = isVisible ? `
+                    ${resolveDirectImageUrl(rawUrl, 400, { mode: 'contain' })} 400w,
+                    ${resolveDirectImageUrl(rawUrl, 600, { mode: 'contain' })} 600w,
+                    ${resolveDirectImageUrl(rawUrl, 800, { mode: 'contain' })} 800w,
+                    ${resolveDirectImageUrl(rawUrl, 1000, { mode: 'contain' })} 1000w
+                  ` : '';
+                  const sizes = '(max-width: 768px) 100vw, 480px';
                   return (
                     <div key={i} className="product-page-carousel-slide">
                       {isVisible ? (
                         <img
                           src={directUrl}
+                          srcSet={srcSet}
+                          sizes={sizes}
                           alt={`${title} - ${i + 1}`}
                           // MANDAT 4P PageSpeed fix — explicit width/height (CLS) +
                           // fetchPriority high on first slide (LCP optimization).
@@ -923,8 +943,14 @@ export function ProductPage({
               </button>
               <div className="pdp-thumbnail-row">
                 {carouselImages.map((rawUrl, i) => {
-                  const thumbUrl = resolveDirectImageUrl(rawUrl, 200, { mode: 'contain' });
-                  const thumbProxy = resolveProxyImageUrl(rawUrl, 200);
+                  // ━━ MANDAT ADF v2 — dedup thumbnail/principal ━━
+                  // L'image ACTIVE (carouselIdx === i) utilise la MÊME URL 600w que l'image
+                  // principale → un seul téléchargement réseau pour 2 éléments visuels.
+                  // Les vignettes non-actives restent à 200w (lazy, hors chemin critique).
+                  const isActive = carouselIdx === i;
+                  const thumbW = isActive ? 600 : 200;
+                  const thumbUrl = resolveDirectImageUrl(rawUrl, thumbW, { mode: 'contain' });
+                  const thumbProxy = resolveProxyImageUrl(rawUrl, thumbW);
                   return (
                     <button
                       key={i}
