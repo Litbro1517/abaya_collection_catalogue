@@ -21,16 +21,6 @@ import { getPublicBaseUrl } from '@/lib/site-url';
 const GTM_CONTAINER_ID = (process.env.NEXT_PUBLIC_GTM_ID || '').trim();
 const GTM_ENABLED = /^GTM-[A-Za-z0-9]+$/.test(GTM_CONTAINER_ID);
 
-// ━━ MANDAT 4P — RECTIFICATIONS AUDIT 360° (P0 Tracking Meta) ━━
-// Meta Pixel base code — activé uniquement quand NEXT_PUBLIC_META_PIXEL_ID
-// est défini au build. Le PageView initial est tracké AVEC un event_id unique
-// partagé client/serveur (pattern Meta de déduplication CAPI) : le même
-// event_id part vers le Pixel navigateur (fbq 4e argument) ET vers notre pont
-// serveur /api/meta/conversions (Conversions API). Meta déduplique sur la
-// paire (event_name, event_id) → comptage unique et robuste (adblock, iOS).
-const META_PIXEL_ID = (process.env.NEXT_PUBLIC_META_PIXEL_ID || '').trim();
-const META_PIXEL_ENABLED = /^\d{8,20}$/.test(META_PIXEL_ID);
-
 // MANDAT 4P — Optimisation LCP : police unique Zain
 // Avant : 4 familles chargées simultanément (Playfair Display + Inter +
 // Zain + Tajawal) → 590ms de blocage du rendu sur mobile (render-blocking).
@@ -312,23 +302,6 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
             }}
           />
         ) : null}
-        {/* ━━ MANDAT 4P — RECTIFICATIONS AUDIT 360° (P0 Tracking Meta) ━━
-            Meta Pixel base code — même pattern conditionnel que GTM ci-dessus
-            (ternaire `: null` — jamais de nœud texte vide, cf. correctif M2
-            hydration). Charge fbevents.js, initialise le Pixel, puis track le
-            PageView initial avec event_id unique + miroir CAPI serveur.
-            Zéro injection quand NEXT_PUBLIC_META_PIXEL_ID est absent. */}
-        {META_PIXEL_ENABLED ? (
-          <Script
-            id="meta-pixel-init"
-            strategy="afterInteractive"
-            dangerouslySetInnerHTML={{
-              __html: `!function(f,b,e,v,n,t,s){if(f.fbq)return;n=f.fbq=function(){n.callMethod?n.callMethod.apply(n,arguments):n.queue.push(arguments)};if(!f._fbq)f._fbq=n;n.push=n;n.loaded=!0;n.version='2.0';n.queue=[];t=b.createElement(e);t.async=!0;t.src=v;s=b.getElementsByTagName(e)[0];s.parentNode.insertBefore(t,s)}(window,document,'script','https://connect.facebook.net/en_US/fbevents.js');
-fbq('init', '${META_PIXEL_ID}');
-(function(){try{var eid=(window.crypto&&window.crypto.randomUUID)?window.crypto.randomUUID():'evt-'+Date.now().toString(36)+'-'+Math.random().toString(36).slice(2,10);window.fbq('track','PageView',{}, {eventID: eid});var p=JSON.stringify({event_name:'PageView',event_id:eid,custom_data:{},event_source_url:window.location.href});fetch('/api/meta/conversions',{method:'POST',headers:{'Content-Type':'application/json'},body:p,keepalive:true}).catch(function(){});}catch(e){}})();`,
-            }}
-          />
-        ) : null}
         {/* ━━ SEO V2: JSON-LD Organization — variabilisé depuis DB ━━ */}
         <script
           type="application/ld+json"
@@ -376,19 +349,6 @@ fbq('init', '${META_PIXEL_ID}');
               height="0"
               width="0"
               style={{ display: 'none', visibility: 'hidden' }}
-            />
-          </noscript>
-        ) : null}
-        {/* ━━ MANDAT 4P — RECTIFICATIONS AUDIT 360° (P0 Tracking Meta) ━━
-            noscript du Pixel (visiteurs sans JS) — même garde conditionnelle. */}
-        {META_PIXEL_ENABLED ? (
-          <noscript>
-            <img
-              height="1"
-              width="1"
-              style={{ display: 'none' }}
-              alt=""
-              src={`https://www.facebook.com/tr?id=${META_PIXEL_ID}&ev=PageView&noscript=1`}
             />
           </noscript>
         ) : null}

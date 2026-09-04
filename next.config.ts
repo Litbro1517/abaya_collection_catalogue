@@ -15,7 +15,9 @@ const withBundleAnalyzer = bundleAnalyzer({
 // CSP). Injectés via headers() pour TOUTES les routes (statiques, ISR,
 // API). Adaptés à la stack réelle :
 //   - GTM (googletagmanager.com) + GA (google-analytics.com, analytics.google.com)
-//   - Meta Pixel (connect.facebook.net, facebook.com/tr) + CAPI (graph.facebook.com)
+//   - Tags gérés PAR le conteneur GTM (GA4, éventuel Pixel via GTM :
+//     connect.facebook.net, facebook.com/tr, graph.facebook.com — le
+//     tracking passe par GTM, jamais par du code applicatif direct)
 //   - Images produit : Supabase CDN (*.supabase.co) + Google (lh3/googleusercontent)
 //   - next/font : polices self-hostées (pas de fonts.googleapis.com)
 //   - Scripts d'hydratation Next.js : inline → 'unsafe-inline' requis
@@ -43,8 +45,8 @@ const SECURITY_HEADERS = [
       "style-src 'self' 'unsafe-inline'",
       // Images produit Supabase/Google + trackers (img pixel) + data URLs
       "img-src 'self' data: blob: https: http:",
-      // CAPI serveur passe par notre route API (same-origin) ; GTM/GA/Meta
-      // téléchargent leurs configs depuis ces origines
+      // GA4/Meta téléchargés/consommés par les tags GÉRÉS PAR LE CONTENEUR
+      // GTM (googletagmanager) — zéro code de tracking direct dans l'app
       "connect-src 'self' https://www.googletagmanager.com https://www.google-analytics.com https://analytics.google.com https://*.supabase.co https://connect.facebook.net https://graph.facebook.com",
       "font-src 'self' data:",
       // GTM preview (mode debug) — sinon aucun frame nécessaire
