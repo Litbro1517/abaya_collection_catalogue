@@ -2122,3 +2122,40 @@ Stage Summary:
 - NEXT_PUBLIC_BASE_URL : vercel.app → catalogue.abayacollection.store
 - LCP preload + preconnect + CLS fix : préservés
 - Engagement écrit : aucune ligne de code applicatif modifiée ou altérée dans le dépôt Git
+
+---
+
+Task ID: MANDAT-ADF-LCP-FONT-BUDGET
+Agent: dev-agent (audit ADF + fusion conditionnelle)
+Task: MANDAT ADF — Contrôle, Optimisation & Configuration Infra (font budget LCP, NEXT_PUBLIC_BASE_URL, Supabase cache)
+
+Work Log:
+- Audit du rapport de l'agent auditeur (A/B Lighthouse 4G/CPU 4×, rig byte-identique à la prod)
+- Création de la branche isolée fix/lcp-font-budget depuis main 977997b
+- Implementation P1 + EXP-4 dans src/app/layout.tsx :
+  - Retrait du weight "300" (jamais utilisé — 0 occurrence font-light/300 dans le code → −28,5 KiB de preloads morts)
+  - Split Zain en 2 instances : zainArabic (subsets:["arabic"], preload:true, weights ["400","700"]) + zainLatin (subsets:["latin"], preload:false, weights ["400","700"])
+  - Les deux instances partagent la variable --font-zain (aliasing CSS) → zéro changement CSS requis
+  - Body className : `${zainArabic.variable} ${zainLatin.variable}` (les deux appliquées)
+- NEXT_PUBLIC_BASE_URL : déjà restauré à https://catalogue.abayacollection.store (mandat reconfig infra précédent)
+- Supabase branding PNG Cache-Control : tentative de mise à jour (download + re-upload avec cacheControl form field + x-upsert header). Échec : Supabase Storage free tier gateway enforce `no-cache` au niveau du gateway, indépendamment du cacheControl objet. Documenté comme limitation connue. Note : les images produit via render API ont déjà `max-age=31536000` (cache CDN optimal).
+- Gates qualité :
+  - bun run lint → 0 erreur / 0 warning ✅
+  - npx tsc --noEmit → 134 erreurs (baseline 952e079, 0 nouvelle sur layout.tsx) ✅
+  - bun run build → exit 0 ✅, route / = ○ Static Revalidate 5m / Expire 1y ✅
+- Vérification HTML servi (production start) :
+  - Font preloads : 2 (down from 6) ✅ — Arabic 400 + Arabic 700 uniquement
+  - --font-zain variable : présente (4 références) ✅
+  - CLS = 0.0000 ✅
+  - Page rend le catalogue (header + grid + 4 images) ✅
+- CAS A déclenché : 100% conforme → merge --no-ff + push origin/main
+
+Stage Summary:
+- Verdict : 🟢 CAS A — 100% CONFORME, fusion exécutée
+- Font preloads : 6 → 2 (−67%, −28,5 KiB de preloads morts éliminés)
+- LCP attendu : ~1,9s (−500ms vs baseline 2,4s mesuré par l'auditeur EXP-4)
+- CLS : 0.0000 (zéro régression visuelle)
+- RTL/Arabic : préservé (Arabic preload:true → texte arabe peint en Zain dès le 1er paint)
+- ISR : préservé (route / = ○ Static 5m/1y)
+- NEXT_PUBLIC_BASE_URL : catalogue.abayacollection.store (déjà configuré)
+- Supabase branding PNG Cache-Control : no-cache (limitation free tier, non-bloquant — 13 KiB)
