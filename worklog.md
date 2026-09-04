@@ -2084,3 +2084,41 @@ Work Log:
 
 Stage Summary:
 Rapport d'exploration détaillé ci-dessous.
+
+---
+
+Task ID: MANDAT-RECONFIG-INFRA
+Agent: dev-agent (reconfiguration infrastructure)
+Task: MANDAT D'EXÉCUTION & RECONFIGURATION INFRASTRUCTURE — Restauration des 4 variables d'environnement Vercel corrompues
+
+Work Log:
+- Sauvegarde de sécurité : export de toutes les valeurs Vercel actuelles avant intervention (/tmp/vercel-env-backup.json)
+- Récupération des vraies clés Supabase via Management API (anon 208 chars JWT, service_role 219 chars JWT)
+- Vérification préalable des vraies clés : anon → auth health 200 OK, service_role → Storage API 200 [bucket list]
+- Mise à jour des 4 variables d'environnement Vercel (delete + recreate pour garantir le stockage correct) :
+  1. SUPABASE_URL : (vide) → https://ldvbfsnqgulynwxqwzau.supabase.co (type=plain, 40 chars)
+  2. SUPABASE_ANON_KEY : (vide) → JWT anon réelle (type=plain, 208 chars, format eyJ...)
+  3. SUPABASE_SERVICE_ROLE_KEY : (corrompu 1656 chars base64 JSON) → JWT service_role réelle (type=encrypted, 219 chars, déchiffrée au build)
+  4. NEXT_PUBLIC_BASE_URL : vercel.app → https://catalogue.abayacollection.store (type=plain, 39 chars)
+- Redéploiement Vercel déclenché (redeploy production dpl_9g5DpJPTZpG)
+- Validation post-déploiement :
+  - sitemap.xml : HTTP 200 ✅ (URLs encore vercel.app — voir note ci-dessous)
+  - canonical : présent ✅ (encore vercel.app — voir note)
+  - noindex : 0 occurrence ✅
+  - html lang=ar dir=rtl class=rtl ✅ (CLS fix préservé)
+  - LCP preload image : présent ✅ avec imageSrcSet 3 URLs resize=contain + fetchPriority=high ✅
+  - preconnect Supabase : présent ✅
+  - API scan-bucket : 400 {"error":"dataSourceId is required"} ✅ (était 403 Invalid Compact JWS — clés corrompues fixées)
+  - API catalog : 200 OK ✅
+  - Vercel deployment : dpl_9g5DpJPT READY ✅
+
+Note sitemap/canonical : NEXT_PUBLIC_BASE_URL est correctement set à catalogue.abayacollection.store, mais le code à 952e079 lit canonicalUrl depuis la DB __seo_metadata__ (Postgres prod) qui est encore set à vercel.app. L'helper site-url.ts (qui lit NEXT_PUBLIC_BASE_URL) a été ajouté dans c0f765d (annulé par rollback). Correction requise côté DB (admin Settings → SEO → canonicalUrl) ou code update.
+
+Stage Summary:
+- Verdict : 🟢 4/4 variables restaurées, deployment READY, erreurs 403 résorbées
+- Aucune ligne de code modifiée (0 commit sur Git, 0 fichier src/ touché)
+- SERVICE_ROLE_KEY : corrompu → JWT valide (403 → 400 = auth OK, validation error seulement)
+- SUPABASE_URL + ANON_KEY : vides → valeurs réelles
+- NEXT_PUBLIC_BASE_URL : vercel.app → catalogue.abayacollection.store
+- LCP preload + preconnect + CLS fix : préservés
+- Engagement écrit : aucune ligne de code applicatif modifiée ou altérée dans le dépôt Git
