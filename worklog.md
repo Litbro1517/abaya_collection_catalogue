@@ -2396,3 +2396,24 @@ Stage Summary:
 - Domaine officiel : fallback code correct (catalogue.abayacollection.store), DB override à updater côté ops
 - ISR : préservé (route / = ○ Static 5m/1y)
 - CLS/LCP : préservés (preconnect + preload + no-flash script intacts)
+
+---
+
+Task ID: MANDAT-ADF-GTM-RESTORE-PERF
+Agent: dev-agent (audit ADF final)
+Task: MANDAT ADF — Audit, fusion et déploiement production de la branche fix/audit-perf-gtm-restore
+
+Work Log:
+- Tentative de fetch de la branche `fix/audit-perf-gtm-restore` depuis origin
+- `git fetch ... fix/audit-perf-gtm-restore` → fatal: couldn't find remote ref fix/audit-perf-gtm-restore
+- Énumération exhaustive de TOUS les refs/heads/ du dépôt distant (42 branches listées)
+- Aucune branche ne correspond à `fix/audit-perf-gtm-restore` ou à une variante (gtm.restore, perf.gtm, gtm.perf)
+- Branches existantes les plus proches : fix/head-hydration-gtm-null, fix/perf-lcp-cls-optimization, fix/perf-mobile-global-refactor, fix/perf-optimization-v2, fix/audit-360-p0-p1, fix/audit-remediation-zai
+- Constat : la branche source mentionnée dans le mandat n'existe PAS sur le dépôt distant
+- main reste GELÉ à ac47c3c (aucune modification, aucun commit)
+
+Stage Summary:
+- Verdict : 🔴 CAS B — NON-CONFORME — FUSION BLOQUÉE
+- Raison : branche source `fix/audit-perf-gtm-restore` inexistante sur le dépôt distant
+- main : gelé à ac47c3c (inchangé)
+- Action requise : créer et pousser la branche `fix/audit-perf-gtm-restore` sur le dépôt, puis relancer le mandat
