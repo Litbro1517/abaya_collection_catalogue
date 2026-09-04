@@ -5651,3 +5651,44 @@ Les rectifications et optimisations postérieures à `952e079` (tracking Meta CA
 - LCP preload + preconnect Supabase préservés
 - CLS fix préservé
 - Scores PageSpeed attendus : 92/100 Mobile, 99/100 Bureau
+
+## [MANDAT ADF — OPTIMISATION LCP FONT BUDGET (fix/lcp-font-budget @ 1884e2d)]
+
+**Branche** : `fix/lcp-font-budget` (depuis main @ `977997b`, commit `1884e2d`).
+**Merge** : `1884e2d` poussé sur main, Vercel READY `dpl_eYvGsgCK`.
+
+### Audit ADF (rapport agent auditeur, A/B Lighthouse 4G/CPU 4×)
+- 87,5 KiB préchargés (6 woff2 Zain : 2 subsets × 3 weights) dont 28,5 KiB de weight 300 JAMAIS utilisé
+- Les polices occupent le pipe critique 607→2361ms, en concurrence avec CSS (fini à 2140ms)
+- EXP-4 mesurée : LCP 1,9s (−500ms vs baseline 2,4s), FCP −400ms, CLS inchangé (0,003)
+
+### Correctif EXP-4 (meilleur ratio gain/risque)
+- `src/app/layout.tsx` : retrait weight "300" + split en 2 instances Zain :
+  - `zainArabic` : subsets:["arabic"], preload:true, weight:["400","700"] → texte arabe peint en Zain dès le 1er paint
+  - `zainLatin` : subsets:["latin"], preload:false, weight:["400","700"] → ne concourt pas sur le chemin pré-paint
+  - Les deux instances partagent la variable `--font-zain` (aliasing CSS) → zéro changement CSS requis
+  - Body className : `${zainArabic.variable} ${zainLatin.variable}`
+
+### Gates qualité
+- `bun run lint` → **0 erreur / 0 warning** ✅
+- `npx tsc --noEmit` → **134 erreurs** (baseline 952e079, 0 nouvelle sur layout.tsx) ✅
+- `bun run build` → **exit 0** ✅, route `/` = `○ (Static) Revalidate 5m / Expire 1y` ✅
+
+### Preuves production (Vercel READY `dpl_eYvGsgCK`)
+- Font preloads : **2** (down from 6, −67%, −28,5 KiB de preloads morts éliminés) ✅
+- `<html lang="ar" dir="rtl" class="rtl">` (CLS fix préservé) ✅
+- LCP preload `fetchPriority="high"` (préservé) ✅
+- preconnect Supabase (préservé) ✅
+- noindex : 0 (site indexable) ✅
+- CLS : 0.0000 ✅
+
+### Infrastructure
+- `NEXT_PUBLIC_BASE_URL` : `https://catalogue.abayacollection.store` (déjà configuré, mandat reconfig infra)
+- Supabase branding PNG Cache-Control : `no-cache` (limitation Supabase Storage free tier gateway — non-bloquant, 13 KiB)
+- Product images via render API : `max-age=31536000` ✅ (cache CDN optimal)
+
+### Métriques attendues
+- LCP mobile : ~1,9s (−500ms vs baseline 2,4s, mesuré par l'auditeur EXP-4)
+- CLS : 0.0000 (zéro régression visuelle)
+- RTL/Arabic : préservé (Arabic preload:true → texte arabe peint en Zain dès le 1er paint)
+- ISR : préservé (route / = ○ Static 5m/1y)
