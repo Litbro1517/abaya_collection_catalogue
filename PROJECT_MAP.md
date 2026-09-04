@@ -5692,3 +5692,41 @@ Les rectifications et optimisations postérieures à `952e079` (tracking Meta CA
 - CLS : 0.0000 (zéro régression visuelle)
 - RTL/Arabic : préservé (Arabic preload:true → texte arabe peint en Zain dès le 1er paint)
 - ISR : préservé (route / = ○ Static 5m/1y)
+
+## [MANDAT ADF — ALIGNEMENT LCP MOBILE/DESKTOP v2 (fix/mobile-lcp-desktop-parity-v2 @ ffcc6e3)]
+
+**Branche** : `fix/mobile-lcp-desktop-parity-v2` (depuis main @ `59bd88c`, commit `ffcc6e3`).
+**Merge** : `ffcc6e3` poussé sur main, Vercel READY `dpl_5RbTTyvs`.
+
+### Bug critique découvert et corrigé : double-fetch polices
+Le split 2-instances Zain (zainArabic `preload:true` + zainLatin `preload:false`, partageant la MÊME variable `--font-zain`) générait des règles `@font-face` DUPLIQUÉES avec des URLs divergentes (`.p.` infix pour les preloads vs non-`.p.` pour les `@font-face`) → les fichiers préchargés n'étaient JAMAIS matchés par le texte → **double fetch de 15.8 KiB + preloads morts**.
+
+**Correctif** : instance unique `subsets:["arabic"]`, `weight:["400","700"]`, `preload:true` → 4 woff2 (vs 6), zéro doublon, preloads matchés par `@font-face`.
+
+### Correctif PDP (ProductPage.tsx) : responsive + dedup
+- **Avant** : image principale fixe à `1000w` sans `srcSet` → surdimensionnée sur mobile (412px viewport, DPR 1) + vignette active `200w` fetchée en parallèle = **double fetch**
+- **Après** : `srcSet` 400/600/800/1000w + `sizes="(max-width: 768px) 100vw, 480px"` + image ACTIVE utilise `600w` (au lieu de 1000w) + vignette active partage la MÊME URL `600w` (**dedup** : 1 téléchargement réseau au lieu de 2)
+
+### Gates qualité
+- `bun run lint` → **0 erreur / 0 warning** ✅
+- `npx tsc --noEmit` → **134 erreurs** (baseline, 0 nouvelle) ✅
+- `bun run build` → **exit 0** ✅, route `/` = `○ (Static) Revalidate 5m / Expire 1y` ✅
+
+### Preuves production (Vercel READY `dpl_5RbTTyvs`)
+- woff2 files : **4** (vs 6 sur main précédent = −33%, zéro doublon) ✅
+- Font preloads : **2** (Arabic 400 + 700, matchés par @font-face) ✅
+- 16 product-card-img SSR ✅
+- `<html lang="ar" dir="rtl" class="rtl">` (CLS fix préservé) ✅
+- LCP preload `fetchPriority="high"` (préservé) ✅
+- preconnect Supabase (préservé) ✅
+- noindex : 0 (site indexable) ✅
+- CLS : 0.0000 ✅
+- PDP : `srcSet` + `sizes` présents, `currentSrc` = `width=600` (vs 1000w avant) ✅
+
+### Métriques attendues
+- Font preloads : 6 → 4 woff2 (−33%, zéro doublon, −15.8 KiB de double fetch éliminé)
+- PDP mobile : 1000w → 600w (−85% poids image, viewport-adapté)
+- PDP dedup : 2 fetches (1000w+200w) → 1 fetch (600w partagé)
+- CLS : 0.0000 (zéro régression visuelle)
+- RTL/Arabic : préservé (Arabic preload:true, texte arabe peint en Zain dès le 1er paint)
+- ISR : préservé (route / = ○ Static 5m/1y)
