@@ -2417,3 +2417,24 @@ Stage Summary:
 - Raison : branche source `fix/audit-perf-gtm-restore` inexistante sur le dépôt distant
 - main : gelé à ac47c3c (inchangé)
 - Action requise : créer et pousser la branche `fix/audit-perf-gtm-restore` sur le dépôt, puis relancer le mandat
+
+---
+
+Task ID: MANDAT-ADF-GTM-RESTORE-PERF-ANNULATION
+Agent: dev-agent
+Task: ADDITIF — Annulation immédiate et définitive du mandat MANDAT-ADF-GTM-RESTORE-PERF
+
+Work Log:
+- Réception de l'ordre d'annulation et de renoncement
+- Vérification de l'état de main : HEAD = 047caa8, working tree clean, aucun audit/fusion/push en cours
+- Aucun audit effectué, aucune vérification de pipeline (lint/tsc/build) lancée
+- Aucune résolution de conflits entreprise
+- Aucune fusion de fix/audit-perf-gtm-restore vers main
+- Aucun push sur main, aucun build Vercel déclenché
+- main demeure gelé et intact à 047caa8
+
+Stage Summary:
+- Verdict : ✅ ANNULATION ACQUITTÉE — renoncement définitif au mandat
+- main : gelé à 047caa8 (inchangé, statu quo maintenu)
+- Aucune action supplémentaire sur le dépôt
+- Fin d'intervention
