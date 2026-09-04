@@ -2396,3 +2396,12 @@ Stage Summary:
 - Domaine officiel : fallback code correct (catalogue.abayacollection.store), DB override à updater côté ops
 - ISR : préservé (route / = ○ Static 5m/1y)
 - CLS/LCP : préservés (preconnect + preload + no-flash script intacts)
+
+---
+## MANDAT-EXPLORATION-PERF-GTM — fix/audit-perf-gtm-restore @ ef80e90
+Investigation régression PageSpeed mobile (+90→63-75, LCP 4,9s, TBT 500ms) post-fusion 4P (6897689) + restauration intégrale du GTM neutre.
+- **Coupable isolé** (diff 952e079..ac47c3c + A/B Lighthouse rig identique) : Pixel Meta direct layout.tsx (fbevents.js + fbq init/PageView + fetch CAPI + noscript), miroir dataLayer→Meta (meta-tracking.ts), route /api/meta/conversions. A(main)=55/LCP 6,4s/TBT 1060ms vs B(restauré)=80/LCP 3,2s/TBT 490ms → **−50% LCP, −54% TBT**.
+- **Restauration** : layout.tsx sans Pixel (GTM conditionnel seul, passif) ; analytics.ts byte-identique 952e079 ; suppression meta-tracking.ts + route CAPI (404 mesuré) ; CSP inchangée. 5 fichiers +5/−453.
+- **Inertie prouvée avec env Vercel encore posée** (NEXT_PUBLIC_META_PIXEL_ID définie au build) : 0 fbevents/fbq/CAPI dans le HTML servi.
+- **Non-régressions** : ISR HIT s-maxage 300/SWR 1y (headers sécurité ne bloquent PAS l'Edge), 6/6 headers, preconnect@88, preload LCP ×5 fetchPriority high, 12 img SSR/64 render, CLS 0, noindex=0, domaine officiel, tsc 0, lint 0/0, build ×2 exit 0.
+- **Statut** : branche poussée, EN ATTENTE feu vert — main intact (ac47c3c). Preuves : /home/z/verify-logs/perf-gtm-restore/.

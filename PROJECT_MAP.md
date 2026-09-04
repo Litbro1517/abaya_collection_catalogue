@@ -5660,3 +5660,54 @@ La branche `fix/audit-360-p0-p1` est poussée et **mise en attente explicite de 
 
 ### Preuves brutes
 `/home/z/verify-logs/adf-noindex/` : `tsc-audit360.txt` (0 erreur), `build-audit360.log`, `build-final.log`, `home-audit360.html` (headers/SEO/tracking), `server-audit360*.log`, batteries navigateur E2E (fbq/CAPI event_id).
+
+---
+
+## [MANDAT-EXPLORATION-PERF-GTM — RESTAURATION GTM NEUTRE (fix/audit-perf-gtm-restore @ ef80e90)]
+
+**Code mission** : `MANDAT-EXPLORATION-PERF-GTM` · **Branche isolée** : `fix/audit-perf-gtm-restore` (base `ac47c3c` = origin/main, l'état déployé exact) · **Statut : poussée, EN ATTENTE de feu vert audit — AUCUN merge vers main.**
+
+### Conjoncture
+Après fusion 4P (`6897689`) + activation des env vars Meta/GTM côté Vercel, régression PageSpeed mobile **+90 → oscillation 63-75, LCP 4,9s, TBT 500ms**. Le code 4P était inerte au push (vars absentes) — la régression est apparue à l'**activation des variables**.
+
+### Investigation (diff 952e079..ac47c3c = dernier état stable → déployé)
+- **57 fichiers** revus (`next.config.ts`, `layout.tsx`, `page.tsx`, composants grille, headers, analytics, 12 fichiers morts supprimés, tsc 134→0).
+- **NON-coupables (prouvés par diff + runtime)** : en-têtes sécurité (`headers()` n'émet AUCUN Cache-Control override → `x-nextjs-cache: HIT`, `s-maxage=300, stale-while-revalidate=31535700` = ISR Edge **non bloqué**) ; grille produit (diff = narrowing typage + domaine officiel uniquement) ; page.tsx (adaptateur typage + canonical officiel) ; GTM (inchangé, conditionnel) ; suppression fichiers morts (−2 922 lignes = gain net).
+- **COUPABLES désignés (l'appareillage tracking direct ajouté par 4P)** :
+  1. `layout.tsx` — **Pixel Meta base code** (`fbevents.js` 3e partie ~180 Ko + `fbq('init')` + PageView + `fetch('/api/meta/conversions')` keepalive au chargement + noscript `facebook.com/tr`) — coût réseau + main-thread sur le chemin critique LCP/TBT ;
+  2. `src/lib/meta-tracking.ts` — **miroir dataLayer→Meta** branché dans `pushDataLayer` (chaque événement GA4 duplique en `fbq()` + POST CAPI) ;
+  3. `/api/meta/conversions` — **route CAPI** (invocation serverless par événement).
+
+### Preuve A/B Lighthouse 13.4.1 (rig identique, env identique, SEULE variable = le Pixel)
+| Métrique | A = main `ac47c3c` (Pixel actif) | B = restauré `ef80e90` | Delta |
+|---|---|---|---|
+| Score performance | **55** | **80** | **+25** |
+| LCP | 6,4 s | 3,2 s | **−50 %** |
+| TBT | 1 060 ms | 490 ms | **−54 %** |
+| FCP / CLS / SI | 1,3 s / 0,001 / 2,5 s | 1,3 s / 0 / 2,3 s | intacts |
+
+(Valeurs absolues gonflées par la latence sandbox ; le **différentiel** est la preuve. Cohérent avec la régression prod +90→63-75.)
+
+### Restauration intégrale du chantier GTM (état neutre d'origine)
+- `layout.tsx` : **suppression totale** du Pixel Meta (constantes, `meta-pixel-init`, PageView CAPI, noscript) — le composant GTM conditionnel `NEXT_PUBLIC_GTM_ID` (garde format + ternaire `: null`) reste **seul, neutre, passif** : sans env → 0 script, 0 écouteur, 0 requête (mesuré) ;
+- `src/lib/analytics.ts` : dé-branchage du miroir — **byte-identique à 952e079** (dataLayer GA4 pur) ;
+- suppression `src/lib/meta-tracking.ts` + `src/app/api/meta/conversions/` (GET sonde → **404** mesuré) ;
+- `next.config.ts` : **CSP inchangée** (origines Meta conservées pour de futurs tags gérés PAR le conteneur GTM — l'architecture cible : le tracking passe par GTM, jamais par du code applicatif direct) ;
+- **5 fichiers, +5/−453 lignes.**
+
+### Preuve d'inertie avec env vars encore configurées en prod
+Build avec `NEXT_PUBLIC_GTM_ID=GTM-TEST12345` + `NEXT_PUBLIC_META_PIXEL_ID=123456789012345` → HTML servi : `gtm-init=1` + noscript GTM (conditionnel actif) mais `fbevents=0 · fbq=0 · facebook.com/tr=0 · api/meta/conversions=0 · meta-pixel-init=0` — **la restauration neutralise le Pixel même si la var Vercel reste posée** (pas d'action ops requise pour désactiver).
+
+### Non-régressions vérifiées (runtime 3241, fixture 12 produits)
+ISR `○ Static Revalidate 300 / stale-while-revalidate 1y` + `x-nextjs-cache: HIT` · 6/6 en-têtes sécurité (dont sur /api/*) · preconnect CDN préambule @ byte 88 · preload LCP `imageSrcSet` 400/600/800w + `fetchPriority=high` ×5 · 12 `<img>` SSR + 64 URLs render contain · eager idx<4 / fetchPriority high idx 0 · `lang="ar" dir="rtl"` (CLS fix) · noindex=0 (E15) · canonical + 2 JSON-LD domaine officiel · robots `Allow: /` + Sitemap officiel · sitemap 17 locs.
+
+### Gates
+`bun run lint` **0/0 exit 0** · `bunx tsc --noEmit` **0 erreur** (baseline 4P préservée) · `bun run build` **exit 0 ×2** (sans env tracking / avec env GTM+Pixel) — typecheck actif sans ignoreBuildErrors.
+
+### Recommandations post-restauration (ops)
+1. Suivre la métrique PSI mobile après merge (retour attendu vers +90) ;
+2. Le tracking Meta doit être re-instrumenté **au sein du conteneur GTM** (tag Meta Pixel géré par GTM + Conversions API via GTM server-side) — zéro code applicatif ;
+3. `NEXT_PUBLIC_META_PIXEL_ID` / `META_CAPI_ACCESS_TOKEN` Vercel peuvent être retirés (inertes désormais) ; conserver `NEXT_PUBLIC_GTM_ID`.
+
+### Preuves brutes
+`/home/z/verify-logs/perf-gtm-restore/` : `lh-A-coupable.json`, `lh-B-restore.json` (Lighthouse), `home-noenv.html`, `home-env-set.html` (inertie Pixel avec env posée), `home-coupable-main.html` (Pixel présent sur main).
