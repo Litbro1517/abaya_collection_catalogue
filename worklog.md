@@ -2064,3 +2064,23 @@ Stage Summary:
 - Gates : lint 0/0, build exit 0, ISR ○ Static 5m/1y
 - Note : tsc = 134 à 952e079 (ignoreBuildErrors:true actif — le build passe, c'est l'état certifié qui produisait 92/99)
 - Vercel : build déclenché par le push forcé
+
+---
+
+Task ID: MANDAT-EXPLORATION-INFRA-AUDIT
+Agent: dev-agent (audit infrastructure & configurations)
+Task: MANDAT D'EXPLORATION — Audit infrastructure Supabase, Vercel env vars, clés API et configurations
+
+Work Log:
+- Audit Vercel env vars (Production, Preview, Development) via API Vercel (decrypt=true)
+- Audit Vercel project settings (framework, Node version, build settings, regions, security headers)
+- Audit Supabase project (Management API) : status, buckets, API keys
+- Audit production HTTP headers (catalogue.abayacollection.store + vercel.app)
+- Test Supabase image CDN behavior (original vs render API, Cache-Control, cf-cache-status)
+- Test Supabase API key validity (auth health endpoint + Storage bucket API)
+- Mesure performance timing (HTML TTFB + image load)
+- Comparaison Vercel SERVICE_ROLE_KEY (1656 chars, base64 JSON) vs Supabase real JWT (219 chars)
+- Diagnostic final : 3 anomalies critiques identifiées
+
+Stage Summary:
+Rapport d'exploration détaillé ci-dessous.
