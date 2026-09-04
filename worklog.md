@@ -2358,3 +2358,41 @@ E13/E13-v2 (images contain, preload LCP), E14 (preconnect CDN), CLS fix (lang/di
 ## Livrables & attente
 
 Branche `fix/audit-360-p0-p1` poussée (c0f765d + docs). **Engagement écrit : AUCUN merge vers main sans feu vert explicite du Mandat ADF.** Vars Vercel à poser côté ops pour activer le tracking prod : NEXT_PUBLIC_GTM_ID, NEXT_PUBLIC_META_PIXEL_ID, META_CAPI_ACCESS_TOKEN, NEXT_PUBLIC_BASE_URL (recommandée = https://catalogue.abayacollection.store), META_PIXEL_ID (optionnel).
+
+---
+
+Task ID: MANDAT-ADF-AUDIT360-FUSION
+Agent: dev-agent (audit ADF final + fusion conditionnelle)
+Task: MANDAT ADF — Audit final & déploiement prod de la branche fix/audit-360-p0-p1
+
+Work Log:
+- Fetch origin/fix/audit-360-p0-p1 (2 commits : c0f765d fix + d4a6d4f docs)
+- Sync local main avec origin/main (b4f1126)
+- Audit diff complet : 59 fichiers modifiés (+940/−2922), 12 fichiers supprimés (dead code gallery/*, ProductForm, ProductTable, RelationManager, products API), 4 fichiers ajoutés (meta-tracking.ts, site-url.ts, prisma-json.ts, /api/meta/conversions/route.ts)
+- Verification deleted files = orphans (0 imports live, 3 intra-gallery circular refs dans code mort)
+- Control 1 (lint) : ✅ 0 erreur / 0 warning
+- Control 2 (tsc) : ✅ 0 erreur (baseline 134→0, ignoreBuildErrors retiré, corrections src/ + exclusion scripts ops du tsconfig)
+- Control 3 (build) : ✅ exit 0, route / = ○ Static Revalidate 5m / Expire 1y (ISR préservé)
+- Control 4 (CAPI Meta) : ✅ /api/meta/conversions POST avec event_id dedup, whitelist 5 events, rate limit 60/min, timeout 6s, graceful degradation 200 (pas 500) quand env absentes
+- Control 5 (Security headers) : ✅ 6/6 headers (X-Content-Type-Options, X-Frame-Options DENY, Referrer-Policy, Permissions-Policy, HSTS+preload, CSP complète) + X-Powered-By retiré
+- Control 6 (Domaine officiel) : ✅ src/lib/site-url.ts — fallback https://catalogue.abayacollection.store (NEXT_PUBLIC_BASE_URL priorité, sinon domaine officiel). Sitemap/canonical/robots.txt pointent vers domaine officiel en local. Note : en prod, DB __seo_metadata__.canonicalUrl encore set à vercel.app (priorité DB > helper) — action ops requise pour updater DB.
+- Control 7 (GTM + Meta Pixel) : ✅ base code présent dans layout.tsx avec garde de format (GTM-XXXXXXX, 8-20 digits), event_id partagé PageView + CAPI miroir
+- Control 8 (noindex absent + ISR) : ✅ noindex count = 0 en prod, route / = ○ Static 5m/1y
+- Control 9 (Agent Browser E2E) : ✅ fbq_loaded=true, dataLayer_present=true (2 events), canonical=catalogue.abayacollection.store, preconnect+preload+jsonld+images OK, html lang=ar dir=rtl, 0 erreur console
+- CAS A déclenché : 100% conforme → merge --no-ff + push origin/main
+- Merge commit : 6897689 (merge --no-ff, 2 commits intégrés)
+- Push origin/main : b4f1126..6897689 ✅
+- Vercel deployment : dpl_DQvpXcU8 READY, prod vérifiée (6/6 security headers, 0 noindex, sitemap Allow:/)
+- Note ops : DB __seo_metadata__.canonicalUrl doit être updatée à catalogue.abayacollection.store (ou supprimée) pour que sitemap/canonical/hreflang pointent vers le domaine officiel en prod (le code de site-url.ts est correct, mais la DB override)
+
+Stage Summary:
+- Verdict : 🟢 CAS A — 100% CONFORME, fusion exécutée, Vercel déployé
+- Merge commit : 6897689d9f659ec719d81dc79a18d1a770e9c439
+- Production : https://catalogue.abayacollection.store/ (200 OK, 6/6 security headers, 0 noindex)
+- tsc : 0 erreur (baseline 134→0, ignoreBuildErrors retiré)
+- Meta Pixel + CAPI : opérationnels (event_id dedup, graceful degradation)
+- GTM : opérationnel (dataLayer actif)
+- Security headers : 6/6 + CSP + HSTS preload
+- Domaine officiel : fallback code correct (catalogue.abayacollection.store), DB override à updater côté ops
+- ISR : préservé (route / = ○ Static 5m/1y)
+- CLS/LCP : préservés (preconnect + preload + no-flash script intacts)
