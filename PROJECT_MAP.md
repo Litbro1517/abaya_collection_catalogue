@@ -5613,3 +5613,50 @@ L'agent développeur s'engage formellement à **ne pas merger `fix/remove-noinde
 
 ### Preuves brutes
 `/home/z/verify-logs/adf-noindex/` : tsc-branch.txt, build-branch.log, build2-env.log, home.html/home2/home3 (sondes SSR locales), prod-home.html, prod-lp404.html, prod-pm404.html, server logs.
+
+## [MANDAT 4P — RECTIFICATIONS AUDIT 360° P0/P1/P2 (fix/audit-360-p0-p1)]
+
+**Branche** : `fix/audit-360-p0-p1` (depuis main @ `b4f1126`, commit `c0f765d`, 57 fichiers, +861/−2922).
+**Conjoncture** : audit DUEL 360° = score santé **40/100** (3 bloqueurs P0, 2 failles P1) — non prêt pour scaling publicitaire.
+
+### P0-2 Tracking Meta Pixel + CAPI & GA4 (VOLET 3 : 0/25)
+| Élément | Implémentation | Preuve |
+|---|---|---|
+| Meta Pixel base | `layout.tsx` — Script conditionnel `NEXT_PUBLIC_META_PIXEL_ID` (format \d{8,20}) + noscript | HTML servi : `fbq('init','…')`, fbevents.js, noscript tr?id=… |
+| PageView dédupliqué | Init script : `event_id` généré client → `fbq('track','PageView',{}, {eventID})` + POST CAPI | HTML : eventID + fetch /api/meta/conversions présents |
+| Pont CAPI serveur | `/api/meta/conversions` (POST) : whitelist 5 events, rate limit 60/min/IP, body ≤8 Ko, timeout Graph 6 s, user_data IP+UA, custom_data whitelist | GET : `{"configured":false…}` ; POST sans env : 200 `{ok:false,reason:'meta_capi_not_configured'}` ; event non whitelisté : 400 |
+| Miroir events dataLayer→Meta | `src/lib/meta-tracking.ts` branché dans `pushDataLayer()` (choke point unique) : view_item→ViewContent, add_to_cart→AddToCart, begin_checkout→InitiateCheckout, purchase→Purchase, page_view→PageView | **E2E navigateur** : clic carte produit → view_item → fbq ViewContent + POST CAPI, **event_id client = event_id serveur (true)**, custom_data {value:450, currency:MAD, content_ids×1}, 0 erreur console |
+| GTM | Garde de format `/^GTM-[A-Za-z0-9]+$/` — le script s'exécute quand `NEXT_PUBLIC_GTM_ID` est défini ET valide | HTML avec env test : gtm.js?id=GTM-TEST1234 + noscript ×2 |
+
+**Vars Vercel à poser (ops)** : `NEXT_PUBLIC_GTM_ID` (GA4 consommateur), `NEXT_PUBLIC_META_PIXEL_ID`, `META_CAPI_ACCESS_TOKEN` (+ `META_PIXEL_ID` optionnel), `NEXT_PUBLIC_BASE_URL`.
+
+### P0-3 Build TypeScript (VOLET 4)
+- `typescript.ignoreBuildErrors: true` **RETIRÉ** — le build typechecke désormais.
+- Baseline **134 → 0 erreurs** (tsc exit 0) : helper `toPrismaJson` (narrowing JSON-safe, 20+ sites Prisma), tableaux `never[]` typés, narrowings (f.id, titleCol closure, pickerApi), doublons dictionaries ×3 (valeur runtime conservée), doublon `sous_categorie` NATIVE_SLUG_MAP.
+- **Bug latent réparé** (`google/sync/delta`) : `isVisible`/`isAvailable`/`quantityInStock` étaient posés sur l'input Prisma `createMany` → `PrismaClientValidationError` au runtime sur ce chemin. Reportés dans `row.data` en slugs natifs `__disponibilite__`/`__stock__` (conventions du sync complet, intention des commentaires conservée).
+- **Code mort supprimé (12 fichiers, 0 import, −2922 lignes)** : `gallery/` ×7, `admin/ProductForm`, `admin/ProductTable`, `data/RelationManager`, `api/products` + `api/products/[id]` (référençaient `db.product` inexistant au schéma → 500 latents, 0 appelant frontend — exactement le type de régression que `ignoreBuildErrors` masquait).
+- tsconfig : exclusion des scripts ops/démos hors application (`examples/`, `skills/`, `mini-services/`, 7 scripts racine, `prisma/seed.ts`).
+
+### P1-5 En-têtes HTTP de sécurité (VOLET 1)
+`next.config.ts` `headers()` sur `/:path*` — **6/6 mesurés** sur `next start` : X-Content-Type-Options `nosniff`, X-Frame-Options `DENY`, Referrer-Policy `strict-origin-when-cross-origin`, Permissions-Policy (camera/mic/geo/payment/usb/interest-cohort), CSP adaptée (script: GTM+Meta+GA ; connect: Supabase+GA+Graph ; img: https ; frame-ancestors 'none'), HSTS `max-age=63072000; includeSubDomains; preload`. + `poweredByHeader: false` (leak `X-Powered-By` supprimé). En-têtes actifs aussi sur les routes API (mesuré).
+
+### P1-6 Domaine officiel (VOLET 2)
+- `src/lib/site-url.ts` : `getPublicBaseUrl()` = `NEXT_PUBLIC_BASE_URL` validée (https) sinon **`https://catalogue.abayacollection.store`**.
+- 10 sites de fallback vercel.app remplacés : sitemap.ts, robots.ts, layout.tsx (metadataBase + JSON-LD), page.tsx ×3, product-meta ×2, ProductPage. L'override admin (`__seo_metadata__.canonicalUrl`) garde la priorité.
+- **Mesuré (3241)** : sitemap 17/17 URLs officielles, robots.txt Sitemap officiel, canonical + JSON-LD `url` officiels, **0 référence vercel.app résiduelle** dans le HTML home.
+- `api/google/auth` PRODUCTION_ORIGIN volontairement intact (allowlist OAuth Google, pas une URL SEO).
+
+### P2-7 Hygiène secrets
+`'abayachic2024'` retiré des **4** sites (l'audit DUEL en avait listé 3) : `import-to-supabase.mjs`, `import-via-api.mjs`, `seed-catalog.ts` → `process.env.ADMIN_PASSWORD` (+ garde d'exécution) ; **4e site découvert** : `src/lib/constants.ts` export mort `ADMIN_PASSWORD` supprimé (l'auth réelle = bcrypt en DB). ⚠️ **Rotation du mot de passe prod recommandée** (la valeur a vécu en clair dans l'histoire du repo).
+
+### Gates (100 % conformes, mesurés)
+`bun run lint` **0/0 exit 0** · `npx tsc --noEmit` **0 erreur exit 0** (baseline 134 → 0) · `bun run build` **exit 0 SANS ignoreBuildErrors** (typecheck actif) · ISR `/` = `○ Static Revalidate 5m / Expire 1y` **intact**.
+
+### Non-régressions vérifiées (runtime 3241 + navigateur)
+noindex=0 (E15 préservé) ; `lang="ar" dir="rtl"` SSR (CLS fix préservé) ; preconnect CDN byte 82 + preload LCP ×5 (É13/É14 préservés) ; 12 articles + 64 URLs render contain (E13-v2 préservé) ; dataLayer GA4 complet (gtm.js, view_item_list, select_item, view_item) + pont Meta E2E prouvé ; 0 erreur console.
+
+### Engagement — attente feu vert ADF
+La branche `fix/audit-360-p0-p1` est poussée et **mise en attente explicite de validation** (Mandat ADF) avant tout merge vers main. Aucun commit sur main. Les vars d'environnement Vercel (GTM ID, Pixel ID, CAPI token, NEXT_PUBLIC_BASE_URL) restent à poser côté ops pour activer le tracking en production — le code est prêt et se dégrade gracieusement sans elles.
+
+### Preuves brutes
+`/home/z/verify-logs/adf-noindex/` : `tsc-audit360.txt` (0 erreur), `build-audit360.log`, `build-final.log`, `home-audit360.html` (headers/SEO/tracking), `server-audit360*.log`, batteries navigateur E2E (fbq/CAPI event_id).

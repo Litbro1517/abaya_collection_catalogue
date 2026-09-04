@@ -13,7 +13,12 @@ export const CANAUX: { value: string; label: string; color: string; icon: string
 
 export const MAX_CAROUSEL_IMAGES = 6;
 export const PRODUCTS_PER_PAGE = 24;
-export const ADMIN_PASSWORD = 'abayachic2024';
+// MANDAT 4P — RECTIFICATIONS AUDIT 360° (P2 hygiène secrets) : l'export mort
+// ADMIN_PASSWORD = 'abayachic2024' (mot de passe admin en clair dans le code
+// applicatif, zéro consommateur — l'auth réelle utilise passwordHash bcrypt
+// en DB) a été SUPPRIMÉ. Rotation du mot de passe prod recommandée : la
+// valeur a vécu en clair dans le repo (réserve D1 de l'audit DUEL + ce 4e
+// site découvert lors du correctif).
 
 export const COULEURS_DEFAULTS: Record<string, string> = {
   'noir': '#000000',

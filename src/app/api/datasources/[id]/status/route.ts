@@ -1,6 +1,7 @@
 import { db } from '@/lib/db';
 import { NextRequest, NextResponse } from 'next/server';
 import { STATUS_OPTIONS, STATUS_NULL } from '@/lib/status-config';
+import { toPrismaJson } from '@/lib/prisma-json';
 
 // ─── Helpers ────────────────────────────────────────────────────────────────────
 
@@ -12,23 +13,26 @@ type RowData = Record<string, unknown> & {
 const THIRTY_DAYS_MS = 30 * 24 * 60 * 60 * 1000;
 
 function computeStatut(
-  row: { id: string; data: RowData; createdAt: Date },
+  // MANDAT 4P — tsc : data accepté en JsonValue brut (sortie Prisma select)
+  // et narrowé en RowData à l'intérieur — les 2 call sites passent row tel quel.
+  row: { id: string; data: unknown; createdAt: Date },
   topFiveIds: Set<string>,
 ): { statut: string; locked: boolean } {
-  const locked = row.data.__statut_locked__ === true;
+  const row_ = { ...row, data: (row.data ?? {}) as RowData };
+  const locked = row_.data.__statut_locked__ === true;
 
   // If locked, respect the existing stored status
   if (locked) {
     return {
-      statut: (row.data.__statut__ as string) || STATUS_NULL,
+      statut: (row_.data.__statut__ as string) || STATUS_NULL,
       locked: true,
     };
   }
 
   // Auto-transition rules:
   // 'Nouveauté' if createdAt < 30 days ago AND row is in the top 5 newest
-  const isRecent = Date.now() - row.createdAt.getTime() < THIRTY_DAYS_MS;
-  const isInTopFive = topFiveIds.has(row.id);
+  const isRecent = Date.now() - row_.createdAt.getTime() < THIRTY_DAYS_MS;
+  const isInTopFive = topFiveIds.has(row_.id);
 
   if (isRecent && isInTopFive) {
     return { statut: 'Nouveauté', locked: false };
@@ -137,7 +141,8 @@ export async function POST(
         const updatedData = { ...(row.data as RowData), __statut__: statut };
         await db.row.update({
           where: { id: row.id },
-          data: { data: updatedData },
+          // MANDAT 4P — tsc : narrowing JSON-safe → InputJsonObject
+          data: { data: toPrismaJson(updatedData) ?? {} },
         });
         updatesCount++;
       }
@@ -198,7 +203,8 @@ export async function PUT(
 
     const updated = await db.row.update({
       where: { id: rowId },
-      data: { data: updatedData },
+      // MANDAT 4P — tsc : narrowing JSON-safe → InputJsonObject
+      data: { data: toPrismaJson(updatedData) ?? {} },
     });
 
     return NextResponse.json({

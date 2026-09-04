@@ -1,7 +1,9 @@
 import bcrypt from 'bcryptjs';
+import { Prisma } from '@prisma/client';
 import { db } from '@/lib/db';
 import { cookies } from 'next/headers';
 import { v4 as uuidv4 } from 'uuid';
+import { toPrismaJson } from '@/lib/prisma-json';
 
 const SALT_ROUNDS = 12;
 const SESSION_DURATION_HOURS = 24;
@@ -119,7 +121,8 @@ export async function auditLog(
       action,
       entity,
       entityId: entityId ?? null,
-      details: details ?? {},
+      // MANDAT 4P — tsc : narrowing Record<string,unknown> → InputJsonObject
+      details: toPrismaJson(details) ?? ({} as Prisma.InputJsonObject),
       ip: ip ?? null,
     },
   });

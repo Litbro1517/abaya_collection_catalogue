@@ -1,3 +1,4 @@
+import { toPrismaJson } from '@/lib/prisma-json';
 import { db } from '@/lib/db';
 import { NextRequest, NextResponse } from 'next/server';
 
@@ -82,7 +83,7 @@ export async function POST(req: NextRequest) {
               data[asset.columnSlug] = filtered.length > 0 ? filtered.join(', ') : '';
               await db.row.update({
                 where: { id: asset.rowId },
-                data: { data },
+                data: { data: toPrismaJson(data) ?? {} }, // MANDAT 4P — tsc : narrowing JSON
               });
             }
           }

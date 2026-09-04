@@ -1,3 +1,4 @@
+import { toPrismaJson } from '@/lib/prisma-json';
 import { db } from '@/lib/db';
 import { NextRequest, NextResponse } from 'next/server';
 import { extractDriveFileId } from '@/lib/media-utils';
@@ -126,14 +127,14 @@ export async function POST(req: NextRequest) {
         // IMAGE_ARRAY peut être un tableau natif ou un string JSON
         let urlList: string[] = [];
         if (Array.isArray(val)) {
-          urlList = val.filter((u): u is string => typeof u === 'string' && u.trim());
+          urlList = val.filter((u): u is string => typeof u === 'string' && u.trim() !== ''); // MANDAT 4P — tsc : prédicat boolean (u.trim() retourne string|false)
         } else if (typeof val === 'string') {
           const trimmed = val.trim();
           if (trimmed.startsWith('[')) {
             try {
               const parsed = JSON.parse(trimmed);
               if (Array.isArray(parsed)) {
-                urlList = parsed.filter((u): u is string => typeof u === 'string' && u.trim());
+                urlList = parsed.filter((u): u is string => typeof u === 'string' && u.trim() !== ''); // MANDAT 4P — tsc
               }
             } catch { /* not JSON — ignore */ }
           }
@@ -455,7 +456,7 @@ export async function POST(req: NextRequest) {
         } else {
           data[columnSlug] = newUrls[0];
         }
-        await db.row.update({ where: { id: row.id }, data: { data } });
+        await db.row.update({ where: { id: row.id }, data: { data: toPrismaJson(data) ?? {} } }); // MANDAT 4P — tsc
       }
     }
 

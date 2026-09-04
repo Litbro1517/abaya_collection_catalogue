@@ -237,7 +237,9 @@ export function MediaLibrary({ dataSourceId, onRefresh }: Props) {
   const handleDelete = async (entry: MediaEntry, img: MediaImage) => {
     const key = imgKey(entry, img);
     if (!confirm('Supprimer définitivement ce fichier média du CDN ?')) return;
-    await doAction([key], 'delete', [{ mediaAssetId: img.mediaAssetId, cdnUrl: img.url }], 'Fichier supprimé');
+    // MANDAT 4P — tsc : la prop attend string|undefined (mediaAssetId est
+    // string|null) → normalisation null→undefined, runtime identique
+    await doAction([key], 'delete', [{ mediaAssetId: img.mediaAssetId ?? undefined, cdnUrl: img.url }], 'Fichier supprimé');
   };
 
   const handleBulkUnlink = async () => {

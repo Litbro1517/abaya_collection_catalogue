@@ -1,4 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { Prisma } from '@prisma/client';
+import { toPrismaJson } from '@/lib/prisma-json';
 import { db } from '@/lib/db';
 
 // ─── Slug generation: lowercase, hyphens, no accents ────────────────────────
@@ -119,11 +121,12 @@ export async function PATCH(req: NextRequest) {
     }
 
     // Build update data — slug is NEVER changed
-    const updateData: { label?: string; visible?: boolean; ordre?: number; translations?: unknown } = {};
+    // MANDAT 4P — tsc : translations typé InputJsonObject (était unknown — TS2322)
+    const updateData: { label?: string; visible?: boolean; ordre?: number; translations?: Prisma.InputJsonObject } = {};
     if (body.label !== undefined) updateData.label = body.label;
     if (body.visible !== undefined) updateData.visible = body.visible;
     if (body.ordre !== undefined) updateData.ordre = body.ordre;
-    if (body.translations !== undefined) (updateData as any).translations = body.translations;
+    if (body.translations !== undefined) updateData.translations = toPrismaJson(body.translations as Record<string, unknown>) ?? {}; // MANDAT 4P — tsc
 
     const category = await db.category.update({
       where: { id },

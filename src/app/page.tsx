@@ -2,6 +2,8 @@ import type { Metadata } from 'next';
 import { unstable_cache } from 'next/cache';
 import HomeClient from '@/components/HomeClient';
 import { db } from '@/lib/db';
+import { getPublicBaseUrl } from '@/lib/site-url';
+import type { Catalog, DataSource } from '@/types';
 
 // MANDAT 4P — Fix TTFB : ISR (Incremental Static Regeneration) toutes les 5 minutes.
 // Avant : la page était dynamique (SSR à chaque requête) → TTFB 2.2s + cache MISS.
@@ -24,7 +26,8 @@ const SEO_DEFAULTS = {
   title: 'Abaya Collection Chic — Catalogue',
   description: "Découvrez notre collection exclusive d'abayas, robes et ensembles. Commandez via WhatsApp, Messenger et plus.",
   ogImage: '/og-cover.jpg',
-  canonicalUrl: 'https://abaya-collection-catalogue-9dum.vercel.app',
+  // MANDAT 4P — RECTIFICATIONS AUDIT 360° (P1 SEO) : fallback domaine officiel
+  canonicalUrl: getPublicBaseUrl(),
 };
 
 async function getSeoMetadata() {
@@ -195,7 +198,8 @@ const getCachedBaseUrl = unstable_cache(
       const parsed = JSON.parse(seoRow.value);
       if (parsed.canonicalUrl) return parsed.canonicalUrl;
     }
-    return 'https://abaya-collection-catalogue-9dum.vercel.app';
+    // MANDAT 4P — RECTIFICATIONS AUDIT 360° (P1 SEO) : fallback officiel
+    return getPublicBaseUrl();
   },
   ['base-url-v2'],
   { revalidate: 300, tags: ['seo'] }
@@ -231,7 +235,7 @@ async function getBaseUrl() {
   try {
     return await getCachedBaseUrl();
   } catch {
-    return 'https://abaya-collection-catalogue-9dum.vercel.app';
+    return getPublicBaseUrl();
   }
 }
 
@@ -243,8 +247,15 @@ export default async function HomePage() {
   ]);
   return (
     <HomeClient
-      initialCatalog={catalog}
-      initialDatasources={datasources}
+      // MANDAT 4P — RECTIFICATIONS AUDIT 360° (P0 tsc) : adaptateur de
+      // frontière Prisma→domaine. getInitialCatalogData retourne les objets
+      // bruts Prisma (Date pour createdAt/updatedAt, config: JsonValue) alors
+      // que les types domaine (@/types Catalog/DataSource) déclarent string/
+      // config typée. Les valeurs runtime sont compatibles de facto (le site
+      // tourne ainsi depuis l'origine — les dates sont opaques pour les
+      // consommateurs). Cast documenté au point de passage unique.
+      initialCatalog={(catalog ?? null) as unknown as Catalog | null}
+      initialDatasources={(datasources ?? []) as unknown as DataSource[]}
       initialBaseUrl={baseUrl}
       initialCategories={categories}
     />

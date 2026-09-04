@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { fetchPrivateSheetData, fetchPublicSheetAsCsv, generateSlug } from '@/lib/google/sheets';
 import { getValidAccessToken } from '@/lib/google/auth';
 import { resolveImageUrl } from '@/lib/google/drive-images';
+import { toPrismaJson } from '@/lib/prisma-json';
 import { STATUS_OPTIONS } from '@/lib/status-config';
 import { extractDriveFileId } from '@/lib/media-utils';
 
@@ -393,7 +394,13 @@ export async function POST(req: NextRequest) {
       }
 
       // Create columns
-      const columnsToCreate = [];
+      // MANDAT 4P — tsc : tableau explicitement typé (était `[]` → never[],
+      // TS2345 sur les push). Narrowing JSON au point d'insertion (createMany).
+      const columnsToCreate: {
+        name: string; slug: string; type: string; order: number;
+        visible: boolean; required: boolean; config: Record<string, unknown>;
+        dataSourceId: string;
+      }[] = [];
       const columnsToSkip = new Set<number>();
       let imageArraySlug: string | null = null;
 
@@ -450,7 +457,10 @@ export async function POST(req: NextRequest) {
         });
       }
 
-      await db.column.createMany({ data: columnsToCreate });
+      await db.column.createMany({
+        // MANDAT 4P — tsc : narrowing JSON-safe → InputJsonObject
+        data: columnsToCreate.map((c) => ({ ...c, config: toPrismaJson(c.config) ?? {} })),
+      });
 
       // ━━━ RESTORE native columns after sheet column creation ━━━
       // These 6 columns are ALWAYS guaranteed to exist — they are native to the app
@@ -590,7 +600,7 @@ export async function POST(req: NextRequest) {
             dataSourceId: dsId,
             visible: nc.visible,
             required: nc.required,
-            config: nc.config as Record<string, unknown>,
+            config: toPrismaJson(nc.config as Record<string, unknown>) ?? {},
             order: nc.order,
           },
         });
@@ -733,7 +743,8 @@ export async function POST(req: NextRequest) {
       const batchSize = 50;
       for (let i = 0; i < rowsToCreate.length; i += batchSize) {
         const batch = rowsToCreate.slice(i, i + batchSize);
-        await db.row.createMany({ data: batch });
+        // MANDAT 4P — tsc : narrowing JSON-safe → InputJsonObject
+        await db.row.createMany({ data: batch.map((b) => ({ ...b, data: toPrismaJson(b.data) ?? {} })) });
       }
 
       // ━━━ RESTORE PRESERVED __stock__ VALUES after row creation ━━━
@@ -785,7 +796,8 @@ export async function POST(req: NextRequest) {
             updatedData.__colors__ = preserved.colors;
             await db.row.update({
               where: { id: newRow.id },
-              data: { data: updatedData },
+              // MANDAT 4P — tsc : narrowing JSON-safe → InputJsonObject
+              data: { data: toPrismaJson(updatedData) ?? {} },
             });
             restoredCount++;
           }
@@ -1216,7 +1228,8 @@ export async function POST(req: NextRequest) {
             order: maxOrder + i + 1,
             visible: true,
             required: false,
-            config,
+            // MANDAT 4P — tsc : narrowing JSON-safe → InputJsonObject
+            config: toPrismaJson(config) ?? {},
             dataSourceId: dsId,
           },
         });
@@ -1367,7 +1380,8 @@ export async function POST(req: NextRequest) {
       const batchSize = 50;
       for (let i = 0; i < rowsToCreate.length; i += batchSize) {
         const batch = rowsToCreate.slice(i, i + batchSize);
-        await db.row.createMany({ data: batch });
+        // MANDAT 4P — tsc : narrowing JSON-safe → InputJsonObject
+        await db.row.createMany({ data: batch.map((b) => ({ ...b, data: toPrismaJson(b.data) ?? {} })) });
         insertedCount += batch.length;
       }
 
@@ -1482,7 +1496,8 @@ export async function POST(req: NextRequest) {
       if (needsUpdate) {
         await db.row.update({
           where: { id: row.id },
-          data: { data: updatedData },
+          // MANDAT 4P — tsc : narrowing JSON-safe → InputJsonObject
+          data: { data: toPrismaJson(updatedData) ?? {} },
         });
         backfilledCount++;
       }

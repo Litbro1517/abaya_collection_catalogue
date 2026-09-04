@@ -19,6 +19,8 @@
  *   - Strips undefined values from items[] so the payload stays clean
  */
 
+import { trackMetaFromGa4 } from './meta-tracking';
+
 export interface EcommerceItem {
   item_id: string;
   item_name: string;
@@ -51,6 +53,16 @@ export interface DataLayerEvent {
 /**
  * Push an event to the GTM dataLayer. Safe to call from client components.
  * No-op on the server, never throws.
+ *
+ * MANDAT 4P — RECTIFICATIONS AUDIT 360° (P0 Tracking) : en plus du push
+ * dataLayer (GA4 via GTM), l'événement est MIRRORÉ vers Meta Pixel + CAPI
+ * (trackMetaFromGa4) avec un event_id unique partagé client/serveur →
+ * déduplication Meta sur (event_name, event_id). Mapping GA4→Meta :
+ * view_item→ViewContent, add_to_cart→AddToCart, begin_checkout→
+ * InitiateCheckout, purchase→Purchase, page_view→PageView. Les événements
+ * non mappés (view_item_list, select_item) ne partent pas vers Meta.
+ * No-op total quand NEXT_PUBLIC_META_PIXEL_ID est absent — zéro requête,
+ * zéro exception.
  */
 export function pushDataLayer(event: DataLayerEvent): void {
   if (typeof window === 'undefined') return;
@@ -60,6 +72,8 @@ export function pushDataLayer(event: DataLayerEvent): void {
       w.dataLayer = [];
     }
     w.dataLayer.push(event);
+    // Miroir Meta (best-effort, jamais throws — cf. meta-tracking.ts)
+    trackMetaFromGa4(event);
   } catch {
     // Swallow — tracking must never break UX
   }

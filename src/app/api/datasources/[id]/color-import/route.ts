@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { toPrismaJson } from '@/lib/prisma-json';
 import { db } from '@/lib/db';
 import { normalizeColorName, generateColorSlug, parseColorList } from '@/lib/color-utils';
 
@@ -159,7 +160,7 @@ export async function POST(
       };
       await db.row.update({
         where: { id: result.rowId },
-        data: { data: updatedData },
+        data: { data: toPrismaJson(updatedData) ?? {} }, // MANDAT 4P — tsc : narrowing JSON
       });
       updated++;
     }

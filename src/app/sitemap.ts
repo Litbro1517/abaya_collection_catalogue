@@ -1,6 +1,7 @@
 import type { MetadataRoute } from 'next';
 import { db } from '@/lib/db';
 import { resolveAllProducts } from '@/lib/products';
+import { getPublicBaseUrl } from '@/lib/site-url';
 
 // ═══════════════════════════════════════════════════════════════════════
 // SITEMAP.XML — Dynamic generation via Prisma + product extraction
@@ -15,7 +16,12 @@ import { resolveAllProducts } from '@/lib/products';
 
 export const revalidate = 3600;
 
-const DEFAULT_BASE_URL = 'https://abaya-collection-catalogue-9dum.vercel.app';
+// MANDAT 4P — RECTIFICATIONS AUDIT 360° (P1 SEO) : le fallback hardcodé
+// vercel.app est remplacé par getPublicBaseUrl() — NEXT_PUBLIC_BASE_URL si
+// définie, sinon le domaine officiel https://catalogue.abayacollection.store.
+// Garantit que les URLs du sitemap pointent vers le domaine officiel même si
+// la variable Vercel est omise (audit DUEL 360° VOLET 2 : les 52 URLs
+// pointaient vers vercel.app). L'override admin DB garde la priorité.
 
 async function getBaseUrl(): Promise<string> {
   try {
@@ -27,7 +33,7 @@ async function getBaseUrl(): Promise<string> {
   } catch {
     // DB not available — use default
   }
-  return DEFAULT_BASE_URL;
+  return getPublicBaseUrl();
 }
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {

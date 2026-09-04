@@ -2230,7 +2230,7 @@ export function DataTable({ columns, rows, dataSourceId, loading, onRefresh, onU
                                   toggleCellSelect(row.id, col.slug, e.shiftKey || e.ctrlKey || e.metaKey);
                                 }
                               }}
-                              title={(col.type === 'STATUS' || col.slug === '__statut__') ? ((pendingStatusChanges?.[row.id]?.locked ?? (row.data as Record<string, unknown>).__statut_locked__) ? "Statut verrouillé 🔒 — déverrouillez d'abord" : "Double-cliquer pour changer le statut") : col.type === 'RELATION' ? "Relation (V1 — bientôt disponible)" : "Double-cliquer pour modifier · Shift+Clic pour sélectionner"}
+                              title={(col.type === 'STATUS' || col.slug === '__statut__') ? ((pendingStatusChanges?.[row.id]?.locked ?? (row.data as Record<string, unknown>).__statut_locked__) ? "Statut verrouillé 🔒 — déverrouillez d'abord" : "Double-cliquer pour changer le statut") : "Double-cliquer pour modifier · Shift+Clic pour sélectionner"}
                             >
                               {renderCellValue(row, col)}
                             </div>

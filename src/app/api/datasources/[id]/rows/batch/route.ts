@@ -1,5 +1,6 @@
 import { db } from '@/lib/db'
 import { NextRequest, NextResponse } from 'next/server'
+import { toPrismaJson } from '@/lib/prisma-json'
 
 /**
  * PATCH /api/datasources/[id]/rows/batch
@@ -103,6 +104,8 @@ export async function PATCH(
 
         // Only write `order` when explicitly provided (Axe 4 — catalog reorder).
         // Otherwise leave the existing Row.order untouched.
+        // MANDAT 4P — tsc : data typé Prisma.InputJsonObject (était
+        // Record<string,unknown> — TS2322 sur db.row.update)
         const patch: { data: Record<string, unknown>; order?: number } = { data: mergedData }
         if (update.order !== undefined) {
           patch.order = update.order
@@ -110,7 +113,7 @@ export async function PATCH(
 
         return db.row.update({
           where: { id: update.id },
-          data: patch,
+          data: { data: toPrismaJson(patch.data) ?? {}, order: patch.order },
         })
       })
     )

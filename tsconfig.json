@@ -37,6 +37,17 @@
     ".next/dev/types/**/*.ts"
   ],
   "exclude": [
-    "node_modules"
+    "node_modules",
+    "examples",
+    "skills",
+    "mini-services",
+    "seed.ts",
+    "reseed.ts",
+    "seed-catalog.ts",
+    "seed-diagnostic.ts",
+    "diagnostic-pivot.ts",
+    "import-sheet.ts",
+    "update-images.ts",
+    "prisma/seed.ts"
   ]
 }
