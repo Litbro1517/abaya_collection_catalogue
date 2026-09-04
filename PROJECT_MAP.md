@@ -5613,3 +5613,41 @@ L'agent développeur s'engage formellement à **ne pas merger `fix/remove-noinde
 
 ### Preuves brutes
 `/home/z/verify-logs/adf-noindex/` : tsc-branch.txt, build-branch.log, build2-env.log, home.html/home2/home3 (sondes SSR locales), prod-home.html, prod-lp404.html, prod-pm404.html, server logs.
+
+## [MANDAT ADF — ROLLBACK / RESTAURATION ÉTAT STABLE 952e079]
+
+**Date** : $(date -u +"%Y-%m-%d %H:%M UTC")
+**Action** : `git reset --hard 952e079` + `git push --force origin main`
+**main HEAD** : `952e079` (réaligné depuis `fbfe6d4`)
+**Commits annulés** : 12 (de `b4f1126` à `fbfe6d4`)
+
+### Raison
+Les rectifications et optimisations postérieures à `952e079` (tracking Meta CAPI, security headers, tsc 0, dead code cleanup, GTM restore) ont entraîné une dégradation de la stabilité et des performances. Le commit `952e079` était l'état stable certifié (92/100 Mobile, 99/100 Bureau, SEO 100/100).
+
+### Commits annulés (12)
+1. `b4f1126` — docs DUEL 360°
+2. `c0f765d` — fix audit 360° (tracking Meta CAPI, security headers, tsc 0, domaine officiel)
+3. `d4a6d4f` — docs audit 360°
+4. `6897689` — merge audit 360° P0/P1/P2
+5. `ac47c3c` — docs fusion 6897689
+6. `ef80e90` — fix perf (restaure GTM neutre)
+7. `99044c9` — docs investigation perf GTM
+8. `047caa8` — docs CAS B
+9. `497426b` — docs ADDITIF annulation
+10. `0fd2f83` — merge GTM restore
+11. `5a53eb9` — docs fusion 0fd2f83
+12. `fbfe6d4` — docs annexe rapport audit
+
+### Gates à 952e079
+- `bun run lint` → **0 erreur / 0 warning** ✅
+- `npx tsc --noEmit` → **134 erreurs** (baseline historique, `ignoreBuildErrors: true` actif — le build passe)
+- `bun run build` → **exit 0** ✅, route `/` = `○ (Static) Revalidate 5m / Expire 1y` ✅
+
+### État restauré
+- noindex retiré (ccbcd40 fusionné) → SEO 100/100
+- Aucun tracking Meta/Pixel/CAPI
+- GTM neutre conditionné par NEXT_PUBLIC_GTM_ID
+- ISR actif (route / = ○ Static 5m/1y)
+- LCP preload + preconnect Supabase préservés
+- CLS fix préservé
+- Scores PageSpeed attendus : 92/100 Mobile, 99/100 Bureau

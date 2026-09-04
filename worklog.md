@@ -2018,3 +2018,49 @@ Stage Summary:
 - ISR : préservé (route / = ○ Static Revalidate 5m Expire 1y)
 - SEO : noindex/nofollow ×2 préservés, JSON-LD intact
 - CLS fix (É précédent) : préservé (no-flash script + SSR locale depuis DB)
+
+---
+
+Task ID: MANDAT-ADF-ROLLBACK-952e079
+Agent: dev-agent (restauration état stable)
+Task: MANDAT ADF — Restauration de l'état stable / Rollback de main vers 952e079
+
+Work Log:
+- Consultation du PROJECT_MAP.md et de l'historique Git au commit 952e079
+- Vérification de l'existence du commit stable 952e079 (docs(MANDAT-ADF): audit ADF 100% conforme + merge ccbcd40)
+- Inventaire des commits à annuler : 12 commits entre 952e079 et fbfe6d4 (ancien HEAD)
+  - b4f1126 : docs DUEL 360° (rapport audit)
+  - c0f765d : fix audit 360° (tracking Meta CAPI, security headers, tsc 0, domaine officiel)
+  - d4a6d4f : docs audit 360° (rapport exécution)
+  - 6897689 : merge audit 360° P0/P1/P2
+  - ac47c3c : docs fusion 6897689
+  - ef80e90 : fix perf (restaure GTM neutre, éradique Pixel Meta direct)
+  - 99044c9 : docs investigation perf GTM
+  - 047caa8 : docs CAS B branche inexistante
+  - 497426b : docs ADDITIF annulation
+  - 0fd2f83 : merge GTM restore
+  - 5a53eb9 : docs fusion 0fd2f83
+  - fbfe6d4 : docs annexe rapport audit déterministe
+- git checkout main + git reset --hard 952e079 → main réaligné sur le commit stable
+- Gates qualité à 952e079 :
+  - bun run lint → 0 erreur / 0 warning ✅
+  - npx tsc --noEmit → 134 erreurs (baseline historique à 952e079, ignoreBuildErrors:true était encore actif — le build passe car Next.js ignore les erreurs tsc)
+  - bun run build → exit 0 ✅, route / = ○ Static Revalidate 5m / Expire 1y ✅ (ISR préservé)
+- Force push : git push --force origin main → fbfe6d4...952e079 main -> main (forced update) ✅
+- Vercel : build de production déclenché automatiquement par le push sur main
+- État restauré au commit 952e079 :
+  - noindex retiré (ccbcd40 fusionné) → SEO 100/100
+  - Aucun tracking Meta/Pixel/CAPI (n'a jamais existé à 952e079)
+  - GTM neutre conditionné par NEXT_PUBLIC_GTM_ID
+  - ISR actif (route / = ○ Static 5m/1y)
+  - LCP preload + preconnect Supabase préservés
+  - CLS fix (no-flash script, SSR locale) préservé
+  - Scores PageSpeed attendus : 92/100 Mobile, 99/100 Bureau (état certifié)
+
+Stage Summary:
+- Verdict : 🟢 CAS A — restauration réussie
+- main : réaligné à 952e079 (forced update)
+- 12 commits postérieurs annulés (tracking Meta, security headers, tsc 0, site-url.ts, dead code cleanup — tous éradiqués par le rollback)
+- Gates : lint 0/0, build exit 0, ISR ○ Static 5m/1y
+- Note : tsc = 134 à 952e079 (ignoreBuildErrors:true actif — le build passe, c'est l'état certifié qui produisait 92/99)
+- Vercel : build déclenché par le push forcé
