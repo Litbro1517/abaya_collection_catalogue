@@ -5766,3 +5766,40 @@ Le split 2-instances Zain (zainArabic `preload:true` + zainLatin `preload:false`
 - CLS : préservé (width/height conservés)
 - RTL/Arabic : préservé (aria-labels localisés dynamiquement)
 - ISR : préservé (route / = ○ Static 5m/1y)
+
+## [MANDAT ADF — LOGO REVERT & OPTIMIZATION (fix/logo-revert-and-optimization @ b4a8252)]
+
+**Branche** : `fix/logo-revert-and-optimization` (depuis main @ `2d14787`, commit `b4a8252`).
+**Merge** : `b4a8252` poussé sur main, Vercel READY `dpl_BHCcf3mb`.
+
+### Cause du rognage logo (prouvée à 3 niveaux)
+Le commit `987cf71` (MANDAT-ADF a11y+logo) introduisait un sur-traitement JS :
+1. **Niveau asset** : render API `?width=260&quality=75&format=webp` SANS `resize=contain` → WebP 260×120 (ratio 2.167) au lieu de 400×120 (ratio 3.333) → **compression latérale 35%** du logo
+2. **Niveau CSS** : `.lp-logo-mobile { height:32px !important; max-height:32px !important }` écrasait le slider admin (20-100px)
+3. **Niveau JS** : onError 3-stage + srcSet/sizes/fetchPriority/decoding
+
+### Correctif
+- **Header** : `src={s.logo}` direct (URL admin native, zéro transformation, ratio préservé) + `width/height` conservés (CLS) + `className="object-contain shrink-0 lp-logo-mobile"` + `style={height, width:auto}`
+- **Footer** : `src={s.logo}` direct + `loading="lazy"` (natif) + `filter brightness(0) invert(1)` conservé
+- **CSS** : `!important` supprimés → soft cap `max-height:44px` + `max-width:190px` + `object-contain` (modèle de boîte clampe naturellement, slider admin opérationnel)
+
+### Gates qualité
+- `bun run lint` → **0 erreur / 0 warning** ✅
+- `npx tsc --noEmit` → **134 erreurs** (baseline, 0 nouvelle — L616 pré-existant) ✅
+- `bun run build` → **exit 0** ✅, route `/` = `○ (Static) Revalidate 5m / Expire 1y` ✅
+
+### Preuves production (Vercel READY `dpl_BHCcf3mb`)
+- Logo header : `object/public/assets/branding/...` (URL directe, zéro transformation) ✅
+- Logo footer : `object/public/assets/branding/...` (URL directe, loading=lazy) ✅
+- Product images : `render/image/public/assets/media/...?width=400&resize=contain` (render API correct, préservé) ✅
+- `<html lang="ar" dir="rtl" class="rtl">` (CLS fix préservé) ✅
+- 16 product-card-img SSR ✅
+- noindex : 0 ✅
+- Variables d'environnement et credentials serveur : **inchangés** ✅
+
+### Métriques attendues
+- Logo : ratio 3.333 préservé (plus de compression latérale 35%)
+- Slider admin 20-100px : opérationnel (!important supprimés)
+- CSS mobile : soft cap 44px (header 56px → pas de chevauchement)
+- CLS : préservé (width/height explicites conservés)
+- ISR : préservé (route / = ○ Static 5m/1y)
