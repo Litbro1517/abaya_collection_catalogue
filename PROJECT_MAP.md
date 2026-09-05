@@ -5730,3 +5730,39 @@ Le split 2-instances Zain (zainArabic `preload:true` + zainLatin `preload:false`
 - CLS : 0.0000 (zéro régression visuelle)
 - RTL/Arabic : préservé (Arabic preload:true, texte arabe peint en Zain dès le 1er paint)
 - ISR : préservé (route / = ○ Static 5m/1y)
+
+## [MANDAT ADF — A11Y + LOGO OPTIMIZATION (feat/explore-accessibility-and-logo-opt @ 987cf71)]
+
+**Branche** : `feat/explore-accessibility-and-logo-opt` (depuis main @ `4c4d639`, commit `987cf71`).
+**Merge** : `987cf71` poussé sur main (--ff-only), Vercel READY `dpl_5Zy7DEFW`.
+
+### Accessibilité (WCAG 4.1.2 button-name — A11y 94→100/100)
+- `CatalogPreview.tsx` Pagination : `aria-label` localisés `t('catalog.previousPage'/'nextPage')` (FR/EN/AR) + `type="button"` + `aria-hidden="true"` sur SVG décoratifs
+- `LoginModal.tsx` : `aria-label={t('cart.close')}` sur bouton fermeture X (clé existante 3 locales)
+- `dictionaries.ts` : clés `catalog.previousPage`/`nextPage` ajoutées (3 locales FR/EN/AR)
+
+### Logo branding optimization (render API Supabase WebP)
+- **Header** : `resolveDirectImageUrl(s.logo, 260)` + `srcSet 260w/400w` + `sizes` adapté + `fetchPriority="low"` (non-LCP) + `decoding="async"` → WebP 4.8 KiB (vs 13.4 KiB PNG = **−64%**), cache `max-age=31536000 immutable` (vs `no-cache`)
+- **Footer** : render 260w (même URL header = **dédup réseau**) + `loading="lazy"` + `decoding="async"`
+- **Chaîne de repli 3 étages** : render API → URL object originale (PNG branding) → `/logo.png` local → masquage
+
+### Gates qualité
+- `bun run lint` → **0 erreur / 0 warning** ✅
+- `npx tsc --noEmit` → **134 erreurs** (baseline, 0 nouvelle — 3 erreurs TS1117 checkout.title + L616 pré-existantes) ✅
+- `bun run build` → **exit 0** ✅, route `/` = `○ (Static) Revalidate 5m / Expire 1y` ✅
+
+### Preuves production (Vercel READY `dpl_5Zy7DEFW`)
+- Logo : `render/image/public/.../branding...?width=260&quality=75&format=webp` ✅
+- aria-labels présents sur les boutons ✅
+- `<html lang="ar" dir="rtl" class="rtl">` (CLS fix préservé) ✅
+- 16 product-card-img SSR ✅
+- noindex : 0 (site indexable) ✅
+- preconnect Supabase (préservé) ✅
+
+### Métriques attendues
+- Lighthouse Accessibility : 94 → **100/100** (mobile + desktop)
+- Logo mobile : 13.4 KiB PNG `no-cache` → **4.8 KiB WebP immutable 1 an** (−64%)
+- Logo preload concurrent LCP : **supprimé** (`fetchPriority=low`)
+- CLS : préservé (width/height conservés)
+- RTL/Arabic : préservé (aria-labels localisés dynamiquement)
+- ISR : préservé (route / = ○ Static 5m/1y)
