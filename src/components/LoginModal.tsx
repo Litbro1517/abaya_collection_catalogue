@@ -189,8 +189,10 @@ export function LoginModal({ onLoginSuccess, onCancel }: LoginModalProps) {
             <button
               onClick={onCancel}
               className="absolute top-4 right-4 p-1 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+              aria-label={t('cart.close')}
+              type="button"
             >
-              <X className="w-4 h-4" />
+              <X className="w-4 h-4" aria-hidden="true" />
             </button>
           )}
 

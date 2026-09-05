@@ -119,6 +119,9 @@ export const dictionaries: Record<Locale, TranslationDict> = {
     'catalog.tryAnotherSearch': 'Essayez un autre terme de recherche',
     'catalog.addSections': 'Ajoutez des sections dans l\'onglet Mise en page',
     'catalog.viewProduct': 'Voir',
+    // ━━ MANDAT 4P — Accessibilité pagination (WCAG 4.1.2 button-name) ━━
+    'catalog.previousPage': 'Page précédente',
+    'catalog.nextPage': 'Page suivante',
 
     // ── Product Extended ──
     'product.quickBuy': 'Achat Rapide',
@@ -904,6 +907,9 @@ export const dictionaries: Record<Locale, TranslationDict> = {
     'catalog.tryAnotherSearch': 'Try a different search term',
     'catalog.addSections': 'Add sections in the Layout tab',
     'catalog.viewProduct': 'View',
+    // ━━ MANDAT 4P — Accessibilité pagination (WCAG 4.1.2 button-name) ━━
+    'catalog.previousPage': 'Previous page',
+    'catalog.nextPage': 'Next page',
 
     // ── Product Extended ──
     'product.quickBuy': 'Quick Buy',
@@ -1689,6 +1695,9 @@ export const dictionaries: Record<Locale, TranslationDict> = {
     'catalog.tryAnotherSearch': 'جرّب مصطلح بحث آخر',
     'catalog.addSections': 'أضف أقسامًا في علامة التبويب التخطيط',
     'catalog.viewProduct': 'عرض',
+    // ━━ MANDAT 4P — Accessibilité pagination (WCAG 4.1.2 button-name) ━━
+    'catalog.previousPage': 'الصفحة السابقة',
+    'catalog.nextPage': 'الصفحة التالية',
 
     // ── Product Extended ──
     'product.quickBuy': 'شراء سريع',

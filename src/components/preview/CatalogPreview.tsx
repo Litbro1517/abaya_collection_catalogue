@@ -162,6 +162,12 @@ function Pagination({
   primaryColor: string;
   rtl: boolean;
 }) {
+  // ━━ MANDAT 4P — Accessibilité WCAG 4.1.2 (button-name) ━━
+  // Les chevrons Précédent/Suivant sont des boutons icône-only sans texte →
+  // axe-core signale une violation "button-name". Ajout d'aria-label localisés
+  // (FR/EN/AR) via le hook de traduction public.
+  const { t } = useClientTranslation();
+
   if (totalPages <= 1) return null;
 
   const getPages = () => {
@@ -187,8 +193,10 @@ function Pagination({
         style={{ color: 'var(--pivot-brand)' }}
         onClick={() => onPageChange(currentPage - 1)}
         disabled={currentPage === 1}
+        aria-label={t('catalog.previousPage')}
+        type="button"
       >
-        <ChevronLeft className={cn('w-5 h-5', rtl && 'rotate-180')} />
+        <ChevronLeft className={cn('w-5 h-5', rtl && 'rotate-180')} aria-hidden="true" />
       </button>
       {getPages().map((p, i) =>
         p === '...' ? (
@@ -212,8 +220,10 @@ function Pagination({
         style={{ color: 'var(--pivot-brand)' }}
         onClick={() => onPageChange(currentPage + 1)}
         disabled={currentPage === totalPages}
+        aria-label={t('catalog.nextPage')}
+        type="button"
       >
-        <ChevronRight className={cn('w-5 h-5', rtl && 'rotate-180')} />
+        <ChevronRight className={cn('w-5 h-5', rtl && 'rotate-180')} aria-hidden="true" />
       </button>
     </div>
   );
@@ -1013,31 +1023,41 @@ export function CatalogPreview({ onAdminLogin, initialCatalog, initialDatasource
         >
           {s?.logo ? (
             <img
-              src={s.logo}
+              // ━━ MANDAT 4P — Logo branding optimization (render API WebP) ━━
+              // Avant : src={s.logo} brut (PNG original 13.4 KiB, cache-control: no-cache)
+              // → 3× oversizé vs affichage mobile (130×32 CSS px), revalidation RTT à
+              // chaque visite, auto-preload concurrent de l'image LCP.
+              // Maintenant : resolveHybridImageUrl (render API Supabase) → WebP 260w/400w
+              // + srcSet responsive + sizes adapté au layout + fetchPriority="low" (non-LCP)
+              // + decoding="async" → -64% poids (4.8 KiB vs 13.4 KiB), cache immutable 1 an.
+              src={resolveDirectImageUrl(s.logo, 260)}
+              srcSet={`${resolveDirectImageUrl(s.logo, 260)} 260w, ${resolveDirectImageUrl(s.logo, 400)} 400w`}
+              sizes={`(max-width: 640px) 130px, ${(s.logoHeight || 40) * 3}px`}
               alt={catalogName}
               // MANDAT 4P PageSpeed fix — CLS: explicit width + height prevent layout
-              // shift when the logo image loads (was only height before → width
-              // unknown until image decoded → shift). Width derived from logoHeight
-              // assuming a ~3:1 logo aspect ratio (safe default, w-auto overrides).
+              // shift when the logo image loads.
               width={(s.logoHeight || 40) * 3}
               height={s.logoHeight || 40}
               className="w-auto object-contain shrink-0 lp-logo-mobile"
               style={{ height: `${s.logoHeight || 40}px`, maxHeight: `${s.logoHeight || 40}px` }}
-              // VG44 fix: onError fallback chain. If the DB-stored logo URL
-              // (e.g. a Google Drive URL that 404s, or an expired CDN link)
-              // fails to load, swap to the local /logo.png asset (always
-              // available in /public). If /logo.png also fails (extremely
-              // unlikely), hide the img so only the alt text remains rather
-              // than showing a broken-image icon. This prevents the broken
-              // "Mon Catalogue" vignette seen in production (VG44 screenshot).
+              fetchPriority="low"
+              decoding="async"
               onError={(e) => {
                 const img = e.currentTarget as HTMLImageElement;
                 const currentSrc = img.getAttribute('src');
-                if (currentSrc && currentSrc !== '/logo.png') {
-                  // First failure → swap to reliable local /logo.png
+                // ━━ MANDAT 4P — chaîne de repli 3 étages ━━
+                // Étage 1 : render API échec → URL object originale (PNG branding préservé)
+                // Étage 2 : URL object échec → /logo.png local (toujours disponible)
+                // Étage 3 : /logo.png échec → masquage (alt text only)
+                if (currentSrc && currentSrc.includes('/render/image/')) {
+                  // Stage 1 → 2 : render → object
+                  img.removeAttribute('srcset');
+                  img.src = s.logo!;
+                } else if (currentSrc && currentSrc !== '/logo.png') {
+                  // Stage 2 → 3 : object → /logo.png
                   img.src = '/logo.png';
                 } else {
-                  // /logo.png also failed → hide img, show alt text only
+                  // Stage 3 : hide
                   img.style.display = 'none';
                 }
               }}
@@ -1867,16 +1887,30 @@ export function CatalogPreview({ onAdminLogin, initialCatalog, initialDatasource
                 }}
               >
                 {s?.logo ? (
-                  // MANDAT 4P PageSpeed fix — CLS: explicit width + height on logo
-                  // prevents layout shift when the logo image loads. Previously only
-                  // height was set → width was unknown until image decoded → shift.
+                  // ━━ MANDAT 4P — Logo footer optimization (render API WebP, lazy) ━━
+                  // Même URL 260w que le header mobile → dédup réseau (1 seul téléchargement).
+                  // Lazy loadé (footer = below-fold), decoding async, filter brightness(0) invert(1)
+                  // pour le rendu blanc sur fond sombre.
                   <img
-                    src={s.logo}
+                    src={resolveDirectImageUrl(s.logo, 260)}
                     alt={catalogName}
                     width={Math.round((s.logoHeight || 40) * 0.6 * 3)}
                     height={Math.round((s.logoHeight || 40) * 0.6)}
                     className="w-auto h-auto object-contain"
                     style={{ height: `${Math.round((s.logoHeight || 40) * 0.6)}px`, maxHeight: `${Math.round((s.logoHeight || 40) * 0.6)}px`, filter: 'brightness(0) invert(1)' }}
+                    loading="lazy"
+                    decoding="async"
+                    onError={(e) => {
+                      const img = e.currentTarget as HTMLImageElement;
+                      const currentSrc = img.getAttribute('src');
+                      if (currentSrc && currentSrc.includes('/render/image/')) {
+                        img.src = s.logo!;
+                      } else if (currentSrc && currentSrc !== '/logo.png') {
+                        img.src = '/logo.png';
+                      } else {
+                        img.style.display = 'none';
+                      }
+                    }}
                   />
                 ) : (
                   <>

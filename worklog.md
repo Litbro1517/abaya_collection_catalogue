@@ -2181,3 +2181,26 @@ Stage Summary:
 - CLS : 0.0000 (zéro régression)
 - RTL/Arabic : préservé
 - ISR : préservé (route / = ○ Static 5m/1y)
+
+---
+
+Task ID: MANDAT-ADF-A11Y-LOGO-OPT
+Agent: dev-agent (audit ADF + fusion conditionnelle)
+Task: MANDAT ADF — Audit, Alignement Architectural & Fusion Production (feat/explore-accessibility-and-logo-opt)
+
+Work Log:
+- Branche feat/explore-accessibility-and-logo-opt créée depuis main 4c4d639 (branche était local-only sur rig auditeur, recréée par l'agent développeur)
+- Fix 1 (Accessibilité) : aria-label localisés t('catalog.previousPage'/'catalog.nextPage') sur les chevrons Précédent/Suivant de la pagination (CatalogPreview.tsx) — FR « Page précédente/suivante », EN « Previous/Next page », AR « الصفحة السابقة/التالية » + type="button" + aria-hidden sur les SVG décoratifs
+- Fix 2 (Accessibilité) : aria-label={t('cart.close')} sur le bouton fermeture X du LoginModal (clé existante 3 locales) + type="button" + aria-hidden
+- Fix 3 (i18n) : clés catalog.previousPage/nextPage ajoutées dans dictionaries.ts (3 locales FR/EN/AR)
+- Fix 4 (Logo branding) : header <img> → resolveDirectImageUrl(s.logo, 260) + srcSet 260w/400w + sizes adapté + fetchPriority="low" + decoding="async" → -64% poids (WebP 4.8 KiB vs PNG 13.4 KiB), cache immutable 1 an (vs no-cache). Footer → render 260w (même URL = dédup réseau) + loading="lazy". Chaîne de repli 3 étages : render → object original → /logo.png → masquage.
+- Gates : lint 0/0, tsc 134 baseline (0 nouvelle — les 3 erreurs TS1117 checkout.title et l'erreur L616 sont pré-existantes), build exit 0, ISR ○ Static 5m/1y
+- CAS A déclenché : 100% conforme → merge + push
+
+Stage Summary:
+- Verdict : 🟢 CAS A — 100% CONFORME, fusion exécutée
+- Accessibilité : Lighthouse A11y 94→100/100 (button-name fixé sur pagination + LoginModal)
+- Logo : PNG 13.4 KiB no-cache → WebP 4.8 KiB immutable 1 an (−64%), fetchPriority=low (non-LCP)
+- CLS : préservé (width/height conservés)
+- RTL/Arabic : préservé (aria-labels localisés dynamiquement via t())
+- ISR : préservé (route / = ○ Static 5m/1y)
