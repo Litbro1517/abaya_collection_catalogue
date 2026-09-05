@@ -1023,44 +1023,20 @@ export function CatalogPreview({ onAdminLogin, initialCatalog, initialDatasource
         >
           {s?.logo ? (
             <img
-              // ━━ MANDAT 4P — Logo branding optimization (render API WebP) ━━
-              // Avant : src={s.logo} brut (PNG original 13.4 KiB, cache-control: no-cache)
-              // → 3× oversizé vs affichage mobile (130×32 CSS px), revalidation RTT à
-              // chaque visite, auto-preload concurrent de l'image LCP.
-              // Maintenant : resolveHybridImageUrl (render API Supabase) → WebP 260w/400w
-              // + srcSet responsive + sizes adapté au layout + fetchPriority="low" (non-LCP)
-              // + decoding="async" → -64% poids (4.8 KiB vs 13.4 KiB), cache immutable 1 an.
-              src={resolveDirectImageUrl(s.logo, 260)}
-              srcSet={`${resolveDirectImageUrl(s.logo, 260)} 260w, ${resolveDirectImageUrl(s.logo, 400)} 400w`}
-              sizes={`(max-width: 640px) 130px, ${(s.logoHeight || 40) * 3}px`}
+              // ━━ MANDAT ADF — Logo revert to native direct URL ━━
+              // Revert du sur-traitement JS (render API WebP + srcSet + sizes +
+              // fetchPriority + decoding + onError 3-stage) qui causait une
+              // compression latérale de 35% du logo (render API sans resize=contain
+              // produisait 260×120 au lieu de 400×120 → ratio 2.167 vs 3.333).
+              // Retour à l'URL directe admin (SVG/PNG tels que configurés) —
+              // zéro transformation, ratio natif préservé.
+              // CLS: width/height explicites réservent la boîte avant chargement.
+              src={s.logo}
               alt={catalogName}
-              // MANDAT 4P PageSpeed fix — CLS: explicit width + height prevent layout
-              // shift when the logo image loads.
               width={(s.logoHeight || 40) * 3}
               height={s.logoHeight || 40}
-              className="w-auto object-contain shrink-0 lp-logo-mobile"
-              style={{ height: `${s.logoHeight || 40}px`, maxHeight: `${s.logoHeight || 40}px` }}
-              fetchPriority="low"
-              decoding="async"
-              onError={(e) => {
-                const img = e.currentTarget as HTMLImageElement;
-                const currentSrc = img.getAttribute('src');
-                // ━━ MANDAT 4P — chaîne de repli 3 étages ━━
-                // Étage 1 : render API échec → URL object originale (PNG branding préservé)
-                // Étage 2 : URL object échec → /logo.png local (toujours disponible)
-                // Étage 3 : /logo.png échec → masquage (alt text only)
-                if (currentSrc && currentSrc.includes('/render/image/')) {
-                  // Stage 1 → 2 : render → object
-                  img.removeAttribute('srcset');
-                  img.src = s.logo!;
-                } else if (currentSrc && currentSrc !== '/logo.png') {
-                  // Stage 2 → 3 : object → /logo.png
-                  img.src = '/logo.png';
-                } else {
-                  // Stage 3 : hide
-                  img.style.display = 'none';
-                }
-              }}
+              className="object-contain shrink-0 lp-logo-mobile"
+              style={{ height: `${s.logoHeight || 40}px`, width: 'auto' }}
             />
           ) : (
             <>
@@ -1887,30 +1863,18 @@ export function CatalogPreview({ onAdminLogin, initialCatalog, initialDatasource
                 }}
               >
                 {s?.logo ? (
-                  // ━━ MANDAT 4P — Logo footer optimization (render API WebP, lazy) ━━
-                  // Même URL 260w que le header mobile → dédup réseau (1 seul téléchargement).
-                  // Lazy loadé (footer = below-fold), decoding async, filter brightness(0) invert(1)
-                  // pour le rendu blanc sur fond sombre.
+                  // ━━ MANDAT ADF — Logo footer revert to native direct URL ━━
+                  // Même revert que le header : URL directe, zéro transformation JS.
+                  // loading="lazy" conservé (footer = below-fold, attribut HTML natif).
+                  // filter brightness(0) invert(1) pour le rendu blanc sur fond sombre.
                   <img
-                    src={resolveDirectImageUrl(s.logo, 260)}
+                    src={s.logo}
                     alt={catalogName}
                     width={Math.round((s.logoHeight || 40) * 0.6 * 3)}
                     height={Math.round((s.logoHeight || 40) * 0.6)}
-                    className="w-auto h-auto object-contain"
-                    style={{ height: `${Math.round((s.logoHeight || 40) * 0.6)}px`, maxHeight: `${Math.round((s.logoHeight || 40) * 0.6)}px`, filter: 'brightness(0) invert(1)' }}
+                    className="h-auto object-contain"
+                    style={{ height: `${Math.round((s.logoHeight || 40) * 0.6)}px`, width: 'auto', filter: 'brightness(0) invert(1)' }}
                     loading="lazy"
-                    decoding="async"
-                    onError={(e) => {
-                      const img = e.currentTarget as HTMLImageElement;
-                      const currentSrc = img.getAttribute('src');
-                      if (currentSrc && currentSrc.includes('/render/image/')) {
-                        img.src = s.logo!;
-                      } else if (currentSrc && currentSrc !== '/logo.png') {
-                        img.src = '/logo.png';
-                      } else {
-                        img.style.display = 'none';
-                      }
-                    }}
                   />
                 ) : (
                   <>

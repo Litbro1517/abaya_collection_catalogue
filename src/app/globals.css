@@ -4517,11 +4517,15 @@ html[lang="ar"] .pdp-guarantee-label {
     text-align: center;
   }
 
-  /* Logo image cap on mobile (image case — when settings.logo is set) */
+  /* Logo image cap on mobile (image case — when settings.logo is set)
+     ━━ MANDAT ADF — Logo revert: soft cap (no !important) ━━
+     Les !important écrasaient le slider admin (logoHeight 20-100px).
+     Remplacés par un plafond soft max-height:44px + max-width:190px
+     + object-contain : le modèle de boîte clampe naturellement sans
+     override du slider. VG43 anti-chevauchement préservé (header 56px). */
   .lp-logo-mobile {
-    max-height: 32px !important;
-    height: 32px !important;
-    max-width: 130px;
+    max-height: 44px;
+    max-width: 190px;
     object-fit: contain;
   }
 

@@ -2204,3 +2204,27 @@ Stage Summary:
 - CLS : préservé (width/height conservés)
 - RTL/Arabic : préservé (aria-labels localisés dynamiquement via t())
 - ISR : préservé (route / = ○ Static 5m/1y)
+
+---
+
+Task ID: MANDAT-ADF-LOGO-REVERT
+Agent: dev-agent (audit ADF + fusion conditionnelle)
+Task: MANDAT ADF — Audit, Fusion & Déploiement Vercel (fix/logo-revert-and-optimization @ 90ecdbc)
+
+Work Log:
+- Branche fix/logo-revert-and-optimization créée depuis main 2d14787 (branche local-only auditeur, recréée par l'agent développeur)
+- Investigation audit : le commit 987cf71 (MANDAT-ADF a11y+logo) a introduit un sur-traitement JS sur le logo (render API WebP + srcSet + sizes + fetchPriority + decoding + onError 3-stage) qui causait une compression latérale de 35% du logo (render API sans resize=contain produisait 260×120 au lieu de 400×120 → ratio 2.167 vs 3.333 → "Abaya Collecti" tronqué)
+- Revert header logo : src={s.logo} direct (URL admin native, zéro transformation), width/height conservés pour CLS, className="object-contain shrink-0 lp-logo-mobile", style={height + width:auto}
+- Revert footer logo : src={s.logo} direct + loading="lazy" (natif) + filter brightness(0) invert(1) conservé
+- Fix CSS .lp-logo-mobile : suppression des !important (height:32px!important + max-height:32px!important écrasaient le slider admin 20-100px) → plafond soft max-height:44px + max-width:190px + object-contain (modèle de boîte clampe naturellement)
+- Gates : lint 0/0, tsc 134 baseline (0 nouvelle, L616 pré-existant), build exit 0, ISR ○ Static 5m/1y
+- Variables d'environnement et credentials serveur : inchangés (aucune modification)
+- CAS A déclenché : 100% conforme → merge + push
+
+Stage Summary:
+- Verdict : 🟢 CAS A — 100% CONFORME, fusion exécutée
+- Logo : sur-traitement JS éradiqué, URL directe native restaurée, ratio 3.333 préservé (plus de compression latérale)
+- CSS mobile : !important supprimés, slider admin 20-100px opérationnel, soft cap 44px
+- CLS : préservé (width/height explicites conservés)
+- ISR : préservé (route / = ○ Static 5m/1y)
+- Env/credentials : inchangés
