@@ -5803,3 +5803,48 @@ Le commit `987cf71` (MANDAT-ADF a11y+logo) introduisait un sur-traitement JS :
 - CSS mobile : soft cap 44px (header 56px → pas de chevauchement)
 - CLS : préservé (width/height explicites conservés)
 - ISR : préservé (route / = ○ Static 5m/1y)
+
+## [MANDAT ADF — WEB TUNNEL ATTRIBUTION & LEGAL (fix/web-tunnel-attribution-legal @ 35882f9)]
+
+**Branche** : `fix/web-tunnel-attribution-legal` (depuis main @ `18ad3fa`, commit `35882f9`).
+**Merge** : `35882f9` poussé sur main, Vercel READY `dpl_J4nVfLT4`.
+
+### Axe 1 — Normalisation Domaine & SEO
+- `src/lib/public-base-url.ts` : `resolveCanonicalUrl()` + `getPublicBaseUrl()` — rejet absolu `vercel.app`/`labellect`, domaine officiel `catalogue.abayacollection.store` garanti
+- 8 fallbacks hardcodés remplacés dans `layout.tsx`, `robots.ts`, `sitemap.ts`, `page.tsx`, `product-meta/[slug]/page.tsx`
+- Production vérifiée : canonical/og:url/sitemap/robots.txt = `catalogue.abayacollection.store` (0 `vercel.app`)
+
+### Axe 2 — GTM Conditionné
+- `layout.tsx` : GTM script conditionné par `NEXT_PUBLIC_GTM_ID` avec validation format `/^GTM-[A-Za-z0-9]+$/`
+- Sans la variable : 0 script injecté, 0 pollution DOM
+
+### Axe 3 — Attribution UTM
+- `src/lib/utm-capture.tsx` : `useUtmCapture()` hook + `<UtmCapture />` composant (rend null, idle)
+- Liste blanche : `utm_source`, `utm_medium`, `utm_campaign`, `utm_content`, `utm_term`, `fbclid`, `gclid` (max 256 chars)
+- Persistance `sessionStorage`
+- Injection dans `CheckoutPage.tsx` POST `/api/orders` + `merci/page.tsx` purchase dataLayer
+- `orders/route.ts` : persistance best-effort SQL brut (201 garanti avec ou sans colonne attribution)
+
+### Axe 4 — Mentions Légales Trilingues
+- Éditeur rectifié 3 locales (FR/EN/AR) : أبايا كولكشن (Abaya Collection) + `catalogue.abayacollection.store`
+- Labellect/لابيليكت éliminé (0 référence restante)
+- Vercel + Cloudflare conservés (hébergement)
+
+### Gates qualité
+- `bun run lint` → **0 erreur / 0 warning** ✅
+- `npx tsc --noEmit` → **134 erreurs** (baseline, 0 nouvelle) ✅
+- `bun run build` → **exit 0** ✅, route `/` = `○ (Static) Revalidate 5m / Expire 1y` ✅
+
+### Action Ops Vercel
+- Saisir `NEXT_PUBLIC_GTM_ID` (format `GTM-XXXXXXX`) dans Vercel → active le tracking GA4/Meta
+- Optionnel : `ALTER TABLE orders ADD COLUMN attribution TEXT` pour persister UTM en BDD
+
+### Preuves production (Vercel READY `dpl_J4nVfLT4`)
+- canonical = `catalogue.abayacollection.store` ✅
+- og:url = `catalogue.abayacollection.store` ✅
+- sitemap URLs = `catalogue.abayacollection.store` ✅
+- robots.txt sitemap = `catalogue.abayacollection.store` ✅
+- 0 `vercel.app` dans le HTML servi ✅
+- 16 product-card-img SSR ✅
+- `<html lang="ar" dir="rtl" class="rtl">` ✅
+- noindex = 0 ✅
