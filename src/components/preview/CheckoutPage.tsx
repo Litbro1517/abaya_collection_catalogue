@@ -19,6 +19,7 @@ import { useClientTranslation } from '@/lib/i18n';
 import { useAppStore } from '@/lib/store';
 import { buildMultiProductWhatsappLink } from '@/lib/whatsapp';
 import { validateMoroccanPhone } from '@/lib/phone-validation';
+import { getStoredAttribution } from '@/lib/utm-capture';
 
 // ── Brand Constants (matching ProductPage / CodForm) ──
 const BRAND = {
@@ -126,6 +127,8 @@ export function CheckoutPage({ product, onBack }: CheckoutPageProps) {
 
     // VG37.4 Phase 2: Send multi-product payload to API.
     // The API creates one Order record per cart item (same customer info).
+    // ━━ MANDAT 4P — Attribution UTM dans le payload commande ━━
+    const attribution = getStoredAttribution();
     try {
       const res = await fetch('/api/orders', {
         method: 'POST',
@@ -145,6 +148,7 @@ export function CheckoutPage({ product, onBack }: CheckoutPageProps) {
           customerCity: form.customerCity.trim(),
           customerAddress: form.customerAddress.trim(),
           totalPrice: totalFormatted,
+          attribution, // UTM/fbclid/gclid pour persistance best-effort côté API
         }),
       });
 

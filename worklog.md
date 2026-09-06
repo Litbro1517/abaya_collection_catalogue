@@ -2256,3 +2256,26 @@ Stage Summary:
 - Toaster : 65 KiB eager → idle mount
 - CLS : préservé
 - ISR : préservé (route / = ○ Static 5m/1y)
+
+---
+
+Task ID: MANDAT-ADF-WEB-TUNNEL-ATTRIBUTION-LEGAL
+Agent: dev-agent (audit ADF + fusion conditionnelle)
+Task: MANDAT ADF — Audit & Déploiement Final (fix/web-tunnel-attribution-legal)
+
+Work Log:
+- Branche fix/web-tunnel-attribution-legal créée depuis main 18ad3fa (branche local-only auditeur, recréée par l'agent développeur)
+- Axe 1 (Domaine) : créé src/lib/public-base-url.ts (resolveCanonicalUrl + getPublicBaseUrl, rejet vercel.app/labellect). Remplacé 8 fallbacks hardcodés dans layout.tsx, robots.ts, sitemap.ts, page.tsx, product-meta/[slug]/page.tsx. Domaine officiel catalogue.abayacollection.store garanti.
+- Axe 2 (GTM) : vérifié code layout.tsx — GTM conditionné par NEXT_PUBLIC_GTM_ID avec validation format, 0 pollution DOM si absent
+- Axe 3 (UTM) : créé src/lib/utm-capture.tsx (hook useUtmCapture + composant UtmCapture + getStoredAttribution). Monté dans layout.tsx. Attribution injectée dans CheckoutPage POST /api/orders + /merci purchase event. Persistance best-effort SQL brut dans orders API (201 garanti avec ou sans colonne attribution).
+- Axe 4 (Mentions légales) : éditeur rectifié 3 locales (FR/EN/AR) — أبايا كولكشن (Abaya Collection) + catalogue.abayacollection.store + Labellect/لابيليكت éliminé (0 référence restante)
+- Gates : lint 0/0, tsc 134 baseline (0 nouvelle), build exit 0, ISR ○ Static 5m/1y
+- CAS A déclenché : 100% conforme → merge + push
+
+Stage Summary:
+- Verdict : 🟢 CAS A — 100% CONFORME, fusion exécutée
+- Domaine : 8 fallbacks vercel.app → catalogue.abayacollection.store (garanti par helper)
+- UTM : capture + persistance + injection dataLayer (3 points du tunnel)
+- GTM : conditionné, 0 pollution si absent
+- Mentions légales : éditeur أبايا كولكشن, 0 labellect, domaine officiel
+- CLS/ISR/TBT : préservés (aucun changement aux chantiers précédents)

@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import { unstable_cache } from 'next/cache';
 import HomeClient from '@/components/HomeClient';
 import { db } from '@/lib/db';
+import { resolveCanonicalUrl, getPublicBaseUrl } from '@/lib/public-base-url';
 
 // MANDAT 4P — Fix TTFB : ISR (Incremental Static Regeneration) toutes les 5 minutes.
 // Avant : la page était dynamique (SSR à chaque requête) → TTFB 2.2s + cache MISS.
@@ -24,7 +25,7 @@ const SEO_DEFAULTS = {
   title: 'Abaya Collection Chic — Catalogue',
   description: "Découvrez notre collection exclusive d'abayas, robes et ensembles. Commandez via WhatsApp, Messenger et plus.",
   ogImage: '/og-cover.jpg',
-  canonicalUrl: 'https://abaya-collection-catalogue-9dum.vercel.app',
+  canonicalUrl: getPublicBaseUrl(),
 };
 
 async function getSeoMetadata() {
@@ -193,9 +194,9 @@ const getCachedBaseUrl = unstable_cache(
     const seoRow = await db.settings.findUnique({ where: { key: '__seo_metadata__' } });
     if (seoRow?.value) {
       const parsed = JSON.parse(seoRow.value);
-      if (parsed.canonicalUrl) return parsed.canonicalUrl;
+      if (parsed.canonicalUrl) return resolveCanonicalUrl(parsed.canonicalUrl);
     }
-    return 'https://abaya-collection-catalogue-9dum.vercel.app';
+    return getPublicBaseUrl();
   },
   ['base-url-v2'],
   { revalidate: 300, tags: ['seo'] }
@@ -231,7 +232,7 @@ async function getBaseUrl() {
   try {
     return await getCachedBaseUrl();
   } catch {
-    return 'https://abaya-collection-catalogue-9dum.vercel.app';
+    return getPublicBaseUrl();
   }
 }
 

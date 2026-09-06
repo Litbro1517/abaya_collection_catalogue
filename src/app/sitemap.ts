@@ -1,5 +1,6 @@
 import type { MetadataRoute } from 'next';
 import { db } from '@/lib/db';
+import { resolveCanonicalUrl } from '@/lib/public-base-url';
 import { resolveAllProducts } from '@/lib/products';
 
 // ═══════════════════════════════════════════════════════════════════════
@@ -15,19 +16,19 @@ import { resolveAllProducts } from '@/lib/products';
 
 export const revalidate = 3600;
 
-const DEFAULT_BASE_URL = 'https://abaya-collection-catalogue-9dum.vercel.app';
+// MANDAT 4P — domaine officiel via public-base-url.ts
 
 async function getBaseUrl(): Promise<string> {
   try {
     const row = await db.settings.findUnique({ where: { key: '__seo_metadata__' } });
     if (row?.value) {
       const parsed = JSON.parse(row.value);
-      if (parsed.canonicalUrl) return parsed.canonicalUrl;
+      if (parsed.canonicalUrl) return resolveCanonicalUrl(parsed.canonicalUrl);
     }
   } catch {
     // DB not available — use default
   }
-  return DEFAULT_BASE_URL;
+  return resolveCanonicalUrl(null);
 }
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {

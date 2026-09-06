@@ -1,6 +1,7 @@
 import { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 import { resolveProduct } from '@/lib/products';
+import { getPublicBaseUrl } from '@/lib/public-base-url';
 
 // ━━ Fix V2: decode percent-encoded slugs (Arabic, etc.) before resolution ━━
 // Next.js 16 passes the slug as-is from the URL, which means Arabic characters
@@ -38,7 +39,7 @@ export async function generateMetadata({
   const product = await resolveProduct(safeDecode(slug));
 
   // Derive base URL: env var > fallback
-  const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'https://abaya-collection-catalogue-9dum.vercel.app';
+  const baseUrl = getPublicBaseUrl();
 
   if (!product) {
     // MANDAT 4P: previously returned a 200 OK with a generic title, which
@@ -84,7 +85,7 @@ export default async function ProductMetaPage({
 }) {
   const { slug } = await params;
   const product = await resolveProduct(safeDecode(slug));
-  const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'https://abaya-collection-catalogue-9dum.vercel.app';
+  const baseUrl = getPublicBaseUrl();
 
   if (!product) {
     // MANDAT 4P: emit a strict HTTP 404 Not Found instead of a 200 OK with

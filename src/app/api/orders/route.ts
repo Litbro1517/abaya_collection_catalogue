@@ -17,6 +17,8 @@ export async function POST(req: NextRequest) {
       productId, productName, productPrice, productColor, productSize, productQuantity, productImage,
       // Common customer fields
       customerName, customerPhone, customerCity, customerAddress, totalPrice,
+      // MANDAT 4P — Attribution UTM (best-effort, pas de colonne Prisma requise)
+      attribution,
     } = body;
 
     if (!customerName || !customerPhone || !customerCity || !customerAddress) {
@@ -96,6 +98,22 @@ export async function POST(req: NextRequest) {
         status: 'pending',
       },
     });
+
+    // ━━ MANDAT 4P — Persistance attribution UTM best-effort (raw SQL) ━━
+    // Si la colonne `attribution` n'existe pas en BDD, l'erreur est catchée
+    // silencieusement → le statut 201 de la commande est GARANTI.
+    // Si la colonne existe (ALTER TABLE optionnel), l'attribution est persistée.
+    if (attribution && typeof attribution === 'object' && Object.keys(attribution).length > 0) {
+      try {
+        const id = order.id;
+        await db.$executeRaw`
+          UPDATE orders SET attribution = ${JSON.stringify(attribution)}
+          WHERE id = ${id}
+        `;
+      } catch {
+        // Colonne attribution absente ou erreur SQL → best-effort, ne jamais casser la commande
+      }
+    }
 
     return NextResponse.json({ data: order, error: null }, { status: 201 });
   } catch (error) {

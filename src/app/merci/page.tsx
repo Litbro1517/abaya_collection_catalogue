@@ -5,6 +5,7 @@ import { useSearchParams } from 'next/navigation';
 import { CheckCircle2, ArrowLeft, ShieldCheck, ShoppingBag, Truck } from 'lucide-react';
 import { useClientTranslation } from '@/lib/i18n';
 import { pushDataLayer } from '@/lib/analytics';
+import { getStoredAttribution } from '@/lib/utm-capture';
 
 // ── Order type (matches the Prisma Order model) ──
 interface OrderData {
@@ -110,6 +111,10 @@ function MerciContent() {
       currency: 'MAD',
       transaction_id: order.id,
       order_id: order.id,
+      // ━━ MANDAT 4P — Attribution UTM dans le payload purchase ━━
+      // Les paramètres d'origine (utm_source, fbclid, gclid) sont
+      // injectés pour permettre l'attribution publicitaire côté GA4/Meta.
+      ...getStoredAttribution(),
     });
   }, [order, orderItems]);
 

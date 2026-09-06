@@ -8,7 +8,9 @@ import { ThemeInjector } from "@/components/ThemeInjector";
 import { GlobalCart } from "@/components/GlobalCart";
 import { LocaleDirectionSync } from "@/components/LocaleDirectionSync";
 import { LazyToaster } from "@/components/LazyToaster";
+import { UtmCapture } from "@/lib/utm-capture";
 import { db } from '@/lib/db';
+import { resolveCanonicalUrl } from '@/lib/public-base-url';
 
 // ── Audit remediation: GTM container ID via env var (no more placeholder) ──
 const GTM_CONTAINER_ID = process.env.NEXT_PUBLIC_GTM_ID || '';
@@ -98,7 +100,7 @@ function resolveSupabaseCdnOrigin(dbFaviconUrl: string | null): string {
 async function getBrandMetadata() {
   let catalogName = "Abaya Collection Chic";
   let whatsappNumber = "";
-  let metadataBaseUrl = 'https://abaya-collection-catalogue-9dum.vercel.app';
+  let metadataBaseUrl = resolveCanonicalUrl(null); // MANDAT 4P — domaine officiel garanti
   let dbFavicon: string | null = null;
   let defaultCatalogLanguage = 'fr';
 
@@ -122,7 +124,7 @@ async function getBrandMetadata() {
     const seoRow = await db.settings.findUnique({ where: { key: '__seo_metadata__' } });
     if (seoRow?.value) {
       const parsed = JSON.parse(seoRow.value);
-      if (parsed.canonicalUrl) metadataBaseUrl = parsed.canonicalUrl;
+      if (parsed.canonicalUrl) metadataBaseUrl = resolveCanonicalUrl(parsed.canonicalUrl);
     }
   } catch { /* DB unavailable — use default */ }
 
@@ -372,6 +374,7 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
             ne serve qu'aux notifications d'action (ajout panier, etc.).
             Différé au prochain idle callback → hors fenêtre TBT critique. */}
         <LazyToaster />
+        <UtmCapture />
       </body>
     </html>
   );
