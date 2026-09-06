@@ -509,6 +509,27 @@ export function CatalogPreview({ onAdminLogin, initialCatalog, initialDatasource
 
   useEffect(() => {
     if (!catalogReady || networkSyncDone.current) return;
+
+    // ━━ MANDAT 4P — TBT Fix B: Court-circuit du fetch rows redondant ━━
+    // Les props SSR (initialCatalog + initialDatasources) contiennent DÉJÀ les
+    // rows (page.tsx Prisma query include: { rows: true }). Le network-sync
+    // re-téléchargeait 95.7 KiB de rows post-hydratation → tâche longue 636 ms
+    // + re-render grille complet (TBT killer #1 sur mobile PSI).
+    // Court-circuit : si les sections SSR sont déjà peuplées (via buildSectionsFromData
+    // dans le useState initializer), on skip le fetch réseau et on seed le cache
+    // localStorage directement depuis les props SSR.
+    if (initialCatalog && initialDatasources && initialDatasources.length > 0) {
+      networkSyncDone.current = true;
+      // Seed cache from SSR props so subsequent navigations use localStorage
+      const ssrSections = buildSectionsFromData(initialCatalog, initialDatasources);
+      if (ssrSections.length > 0) {
+        writeCache(CACHE_KEYS.sections, ssrSections, sanitizeSections);
+        setSections(ssrSections as unknown as { section: Section; columns: Column[]; rows: Row[] }[]);
+        setSectionsLoaded(true);
+        return; // SSR data sufficient → zero network request
+      }
+    }
+
     networkSyncDone.current = true;
 
     // Cache-first: try localStorage before network

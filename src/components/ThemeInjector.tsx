@@ -30,7 +30,17 @@ export function ThemeInjector() {
   const [refreshKey, setRefreshKey] = useState(0);
 
   // Fetch theme data whenever refreshKey changes (initial load + updates)
+  // ━━ MANDAT 4P — TBT Fix D: Skip fetch for public catalog ━━
+  // Le thème est maintenant injecté en SSR (layout.tsx <style>) — le fetch
+  // client-side est redondant pour le visiteur public. Il reste nécessaire
+  // pour l'admin (live-preview des changements de thème via SettingsPillar).
+  // Skip pour le public = -1 requête réseau + 0 re-render post-hydratation
+  // (les 8 animations non composées du rapport PSI étaient causées par le
+  // changement de couleurs post-hydratation).
+  const isAdmin = useAppStore(s => s.isAdmin);
   useEffect(() => {
+    // Public visitor: theme is SSR-injected, skip fetch
+    if (!isAdmin) return;
     let cancelled = false;
     async function fetchTheme() {
       try {
@@ -62,7 +72,7 @@ export function ThemeInjector() {
     }
     fetchTheme();
     return () => { cancelled = true; };
-  }, [refreshKey]);
+  }, [refreshKey, isAdmin]);
 
   // ── Apply dir and lang to <html> when language changes ──
   // For the public catalog (preview view), use clientLocale;

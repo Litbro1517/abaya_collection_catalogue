@@ -3,11 +3,11 @@ import { Zain } from "next/font/google";
 import Script from "next/script";
 import ReactDOM from "react-dom";
 import "./globals.css";
-import { Toaster } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { ThemeInjector } from "@/components/ThemeInjector";
 import { GlobalCart } from "@/components/GlobalCart";
 import { LocaleDirectionSync } from "@/components/LocaleDirectionSync";
+import { LazyToaster } from "@/components/LazyToaster";
 import { db } from '@/lib/db';
 
 // ── Audit remediation: GTM container ID via env var (no more placeholder) ──
@@ -367,7 +367,11 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
           {children}
           <GlobalCart />
         </TooltipProvider>
-        <Toaster position="bottom-right" richColors />
+        {/* ━━ MANDAT 4P — TBT Fix G: Toaster lazy + idle ━━
+            sonner (65 KiB) était évalué eagèrement dans le layout, bien qu'il
+            ne serve qu'aux notifications d'action (ajout panier, etc.).
+            Différé au prochain idle callback → hors fenêtre TBT critique. */}
+        <LazyToaster />
       </body>
     </html>
   );

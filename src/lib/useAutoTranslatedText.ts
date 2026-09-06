@@ -160,6 +160,26 @@ export function useAutoTranslatedText(
   }
 
   useEffect(() => {
+    // ━━ MANDAT 4P — TBT Fix C: Gate localeSeeded ━━
+    // Sur une première visite (locale = 'fr' initialement), le seed locale
+    // (fr→ar) déclenchait 16 appels /api/translate pour traduire les titres
+    // arabes en français, puis re-rendait toute la grille quand la locale
+    // passait à 'ar'. Le gate `localeSeeded` permet de skip la traduction
+    // tant que la locale n'est pas stabilisée (seed terminé ou préférence
+    // existante). Le visiteur FR de retour (locale stable 'fr') traduit
+    // normalement — inchangé.
+    if (typeof window !== 'undefined') {
+      // Check if locale is still seeding (module-init 'fr' before DB seed)
+      const stored = localStorage.getItem('abaya_clientLocale');
+      const cookie = document.cookie.match(/abaya_locale=([^;]+)/);
+      if (!stored && !cookie && targetLang === 'fr') {
+        // First visit, locale not yet seeded → skip translation to avoid
+        // the 16-call race that occurs when locale flips fr→ar post-seed
+        setTranslated(text);
+        return;
+      }
+    }
+
     // Pas de texte → rien à faire
     if (!text || !text.trim()) {
       setTranslated(text);
