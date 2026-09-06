@@ -174,6 +174,24 @@ export async function generateMetadata(): Promise<Metadata> {
     title: `${catalogName} — Catalogue`,
     description: "Découvrez notre collection exclusive d'abayas, robes et ensembles. Commandez via WhatsApp, Messenger et plus.",
     icons,
+    // ━━ MANDAT 4P-rectification (audit 360, point 4) : hreflang global ━━
+    // Le catalogue est FR/EN/AR sur une URL unique (changement de langue
+    // client-side, pas de routes /fr /ar) → chaque page déclare ses propres
+    // alternatives linguistiques : './' est résolu par Next.js sur l'URL de
+    // la PAGE COURANTE (fr-MA + ar-MA + x-default → même URL, même page).
+    // Avant : hreflang émis UNIQUEMENT sur / (page.tsx) — mentions-legales,
+    // politique-de-confidentialité, conditions-generales, politique-de-retour,
+    // merci, lp/*, product-meta/* n'en émettaient aucun → Google ne pouvait
+    // pas qualifier le ciblage géo/multilingue de ces routes.
+    // L'accueil '/' garde son alternates dédié (page.tsx : canonical DB +
+    // mêmes langues) qui surcharge celui-ci — zéro régression.
+    alternates: {
+      languages: {
+        'fr-MA': './',
+        'ar-MA': './',
+        'x-default': './',
+      },
+    },
     // ━━ MANDAT 4P — Suppression du verrou noindex (fix/remove-noindex-lock) ━━
     // La maintenance est terminée — le verrou noindex/nofollow global (inséré
     // temporairement) est supprimé pour autoriser l'indexation par les robots

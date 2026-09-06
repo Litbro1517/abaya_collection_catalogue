@@ -2,12 +2,13 @@ import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { Prisma } from '@prisma/client';
 import { getCurrentAdmin } from '@/lib/auth';
+import { validateMoroccanPhone, normalizePhone } from '@/lib/phone-validation';
 
 // ━━ MANDAT 4P — Sanitisation serveur attribution UTM ━━
 // Liste blanche stricte (mirroir du client) + max 256 chars par valeur.
 // Élimine toute tentative d'injection SQL ou de payload arbitraire.
 const ALLOWED_ATTR_KEYS = new Set([
-  'utm_source', 'utm_medium', 'utm_campaign', 'utm_content', 'utm_term', 'fbclid', 'gclid'
+  'utm_source', 'utm_medium', 'utm_campaign', 'utm_content', 'utm_term', 'fbclid', 'gclid', 'ttclid'
 ]);
 const MAX_ATTR_VALUE_LENGTH = 256;
 
@@ -44,16 +45,23 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ data: null, error: 'Tous les champs client sont obligatoires.' }, { status: 400 });
     }
 
-    // VG37.3 A4: Strict Morocco phone validation (10 digits local or +212 international)
-    const cleanPhone = customerPhone.replace(/[^\d+]/g, '');
-    const isLocalFormat = /^0[67]\d{8}$/.test(cleanPhone);
-    const isIntlFormat = /^\+212[67]\d{8}$/.test(cleanPhone);
-    if (!isLocalFormat && !isIntlFormat) {
+    // ━━ MANDAT 4P-rectification (audit 360) : validation téléphone UNIFIÉE client/serveur ━━
+    // Le serveur utilise désormais exactement la même fonction/regex que le
+    // client (@/lib/phone-validation : /^(?:\+212|00212|0)[5-7]\d{8}$/).
+    // L'ancienne double regex serveur (^0[67]\d{8}$ + ^\+212[67]\d{8}$)
+    // rejetait silencieusement en 400 des numéros que le client acceptait :
+    // les fixes/box 05XXXXXXXX, l'international +2125XXXXXXXX et tout le
+    // format 002125/6/7XXXXXXXX → perte de commandes réelles (divergence
+    // relevée par l'audit 360, point 1). Un numéro accepté côté client est
+    // désormais garanti accepté côté serveur, par construction.
+    if (!validateMoroccanPhone(customerPhone)) {
       return NextResponse.json(
-        { data: null, error: 'Numéro de téléphone invalide (10 chiffres requis, format 06XXXXXXXX ou 07XXXXXXXX).' },
+        { data: null, error: 'Numéro de téléphone invalide (formats acceptés : 06/07/05XXXXXXXX, +2125/6/7XXXXXXXX, 002125/6/7XXXXXXXX).' },
         { status: 400 },
       );
     }
+    // Stockage : même normalisation que le client (espaces/points/tirets retirés).
+    const cleanPhone = normalizePhone(customerPhone);
 
     // VG37.4 Phase 2: Multi-product path — create one Order per item
     if (Array.isArray(items) && items.length > 0) {
@@ -176,8 +184,15 @@ export async function GET(req: NextRequest) {
     const status = searchParams.get('status');
     const search = searchParams.get('search');
     const archived = searchParams.get('archived') === 'true';
-    const limit = Math.min(parseInt(searchParams.get('limit') || '50'), 100);
-    const offset = parseInt(searchParams.get('offset') || '0');
+    // ━━ MANDAT 4P-rectification (audit 360) : garde-fou NaN pagination ━━
+    // parseInt('abc') → NaN, et Math.min/max ne filtre pas NaN → take/skip
+    // NaN propagés à Prisma → PrismaClientValidationError → 500 bruité.
+    // Garde Number.isFinite + fallbacks sûrs (limit=50, offset=0) + bornes
+    // [1,100] (limit négative également neutralisée par Math.max).
+    const rawLimit = parseInt(searchParams.get('limit') || '50', 10);
+    const limit = Math.min(100, Math.max(1, Number.isFinite(rawLimit) ? rawLimit : 50));
+    const rawOffset = parseInt(searchParams.get('offset') || '0', 10);
+    const offset = Number.isFinite(rawOffset) && rawOffset >= 0 ? rawOffset : 0;
 
     let orders: any[];
     let total: number;

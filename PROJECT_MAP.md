@@ -5883,3 +5883,41 @@ Le commit `987cf71` (MANDAT-ADF a11y+logo) introduisait un sur-traitement JS :
 - 16 product-card-img SSR ✅
 - `<html lang="ar" dir="rtl" class="rtl">` ✅
 - noindex = 0 ✅
+
+## [MANDAT 4P-RECTIFICATION — AUDIT 360 : 4 RECTIFICATIONS (fix/audit-360-rectifications)]
+
+**Base** : main @ `39f6e69` (post-merge tsc-deadcode : tsc 0 erreur, gate build actif)
+**Branche isolée** : `fix/audit-360-rectifications` — **AUCUN merge vers main sans feu vert explicite de l'audit**
+**Contexte** : audit cloud externe « 360 » — 4 points d'attention vérifiés techniquement puis rectifiés.
+**NOTE ARCHITECTURALE** : l'événement `contact_whatsapp` est VOLONTAIREMENT absent (canal manuel isolé pour ne pas polluer le Pixel Meta avec du trafic froid/récurrent) — exclu du périmètre par design, ne pas comptabiliser comme un manque.
+
+### Point 1 — Incohérence validation téléphone (CONFIRMÉ → CORRIGÉ)
+- Constat : le client (`CodForm`/`CheckoutPage` via `@/lib/phone-validation`, regex `/^(?:\+212|00212|0)[5-7]\d{8}$/`) acceptait 05/+2125/002125/6/7, mais le serveur (`orders/route.ts`) appliquait une double regex divergente (`^0[67]\d{8}$` + `^\+212[67]\d{8}$`) → **400 silencieux** sur fixes/box 05, international +2125, et TOUT le format 00212 → perte de commandes réelles.
+- Fix : `orders/route.ts` importe désormais `validateMoroccanPhone` + `normalizePhone` de `@/lib/phone-validation` — **une seule source de vérité** (un numéro accepté client-side est garanti accepté serveur-side, par construction). Message d'erreur serveur remis à jour (05/+2125/00212 listés).
+- E2E : 0512345678 → 201 (avant 400) ; +212512345678 → 201 ; 00212561234567 → 201 ; 12345 → 400 ; 0812345678 → 400 (rejets légitimes conservés).
+
+### Point 2 — ttclid absent de la chaîne d'attribution (CONFIRMÉ → CORRIGÉ)
+- Constat : `utm-capture.tsx` (UTM_KEYS, 7 clés) et `ALLOWED_ATTR_KEYS` (serveur, miroir 7 clés) géraient Meta (`fbclid`) et Google (`gclid`) mais PAS le TikTok Click ID → perte d'attribution totale pour toute campagne TikTok Ads.
+- Fix : `'ttclid'` ajouté aux DEUX listes + champ `ttclid?: string` dans `AttributionData` (front) — capture URL → sessionStorage `abaya_attribution` → payload POST /api/orders → whitelist serveur → UPDATE orders SET attribution.
+- E2E : POST multi-produits (2 items) avec ttclid + gclid + clé arbitraire injectée → **201, ttclid persisté 2/2 en base** ; gclid inchangé (2/2) ; la clé arbitraire reste FILTRÉE (whitelist stricte intacte — zéro surface d'injection ajoutée).
+
+### Point 3 — Garde-fou Number.isFinite pagination (CONFIRMÉ → CORRIGÉ)
+- Constat : `datasources/[id]/rows/route.ts` : `Math.max(1, parseInt('abc'))` = **NaN** (Math.max ne filtre pas NaN) → `skip: NaN, take: NaN` propagés à Prisma → `PrismaClientValidationError` → 500 bruité sur simple `?page=abc&limit=xyz`. Même défaut de classe dans `datasources/[id]/route.ts` (full mode, route publique du catalogue) et `orders/route.ts` GET (limit/offset, voie admin).
+- Fix (3 fichiers) : garde `Number.isFinite` + fallbacks sécurisés conformes au mandat (**page=1, limit=20** en cas de valeur malformée ; valeurs absentes inchangées : page '1', limit '1000'/'50' — zéro impact appelants sains) + radix 10 explicite + bornes négatives neutralisées.
+- E2E : `?page=abc&limit=xyz` → **200** avec fallback (datasource réel 45 rows : page=1, rows=20, totalPages=3) ; pagination légitime page=3 → 5 rows exacts ; sans params → 200 (défauts inchangés).
+
+### Point 4 — hreflang global manquant (CONFIRMÉ → CORRIGÉ)
+- Constat : SEULE la route `/` émettait du hreflang (page.tsx `alternates.languages` fr-MA/ar-MA/x-default) ; `layout.tsx` n'en déclarait pas → mentions-legales, politique-de-confidentialité, conditions-generales, politique-de-retour, merci, lp/*, product-meta/* **sans aucune alternative linguistique** → Google ne pouvait pas qualifier le ciblage géo/multilingue de ces routes.
+- Fix : `alternates.languages` ajouté au `generateMetadata` du layout avec `'./'` (résolu par Next.js sur **l'URL de la page courante** — chaque page pointe ses propres alternatives, cohérent avec l'architecture FR/EN/AR sur URL unique, changement de langue client-side). L'accueil garde son alternates dédié (page.tsx : canonical DB) qui **surcharge** celui du layout — zéro régression.
+- E2E : `/mentions-legales` et `/politique-de-retour` émettent désormais `<link rel="alternate" hrefLang="fr-MA|ar-MA|x-default" href="…/mentions-legales|…/politique-de-retour">` ; `/` inchangé (canonical DB).
+
+### Validation Gate (preuves : /home/z/verify-logs/mandat-4p-audit-360-rectifications/)
+- `npx tsc --noEmit` → **exit 0** (baseline main 39f6e69 : 0 erreur — zéro régression) ✅
+- `npx eslint .` → **exit 0** (0 erreur, 0 warning) ✅
+- Séquence Vercel (switch-provider + prisma generate + next build) → **exit 0** (gate actif) ✅
+- E2E runtime :3241 (SQLite) : 17 assertions vertes (A1-A3 hreflang, B1-B5 téléphone, C1-C2 ttclid, D1-D5+D4bis/ter NaN) — données de test nettoyées, serveur arrêté ✅
+
+### Statistiques
+- 5 fichiers modifiés : **+66 / −15 lignes** (chirurgical)
+- Zéro dépendance ajoutée, zéro schéma modifié, zéro composant UI touché
+- contact_whatsapp : NON ajouté (exclusion architecturale respectée)

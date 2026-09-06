@@ -40,8 +40,14 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
     }
 
     // Full mode: return columns + paginated rows
-    const page = Math.max(1, parseInt(url.searchParams.get('page') || '1'));
-    const limit = Math.min(1000, Math.max(1, parseInt(url.searchParams.get('limit') || '1000')));
+    // ━━ MANDAT 4P-rectification (audit 360, point 3) : garde-fou NaN ━━
+    // Même défaut que rows/route.ts : parseInt NaN non filtré → skip/take
+    // NaN → PrismaClientValidationError → 500. Garde Number.isFinite +
+    // fallbacks (page=1, limit=20) ; valeurs absentes inchangées.
+    const rawPage = parseInt(url.searchParams.get('page') || '1', 10);
+    const page = Number.isFinite(rawPage) && rawPage >= 1 ? rawPage : 1;
+    const rawLimit = parseInt(url.searchParams.get('limit') || '1000', 10);
+    const limit = Number.isFinite(rawLimit) ? Math.min(1000, Math.max(1, rawLimit)) : 20;
 
     const [ds, rowCount] = await Promise.all([
       db.dataSource.findUnique({

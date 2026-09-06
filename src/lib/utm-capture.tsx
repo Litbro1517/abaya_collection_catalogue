@@ -6,7 +6,7 @@ import { useEffect } from 'react';
  * MANDAT 4P — UTM Attribution Capture
  * ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
  * Hook + composant pour capturer les paramètres d'origine (utm_source,
- * utm_medium, utm_campaign, fbclid, gclid) depuis l'URL au premier
+ * utm_medium, utm_campaign, fbclid, gclid, ttclid) depuis l'URL au premier
  * chargement, et les persister en sessionStorage pour la durée de la
  * session navigateur.
  *
@@ -17,7 +17,10 @@ import { useEffect } from 'react';
  * capturés, max 256 caractères par valeur), pas de PII.
  */
 
-const UTM_KEYS = ['utm_source', 'utm_medium', 'utm_campaign', 'utm_content', 'utm_term', 'fbclid', 'gclid'] as const;
+// ━━ MANDAT 4P-rectification (audit 360, point 2) : ttclid ajouté ━━
+// TikTok Click ID — équivalent du fbclid (Meta) / gclid (Google). Sans lui,
+// toute campagne TikTok Ads perd son attribution côté commandes.
+const UTM_KEYS = ['utm_source', 'utm_medium', 'utm_campaign', 'utm_content', 'utm_term', 'fbclid', 'gclid', 'ttclid'] as const;
 const STORAGE_KEY = 'abaya_attribution';
 const MAX_VALUE_LENGTH = 256;
 
@@ -29,6 +32,7 @@ export interface AttributionData {
   utm_term?: string;
   fbclid?: string;
   gclid?: string;
+  ttclid?: string;
 }
 
 /**
