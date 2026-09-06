@@ -5848,3 +5848,38 @@ Le commit `987cf71` (MANDAT-ADF a11y+logo) introduisait un sur-traitement JS :
 - 16 product-card-img SSR ✅
 - `<html lang="ar" dir="rtl" class="rtl">` ✅
 - noindex = 0 ✅
+
+## [MANDAT ADF — MULTI-CHECKOUT ATTRIBUTION & PERF RESCUE (fix/multi-checkout-attribution-perf-rescue @ 8d986e2)]
+
+**Branche** : `fix/multi-checkout-attribution-perf-rescue` (depuis main @ `13de3d8`, commit `8d986e2`).
+**Merge** : `8d986e2` poussé sur main, Vercel READY `dpl_HmuBYwrb`.
+
+### Fix 1 — Attribution multi-produits (bug corrigé)
+- **Bug** : `orders/route.ts` n'exécutait l'UPDATE SQL d'attribution que sur le parcours legacy (single-product). Le parcours multi-produits ($transaction) perdait l'attribution sur TOUS les orders du batch.
+- **Correctif** : persistance sur TOUS les orders + sanitisation serveur (`sanitizeAttribution()`, 7 clés blanches, max 256 chars, injection SQL impossible)
+- **Résilience** : 201 garanti avec ou sans colonne `attribution` en BDD (catch silencieux)
+
+### Fix 2 — GTM lazyOnload (TBT)
+- `layout.tsx` : GTM `strategy="afterInteractive"` → `"lazyOnload"` → gtm.js chargé après le load event au lieu de concurrencer l'hydratation
+
+### Fix 3 — Canonical hardening (LCP)
+- `page.tsx` : `getCachedSeoMetadata` retournait `parsed.canonicalUrl` brut sans `resolveCanonicalUrl()` → fuite latente vercel.app. Corrigé : sanitize via `resolveCanonicalUrl()`.
+
+### Fix 4 — Security headers
+- `next.config.ts` : 3 headers ajoutés via `headers()` pour toutes les routes :
+  - `Strict-Transport-Security: max-age=63072000; includeSubDomains; preload`
+  - `X-Content-Type-Options: nosniff`
+  - `Referrer-Policy: strict-origin-when-cross-origin`
+
+### Gates qualité
+- `bun run lint` → **0 erreur / 0 warning** ✅
+- `npx tsc --noEmit` → **134 erreurs** (baseline, 0 nouvelle) ✅
+- `bun run build` → **exit 0** ✅, route `/` = `○ (Static) Revalidate 5m / Expire 1y` ✅
+
+### Preuves production (Vercel READY `dpl_HmuBYwrb`)
+- Security headers : 3/3 présents (HSTS+preload, nosniff, Referrer-Policy) ✅
+- canonical = `catalogue.abayacollection.store` ✅
+- 0 `vercel.app` dans le HTML ✅
+- 16 product-card-img SSR ✅
+- `<html lang="ar" dir="rtl" class="rtl">` ✅
+- noindex = 0 ✅
