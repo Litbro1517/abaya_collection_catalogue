@@ -180,7 +180,7 @@ const getCachedSeoMetadata = unstable_cache(
         title: parsed.title || SEO_DEFAULTS.title,
         description: parsed.description || SEO_DEFAULTS.description,
         ogImage: parsed.ogImage || SEO_DEFAULTS.ogImage,
-        canonicalUrl: parsed.canonicalUrl || SEO_DEFAULTS.canonicalUrl,
+        canonicalUrl: resolveCanonicalUrl(parsed.canonicalUrl || null),
       };
     }
     return SEO_DEFAULTS;

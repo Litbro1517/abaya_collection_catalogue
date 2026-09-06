@@ -56,4 +56,25 @@ const nextConfig: NextConfig = {
   ],
 };
 
-export default withBundleAnalyzer(nextConfig);
+// ━━ MANDAT 4P — Security Headers (Fix 4) ━━
+// 3 en-têtes de sécurité critiques absents sur main : HSTS, nosniff,
+// Referrer-Policy. Injectés via headers() pour toutes les routes.
+const SECURITY_HEADERS = [
+  { key: "Strict-Transport-Security", value: "max-age=63072000; includeSubDomains; preload" },
+  { key: "X-Content-Type-Options", value: "nosniff" },
+  { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
+];
+
+const nextConfigWithHeaders: NextConfig = {
+  ...nextConfig,
+  async headers() {
+    return [
+      {
+        source: "/:path*",
+        headers: SECURITY_HEADERS,
+      },
+    ];
+  },
+};
+
+export default withBundleAnalyzer(nextConfigWithHeaders);

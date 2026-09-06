@@ -3,6 +3,25 @@ import { db } from '@/lib/db';
 import { Prisma } from '@prisma/client';
 import { getCurrentAdmin } from '@/lib/auth';
 
+// ━━ MANDAT 4P — Sanitisation serveur attribution UTM ━━
+// Liste blanche stricte (mirroir du client) + max 256 chars par valeur.
+// Élimine toute tentative d'injection SQL ou de payload arbitraire.
+const ALLOWED_ATTR_KEYS = new Set([
+  'utm_source', 'utm_medium', 'utm_campaign', 'utm_content', 'utm_term', 'fbclid', 'gclid'
+]);
+const MAX_ATTR_VALUE_LENGTH = 256;
+
+function sanitizeAttribution(raw: unknown): string | null {
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return null;
+  const cleaned: Record<string, string> = {};
+  for (const [key, value] of Object.entries(raw as Record<string, unknown>)) {
+    if (ALLOWED_ATTR_KEYS.has(key) && typeof value === 'string' && value.length <= MAX_ATTR_VALUE_LENGTH) {
+      cleaned[key] = value;
+    }
+  }
+  return Object.keys(cleaned).length > 0 ? JSON.stringify(cleaned) : null;
+}
+
 // ── POST /api/orders — Create a new order (multi-product support) ──
 // VG37.4 Phase 2: Accepts multi-product payload with items[] array.
 // Creates one Order record per cart item (same customer info).
@@ -72,6 +91,26 @@ export async function POST(req: NextRequest) {
         }),
       );
 
+      // ━━ MANDAT 4P — Attribution UTM multi-produits (best-effort SQL) ━━
+      // Bug fix : l'attribution n'était persistée que sur le parcours legacy
+      // (single-product). Le parcours multi-produits ($transaction) la perdait.
+      // Maintenant : persiste sur TOUS les orders du batch.
+      if (attribution && typeof attribution === 'object' && Object.keys(attribution).length > 0) {
+        try {
+          const sanitized = sanitizeAttribution(attribution);
+          if (sanitized) {
+            for (const o of orders) {
+              await db.$executeRaw`
+                UPDATE orders SET attribution = ${sanitized}
+                WHERE id = ${o.id}
+              `;
+            }
+          }
+        } catch {
+          // Colonne attribution absente → best-effort, ne jamais casser la commande
+        }
+      }
+
       return NextResponse.json({ data: { id: orders[0]?.id, count: orders.length, orders }, error: null }, { status: 201 });
     }
 
@@ -105,11 +144,14 @@ export async function POST(req: NextRequest) {
     // Si la colonne existe (ALTER TABLE optionnel), l'attribution est persistée.
     if (attribution && typeof attribution === 'object' && Object.keys(attribution).length > 0) {
       try {
-        const id = order.id;
-        await db.$executeRaw`
-          UPDATE orders SET attribution = ${JSON.stringify(attribution)}
-          WHERE id = ${id}
-        `;
+        const sanitized = sanitizeAttribution(attribution);
+        if (sanitized) {
+          const id = order.id;
+          await db.$executeRaw`
+            UPDATE orders SET attribution = ${sanitized}
+            WHERE id = ${id}
+          `;
+        }
       } catch {
         // Colonne attribution absente ou erreur SQL → best-effort, ne jamais casser la commande
       }

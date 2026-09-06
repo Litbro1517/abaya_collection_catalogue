@@ -2279,3 +2279,26 @@ Stage Summary:
 - GTM : conditionné, 0 pollution si absent
 - Mentions légales : éditeur أبايا كولكشن, 0 labellect, domaine officiel
 - CLS/ISR/TBT : préservés (aucun changement aux chantiers précédents)
+
+---
+
+Task ID: MANDAT-ADF-MULTI-CHECKOUT-PERF-RESCUE
+Agent: dev-agent (audit ADF + fusion conditionnelle)
+Task: MANDAT ADF — Audit & Déploiement Final (fix/multi-checkout-attribution-perf-rescue)
+
+Work Log:
+- Branche fix/multi-checkout-attribution-perf-rescue créée depuis main 13de3d8 (branche local-only auditeur, recréée par l'agent développeur)
+- Fix 1 (Attribution multi-produits) : bug confirmé — l'UPDATE SQL n'était exécuté que sur le parcours legacy (single-product), pas sur le parcours multi-produits ($transaction). Corrigé : persistance sur TOUS les orders du batch + sanitisation serveur (7 clés blanches, max 256 chars)
+- Fix 2 (TBT) : GTM strategy afterInteractive → lazyOnload (gtm.js chargé après le load event au lieu de concurrencer l'hydratation)
+- Fix 3 (LCP/Canonical) : getCachedSeoMetadata retournait parsed.canonicalUrl brut sans resolveCanonicalUrl() → fuite latente vercel.app si DB contient l'URL technique. Corrigé : sanitize via resolveCanonicalUrl()
+- Fix 4 (Security headers) : 3 headers absents sur main (HSTS, nosniff, Referrer-Policy). Ajoutés via next.config.ts headers() pour toutes les routes.
+- Gates : lint 0/0, tsc 134 baseline (0 nouvelle), build exit 0, ISR ○ Static 5m/1y
+- CAS A déclenché : 100% conforme → merge + push
+
+Stage Summary:
+- Verdict : 🟢 CAS A — 100% CONFORME, fusion exécutée
+- Attribution multi-produits : bug corrigé (3/3 orders persistés au lieu de 0/3)
+- GTM : lazyOnload (deferred post-load)
+- Canonical : durci (resolveCanonicalUrl sur toutes les paths DB)
+- Security headers : 3/3 ajoutés (HSTS+preload, nosniff, Referrer-Policy)
+- CLS/ISR/TBT : préservés
