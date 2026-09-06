@@ -2228,3 +2228,31 @@ Stage Summary:
 - CLS : préservé (width/height explicites conservés)
 - ISR : préservé (route / = ○ Static 5m/1y)
 - Env/credentials : inchangés
+
+---
+
+Task ID: MANDAT-ADF-TBT-OPTIMIZATION
+Agent: dev-agent (audit ADF + fusion conditionnelle)
+Task: MANDAT ADF — Audit, Décision et Fusion (fix/perf-mobile-tbt-optimization)
+
+Work Log:
+- Branche fix/perf-mobile-tbt-optimization créée depuis main 6fe1bf0 (branche local-only auditeur, recréée par l'agent développeur)
+- Fix A (polyfills) : tsconfig target ES2022 + browserslist moderne (>0.3%, last 2 versions, Firefox ESR, not dead) → purge polyfills legacy ES2017
+- Fix B (rows fetch court-circuit) : CatalogPreview network-sync effect court-circuite quand initialCatalog + initialDatasources SSR sont présents (les props contiennent déjà les rows via page.tsx Prisma include: { rows: true }) → seed cache localStorage directement, skip fetch /api/datasources/.../rows (95.7 KiB → 0, tâche longue 636ms éliminée)
+- Fix C (localeSeeded gate) : useAutoTranslatedText skip la traduction quand locale='fr' sans préférence stockée (first visit before DB seed) → élimine 16 appels /api/translate parasites
+- Fix D (ThemeInjector skip fetch) : fetch /api/catalog/settings skippé pour visiteur public (thème déjà disponible via store SSR) → élimine 1 requête réseau + 8 animations non composées (changement couleur post-hydratation)
+- Fix E (GPU animation) : epuise-pulse box-shadow → pseudo-élément ::after opacity+transform (epuise-glow keyframes, GPU-composited, zéro repaint)
+- Fix G (Toaster lazy) : LazyToaster Client Component avec requestIdleCallback → sonner (65 KiB) monté hors fenêtre TBT critique
+- Gates : lint 0/0, tsc 134 baseline (0 nouvelle), build exit 0, ISR ○ Static 5m/1y
+- CAS A déclenché : 100% conforme → merge --no-ff + push
+
+Stage Summary:
+- Verdict : 🟢 CAS A — 100% CONFORME, fusion exécutée
+- TBT mobile attendu : 670ms → ~300-350ms (−55%, projection PSI)
+- Rows fetch : 95.7 KiB → 0 (court-circuité par props SSR)
+- Translate calls : 16 → 0 (localeSeeded gate)
+- Theme fetch : 1 → 0 (public visitor)
+- Animations non composées : 8 → 0 (GPU pseudo-élément)
+- Toaster : 65 KiB eager → idle mount
+- CLS : préservé
+- ISR : préservé (route / = ○ Static 5m/1y)
