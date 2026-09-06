@@ -46,7 +46,7 @@ export async function GET(req: NextRequest) {
         console.error('Supabase bucket list error:', error);
       } else if (fileList) {
         bucketFiles = fileList
-          .filter((f) => !f.id.endsWith('/')) // exclude folders
+          .filter((f) => !((f.id || "") || "").endsWith('/')) // exclude folders
           .map((f) => ({
             name: f.name,
             size: f.metadata?.size || 0,

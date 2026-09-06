@@ -31,7 +31,7 @@ interface MediaImage {
   source: 'drive' | 'cdn' | 'unknown';
   fileId: string | null;
   assetStatus: string | null;
-  mediaAssetId: string | null;
+  mediaAssetId: string | undefined;
   originalRowId: string | null;
   isLinked: boolean;
 }

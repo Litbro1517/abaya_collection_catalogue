@@ -634,7 +634,7 @@ export function CatalogPreview({ onAdminLogin, initialCatalog, initialDatasource
       const config = section.config as SectionConfig;
       if (!config.titleColumn) continue;
       const match = rows.find(row => {
-        const title = String(getCellValue(row, config.titleColumn) || '');
+        const title = String(getCellValue(row, config.titleColumn || '') || '');
         return slugify(title) === productSlug;
       });
       if (match) {
@@ -949,7 +949,7 @@ export function CatalogPreview({ onAdminLogin, initialCatalog, initialDatasource
     viewItemListTracked.current = trackKey;
 
     const items = paginatedProducts.map(({ row, columns, section, config }) => {
-      const title = config.titleColumn ? getCellValue(row, config.titleColumn) : '';
+      const title = config.titleColumn ? getCellValue(row, config.titleColumn || '') : '';
       const price = config.priceColumn ? getCellValue(row, config.priceColumn) : '';
       return buildEcommerceItem({
         id: row.id,
@@ -1583,7 +1583,7 @@ export function CatalogPreview({ onAdminLogin, initialCatalog, initialDatasource
                 coverUrl = String(coverRawVal);
               }
             }
-            const title = config.titleColumn ? getCellValue(row, config.titleColumn) : '';
+            const title = config.titleColumn ? getCellValue(row, config.titleColumn || '') : '';
             const price = config.priceColumn ? getCellValue(row, config.priceColumn) : '';
             const isLiked = likedProducts.has(row.id);
             const isEpuise = stockState === 'epuise';

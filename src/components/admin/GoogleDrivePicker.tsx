@@ -145,20 +145,20 @@ export function GoogleDrivePicker({
       await new Promise<void>((resolve, reject) => {
         let tries = 0;
         const check = () => {
-          if (window.google?.picker) resolve();
+          if ((window as any).google?.picker) resolve();
           else if (tries++ > 50) reject(new Error('Picker API timeout'));
           else setTimeout(check, 100);
         };
         check();
       });
 
-      const view = new window.google.picker.View();
+      const view = new (window as any).google.picker.View();
       view.setMimeTypes('image/png,image/jpeg,image/jpg,image/webp,image/gif');
 
-      const builder = new window.google.picker.PickerBuilder()
+      const builder = new (window as any).google.picker.PickerBuilder()
         .addView(view)
         .setOAuthToken(accessToken)
-        .enableFeature(window.google.picker.Feature.MULTISELECT_ENABLED)
+        .enableFeature((window as any).google.picker.Feature.MULTISELECT_ENABLED)
         .setMaxItems(50)
         .setCallback((data: PickerData) => {
           if (data.action === 'picked' && data.docs) {

@@ -662,7 +662,7 @@ export function SettingsPillar() {
                     const defaultVal = THEME_DEFAULTS[field];
                     const label = PIVOT_LABELS[field];
                     const desc = PIVOT_DESCRIPTIONS[field];
-                    const currentVal = (local as Record<string, string>)[field] || defaultVal;
+                    const currentVal = (local as unknown as unknown as Record<string, string>)[field] || defaultVal;
                     const isModified = currentVal !== defaultVal;
 
                     return (
@@ -765,7 +765,7 @@ export function SettingsPillar() {
                     const defaultVal = THEME_DEFAULTS[field];
                     const label = EXCEPTION_LABELS[field];
                     const desc = EXCEPTION_DESCRIPTIONS[field];
-                    const currentVal = (local as Record<string, string>)[field] || defaultVal;
+                    const currentVal = (local as unknown as unknown as Record<string, string>)[field] || defaultVal;
                     const isModified = currentVal !== defaultVal;
 
                     return (

@@ -39,7 +39,6 @@ export function ColorCircle({
         width: size,
         height: size,
         backgroundColor: hex,
-        ringColor: selected ? '#2D2D2D' : undefined,
         // For very light colors, add a subtle border
         ...(isLightColor(hex) ? { border: '1px solid rgba(0,0,0,0.12)' } : {}),
       }}
